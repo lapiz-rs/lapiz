@@ -65,7 +65,6 @@ pub enum MainViewMessage {
     TriggerAction(ActionId),
     ActionMessage(ActionId, Box<dyn Any + Send + Sync>),
     ToolFunctionMessage(ErasedToolFunctionMessage),
-    DragWindow(window::Id),
     MinimizeWindow(window::Id),
     MaximizeWindow(window::Id),
     CloseWindow(window::Id),
@@ -309,6 +308,7 @@ impl WindowView for MainView {
             return Some(dock);
         }
 
+        let window_decorations = &self.dock_manager.main_window().window_decorations;
         let title_content = Flex::row([
             Label::new("LAPIZ").size(13).strong().into(),
             Element::new(
@@ -316,6 +316,7 @@ impl WindowView for MainView {
                     .height(Length::Fill),
             )
             .map(MainViewMessage::MenuBar),
+            window_decorations.caption_region(),
         ])
         .width(Length::Fill)
         .height(Length::Fill)
@@ -323,7 +324,6 @@ impl WindowView for MainView {
         .padding([0, 10]);
 
         let title = TitleBar::new(title_content)
-            .on_drag(MainViewMessage::DragWindow(window))
             .on_minimize(MainViewMessage::MinimizeWindow(window))
             .on_maximize(MainViewMessage::MaximizeWindow(window))
             .on_close(MainViewMessage::CloseWindow(window));
@@ -541,7 +541,6 @@ impl WindowView for MainView {
                 })
                 .unwrap_or_else(Task::none)
                 .map(MainViewMessage::ToolFunctionMessage),
-            MainViewMessage::DragWindow(id) => window::drag(id),
             MainViewMessage::MinimizeWindow(id) => window::minimize(id, true),
             MainViewMessage::MaximizeWindow(id) => window::toggle_maximize(id),
             MainViewMessage::CloseWindow(id) => window::close(id),

@@ -11,7 +11,6 @@ pub type Style = container::Style;
 
 pub struct TitleBar<'a, Message> {
     content: Element<'a, Message, Theme, Renderer>,
-    drag: Callback<'a, Message>,
     minimize: Callback<'a, Message>,
     maximize: Callback<'a, Message>,
     close: Callback<'a, Message>,
@@ -22,7 +21,6 @@ impl<'a, Message> TitleBar<'a, Message> {
     pub fn new(content: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
         Self {
             content: content.into(),
-            drag: Callback::Empty,
             minimize: Callback::Empty,
             maximize: Callback::Empty,
             close: Callback::Empty,
@@ -30,7 +28,6 @@ impl<'a, Message> TitleBar<'a, Message> {
         }
     }
 
-    crate::callback_methods!(drag);
     crate::callback_methods!(minimize);
     crate::callback_methods!(maximize);
     crate::callback_methods!(close);
@@ -83,7 +80,6 @@ impl<'a, Message: 'a> From<TitleBar<'a, Message>> for Element<'a, Message, Theme
             .width(Length::Fill)
             .height(32)
             .class(value.class)
-            .on_press_with_callback(value.drag)
             .into()
     }
 }
