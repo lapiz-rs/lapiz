@@ -98,7 +98,7 @@ impl MainView {
             items: &[MenuBarItem],
             collection: &ActionCollection,
         ) -> Menu<MenuBarMessage> {
-            let mut menu = Menu::new().width(236.0);
+            let mut menu = Menu::new().min_width(236.0);
             for item in items {
                 menu = match item {
                     MenuBarItem::Separator => menu.separator(),
@@ -134,7 +134,7 @@ impl MainView {
         {
             *submenu = Theme::ALL
                 .iter()
-                .fold(Menu::new().width(220.0), |menu, theme| {
+                .fold(Menu::new().min_width(220.0), |menu, theme| {
                     let message = MenuBarMessage::SetTheme(theme.clone());
                     if theme == current_theme {
                         menu.selected_item(theme.to_string(), message)

@@ -38,19 +38,45 @@ impl<Message> Item<Message> {
             Item::Separator => SEPARATOR_HEIGHT,
         }
     }
+
+    fn width(&self) -> f32 {
+        match self {
+            Item::Separator => 0.0,
+            Item::Action {
+                label, shortcut, ..
+            } => {
+                ITEM_PADDING_X * 2.0
+                    + ICON_SLOT
+                    + text_width(label, LABEL_SIZE)
+                    + shortcut
+                        .as_ref()
+                        .map_or(0.0, |s| text_width(s, SHORTCUT_SIZE) + ITEM_PADDING_X)
+            }
+            Item::Submenu { label, .. } => {
+                ITEM_PADDING_X * 2.0 + ICON_SLOT + text_width(label, LABEL_SIZE) + 14.0
+            }
+        }
+    }
 }
 
 pub struct Menu<Message> {
     items: Vec<Item<Message>>,
-    width: f32,
+    min_width: f32,
 }
 
 impl<Message> Menu<Message> {
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
-            width: 180.0,
+            min_width: 0.0,
         }
+    }
+
+    fn content_width(&self) -> f32 {
+        self.items
+            .iter()
+            .map(Item::width)
+            .fold(self.min_width, f32::max)
     }
 
     fn action(
@@ -103,8 +129,8 @@ impl<Message> Menu<Message> {
         self
     }
 
-    pub fn width(mut self, width: f32) -> Self {
-        self.width = width;
+    pub fn min_width(mut self, min_width: f32) -> Self {
+        self.min_width = min_width;
         self
     }
 
@@ -175,6 +201,21 @@ pub struct MenuBarState {
     label_widths: Vec<f32>,
 }
 
+fn text_width(content: &str, size: f32) -> f32 {
+    let paragraph = <Renderer as text::Renderer>::Paragraph::with_text(text::Text {
+        content,
+        font: Font::DEFAULT,
+        size: size.into(),
+        line_height: text::LineHeight::default(),
+        bounds: Size::new(f32::MAX, f32::MAX),
+        align_x: text::Alignment::Left,
+        align_y: alignment::Vertical::Top,
+        shaping: text::Shaping::Basic,
+        wrapping: text::Wrapping::None,
+    });
+    paragraph.min_bounds().width
+}
+
 fn text_spec(content: String, size: f32) -> text::Text<String, Font> {
     text::Text {
         content,
@@ -209,21 +250,7 @@ where
             state.label_widths = state
                 .labels
                 .iter()
-                .map(|label| {
-                    let paragraph =
-                        <Renderer as text::Renderer>::Paragraph::with_text(text::Text {
-                            content: label.as_str(),
-                            font: Font::DEFAULT,
-                            size: LABEL_SIZE.into(),
-                            line_height: text::LineHeight::default(),
-                            bounds: Size::new(f32::MAX, f32::MAX),
-                            align_x: text::Alignment::Left,
-                            align_y: alignment::Vertical::Top,
-                            shaping: text::Shaping::Basic,
-                            wrapping: text::Wrapping::None,
-                        });
-                    paragraph.min_bounds().width
-                })
+                .map(|label| text_width(label, LABEL_SIZE))
                 .collect();
         }
     }
@@ -437,17 +464,16 @@ impl<'a, Message> MenuOverlay<'a, Message> {
         let mut anchor = Point::new(self.origin.x, self.origin.y + self.root_height + 1.0);
         let mut level = 0;
         while let Some(menu) = self.menu_at(&self.open[..level + 1]) {
+            let width = menu.content_width();
             let height = PANEL_PADDING * 2.0 + menu.items.iter().map(Item::height).sum::<f32>();
             let bounds = Rectangle::new(
                 Point::new(
-                    anchor
-                        .x
-                        .min((viewport.x + viewport.width - menu.width).max(0.0)),
+                    anchor.x.min((viewport.x + viewport.width - width).max(0.0)),
                     anchor
                         .y
                         .min((viewport.y + viewport.height - height).max(0.0)),
                 ),
-                Size::new(menu.width, height),
+                Size::new(width, height),
             );
 
             let mut rows = Vec::new();
@@ -470,7 +496,7 @@ impl<'a, Message> MenuOverlay<'a, Message> {
                 Some(row) => {
                     let submenu_width = self
                         .menu_at(&self.open[..level + 2])
-                        .map(|menu| menu.width)
+                        .map(Menu::content_width)
                         .unwrap_or(0.0);
                     anchor = Point::new(
                         if bounds.x + bounds.width + 1.0 + submenu_width

@@ -338,7 +338,7 @@ impl Gallery {
             .item("concept-01.lapiz", Message::Noop)
             .item("character-study.lapiz", Message::Noop)
             .item("untitled-4.lapiz", Message::Noop)
-            .width(220.0);
+            .min_width(220.0);
         let file_menu = Menu::new()
             .item_shortcut("New", "Ctrl+N", Message::Noop)
             .item_shortcut("Open", "Ctrl+O", Message::Noop)
@@ -346,7 +346,7 @@ impl Gallery {
             .separator()
             .item_shortcut("Save", "Ctrl+S", Message::Noop)
             .item_shortcut("Export", "Ctrl+Shift+S", Message::Noop)
-            .width(220.0);
+            .min_width(220.0);
         let edit_menu = Menu::new()
             .item_shortcut("Undo", "Ctrl+Z", Message::Noop)
             .item_shortcut("Redo", "Ctrl+Shift+Z", Message::Noop)
@@ -354,36 +354,36 @@ impl Gallery {
             .item_shortcut("Cut", "Ctrl+X", Message::Noop)
             .item_shortcut("Copy", "Ctrl+C", Message::Noop)
             .item_shortcut("Paste", "Ctrl+V", Message::Noop)
-            .width(220.0);
+            .min_width(220.0);
         let view_menu = Menu::new()
             .item_shortcut("Zoom In", "Ctrl++", Message::Noop)
             .item_shortcut("Zoom Out", "Ctrl+-", Message::Noop)
             .item_shortcut("Fit Canvas", "1", Message::Noop)
             .separator()
             .item_shortcut("Mirror Canvas", "M", Message::Noop)
-            .width(220.0);
+            .min_width(220.0);
         let layer_menu = Menu::new()
             .item_shortcut("New Layer", "Insert", Message::Noop)
             .item_shortcut("Duplicate Layer", "Ctrl+J", Message::Noop)
             .separator()
             .item_shortcut("Merge Down", "Ctrl+E", Message::Noop)
             .item_shortcut("Delete Layer", "Del", Message::Noop)
-            .width(220.0);
+            .min_width(220.0);
         let select_menu = Menu::new()
             .item_shortcut("Select All", "Ctrl+A", Message::Noop)
             .item_shortcut("Deselect", "Ctrl+Shift+A", Message::Noop)
             .item_shortcut("Invert Selection", "Ctrl+I", Message::Noop)
-            .width(220.0);
+            .min_width(220.0);
         let filter_menu = Menu::new()
             .item("Gaussian Blur", Message::Noop)
             .item("Sharpen", Message::Noop)
             .item_shortcut("Color Balance", "Ctrl+B", Message::Noop)
-            .width(220.0);
+            .min_width(220.0);
         let theme_menu =
             Theme::ALL
                 .iter()
                 .cloned()
-                .fold(Menu::new().width(220.0), |menu, theme| {
+                .fold(Menu::new().min_width(220.0), |menu, theme| {
                     if theme == self.theme {
                         menu.selected_item(theme.to_string(), Message::ThemeSelected(theme))
                     } else {
@@ -396,12 +396,12 @@ impl Gallery {
             .item_shortcut("Brush Editor", "F5", Message::Noop)
             .separator()
             .submenu("Theme", theme_menu)
-            .width(220.0);
+            .min_width(220.0);
         let help_menu = Menu::new()
             .item_shortcut("Keyboard Shortcuts", "F1", Message::Noop)
             .separator()
             .item("About Lapiz", Message::Noop)
-            .width(220.0);
+            .min_width(220.0);
         let menu_bar = MenuBar::new()
             .menu("File", file_menu)
             .menu("Edit", edit_menu)
