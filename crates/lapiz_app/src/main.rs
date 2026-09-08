@@ -4,6 +4,7 @@ use crate::main_view::MainView;
 
 mod dock;
 mod main_view;
+lapiz_i18n::define_i18n!("app");
 
 use lapiz_abr_bridge::AbrAssetBundle;
 use lapiz_actions::ActionPlugin;
@@ -30,6 +31,8 @@ fn main() {
     tracing_subscriber::fmt()
         .with_env_filter("info,wgpu_hal=warn,iced_winit=warn,iced_wgpu=warn")
         .init();
+
+    i18n::init();
 
     log::info!("Running at {}", std::env::current_dir().unwrap().display());
 
@@ -110,6 +113,8 @@ fn main() {
         rt.window_manager_mut().register_view::<FilterPanel>();
         rt.window_manager_mut().register_view::<FilterEditor>();
     }
+
+    lapiz_i18n::init();
 
     app.run().unwrap();
 }

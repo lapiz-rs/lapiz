@@ -14,6 +14,7 @@ members = [
     "crates/lapiz_color_selector",
     "crates/lapiz_dock",
     "crates/lapiz_filter",
+    "crates/lapiz_i18n",
     "crates/lapiz_image",
     "crates/lapiz_input",
     "crates/lapiz_lazuli",
@@ -63,6 +64,7 @@ lapiz_color = { version = "0.1.0", path = "crates/lapiz_color" }
 lapiz_color_selector = { version = "0.1.0", path = "crates/lapiz_color_selector" }
 lapiz_dock = { version = "0.1.0", path = "crates/lapiz_dock" }
 lapiz_filter = { version = "0.1.0", path = "crates/lapiz_filter" }
+lapiz_i18n = { version = "0.1.0", path = "crates/lapiz_i18n" }
 lapiz_image = { version = "0.1.0", path = "crates/lapiz_image" }
 lapiz_input = { version = "0.1.0", path = "crates/lapiz_input" }
 lapiz_lazuli = { version = "0.1.0", path = "crates/lapiz_lazuli" }
@@ -100,10 +102,13 @@ dyn-clone = "1"
 encase = "0.12"
 env_logger = "0.11"
 flate2 = "1"
+fluent-bundle = "0.16"
+fluent-syntax = "0.12"
 fs_extra = "1"
 futures = "0.3"
 glam = { version = "0.30", features = ["encase", "serde", "bytemuck"] }
 half = "2"
+i18n-embed = { version = "0.16", features = ["fluent-system", "desktop-requester"] }
 iced = { version = "0.14", default-features = false, features = [
     "wgpu",
     "crisp",
@@ -147,6 +152,7 @@ rmp = "0.8"
 rmp-serde = "1"
 ringbuffer = "0.16"
 rusqlite = { version = "0.40", features = ["bundled-full"] }
+rust-embed = "8"
 rustc-hash = "1"
 schemars = { version = "1", features = ["uuid1"] }
 serde = { version = "1", features = ["derive", "rc"] }
@@ -158,6 +164,7 @@ syn = "2"
 thiserror = "2"
 toml = "1"
 tracing = "0.1"
+unic-langid = "0.9"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "v5", "serde"] }
 variadics_please = "2"

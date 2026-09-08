@@ -1,5 +1,5 @@
 [[categories]]
-title = "menu_files"
+title = "menu_file"
 items = [
     "open_file_action",
     "Separator",
@@ -47,7 +47,10 @@ items = [
     "open_brush_editor_action",
     "toggle_filter_panel_action",
     "Separator",
-    { title = "Theme", items = [
+    { title = "menu_theme_submenu", items = [
+        # Injected in runtime
+    ] },
+    { title = "menu_language_submenu", items = [
         # Injected in runtime
     ] }
 ]

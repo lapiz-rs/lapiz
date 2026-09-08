@@ -21,6 +21,7 @@ lapiz_color_selector.workspace = true
 lapiz_canvas.workspace = true
 lapiz_dock.workspace = true
 lapiz_filter.workspace = true
+lapiz_i18n.workspace = true
 lapiz_image.workspace = true
 lapiz_input.workspace = true
 lapiz_render.workspace = true
@@ -33,6 +34,7 @@ lapiz_undo.workspace = true
 lapiz_utils.workspace = true
 lapiz_widgets.workspace = true
 futures.workspace = true
+i18n-embed.workspace = true
 iced.workspace = true
 iced_core.workspace = true
 iced_futures.workspace = true
@@ -42,8 +44,10 @@ iced_widget.workspace = true
 moxcms.workspace = true
 log.workspace = true
 parking_lot.workspace = true
+rust-embed.workspace = true
 toml.workspace = true
 tracing-subscriber.workspace = true
+unic-langid.workspace = true
 wgpu.workspace = true
 
 [build-dependencies]

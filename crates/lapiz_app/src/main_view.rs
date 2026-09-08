@@ -41,6 +41,9 @@ use lapiz_widgets::{
     title_bar::TitleBar,
 };
 use moxcms::ProfileText;
+use unic_langid::LanguageIdentifier;
+
+use lapiz_i18n::t;
 
 use crate::dock::{
     BRUSH_PRESETS_DOCK_ID, BrushPresetDock, COLOR_SELECTOR_DOCK_ID, CanvasDock, ColorSelectorDock,
@@ -75,6 +78,7 @@ pub enum MainViewMessage {
 pub enum MenuBarMessage {
     TriggerAction(ActionId),
     SetTheme(Theme),
+    SetLanguage(LanguageIdentifier),
 }
 
 impl MainView {
@@ -103,16 +107,14 @@ impl MainView {
                     MenuBarItem::Item(action) => {
                         let message = MenuBarMessage::TriggerAction(action.clone());
                         match collection.shortcut_for(action) {
-                            Some(shortcut) => menu.item_shortcut(
-                                action.to_string(),
-                                &format!("{}", shortcut),
-                                message,
-                            ),
-                            None => menu.item(action.to_string(), message),
+                            Some(shortcut) => {
+                                menu.item_shortcut(t!(action), &format!("{}", shortcut), message)
+                            }
+                            None => menu.item(t!(action), message),
                         }
                     }
                     MenuBarItem::Submenu { title, items } => {
-                        menu.submenu(title.clone(), build_menu(items, collection))
+                        menu.submenu(t!(title), build_menu(items, collection))
                     }
                 };
             }
@@ -122,13 +124,15 @@ impl MainView {
         let mut menu_bar = MenuBar::new();
         for category in &self.menu_manifest.categories {
             menu_bar = menu_bar.menu(
-                category.title.clone(),
+                t!(&category.title),
                 build_menu(&category.items, &self.action_collection),
             );
         }
 
-        if let Some(window) = menu_bar.get_menu_mut("Window")
-            && let Some(Item::Submenu { submenu, .. }) = window.get_item_mut("Theme")
+        let window_title = t!("menu_window");
+        if let Some(window) = menu_bar.get_menu_mut(&window_title)
+            && let Some(Item::Submenu { submenu, .. }) =
+                window.get_item_mut(&t!("menu_theme_submenu"))
         {
             *submenu = Theme::ALL
                 .iter()
@@ -140,6 +144,26 @@ impl MainView {
                         menu.item(theme.to_string(), message)
                     }
                 });
+        }
+
+        if let Some(window) = menu_bar.get_menu_mut(&window_title)
+            && let Some(Item::Submenu { submenu, .. }) =
+                window.get_item_mut(&t!("menu_language_submenu"))
+        {
+            *submenu = lapiz_i18n::AVAILABLE.iter().fold(
+                Menu::new().min_width(220.0),
+                |menu, (id, name)| {
+                    let Ok(langid) = id.parse::<LanguageIdentifier>() else {
+                        return menu;
+                    };
+                    let message = MenuBarMessage::SetLanguage(langid.clone());
+                    if langid == lapiz_i18n::current_language() {
+                        menu.selected_item(*name, message)
+                    } else {
+                        menu.item(*name, message)
+                    }
+                },
+            );
         }
 
         menu_bar
@@ -546,6 +570,10 @@ impl WindowView for MainView {
             MainViewMessage::CloseWindow(id) => window::close(id),
             MainViewMessage::MenuBar(MenuBarMessage::SetTheme(theme)) => {
                 services.service_mut::<ApplicationTheme>().0 = theme;
+                Task::none()
+            }
+            MainViewMessage::MenuBar(MenuBarMessage::SetLanguage(id)) => {
+                lapiz_i18n::set_language(&id);
                 Task::none()
             }
             MainViewMessage::MenuBar(MenuBarMessage::TriggerAction(action_id)) => {

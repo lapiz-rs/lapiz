@@ -1,0 +1,18 @@
+[package]
+name = "lapiz_i18n"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+fluent-bundle.workspace = true
+fluent-syntax.workspace = true
+i18n-embed.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+rust-embed.workspace = true
+unic-langid.workspace = true
