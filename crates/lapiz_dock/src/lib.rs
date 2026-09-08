@@ -482,12 +482,8 @@ impl DockManager {
 
         Some((
             window_id,
-            open_task.then(move |id| {
-                Task::batch([
-                    iced_runtime::window::drag::<()>(id).discard(),
-                    iced_runtime::window::raw_id::<()>(id).map(move |raw| (id, raw)),
-                ])
-            }),
+            open_task
+                .then(move |id| iced_runtime::window::raw_id::<()>(id).map(move |raw| (id, raw))),
         ))
     }
 
@@ -737,17 +733,25 @@ impl DockManager {
 
                 if id == self.main_window.id {
                     self.main_window.raw_id = Some(raw_id);
+                    Task::none()
                 } else if let Some(info) = self.detached.get_mut(&id) {
                     info.raw_id = Some(raw_id);
+                    lapiz_runtime::platform::disable_window_snap(raw_id);
 
                     let Some(main_raw_id) = self.main_window.raw_id else {
                         log::error!("Main window raw ID is not available. This should not happen.");
                         return Task::none();
                     };
                     lapiz_runtime::platform::set_window_parent(main_raw_id, raw_id);
-                }
 
-                Task::none()
+                    if info.dragging_cursor_relative.is_some() {
+                        iced_runtime::window::drag(id)
+                    } else {
+                        Task::none()
+                    }
+                } else {
+                    Task::none()
+                }
             }
             DockMessage::RedrawRequested => Task::none(),
         };
