@@ -36,6 +36,7 @@ use lapiz_color_selector::{
     },
 };
 use lapiz_dock::dock::{Dock, DockId};
+use lapiz_i18n::t;
 use lapiz_image::{
     composite::{BlendFunctionRegistry, ImageCompositor, LayerPreviewOverriders},
     layer::{
@@ -59,6 +60,7 @@ use lapiz_widgets::{
     label::Label,
     panel::Panel,
     scrollable::Scrollable,
+    tooltip::{Position, Tooltip},
 };
 use moxcms::ColorProfile;
 
@@ -201,7 +203,7 @@ impl Dock for ColorSelectorDock {
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into(),
-                Button::new(Label::new("Settings"))
+                Button::new(Label::new(t!("settings")))
                     .width(Length::Fill)
                     .on_press(ColorSelectorDockMessage::OpenSettings)
                     .into(),
@@ -862,7 +864,7 @@ impl Dock for ToolOptionsDock {
         };
 
         let Some(widget) = tool_proxy.tool_option_widget(services) else {
-            return Panel::new(Label::new("No options for this tool").muted())
+            return Panel::new(Label::new(t!("no_tool_options")).muted())
                 .padding(8)
                 .width(Length::Fill)
                 .height(Length::Fill)
@@ -951,7 +953,7 @@ impl Dock for ToolBoxDock {
                         }),
                     }
                 });
-            Button::new(glyph)
+            let button = Button::new(glyph)
                 .width(28)
                 .height(28)
                 .padding(8)
@@ -983,8 +985,8 @@ impl Dock for ToolBoxDock {
                         ..Default::default()
                     }
                 })
-                .on_press(ToolBoxDockMessage::Switch(tool.clone()))
-                .into()
+                .on_press(ToolBoxDockMessage::Switch(tool.clone()));
+            Tooltip::new(button, Label::new(t!(tool)), Position::Right).into()
         };
         let separator = || {
             Flex::row([Divider::horizontal(1).into()])

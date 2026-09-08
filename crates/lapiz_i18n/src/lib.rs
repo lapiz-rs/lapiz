@@ -209,8 +209,8 @@ mod tests {
     }
 
     #[test]
-    fn set_language_roundtrip() {
-        static ASSETS: LazyLock<MemoryAssets> = LazyLock::new(|| {
+    fn registry_selects_and_resolves_keys() {
+        static TEST_ASSETS: LazyLock<MemoryAssets> = LazyLock::new(|| {
             MemoryAssets::new([
                 ("en/test.ftl", "welcome = hello".as_bytes().to_vec()),
                 ("zh-CN/test.ftl", "welcome = 你好".as_bytes().to_vec()),
@@ -218,8 +218,14 @@ mod tests {
         });
         static TEST_LOADER: LazyLock<FluentLanguageLoader> =
             LazyLock::new(|| FluentLanguageLoader::new("test", "en".parse().unwrap()));
+        static LOOKUP_ASSETS: LazyLock<MemoryAssets> = LazyLock::new(|| {
+            MemoryAssets::new([("en/lookup_test.ftl", "greet = hi".as_bytes().to_vec())])
+        });
+        static LOOKUP_LOADER: LazyLock<FluentLanguageLoader> =
+            LazyLock::new(|| FluentLanguageLoader::new("lookup_test", "en".parse().unwrap()));
 
-        register(&TEST_LOADER, &*ASSETS);
+        register(&TEST_LOADER, &*TEST_ASSETS);
+        register(&LOOKUP_LOADER, &*LOOKUP_ASSETS);
 
         let zh_cn: LanguageIdentifier = "zh-CN".parse().unwrap();
         set_language(&zh_cn);
@@ -228,24 +234,9 @@ mod tests {
         let en: LanguageIdentifier = "en".parse().unwrap();
         set_language(&en);
         assert_eq!(current_language(), en);
-    }
 
-    #[test]
-    fn lookup_hits_registered_domains_and_falls_back() {
-        static ASSETS: LazyLock<MemoryAssets> = LazyLock::new(|| {
-            MemoryAssets::new([
-                ("en/lookup.ftl", "greet = hi".as_bytes().to_vec()),
-                // zh must exist too: current_language() reads the first registered
-                // loader, and test registration order is not deterministic.
-                ("zh-CN/lookup.ftl", "greet = 你好".as_bytes().to_vec()),
-            ])
-        });
-        static LOOKUP_LOADER: LazyLock<FluentLanguageLoader> =
-            LazyLock::new(|| FluentLanguageLoader::new("lookup_test", "en".parse().unwrap()));
-
-        register(&LOOKUP_LOADER, &*ASSETS);
-
-        assert!(matches!(t("greet", None).as_str(), "hi" | "你好"));
+        assert_eq!(t("welcome", None), "hello");
+        assert_eq!(t("greet", None), "hi");
         assert_eq!(t("no-such-key", None), "no-such-key");
     }
 }

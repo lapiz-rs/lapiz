@@ -7,6 +7,7 @@ use iced_core::{
     widget::{Tree, tree},
 };
 use iced_wgpu::Renderer;
+use lapiz_i18n::t;
 
 use crate::{
     dock::{DockId, TabEvent},
@@ -95,7 +96,7 @@ impl<'a, Message> TabRowWidget<'a, Message> {
             padding: 7.0,
             on_action: Box::new(on_action),
             title_drag_deadband: 0.0,
-            title_of: Box::new(|id| id.to_string()),
+            title_of: Box::new(|id| t!(id.as_ref())),
         }
     }
 

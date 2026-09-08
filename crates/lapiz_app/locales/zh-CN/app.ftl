@@ -23,3 +23,25 @@ open_brush_editor_action = 打开笔刷编辑器
 
 menu_theme_submenu = 主题
 menu_language_submenu = 语言
+pan_tool = 平移
+rotate_tool = 旋转
+zoom_tool = 缩放
+free_transform_tool = 自由变换
+brush_tool = 笔刷
+bucket_tool = 油漆桶
+
+rectangular_selection_tool = 矩形选区
+elliptical_selection_tool = 椭圆选区
+freehand_selection_tool = 手绘选区
+polygon_selection_tool = 多边形选区
+magic_wand_selection_tool = 魔棒选区
+perspective_transform_tool = 透视变换
+liquify_tool = 液化
+
+tool_box_dock = 工具箱
+tool_options_dock = 工具选项
+layer_dock = 图层
+color_selector_dock = 颜色
+brush_presets_dock = 笔刷预设
+settings = 设置
+no_tool_options = 此工具没有选项
