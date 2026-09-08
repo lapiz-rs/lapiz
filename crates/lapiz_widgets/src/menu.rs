@@ -216,10 +216,10 @@ fn text_width(content: &str, size: f32) -> f32 {
     paragraph.min_bounds().width
 }
 
-fn text_spec(content: String, size: f32) -> text::Text<String, Font> {
+fn text_spec(renderer: &Renderer, content: String, size: f32) -> text::Text<String, Font> {
     text::Text {
         content,
-        font: Font::DEFAULT,
+        font: renderer.default_font(),
         size: size.into(),
         line_height: text::LineHeight::default(),
         bounds: Size::new(f32::MAX, f32::MAX),
@@ -361,12 +361,14 @@ where
                     },
                 );
             }
-            let mut text = text_spec(state.labels[index].clone(), LABEL_SIZE);
-            text.bounds = bounds.size();
-            text.align_y = alignment::Vertical::Center;
-            text.align_x = text::Alignment::Center;
+
             renderer.fill_text(
-                text,
+                text::Text {
+                    bounds: bounds.size(),
+                    align_y: alignment::Vertical::Center,
+                    align_x: text::Alignment::Center,
+                    ..text_spec(&renderer, state.labels[index].clone(), LABEL_SIZE)
+                },
                 bounds.center(),
                 if open {
                     p.primary.base.text
@@ -760,22 +762,24 @@ fn draw_entry(
             panel_bounds,
         );
     }
-    let mut label_text = text_spec(label.to_owned(), LABEL_SIZE);
-    label_text.bounds = Size::new(row.width - ITEM_PADDING_X * 2.0 - ICON_SLOT, row.height);
-    label_text.align_y = alignment::Vertical::Center;
     renderer.fill_text(
-        label_text,
+        text::Text {
+            bounds: Size::new(row.width - ITEM_PADDING_X * 2.0 - ICON_SLOT, row.height),
+            align_y: alignment::Vertical::Center,
+            ..text_spec(&renderer, label.to_owned(), LABEL_SIZE)
+        },
         Point::new(row.x + ITEM_PADDING_X + ICON_SLOT, row.y + row.height / 2.0),
         text_color,
         panel_bounds,
     );
     if let Some(shortcut) = shortcut {
-        let mut shortcut_text = text_spec(shortcut.to_owned(), SHORTCUT_SIZE);
-        shortcut_text.bounds = Size::new(row.width - ITEM_PADDING_X * 2.0 - ICON_SLOT, row.height);
-        shortcut_text.align_x = text::Alignment::Right;
-        shortcut_text.align_y = alignment::Vertical::Center;
         renderer.fill_text(
-            shortcut_text,
+            text::Text {
+                bounds: Size::new(row.width - ITEM_PADDING_X * 2.0 - ICON_SLOT, row.height),
+                align_x: text::Alignment::Right,
+                align_y: alignment::Vertical::Center,
+                ..text_spec(&renderer, shortcut.to_owned(), SHORTCUT_SIZE)
+            },
             Point::new(row.x + row.width - ITEM_PADDING_X, row.y + row.height / 2.0),
             if hovered {
                 text_color
