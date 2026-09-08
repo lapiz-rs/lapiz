@@ -122,7 +122,8 @@ impl<Message> Default for Menu<Message> {
 }
 
 pub struct MenuBar<Message> {
-    roots: Vec<(String, Menu<Message>)>,
+    labels: Vec<String>,
+    menus: Vec<Menu<Message>>,
     width: Length,
     height: Length,
 }
@@ -130,14 +131,16 @@ pub struct MenuBar<Message> {
 impl<Message> MenuBar<Message> {
     pub fn new() -> Self {
         Self {
-            roots: Vec::new(),
+            labels: Vec::new(),
+            menus: Vec::new(),
             width: Length::Shrink,
             height: Length::Fixed(28.0),
         }
     }
 
     pub fn menu(mut self, label: impl Into<String>, menu: Menu<Message>) -> Self {
-        self.roots.push((label.into(), menu));
+        self.labels.push(label.into());
+        self.menus.push(menu);
         self
     }
 
@@ -152,21 +155,10 @@ impl<Message> MenuBar<Message> {
     }
 
     pub fn get_menu_mut(&mut self, category: &str) -> Option<&mut Menu<Message>> {
-        self.roots
-            .iter_mut()
-            .find(|(name, _)| name == category)
-            .map(|(_, menu)| menu)
-    }
-
-    fn menu_at(&self, path: &[usize]) -> Option<&Menu<Message>> {
-        let mut current = &self.roots.get(*path.first()?)?.1;
-        for &index in &path[1..] {
-            let Item::Submenu { submenu, .. } = current.items.get(index)? else {
-                return None;
-            };
-            current = submenu;
-        }
-        Some(current)
+        self.labels
+            .iter()
+            .position(|name| name == category)
+            .and_then(|index| self.menus.get_mut(index))
     }
 }
 
@@ -211,11 +203,7 @@ where
 
     fn diff(&self, tree: &mut Tree) {
         let state = tree.state.downcast_mut::<MenuBarState>();
-        let labels = self
-            .roots
-            .iter()
-            .map(|(label, _)| label.clone())
-            .collect::<Vec<_>>();
+        let labels = self.labels.clone();
         if state.labels != labels {
             state.labels = labels;
             state.label_widths = state
@@ -397,8 +385,8 @@ where
         let root_layout = layout.children().nth(*state.open.first()?)?;
         let bounds = root_layout.bounds();
         Some(overlay::Element::new(Box::new(MenuOverlay {
-            state,
-            menu_bar: self,
+            roots: &self.menus,
+            open: &mut state.open,
             origin: bounds.position() + translation,
             root_height: bounds.height,
             viewport: *viewport,
@@ -420,19 +408,27 @@ struct Panel {
 }
 
 struct MenuOverlay<'a, Message> {
-    state: &'a mut MenuBarState,
-    menu_bar: &'a MenuBar<Message>,
+    roots: &'a [Menu<Message>],
+    open: &'a mut Vec<usize>,
     origin: Point,
     root_height: f32,
     viewport: Rectangle,
 }
 
 impl<'a, Message> MenuOverlay<'a, Message> {
+    fn menu_at(&self, path: &[usize]) -> Option<&Menu<Message>> {
+        let mut current = self.roots.get(*path.first()?)?;
+        for &index in &path[1..] {
+            let Item::Submenu { submenu, .. } = current.items.get(index)? else {
+                return None;
+            };
+            current = submenu;
+        }
+        Some(current)
+    }
+
     fn resolve_item(&self, level: usize, index: usize) -> Option<&Item<Message>> {
-        self.menu_bar
-            .menu_at(&self.state.open[..level + 1])?
-            .items
-            .get(index)
+        self.menu_at(&self.open[..level + 1])?.items.get(index)
     }
 
     fn panels(&self) -> Vec<Panel> {
@@ -440,7 +436,7 @@ impl<'a, Message> MenuOverlay<'a, Message> {
         let mut panels = Vec::new();
         let mut anchor = Point::new(self.origin.x, self.origin.y + self.root_height + 1.0);
         let mut level = 0;
-        while let Some(menu) = self.menu_bar.menu_at(&self.state.open[..level + 1]) {
+        while let Some(menu) = self.menu_at(&self.open[..level + 1]) {
             let height = PANEL_PADDING * 2.0 + menu.items.iter().map(Item::height).sum::<f32>();
             let bounds = Rectangle::new(
                 Point::new(
@@ -466,7 +462,6 @@ impl<'a, Message> MenuOverlay<'a, Message> {
             }
 
             let next = self
-                .state
                 .open
                 .get(level + 1)
                 .and_then(|&index| rows.get(index).copied());
@@ -474,8 +469,7 @@ impl<'a, Message> MenuOverlay<'a, Message> {
             match next {
                 Some(row) => {
                     let submenu_width = self
-                        .menu_bar
-                        .menu_at(&self.state.open[..level + 2])
+                        .menu_at(&self.open[..level + 2])
                         .map(|menu| menu.width)
                         .unwrap_or(0.0);
                     anchor = Point::new(
@@ -535,17 +529,15 @@ where
                     let opens_submenu =
                         matches!(self.resolve_item(level, index), Some(Item::Submenu { .. }));
                     let changed = if opens_submenu {
-                        if self.state.open.get(level + 1) != Some(&index)
-                            || self.state.open.len() > level + 2
-                        {
-                            self.state.open.truncate(level + 1);
-                            self.state.open.push(index);
+                        if self.open.get(level + 1) != Some(&index) || self.open.len() > level + 2 {
+                            self.open.truncate(level + 1);
+                            self.open.push(index);
                             true
                         } else {
                             false
                         }
-                    } else if self.state.open.len() > level + 1 {
-                        self.state.open.truncate(level + 1);
+                    } else if self.open.len() > level + 1 {
+                        self.open.truncate(level + 1);
                         true
                     } else {
                         false
@@ -566,11 +558,11 @@ where
                         if let Some(Item::Action { message, .. }) = self.resolve_item(level, index)
                         {
                             shell.publish(message.clone());
-                            self.state.open.clear();
+                            self.open.clear();
                         }
                     }
                     None => {
-                        self.state.open.clear();
+                        self.open.clear();
                     }
                 }
                 shell.capture_event();
@@ -581,7 +573,7 @@ where
                 key: keyboard::Key::Named(keyboard::key::Named::Escape),
                 ..
             }) => {
-                self.state.open.clear();
+                self.open.clear();
                 shell.capture_event();
                 shell.invalidate_layout();
                 shell.request_redraw();
@@ -605,12 +597,11 @@ where
             .and_then(|position| Self::hit_test(&panels, position));
         for (level, panel) in panels.iter().enumerate() {
             let menu = self
-                .menu_bar
-                .menu_at(&self.state.open[..level + 1])
+                .menu_at(&self.open[..level + 1])
                 .expect("open path resolves during layout");
             {
                 let hovered = hit.filter(|(l, _)| *l == level).map(|(_, index)| index);
-                let opened_submenu = self.state.open.get(level + 1).copied();
+                let opened_submenu = self.open.get(level + 1).copied();
                 renderer.fill_quad(
                     renderer::Quad {
                         bounds: panel.bounds,
@@ -816,14 +807,14 @@ where
 
 pub struct ContextMenu<'a, Message> {
     underlay: Element<'a, Message, Theme, Renderer>,
-    menu_bar: MenuBar<Message>,
+    menu: Menu<Message>,
 }
 
 #[derive(Default)]
 struct ContextMenuState {
     show: bool,
     cursor_position: Point,
-    bar: MenuBarState,
+    open: Vec<usize>,
 }
 
 impl<'a, Message> ContextMenu<'a, Message> {
@@ -833,7 +824,7 @@ impl<'a, Message> ContextMenu<'a, Message> {
     ) -> Self {
         Self {
             underlay: underlay.into(),
-            menu_bar: MenuBar::new().menu(String::new(), menu),
+            menu,
         }
     }
 }
@@ -885,13 +876,13 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
             && cursor.is_over(layout.bounds())
         {
             let state = tree.state.downcast_mut::<ContextMenuState>();
-            if !state.show || state.bar.open.is_empty() {
+            if !state.show || state.open.is_empty() {
                 state.show = true;
-                state.bar.open = vec![0];
+                state.open = vec![0];
                 state.cursor_position = cursor.position().unwrap_or_default();
             } else {
                 state.show = false;
-                state.bar.open.clear();
+                state.open.clear();
             }
             shell.capture_event();
             shell.invalidate_layout();
@@ -957,7 +948,7 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
         translation: Vector,
     ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
         let state = tree.state.downcast_mut::<ContextMenuState>();
-        if !state.show || state.bar.open.is_empty() {
+        if !state.show || state.open.is_empty() {
             return self.underlay.as_widget_mut().overlay(
                 &mut tree.children[0],
                 layout,
@@ -969,8 +960,8 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
 
         let origin = state.cursor_position;
         Some(overlay::Element::new(Box::new(MenuOverlay {
-            state: &mut state.bar,
-            menu_bar: &self.menu_bar,
+            roots: std::slice::from_ref(&self.menu),
+            open: &mut state.open,
             origin: origin + translation,
             root_height: 0.0,
             viewport: *viewport,
