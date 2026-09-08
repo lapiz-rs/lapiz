@@ -1,4 +1,3 @@
-use iced_aw::ContextMenu;
 use iced_core::{
     Alignment, Element, Font, Layout, Length, Point, Rectangle, Size,
     font::Weight,
@@ -24,6 +23,7 @@ use lapiz_widgets::{
     button::Button,
     checkbox::Checkbox,
     combo_box::selection as pick_list,
+    context_menu::ContextMenu,
     drag_drop_column::{DragDropColumn, DragDropInfo},
     icon,
     label::Label,

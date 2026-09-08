@@ -5,6 +5,7 @@ pub mod checkbox;
 pub mod collapsible;
 pub mod color;
 pub mod combo_box;
+pub mod context_menu;
 pub mod curve_edit;
 pub mod divider;
 pub mod drag_drop_column;

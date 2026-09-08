@@ -26,7 +26,6 @@ encase.workspace = true
 glam.workspace = true
 parse-display.workspace = true
 tracing.workspace = true
-iced_aw.workspace = true
 iced_core.workspace = true
 iced_graphics.workspace = true
 iced_wgpu.workspace = true

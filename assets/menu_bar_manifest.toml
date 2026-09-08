@@ -1,3 +1,4 @@
+# TODO use snake case for action ids
 [[categories]]
 title = "File"
 items = [

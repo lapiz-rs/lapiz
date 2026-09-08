@@ -26,7 +26,6 @@ lapiz_widgets.workspace = true
 encase.workspace = true
 glam.workspace = true
 iced_core.workspace = true
-iced_aw.workspace = true
 iced_runtime.workspace = true
 iced_wgpu.workspace = true
 iced_widget.workspace = true
