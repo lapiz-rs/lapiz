@@ -3,75 +3,75 @@
   "actions": [
     {
       "shortcut": "ctrl-o",
-      "action_name": "OpenFileAction",
+      "action_name": "open_file_action",
       "context": "main_view"
     },
     {
       "shortcut": "f5",
-      "action_name": "OpenBrushEditorAction"
+      "action_name": "open_brush_editor_action"
     },
     {
       "shortcut": "ctrl-shift-f",
-      "action_name": "ToggleFilterPanelAction"
+      "action_name": "toggle_filter_panel_action"
     },
     {
       "shortcut": "ctrl-shift-n",
-      "action_name": "CreateNewLayerAction",
+      "action_name": "create_new_layer_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-g",
-      "action_name": "GroupSelectedLayersAction",
+      "action_name": "group_selected_layers_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-shift-up",
-      "action_name": "MoveLayerUpAction",
+      "action_name": "move_layer_up_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-shift-down",
-      "action_name": "MoveLayerDownAction",
+      "action_name": "move_layer_down_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-delete",
-      "action_name": "DeleteSelectedLayersAction",
+      "action_name": "delete_selected_layers_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-z",
-      "action_name": "UndoAction",
+      "action_name": "undo_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-shift-z",
-      "action_name": "RedoAction",
+      "action_name": "redo_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-d",
-      "action_name": "DeleteSelectionAction",
+      "action_name": "delete_selection_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-down",
-      "action_name": "SelectNextLayerAction",
+      "action_name": "select_next_layer_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-up",
-      "action_name": "SelectPreviousLayerAction",
+      "action_name": "select_previous_layer_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-v",
-      "action_name": "PasteIntoNewLayerAction",
+      "action_name": "paste_into_new_layer_action",
       "context": "main_view"
     },
     {
       "shortcut": "ctrl-s",
-      "action_name": "SaveFileAction",
+      "action_name": "save_file_action",
       "context": "main_view"
     }
   ]

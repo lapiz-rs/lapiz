@@ -14,7 +14,7 @@ impl ActionFunction for DeleteSelectionAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("DeleteSelectionAction".into())
+        ActionId::new("delete_selection_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {

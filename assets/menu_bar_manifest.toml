@@ -1,52 +1,51 @@
-# TODO use snake case for action ids
 [[categories]]
-title = "File"
+title = "menu_files"
 items = [
-    "OpenFileAction",
+    "open_file_action",
     "Separator",
-    "SaveFileAction",
+    "save_file_action",
 ]
 
 [[categories]]
-title = "Edit"
+title = "menu_edit"
 items = [
-    "UndoAction",
-    "RedoAction",
+    "undo_action",
+    "redo_action",
     "Separator",
-    "PasteIntoNewLayerAction",
+    "paste_into_new_layer_action",
 ]
 
 [[categories]]
-title = "Layer"
+title = "menu_layer"
 items = [
-    "CreateNewLayerAction",
-    "GroupSelectedLayersAction",
+    "create_new_layer_action",
+    "group_selected_layers_action",
     "Separator",
-    "MoveLayerUpAction",
-    "MoveLayerDownAction",
-    "DeleteSelectedLayersAction",
+    "move_layer_up_action",
+    "move_layer_down_action",
+    "delete_selected_layers_action",
 ]
 
 [[categories]]
-title = "Select"
+title = "menu_select"
 items = [
-    "SelectPreviousLayerAction",
-    "SelectNextLayerAction",
+    "select_previous_layer_action",
+    "select_next_layer_action",
     "Separator",
-    "DeleteSelectionAction",
+    "delete_selection_action",
 ]
 
 [[categories]]
-title = "Filter"
+title = "menu_filter"
 items = [
-    "ToggleFilterPanelAction",
+    "toggle_filter_panel_action",
 ]
 
 [[categories]]
-title = "Window"
+title = "menu_window"
 items = [
-    "OpenBrushEditorAction",
-    "ToggleFilterPanelAction",
+    "open_brush_editor_action",
+    "toggle_filter_panel_action",
     "Separator",
     { title = "Theme", items = [
         # Injected in runtime

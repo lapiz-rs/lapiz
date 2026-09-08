@@ -27,7 +27,7 @@ impl ActionFunction for OpenFileAction {
     type Message = OpenFileMessage;
 
     fn id(&self) -> ActionId {
-        ActionId::new("OpenFileAction".into())
+        ActionId::new("open_file_action".into())
     }
 
     fn trigger(&self, _services: &mut Services) -> Task<Self::Message> {
@@ -98,7 +98,7 @@ impl ActionFunction for SaveFileAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("SaveFileAction".into())
+        ActionId::new("save_file_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {

@@ -26,7 +26,7 @@ impl ActionFunction for CreateNewLayerAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("CreateNewLayerAction".into())
+        ActionId::new("create_new_layer_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
@@ -81,7 +81,7 @@ impl ActionFunction for GroupSelectedLayersAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("GroupSelectedLayersAction".into())
+        ActionId::new("group_selected_layers_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
@@ -150,7 +150,7 @@ impl ActionFunction for MoveLayerUpAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("MoveLayerUpAction".into())
+        ActionId::new("move_layer_up_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
@@ -216,7 +216,7 @@ impl ActionFunction for MoveLayerDownAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("MoveLayerDownAction".into())
+        ActionId::new("move_layer_down_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
@@ -282,7 +282,7 @@ impl ActionFunction for DeleteSelectedLayersAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("DeleteSelectedLayersAction".into())
+        ActionId::new("delete_selected_layers_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
@@ -316,7 +316,7 @@ impl ActionFunction for SelectPreviousLayerAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("SelectPreviousLayerAction".into())
+        ActionId::new("select_previous_layer_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
@@ -351,7 +351,7 @@ impl ActionFunction for SelectNextLayerAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("SelectNextLayerAction".into())
+        ActionId::new("select_next_layer_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {

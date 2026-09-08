@@ -19,7 +19,7 @@ impl ActionFunction for UndoAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("UndoAction".into())
+        ActionId::new("undo_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
@@ -42,7 +42,7 @@ impl ActionFunction for RedoAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("RedoAction".into())
+        ActionId::new("redo_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
@@ -69,7 +69,7 @@ impl ActionFunction for PasteIntoNewLayerAction {
     type Message = PasteMessage;
 
     fn id(&self) -> ActionId {
-        ActionId::new("PasteIntoNewLayerAction".into())
+        ActionId::new("paste_into_new_layer_action".into())
     }
 
     fn trigger(&self, _services: &mut Services) -> Task<Self::Message> {

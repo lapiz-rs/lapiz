@@ -13,7 +13,7 @@ impl ActionFunction for OpenBrushEditorAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("OpenBrushEditorAction".into())
+        ActionId::new("open_brush_editor_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
@@ -33,7 +33,7 @@ impl ActionFunction for ToggleFilterPanelAction {
     type Message = ();
 
     fn id(&self) -> ActionId {
-        ActionId::new("ToggleFilterPanelAction".into())
+        ActionId::new("toggle_filter_panel_action".into())
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
