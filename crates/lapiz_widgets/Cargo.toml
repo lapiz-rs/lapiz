@@ -19,5 +19,13 @@ num-traits.workspace = true
 paste.workspace = true
 taffy.workspace = true
 
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
 [dev-dependencies]
 iced.workspace = true

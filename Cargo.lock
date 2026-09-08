@@ -3747,6 +3747,7 @@ dependencies = [
  "num-traits",
  "paste",
  "taffy",
+ "windows 0.62.2",
 ]
 
 [[package]]

@@ -22,7 +22,7 @@ use lapiz_canvas::{
 use lapiz_dock::group::DockGroupId;
 use lapiz_dock::{
     DockManager, DockMessage,
-    dock::{Dock, DockId, ResizeHandleOverlay},
+    dock::{Dock, DockId},
 };
 use lapiz_input::key::KeyboardState;
 use lapiz_runtime::{
@@ -69,7 +69,6 @@ pub enum MainViewMessage {
     MinimizeWindow(window::Id),
     MaximizeWindow(window::Id),
     CloseWindow(window::Id),
-    ResizeWindow(window::Id, window::Direction),
     MenuBar(MenuBarMessage),
 }
 
@@ -382,17 +381,7 @@ impl WindowView for MainView {
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into();
-        Some(
-            iced_widget::stack![
-                content,
-                Element::new(ResizeHandleOverlay::new(move |direction| {
-                    MainViewMessage::ResizeWindow(window, direction)
-                })),
-            ]
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into(),
-        )
+        Some(content)
     }
 
     fn update(
@@ -556,7 +545,6 @@ impl WindowView for MainView {
             MainViewMessage::MinimizeWindow(id) => window::minimize(id, true),
             MainViewMessage::MaximizeWindow(id) => window::toggle_maximize(id),
             MainViewMessage::CloseWindow(id) => window::close(id),
-            MainViewMessage::ResizeWindow(id, direction) => window::drag_resize(id, direction),
             MainViewMessage::MenuBar(MenuBarMessage::SetTheme(theme)) => {
                 services.service_mut::<ApplicationTheme>().0 = theme;
                 Task::none()

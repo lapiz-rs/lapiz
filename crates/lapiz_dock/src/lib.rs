@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use dock::{DockAction, DockId, FloatAction, TabEvent};
+use dock::{DockAction, DockId, TabEvent};
 use group::DockGroupData;
 use iced_core::{Element, Point, Size, Theme, Vector, window};
 use iced_futures::Subscription;
@@ -215,8 +215,8 @@ impl DockManager {
         //      when the cursor is moving too fast and it goes into inner widget, then the event is
         //      captured by that widget, and stuck.
         //      Also, the drop target window won't update and show indicator.
-        //      So although snapping will work if you uncomment the code below and remove the
-        //      returned `drag` action in FloatAction::StartWindowDrag, it may cause bad user experience.
+        //      So although snapping will work if you uncomment the code below and stop the native
+        //      window drag in `TabEvent::TitleBarDrag`, it may cause bad user experience.
 
         // let Some(cursor_pos) = self.screen_cursor_pos() else {
         //     return Task::none();
@@ -316,51 +316,31 @@ impl DockManager {
         Task::none()
     }
 
-    pub fn on_float_action(&mut self, id: window::Id, action: FloatAction) -> Task<DockMessage> {
+    pub fn on_float_action(&mut self, id: window::Id, tab_event: TabEvent) -> Task<DockMessage> {
         let Some(info) = self.detached.get_mut(&id) else {
             return Task::none();
         };
 
-        match action {
-            FloatAction::Tab(tab_event) => match tab_event {
-                TabEvent::Select(dock_id) => {
-                    info.group.set_active(dock_id);
+        match tab_event {
+            TabEvent::Select(dock_id) => {
+                info.group.set_active(dock_id);
+            }
+            TabEvent::Close(dock_id) => {
+                info.group.remove_dock(&dock_id);
+                if info.group.is_empty() {
+                    self.detached.remove(&id);
+                    return iced_runtime::window::close(id);
                 }
-                TabEvent::Close(dock_id) => {
-                    info.group.remove_dock(&dock_id);
-                    if info.group.is_empty() {
-                        self.detached.remove(&id);
-                        return iced_runtime::window::close(id);
-                    }
+            }
+            TabEvent::Reorder { from, to } => {
+                let dock_id = info.group.iter().nth(from);
+                if let Some(d) = dock_id {
+                    info.group.reorder(d.clone(), to);
                 }
-                TabEvent::Reorder { from, to } => {
-                    let dock_id = info.group.iter().nth(from);
-                    if let Some(d) = dock_id {
-                        info.group.reorder(d.clone(), to);
-                    }
-                }
-                TabEvent::Detach(dock_id) => {
-                    if info.group.len() == 1 {
-                        // Equivalent to dragging the window
-                        let Some(cursor_pos) = self.screen_cursor_pos() else {
-                            return Task::none();
-                        };
-
-                        let info = self.detached.get_mut(&id).unwrap();
-                        info.dragging_cursor_relative = Some(Vector::new(
-                            cursor_pos.x - info.position.x,
-                            cursor_pos.y - info.position.y,
-                        ));
-                        return iced_runtime::window::drag(id);
-                    } else {
-                        info.group.remove_dock(&dock_id);
-                        return match self.detach_group(DockGroupData::new(dock_id)) {
-                            Some((_, task)) => task.map(|m| DockMessage::RawWindowGet(m.0, m.1)),
-                            None => Task::none(),
-                        };
-                    }
-                }
-                TabEvent::TitleBarDrag => {
+            }
+            TabEvent::Detach(dock_id) => {
+                if info.group.len() == 1 {
+                    // Equivalent to dragging the window
                     let Some(cursor_pos) = self.screen_cursor_pos() else {
                         return Task::none();
                     };
@@ -371,14 +351,29 @@ impl DockManager {
                         cursor_pos.y - info.position.y,
                     ));
                     return iced_runtime::window::drag(id);
+                } else {
+                    info.group.remove_dock(&dock_id);
+                    return match self.detach_group(DockGroupData::new(dock_id)) {
+                        Some((_, task)) => task.map(|m| DockMessage::RawWindowGet(m.0, m.1)),
+                        None => Task::none(),
+                    };
                 }
-                TabEvent::CloseGroup => {
-                    self.detached.remove(&id);
-                    return iced_runtime::window::close(id);
-                }
-            },
-            FloatAction::StartResize(dir) => {
-                return iced_runtime::window::drag_resize(id, dir);
+            }
+            TabEvent::TitleBarDrag => {
+                let Some(cursor_pos) = self.screen_cursor_pos() else {
+                    return Task::none();
+                };
+
+                let info = self.detached.get_mut(&id).unwrap();
+                info.dragging_cursor_relative = Some(Vector::new(
+                    cursor_pos.x - info.position.x,
+                    cursor_pos.y - info.position.y,
+                ));
+                return iced_runtime::window::drag(id);
+            }
+            TabEvent::CloseGroup => {
+                self.detached.remove(&id);
+                return iced_runtime::window::close(id);
             }
         }
 
@@ -726,6 +721,10 @@ impl DockManager {
                 }
             }
             DockMessage::RawWindowGet(id, raw_id) => {
+                if !lapiz_widgets::window_decorations::enable_native_resize(raw_id) {
+                    log::error!("Failed to enable native window resizing for {id:?}");
+                }
+
                 if id == self.main_window.id {
                     self.main_window.raw_id = Some(raw_id);
                 } else if let Some(info) = self.detached.get_mut(&id) {
@@ -814,7 +813,7 @@ fn _snap(pos_a: Point, size_a: Size, pos_b: Point, size_b: Size) -> Point {
 
 pub enum DockMessage {
     Main(DockAction),
-    Float { id: window::Id, action: FloatAction },
+    Float { id: window::Id, action: TabEvent },
     Dock(DockId, Box<dyn Any + Send>),
     RawWindowGet(window::Id, u64),
     RedrawRequested,
