@@ -1208,6 +1208,11 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
         let inverse_view_transformation = view_transformation.inverse();
         let graph_viewport = *viewport * inverse_view_transformation;
 
+        // Menus inside nodes assume the viewport starts at (0, 0) when measuring the
+        // space above/below themselves, so node overlays live in a viewport-relative
+        // frame: the viewport origin is subtracted here and restored by
+        // TransformedGraphOverlay after layout.
+        let viewport_origin = Vector::new(graph_viewport.x, graph_viewport.y);
         for ((child, tree), layout) in self
             .graph
             .nodes
@@ -1219,11 +1224,11 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                 tree,
                 layout,
                 renderer,
-                &graph_viewport,
-                translation,
+                &Rectangle::new(Point::ORIGIN, graph_viewport.size()),
+                translation - viewport_origin,
             ) {
                 return Some(overlay::Element::new(Box::new(
-                    TransformedGraphOverlay::new(overlay, view_transformation),
+                    TransformedGraphOverlay::new(overlay, view_transformation, viewport_origin),
                 )));
             }
         }
@@ -1284,16 +1289,19 @@ impl<'a, Data: GraphData> From<GraphEditorView<'a, Data>>
 struct TransformedGraphOverlay<'a> {
     content: overlay::Element<'a, GraphEditorMessage, GraphTheme, GraphRenderer>,
     transformation: Transformation,
+    origin: Vector,
 }
 
 impl<'a> TransformedGraphOverlay<'a> {
     fn new(
         content: overlay::Element<'a, GraphEditorMessage, GraphTheme, GraphRenderer>,
         transformation: Transformation,
+        origin: Vector,
     ) -> Self {
         Self {
             content,
             transformation,
+            origin,
         }
     }
 }
@@ -1305,7 +1313,8 @@ impl iced_core::Overlay<GraphEditorMessage, GraphTheme, GraphRenderer>
         let content = self
             .content
             .as_overlay_mut()
-            .layout(renderer, bounds * self.transformation.inverse());
+            .layout(renderer, bounds * self.transformation.inverse())
+            .translate(self.origin);
         let content_bounds = content.bounds();
         let transformed_bounds = content_bounds * self.transformation;
 
@@ -1399,6 +1408,7 @@ impl iced_core::Overlay<GraphEditorMessage, GraphTheme, GraphRenderer>
                 overlay::Element::new(Box::new(TransformedGraphOverlay::new(
                     overlay,
                     transformation,
+                    Vector::ZERO,
                 )))
             })
     }
