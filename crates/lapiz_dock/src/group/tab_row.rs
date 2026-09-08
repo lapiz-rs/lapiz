@@ -7,7 +7,6 @@ use iced_core::{
     widget::{Tree, tree},
 };
 use iced_wgpu::Renderer;
-use lapiz_i18n::t;
 
 use crate::{
     dock::{DockId, TabEvent},
@@ -89,6 +88,7 @@ impl<'a, Message> TabRowWidget<'a, Message> {
     pub fn new(
         group_data: &'a DockGroupData,
         on_action: impl Fn(TabEvent) -> Message + 'a,
+        title_of: impl Fn(&DockId) -> String + 'a,
     ) -> Self {
         Self {
             group_data,
@@ -96,17 +96,12 @@ impl<'a, Message> TabRowWidget<'a, Message> {
             padding: 7.0,
             on_action: Box::new(on_action),
             title_drag_deadband: 0.0,
-            title_of: Box::new(|id| t!(id.as_ref())),
+            title_of: Box::new(title_of),
         }
     }
 
     pub fn title_drag_deadband(mut self, factor: f32) -> Self {
         self.title_drag_deadband = factor;
-        self
-    }
-
-    pub fn title_of(mut self, f: impl Fn(&DockId) -> String + 'a) -> Self {
-        self.title_of = Box::new(f);
         self
     }
 

@@ -45,3 +45,4 @@ color_selector_dock = 颜色
 brush_presets_dock = 笔刷预设
 settings = 设置
 no_tool_options = 此工具没有选项
+canvas_dock = 画布 { $name }

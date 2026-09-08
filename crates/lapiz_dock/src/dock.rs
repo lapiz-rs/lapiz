@@ -1,4 +1,4 @@
-use std::{any::Any, sync::Arc};
+use std::{any::Any, collections::HashMap, sync::Arc};
 
 use iced_core::{
     Element, Layout, Length, Rectangle, Renderer as _, Size, Theme, layout, mouse, renderer,
@@ -8,6 +8,7 @@ use iced_futures::Subscription;
 use iced_runtime::Task;
 use iced_wgpu::Renderer;
 use iced_widget::{pane_grid, space, stack};
+use lapiz_i18n::t;
 use lapiz_runtime::Services;
 use lapiz_utils::wrapper;
 use lapiz_widgets::menu::{ContextMenu, Menu};
@@ -23,6 +24,9 @@ pub trait Dock: 'static {
     type Message: Send + 'static;
 
     fn id(&self) -> DockId;
+    fn display_name(&self) -> String {
+        t!(&self.id())
+    }
     fn view<'a>(
         &'a self,
         window_id: window::Id,
@@ -45,6 +49,7 @@ pub trait Dock: 'static {
 
 pub trait ErasedDock: 'static {
     fn id(&self) -> DockId;
+    fn display_name(&self) -> String;
     fn view<'a>(
         &'a self,
         window_id: window::Id,
@@ -64,6 +69,10 @@ pub trait ErasedDock: 'static {
 impl<T: Dock> ErasedDock for T {
     fn id(&self) -> DockId {
         self.id()
+    }
+
+    fn display_name(&self) -> String {
+        self.display_name()
     }
 
     fn view<'a>(
@@ -140,6 +149,7 @@ type FloatContentView<'a, Message> =
     Box<dyn Fn(DockId) -> Element<'a, Message, Theme, Renderer> + 'a>;
 
 pub struct DockWidget<'a, Message> {
+    docks: &'a HashMap<DockId, Box<dyn ErasedDock>>,
     state: &'a DockState,
     content: Option<DockContentView<'a, Message>>,
     on_action: Box<dyn Fn(DockAction) -> Message + 'a>,
@@ -148,8 +158,13 @@ pub struct DockWidget<'a, Message> {
 }
 
 impl<'a, Message> DockWidget<'a, Message> {
-    pub fn new(state: &'a DockState, on_action: impl Fn(DockAction) -> Message + 'a) -> Self {
+    pub fn new(
+        docks: &'a HashMap<DockId, Box<dyn ErasedDock>>,
+        state: &'a DockState,
+        on_action: impl Fn(DockAction) -> Message + 'a,
+    ) -> Self {
         Self {
+            docks,
             state,
             content: None,
             on_action: Box::new(on_action),
@@ -182,6 +197,7 @@ impl<'a, Message: 'a> From<DockWidget<'a, Message>> for Element<'a, Message, The
         use std::rc::Rc;
 
         let DockWidget {
+            docks,
             state,
             content,
             on_action,
@@ -201,8 +217,10 @@ impl<'a, Message: 'a> From<DockWidget<'a, Message>> for Element<'a, Message, The
                     .and_then(|id| content.as_ref().map(|c| c(pane, id.clone())))
                     .unwrap_or_else(|| Element::new(space()));
 
-                let tabs =
-                    TabRowWidget::new(group_data, std::convert::identity).title_drag_deadband(10.0);
+                let tabs = TabRowWidget::new(group_data, std::convert::identity, move |id| {
+                    docks.get(id).unwrap().display_name()
+                })
+                .title_drag_deadband(10.0);
 
                 let Some(active) = group_data.active() else {
                     return space().into();
@@ -248,6 +266,7 @@ impl<'a, Message: 'a> From<DockWidget<'a, Message>> for Element<'a, Message, The
 }
 
 pub struct FloatingDockWidget<'a, Message> {
+    docks: &'a HashMap<DockId, Box<dyn ErasedDock>>,
     group_data: &'a DockGroupData,
     content: Option<FloatContentView<'a, Message>>,
     on_action: Box<dyn Fn(TabEvent) -> Message + 'a>,
@@ -256,10 +275,12 @@ pub struct FloatingDockWidget<'a, Message> {
 
 impl<'a, Message> FloatingDockWidget<'a, Message> {
     pub fn new(
+        docks: &'a HashMap<DockId, Box<dyn ErasedDock>>,
         group_data: &'a DockGroupData,
         on_action: impl Fn(TabEvent) -> Message + 'a,
     ) -> Self {
         Self {
+            docks,
             group_data,
             content: None,
             on_action: Box::new(on_action),
@@ -288,6 +309,7 @@ impl<'a, Message: 'a> From<FloatingDockWidget<'a, Message>>
         use std::rc::Rc;
 
         let FloatingDockWidget {
+            docks,
             group_data,
             content,
             on_action,
@@ -296,7 +318,11 @@ impl<'a, Message: 'a> From<FloatingDockWidget<'a, Message>>
 
         let on_action: Rc<dyn Fn(TabEvent) -> Message + 'a> = Rc::from(on_action);
 
-        let tab_row = TabRowWidget::new(group_data, move |event| (on_action.as_ref())(event));
+        let tab_row = TabRowWidget::new(
+            group_data,
+            move |event| (on_action.as_ref())(event),
+            move |id| docks.get(id).unwrap().display_name(),
+        );
 
         let body = group_data
             .active()

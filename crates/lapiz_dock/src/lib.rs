@@ -660,15 +660,16 @@ impl DockManager {
         services: &'a Services,
     ) -> Option<Element<'a, DockMessage, Theme, Renderer>> {
         if window_id == self.main_window.id {
-            let dock_w =
-                DockWidget::new(&self.dock_state, DockMessage::Main).content(move |_, dock_id| {
+            let dock_w = DockWidget::new(&self.docks, &self.dock_state, DockMessage::Main).content(
+                move |_, dock_id| {
                     let dock = self
                         .docks
                         .get(&dock_id)
                         .unwrap_or_else(|| panic!("Dock not found: {}", dock_id));
                     dock.view(window_id, services)
                         .map(move |m| DockMessage::Dock(dock_id.clone(), m))
-                });
+                },
+            );
 
             if let Some(AttachOrMergeInfo::Attach(attach)) = self.current_attach_or_merge_info() {
                 Some(dock_w.attach_info(attach).into())
@@ -677,9 +678,11 @@ impl DockManager {
             }
         } else if let Some(info) = self.detached_window(window_id) {
             Some(
-                FloatingDockWidget::new(&info.group, move |action| DockMessage::Float {
-                    id: window_id,
-                    action,
+                FloatingDockWidget::new(&self.docks, &info.group, move |action| {
+                    DockMessage::Float {
+                        id: window_id,
+                        action,
+                    }
                 })
                 .content(move |dock_id| {
                     let dock = self

@@ -592,8 +592,7 @@ pub static BRUSH_PRESETS_DOCK_ID: LazyLock<DockId> =
     LazyLock::new(|| DockId::new("brush_presets_dock".into()));
 
 pub fn construct_canvas_dock_id(canvas: CanvasId) -> String {
-    let id = canvas.to_string();
-    format!("Canvas · {}", &id[..8.min(id.len())])
+    format!("canvas_{}", canvas)
 }
 
 pub struct CanvasDock {
@@ -636,6 +635,10 @@ impl Dock for CanvasDock {
 
     fn id(&self) -> DockId {
         DockId::new(construct_canvas_dock_id(self.canvas).into())
+    }
+
+    fn display_name(&self) -> String {
+        t!("canvas_dock", name = self.canvas.to_string())
     }
 
     fn view<'a>(
