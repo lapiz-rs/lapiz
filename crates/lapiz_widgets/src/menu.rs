@@ -814,3 +814,170 @@ where
         Element::new(value)
     }
 }
+
+pub struct MenuPanel<Message> {
+    menu: Menu<Message>,
+}
+
+impl<Message> MenuPanel<Message> {
+    pub fn new(menu: Menu<Message>) -> Self {
+        Self { menu }
+    }
+
+    fn height(&self) -> f32 {
+        PANEL_PADDING * 2.0 + self.menu.items.iter().map(Item::height).sum::<f32>()
+    }
+
+    fn row_at(&self, bounds: Rectangle, position: Point) -> Option<usize> {
+        if !bounds.contains(position) {
+            return None;
+        }
+        let mut y = bounds.y + PANEL_PADDING;
+        for (index, item) in self.menu.items.iter().enumerate() {
+            let height = item.height();
+            if position.y >= y && position.y < y + height {
+                return Some(index);
+            }
+            y += height;
+        }
+        None
+    }
+}
+
+impl<Message: Clone> Widget<Message, Theme, Renderer> for MenuPanel<Message> {
+    fn size(&self) -> Size<Length> {
+        Size::new(Length::Fixed(self.menu.width), Length::Shrink)
+    }
+
+    fn layout(
+        &mut self,
+        _tree: &mut Tree,
+        _renderer: &Renderer,
+        limits: &layout::Limits,
+    ) -> layout::Node {
+        let intrinsic = Size::new(self.menu.width, self.height());
+        layout::Node::new(limits.resolve(Length::Fixed(self.menu.width), Length::Shrink, intrinsic))
+    }
+
+    fn update(
+        &mut self,
+        _tree: &mut Tree,
+        event: &Event,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        _renderer: &Renderer,
+        _clipboard: &mut dyn Clipboard,
+        shell: &mut Shell<'_, Message>,
+        _viewport: &Rectangle,
+    ) {
+        if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) = event
+            && let Some(position) = cursor.position()
+            && let Some(index) = self.row_at(layout.bounds(), position)
+            && let Some(Item::Action { message, .. }) = self.menu.items.get(index)
+        {
+            shell.publish(message.clone());
+        }
+    }
+
+    fn draw(
+        &self,
+        _tree: &Tree,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        _style: &renderer::Style,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        _viewport: &Rectangle,
+    ) {
+        let bounds = layout.bounds();
+        let p = theme.extended_palette();
+        renderer.fill_quad(
+            renderer::Quad {
+                bounds,
+                border: Border {
+                    radius: 0.0.into(),
+                    width: 1.0,
+                    color: p.background.strong.color,
+                },
+                shadow: Shadow {
+                    color: Color::BLACK.scale_alpha(0.25),
+                    offset: Vector::new(3.0, 3.0),
+                    blur_radius: 0.0,
+                },
+                ..renderer::Quad::default()
+            },
+            p.background.weakest.color,
+        );
+        let hovered = cursor
+            .position()
+            .and_then(|position| self.row_at(bounds, position));
+        let mut y = bounds.y + PANEL_PADDING;
+        for (index, item) in self.menu.items.iter().enumerate() {
+            let height = item.height();
+            let row = Rectangle::new(
+                Point::new(bounds.x + 1.0, y),
+                Size::new(bounds.width - 2.0, height),
+            );
+            match item {
+                Item::Separator => {
+                    let mid = row.y + row.height / 2.0;
+                    renderer.fill_quad(
+                        renderer::Quad {
+                            bounds: Rectangle::new(
+                                Point::new(row.x + ITEM_PADDING_X, mid),
+                                Size::new(row.width - ITEM_PADDING_X * 2.0, 1.0),
+                            ),
+                            ..renderer::Quad::default()
+                        },
+                        p.background.strong.color,
+                    );
+                }
+                Item::Action {
+                    label,
+                    shortcut,
+                    checked,
+                    ..
+                } => {
+                    draw_entry(
+                        renderer,
+                        p,
+                        bounds,
+                        row,
+                        label,
+                        hovered == Some(index),
+                        *checked,
+                        shortcut.as_deref(),
+                        false,
+                    );
+                }
+                Item::Submenu { label, .. } => {
+                    draw_entry(renderer, p, bounds, row, label, false, false, None, true);
+                }
+            }
+            y += height;
+        }
+    }
+
+    fn mouse_interaction(
+        &self,
+        _tree: &Tree,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        _viewport: &Rectangle,
+        _renderer: &Renderer,
+    ) -> mouse::Interaction {
+        match cursor
+            .position()
+            .and_then(|position| self.row_at(layout.bounds(), position))
+        {
+            Some(_) => mouse::Interaction::Pointer,
+            None => mouse::Interaction::None,
+        }
+    }
+}
+
+impl<'a, Message: Clone + 'a> From<MenuPanel<Message>> for Element<'a, Message, Theme, Renderer> {
+    fn from(value: MenuPanel<Message>) -> Self {
+        Element::new(value)
+    }
+}

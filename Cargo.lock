@@ -3376,14 +3376,15 @@ dependencies = [
 name = "lapiz_dock"
 version = "0.1.0"
 dependencies = [
- "iced",
- "iced_aw",
  "iced_core",
+ "iced_futures",
  "iced_runtime",
+ "iced_wgpu",
  "iced_widget",
  "indexmap",
  "lapiz_runtime",
  "lapiz_utils",
+ "lapiz_widgets",
  "log",
  "parse-display",
  "serde",

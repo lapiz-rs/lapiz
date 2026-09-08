@@ -1,21 +1,4 @@
-use iced_core::Padding;
-use iced_core::{Background, Border, Color};
-
-pub trait DockCatalog {
-    type Class<'a>;
-
-    fn default<'a>() -> Self::Class<'a>;
-
-    fn style(&self, class: &Self::Class<'_>, status: DockStatus) -> DockStyle;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DockStatus {
-    Active,
-    Inactive,
-    Hovered,
-    Dragging,
-}
+use iced_core::{Background, Border, Color, Padding, Theme};
 
 #[derive(Debug, Clone)]
 pub struct DockStyle {
@@ -59,19 +42,7 @@ pub struct DropIndicatorStyle {
     pub merge_overlay_color: Color,
 }
 
-impl DockCatalog for iced::Theme {
-    type Class<'a> = Box<dyn Fn(&Self) -> DockStyle + 'a>;
-
-    fn default<'a>() -> Self::Class<'a> {
-        Box::new(default_style)
-    }
-
-    fn style(&self, class: &Self::Class<'_>, _status: DockStatus) -> DockStyle {
-        class(self)
-    }
-}
-
-pub fn default_style(theme: &iced::Theme) -> DockStyle {
+pub fn default_style(theme: &Theme) -> DockStyle {
     let palette = theme.extended_palette();
 
     DockStyle {

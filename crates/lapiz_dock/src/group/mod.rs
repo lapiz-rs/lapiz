@@ -1,13 +1,12 @@
-pub mod tab_row;
-
+use indexmap::IndexSet;
 use lapiz_utils::wrapper;
 use parse_display::Display;
-pub use tab_row::TabRowWidget;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::dock::DockId;
-use indexmap::IndexSet;
-use serde::{Deserialize, Serialize};
+
+pub mod tab_row;
 
 wrapper! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]

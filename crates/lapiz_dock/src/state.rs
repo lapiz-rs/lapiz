@@ -1,8 +1,9 @@
+use iced_widget::pane_grid;
+
 use crate::{
     dock::{DockId, PaneEvent},
     group::{DockGroupData, DockGroupId},
 };
-use iced_widget::pane_grid;
 
 #[derive(Debug, Default)]
 pub struct DockState {

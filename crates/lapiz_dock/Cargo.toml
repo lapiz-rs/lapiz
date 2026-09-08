@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-iced.workspace = true
 iced_core.workspace = true
+iced_futures.workspace = true
 iced_runtime.workspace = true
+iced_wgpu.workspace = true
 iced_widget.workspace = true
 lapiz_utils.workspace = true
 parse-display.workspace = true
@@ -15,5 +16,5 @@ indexmap.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 log.workspace = true
-iced_aw.workspace = true
+lapiz_widgets.workspace = true
 lapiz_runtime.workspace = true

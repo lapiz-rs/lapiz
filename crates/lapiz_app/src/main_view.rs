@@ -49,7 +49,7 @@ use crate::dock::{
 };
 
 pub struct MainView {
-    dock_manager: DockManager<Theme, Renderer>,
+    dock_manager: DockManager,
     action_collection: ActionCollection,
     menu_manifest: MenuBarManifest,
     canvas_group_anchor: Option<DockGroupId>,
@@ -493,7 +493,7 @@ impl WindowView for MainView {
                     })
                     .unwrap_or_else(Task::none);
                 let dock = CanvasDock::new(e.id, self.dock_manager.main_window().id);
-                let id = <CanvasDock as Dock<Theme, Renderer>>::id(&dock);
+                let id = <CanvasDock as Dock>::id(&dock);
                 self.dock_manager.register_dock(dock);
 
                 let dock_task = if let Some(target) = self.canvas_group_anchor {

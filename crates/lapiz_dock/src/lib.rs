@@ -1,8 +1,3 @@
-pub mod dock;
-pub mod group;
-pub mod state;
-pub mod style;
-
 use std::{
     any::Any,
     collections::HashMap,
@@ -11,42 +6,38 @@ use std::{
 
 use dock::{DockAction, DockId, FloatAction, TabEvent};
 use group::DockGroupData;
-use iced::Subscription;
-use iced_core::{Element, Point, Size, Vector, window};
+use iced_core::{Element, Point, Size, Theme, Vector, window};
+use iced_futures::Subscription;
 use iced_runtime::Task;
+use iced_wgpu::Renderer;
 use iced_widget::pane_grid;
 use lapiz_runtime::Services;
 use state::DockState;
-use style::DockCatalog;
 
 use crate::{
     dock::{Dock, DockWidget, ErasedDock, FloatingDockWidget},
     group::DockGroupId,
 };
 
+pub mod dock;
+pub mod group;
+pub mod state;
+pub mod style;
+
 const ATTACH_DWELL: Duration = Duration::from_millis(200);
 const MERGE_DISTANCE: f32 = 30.0;
 const _FLOATING_WINDOW_SNAP_DISTANCE: f32 = 10.0;
 
-pub struct DockManager<Theme, Renderer> {
+pub struct DockManager {
     main_window: GroupWindowInfo,
     dock_state: DockState,
     detached: HashMap<window::Id, GroupWindowInfo>,
-    docks: HashMap<DockId, Box<dyn ErasedDock<Theme, Renderer>>>,
+    docks: HashMap<DockId, Box<dyn ErasedDock>>,
     cursor_pos: Option<(window::Id, Point)>,
     sub_windows: HashMap<window::Id, DockId>,
 }
 
-impl<Theme, Renderer> DockManager<Theme, Renderer>
-where
-    Theme: DockCatalog
-        + iced_widget::pane_grid::Catalog
-        + 'static
-        + iced_widget::button::Catalog
-        + iced_aw::context_menu::Catalog
-        + iced_widget::text::Catalog,
-    Renderer: iced_core::Renderer + iced_core::text::Renderer + 'static,
-{
+impl DockManager {
     pub fn new(main_window: window::Id) -> (Self, Task<DockMessage>) {
         let this = Self {
             main_window: GroupWindowInfo {
@@ -71,11 +62,11 @@ where
         (this, task)
     }
 
-    pub fn register_dock<T: Dock<Theme, Renderer>>(&mut self, dock: T) {
+    pub fn register_dock<T: Dock>(&mut self, dock: T) {
         self.docks.insert(dock.id(), Box::new(dock));
     }
 
-    pub fn register_dock_boxed(&mut self, dock: Box<dyn ErasedDock<Theme, Renderer>>) {
+    pub fn register_dock_boxed(&mut self, dock: Box<dyn ErasedDock>) {
         self.docks.insert(dock.id(), dock);
     }
 

@@ -175,7 +175,7 @@ impl ColorSelectorDock {
     }
 }
 
-impl Dock<Theme, Renderer> for ColorSelectorDock {
+impl Dock for ColorSelectorDock {
     type Message = ColorSelectorDockMessage;
 
     fn id(&self) -> DockId {
@@ -414,7 +414,7 @@ pub enum LayersDockMessage {
     EscapePressed,
 }
 
-impl Dock<Theme, Renderer> for LayersDock {
+impl Dock for LayersDock {
     type Message = LayersDockMessage;
 
     fn id(&self) -> DockId {
@@ -629,7 +629,7 @@ pub enum CanvasDockMessage {
     MonitorNameUpdate(Option<String>),
 }
 
-impl Dock<Theme, Renderer> for CanvasDock {
+impl Dock for CanvasDock {
     type Message = CanvasDockMessage;
 
     fn id(&self) -> DockId {
@@ -845,7 +845,7 @@ impl ToolOptionsDock {
     }
 }
 
-impl Dock<Theme, iced_wgpu::Renderer> for ToolOptionsDock {
+impl Dock for ToolOptionsDock {
     type Message = ToolOptionsDockMessage;
 
     fn id(&self) -> DockId {
@@ -919,7 +919,7 @@ impl ToolBoxDock {
     }
 }
 
-impl Dock<Theme, Renderer> for ToolBoxDock {
+impl Dock for ToolBoxDock {
     type Message = ToolBoxDockMessage;
 
     fn id(&self) -> DockId {
@@ -1049,7 +1049,7 @@ impl BrushPresetDock {
     }
 }
 
-impl Dock<Theme, Renderer> for BrushPresetDock {
+impl Dock for BrushPresetDock {
     type Message = BrushPresetDockMessage;
 
     fn id(&self) -> DockId {

@@ -1,27 +1,28 @@
 use std::{any::Any, sync::Arc};
 
-use iced::Subscription;
-use iced_aw::ContextMenu;
 use iced_core::{
-    Element, Event, Layout, Length, Point, Rectangle, Size, layout, mouse, renderer, widget, window,
+    Element, Event, Layout, Length, Point, Rectangle, Renderer as _, Size, Theme, layout, mouse,
+    renderer, widget, window,
 };
+use iced_futures::Subscription;
 use iced_runtime::Task;
-use iced_widget::{button, column, pane_grid, space, stack, text};
+use iced_wgpu::Renderer;
+use iced_widget::{pane_grid, space, stack};
 use lapiz_runtime::Services;
 use lapiz_utils::wrapper;
+use lapiz_widgets::{
+    context_menu::ContextMenu,
+    menu::{Menu, MenuPanel},
+};
 use parse_display::Display;
 use serde::Serialize;
 
 use crate::{
     AttachInfo, DockState,
-    group::{DockGroupData, TabRowWidget},
+    group::{DockGroupData, tab_row::TabRowWidget},
 };
 
-pub trait Dock<Theme, Renderer>: 'static
-where
-    Theme: 'static,
-    Renderer: iced_core::Renderer + 'static,
-{
+pub trait Dock: 'static {
     type Message: Send + 'static;
 
     fn id(&self) -> DockId;
@@ -45,7 +46,7 @@ where
     }
 }
 
-pub trait ErasedDock<Theme, Renderer>: 'static {
+pub trait ErasedDock: 'static {
     fn id(&self) -> DockId;
     fn view<'a>(
         &'a self,
@@ -63,12 +64,7 @@ pub trait ErasedDock<Theme, Renderer>: 'static {
     fn sub_windows(&self) -> Vec<window::Id>;
 }
 
-impl<T, Theme, Renderer> ErasedDock<Theme, Renderer> for T
-where
-    T: Dock<Theme, Renderer>,
-    Theme: 'static,
-    Renderer: iced_core::Renderer + 'static,
-{
+impl<T: Dock> ErasedDock for T {
     fn id(&self) -> DockId {
         self.id()
     }
@@ -146,21 +142,21 @@ pub enum FloatAction {
     StartResize(window::Direction),
 }
 
-type DockContentView<'a, Message, Theme, Renderer> =
+type DockContentView<'a, Message> =
     Box<dyn Fn(pane_grid::Pane, DockId) -> Element<'a, Message, Theme, Renderer> + 'a>;
 
-type FloatContentView<'a, Message, Theme, Renderer> =
+type FloatContentView<'a, Message> =
     Box<dyn Fn(DockId) -> Element<'a, Message, Theme, Renderer> + 'a>;
 
-pub struct DockWidget<'a, Message, Theme, Renderer> {
+pub struct DockWidget<'a, Message> {
     state: &'a DockState,
-    content: Option<DockContentView<'a, Message, Theme, Renderer>>,
+    content: Option<DockContentView<'a, Message>>,
     on_action: Box<dyn Fn(DockAction) -> Message + 'a>,
     spacing: f32,
     attach_info: Option<AttachInfo>,
 }
 
-impl<'a, Message, Theme, Renderer> DockWidget<'a, Message, Theme, Renderer> {
+impl<'a, Message> DockWidget<'a, Message> {
     pub fn new(state: &'a DockState, on_action: impl Fn(DockAction) -> Message + 'a) -> Self {
         Self {
             state,
@@ -190,20 +186,8 @@ impl<'a, Message, Theme, Renderer> DockWidget<'a, Message, Theme, Renderer> {
     }
 }
 
-impl<'a, Message, Theme, Renderer> From<DockWidget<'a, Message, Theme, Renderer>>
-    for Element<'a, Message, Theme, Renderer>
-where
-    Message: 'a,
-    Theme: iced_widget::container::Catalog
-        + iced_widget::pane_grid::Catalog
-        + crate::style::DockCatalog
-        + iced_widget::button::Catalog
-        + iced_aw::context_menu::Catalog
-        + iced_widget::text::Catalog
-        + 'a,
-    Renderer: iced_core::Renderer + iced_core::text::Renderer + 'static,
-{
-    fn from(w: DockWidget<'a, Message, Theme, Renderer>) -> Self {
+impl<'a, Message: 'a> From<DockWidget<'a, Message>> for Element<'a, Message, Theme, Renderer> {
+    fn from(w: DockWidget<'a, Message>) -> Self {
         use std::rc::Rc;
 
         let DockWidget {
@@ -233,11 +217,11 @@ where
                     return space().into();
                 };
                 let ctx_menu = ContextMenu::new(Element::new(tabs), move || {
-                    column![
-                        button(text!("Close Active"))
-                            .on_press_with(|| TabEvent::Close(active.clone())),
-                        button(text!("Close Group")).on_press_with(|| TabEvent::CloseGroup),
-                    ]
+                    MenuPanel::new(
+                        Menu::new()
+                            .item("Close Active", TabEvent::Close(active.clone()))
+                            .item("Close Group", TabEvent::CloseGroup),
+                    )
                     .into()
                 });
                 let a_titlebar = Rc::clone(&a_titlebar);
@@ -274,17 +258,14 @@ where
     }
 }
 
-pub struct FloatingDockWidget<'a, Message, Theme, Renderer> {
+pub struct FloatingDockWidget<'a, Message> {
     group_data: &'a DockGroupData,
-    content: Option<FloatContentView<'a, Message, Theme, Renderer>>,
+    content: Option<FloatContentView<'a, Message>>,
     on_action: Box<dyn Fn(FloatAction) -> Message + 'a>,
     is_attaching: bool,
 }
 
-impl<'a, Message, Theme, Renderer> FloatingDockWidget<'a, Message, Theme, Renderer>
-where
-    Message: 'a,
-{
+impl<'a, Message> FloatingDockWidget<'a, Message> {
     pub fn new(
         group_data: &'a DockGroupData,
         on_action: impl Fn(FloatAction) -> Message + 'a,
@@ -311,14 +292,10 @@ where
     }
 }
 
-impl<'a, Message, Theme, Renderer> From<FloatingDockWidget<'a, Message, Theme, Renderer>>
+impl<'a, Message: 'a> From<FloatingDockWidget<'a, Message>>
     for Element<'a, Message, Theme, Renderer>
-where
-    Message: 'a,
-    Theme: crate::style::DockCatalog + 'a,
-    Renderer: iced_core::Renderer + iced_core::text::Renderer + 'static,
 {
-    fn from(w: FloatingDockWidget<'a, Message, Theme, Renderer>) -> Self {
+    fn from(w: FloatingDockWidget<'a, Message>) -> Self {
         use std::rc::Rc;
 
         let FloatingDockWidget {
@@ -376,11 +353,7 @@ struct PaneHintOverlay<'a> {
     spacing: f32,
 }
 
-impl<'a, Message, Theme, Renderer> iced_core::Widget<Message, Theme, Renderer>
-    for PaneHintOverlay<'a>
-where
-    Renderer: iced_core::Renderer,
-{
+impl<Message> iced_core::Widget<Message, Theme, Renderer> for PaneHintOverlay<'_> {
     fn size(&self) -> Size<Length> {
         Size::new(Length::Fill, Length::Fill)
     }
@@ -480,10 +453,7 @@ where
 
 struct WindowHintOverlay;
 
-impl<Message, Theme, Renderer> iced_core::Widget<Message, Theme, Renderer> for WindowHintOverlay
-where
-    Renderer: iced_core::Renderer,
-{
+impl<Message> iced_core::Widget<Message, Theme, Renderer> for WindowHintOverlay {
     fn size(&self) -> Size<Length> {
         Size::new(Length::Fill, Length::Fill)
     }
@@ -576,11 +546,7 @@ impl<'a, Message> ResizeHandleOverlay<'a, Message> {
     }
 }
 
-impl<'a, Message, Theme, Renderer> iced_core::Widget<Message, Theme, Renderer>
-    for ResizeHandleOverlay<'a, Message>
-where
-    Renderer: iced_core::Renderer,
-{
+impl<Message> iced_core::Widget<Message, Theme, Renderer> for ResizeHandleOverlay<'_, Message> {
     fn size(&self) -> Size<Length> {
         Size::new(Length::Fill, Length::Fill)
     }

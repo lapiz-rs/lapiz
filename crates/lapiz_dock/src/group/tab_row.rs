@@ -1,14 +1,16 @@
+use iced_core::{
+    Element, Event, Layout, Length, Pixels, Point, Rectangle, Renderer as _, Shell, Size, Theme,
+    alignment,
+    clipboard::Clipboard,
+    layout, mouse, renderer,
+    text::{self, LineHeight, Renderer as _, Shaping, paragraph},
+    widget::{Tree, tree},
+};
+use iced_wgpu::Renderer;
+
 use crate::{
     dock::{DockId, TabEvent},
     group::DockGroupData,
-    style::DockCatalog,
-};
-use iced_core::{
-    Element, Event, Layout, Length, Pixels, Point, Rectangle, Shell, Size, alignment,
-    clipboard::Clipboard,
-    layout, mouse, renderer,
-    text::{self, LineHeight, Shaping, paragraph},
-    widget::{Tree, tree},
 };
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -26,23 +28,12 @@ enum TabAction {
     },
 }
 
-#[derive(Debug)]
-struct TabRowState<Renderer: iced_core::text::Renderer> {
+#[derive(Debug, Default)]
+struct TabRowState {
     action: TabAction,
     hovered: Option<usize>,
-    labels: Vec<paragraph::Plain<Renderer::Paragraph>>,
+    labels: Vec<paragraph::Plain<<Renderer as iced_core::text::Renderer>::Paragraph>>,
     bounds: Vec<Rectangle>,
-}
-
-impl<Renderer: iced_core::text::Renderer> Default for TabRowState<Renderer> {
-    fn default() -> Self {
-        Self {
-            action: Default::default(),
-            hovered: Default::default(),
-            labels: Vec::new(),
-            bounds: Vec::new(),
-        }
-    }
 }
 
 fn hit_test(bounds: &[Rectangle], cursor_rel: Point) -> Option<usize> {
@@ -129,19 +120,13 @@ impl<'a, Message> TabRowWidget<'a, Message> {
     }
 }
 
-impl<'a, Message, Theme, Renderer> iced_core::Widget<Message, Theme, Renderer>
-    for TabRowWidget<'a, Message>
-where
-    Message: 'a,
-    Theme: DockCatalog,
-    Renderer: iced_core::Renderer + iced_core::text::Renderer + 'static,
-{
+impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, Message> {
     fn tag(&self) -> tree::Tag {
-        tree::Tag::of::<TabRowState<Renderer>>()
+        tree::Tag::of::<TabRowState>()
     }
 
     fn state(&self) -> tree::State {
-        tree::State::new(TabRowState::<Renderer>::default())
+        tree::State::new(TabRowState::default())
     }
 
     fn children(&self) -> Vec<Tree> {
@@ -161,7 +146,7 @@ where
         renderer: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
-        let state = tree.state.downcast_mut::<TabRowState<Renderer>>();
+        let state = tree.state.downcast_mut::<TabRowState>();
         state.labels.clear();
         state.bounds.clear();
         let height = self.font_size.0 + self.padding * 2.0;
@@ -223,12 +208,9 @@ where
         cursor: mouse::Cursor,
         _viewport: &Rectangle,
     ) {
-        let state = tree.state.downcast_ref::<TabRowState<Renderer>>();
+        let state = tree.state.downcast_ref::<TabRowState>();
         let bounds = layout.bounds();
-        let dock_style = theme.style(
-            &<Theme as DockCatalog>::default(),
-            crate::style::DockStatus::Active,
-        );
+        let dock_style = crate::style::default_style(theme);
         let ts = &dock_style.tab_bar;
         renderer.fill_quad(
             renderer::Quad {
@@ -370,7 +352,7 @@ where
         _viewport: &Rectangle,
     ) {
         let bounds = layout.bounds();
-        let state = tree.state.downcast_mut::<TabRowState<Renderer>>();
+        let state = tree.state.downcast_mut::<TabRowState>();
 
         match event {
             Event::Mouse(mouse::Event::CursorMoved { position }) => {
@@ -471,7 +453,7 @@ where
         _viewport: &Rectangle,
         _renderer: &Renderer,
     ) -> mouse::Interaction {
-        let state = tree.state.downcast_ref::<TabRowState<Renderer>>();
+        let state = tree.state.downcast_ref::<TabRowState>();
         if let TabAction::Dragging { .. } = state.action {
             return mouse::Interaction::Grabbing;
         }
@@ -485,13 +467,7 @@ where
     }
 }
 
-impl<'a, Message, Theme, Renderer> From<TabRowWidget<'a, Message>>
-    for Element<'a, Message, Theme, Renderer>
-where
-    Message: 'a,
-    Theme: DockCatalog + 'a,
-    Renderer: iced_core::Renderer + iced_core::text::Renderer + 'static,
-{
+impl<'a, Message: 'a> From<TabRowWidget<'a, Message>> for Element<'a, Message, Theme, Renderer> {
     fn from(w: TabRowWidget<'a, Message>) -> Self {
         Element::new(w)
     }
