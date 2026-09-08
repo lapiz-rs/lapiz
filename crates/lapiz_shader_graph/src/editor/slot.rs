@@ -78,15 +78,26 @@ impl GraphSlotPinPositionCollection {
 
 pub struct SlotPin {
     pub id: GraphSlotId,
-    pub radius: f32,
+    pub size: f32,
+    pub side: SlotSide,
     pub hue: f32,
     pub chroma: f32,
 }
 
+impl SlotPin {
+    fn overhanging_bounds(&self, bounds: Rectangle) -> Rectangle {
+        let mut bounds = bounds;
+        bounds.x += match self.side {
+            SlotSide::Left => -self.size / 2.0,
+            SlotSide::Right => self.size / 2.0,
+        };
+        bounds
+    }
+}
+
 impl<Message> Widget<Message, GraphTheme, GraphRenderer> for SlotPin {
     fn size(&self) -> Size<Length> {
-        let d = self.radius * 2.0;
-        Size::new(Length::Fixed(d), Length::Fixed(d))
+        Size::new(Length::Fixed(self.size), Length::Fixed(self.size))
     }
 
     fn layout(
@@ -95,8 +106,7 @@ impl<Message> Widget<Message, GraphTheme, GraphRenderer> for SlotPin {
         _renderer: &GraphRenderer,
         limits: &layout::Limits,
     ) -> layout::Node {
-        let d = self.radius * 2.0;
-        layout::atomic(limits, d, d)
+        layout::atomic(limits, self.size, self.size)
     }
 
     fn draw(
@@ -112,8 +122,15 @@ impl<Message> Widget<Message, GraphTheme, GraphRenderer> for SlotPin {
         iced_core::Renderer::fill_quad(
             renderer,
             Quad {
-                bounds: layout.bounds(),
-                border: Border::default().rounded(self.radius),
+                bounds: self.overhanging_bounds(layout.bounds()),
+                border: Border::default().width(1.0).color(
+                    theme
+                        .extended_palette()
+                        .background
+                        .base
+                        .text
+                        .scale_alpha(0.4),
+                ),
                 ..Default::default()
             },
             themed_color(theme, self.hue, self.chroma),
@@ -127,13 +144,19 @@ impl<Message> Widget<Message, GraphTheme, GraphRenderer> for SlotPin {
         _renderer: &GraphRenderer,
         operation: &mut dyn Operation,
     ) {
-        operation.custom(None, layout.bounds(), &mut SlotPinState { id: self.id });
+        operation.custom(
+            None,
+            self.overhanging_bounds(layout.bounds()),
+            &mut SlotPinState { id: self.id },
+        );
     }
 }
 
 struct SlotPinState {
     id: GraphSlotId,
 }
+
+#[derive(Clone, Copy)]
 pub enum SlotSide {
     Left,
     Right,
@@ -180,12 +203,13 @@ pub fn empty_slot<'a, Message>(
 where
     Message: 'a,
 {
-    let text = text(name);
+    let text = text(name).size(12);
     let pin = Element::new(SlotPin {
         id,
         hue,
         chroma,
-        radius: 3.0,
+        size: 9.0,
+        side: slot_side,
     });
 
     match slot_side {
@@ -213,12 +237,13 @@ pub fn valued_slot<'a, Message>(
 where
     Message: 'a,
 {
-    let text = text(name);
+    let text = text(name).size(12);
     let pin = Element::new(SlotPin {
         id,
         hue,
         chroma,
-        radius: 3.0,
+        size: 9.0,
+        side: slot_side,
     });
 
     match slot_side {

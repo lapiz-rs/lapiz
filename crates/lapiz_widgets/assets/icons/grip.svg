@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter">
-<rect x="8" y="4" width="2.5" height="2.5" fill="currentColor" stroke="none" />
-    <rect x="14" y="4" width="2.5" height="2.5" fill="currentColor" stroke="none" />
-    <rect x="8" y="10.8" width="2.5" height="2.5" fill="currentColor" stroke="none" />
-    <rect x="14" y="10.8" width="2.5" height="2.5" fill="currentColor" stroke="none" />
-    <rect x="8" y="17.5" width="2.5" height="2.5" fill="currentColor" stroke="none" />
-    <rect x="14" y="17.5" width="2.5" height="2.5" fill="currentColor" stroke="none" />
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <circle cx="9" cy="6" r="2.2" />
+    <circle cx="15" cy="6" r="2.2" />
+    <circle cx="9" cy="12" r="2.2" />
+    <circle cx="15" cy="12" r="2.2" />
+    <circle cx="9" cy="18" r="2.2" />
+    <circle cx="15" cy="18" r="2.2" />
 </svg>

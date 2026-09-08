@@ -1867,6 +1867,7 @@ impl<Data: GraphData> GraphNode<Data> for GraphInputNode {
         ctx.view_all_slots_with_header(
             column![
                 text_input("Name", &state.name)
+                    .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(GraphInputNodeMessage::NameChanged),
                 pick_list(types, state.ty, GraphInputNodeMessage::TypeChanged).width(Length::Fill),
@@ -1977,6 +1978,7 @@ impl<Data: GraphData> GraphNode<Data> for GraphOutputNode {
         ctx.view_all_slots_with_header(
             column![
                 text_input("Name", &state.name)
+                    .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(GraphOutputNodeMessage::NameChanged),
                 pick_list(types, state.ty, GraphOutputNodeMessage::TypeChanged).width(Length::Fill),
@@ -2911,6 +2913,7 @@ fn repeat_schema_editor_view<Data: GraphData>(
             let id = local.id;
             column![
                 text_input("Variable Name", &local.name)
+                    .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(move |name| { RepeatNodeMessage::EditorRenameLocal(id, name) }),
                 row![
@@ -3506,6 +3509,7 @@ fn custom_expression_text_editor(
 > {
     text_editor(content)
         .placeholder("WGSL")
+        .size(12.0)
         .height(Length::Fixed(140.0))
         .on_action(std::convert::identity)
 }
@@ -3694,11 +3698,13 @@ fn custom_expression_variable_rows<Data: GraphData>(
             column![
                 row![
                     text_input("Slot Name", &variable.display_name)
+                        .size(12.0)
                         .style(lapiz_widgets::text_input::default)
                         .on_input(move |name| {
                             CustomExpressionNodeMessage::ChangeDisplayName(kind, id, name)
                         }),
                     text_input("WGSL Name", &variable.name)
+                        .size(12.0)
                         .style(lapiz_widgets::text_input::default)
                         .on_input(move |name| {
                             CustomExpressionNodeMessage::ChangeName(kind, id, name)
@@ -3771,14 +3777,14 @@ fn custom_expression_editor_view<Data: GraphData>(
         .width(Length::Fixed(500.0))
         .padding(4)
         .spacing(6)
-        .push(text("Inputs"))
+        .push(text("Inputs").size(12))
         .extend(input_rows)
         .push(
             button("Add Input").on_press(CustomExpressionNodeMessage::AddVariable(
                 CustomExpressionVariableKind::Input,
             )),
         )
-        .push(text("Outputs"))
+        .push(text("Outputs").size(12))
         .extend(output_rows)
         .push(
             button("Add Output").on_press(CustomExpressionNodeMessage::AddVariable(

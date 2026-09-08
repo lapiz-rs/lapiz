@@ -3,6 +3,7 @@ pub mod button;
 pub mod callback;
 pub mod checkbox;
 pub mod collapsible;
+pub mod color;
 pub mod combo_box;
 pub mod curve_edit;
 pub mod divider;
