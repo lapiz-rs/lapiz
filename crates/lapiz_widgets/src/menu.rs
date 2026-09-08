@@ -210,7 +210,7 @@ fn text_width(content: &str, size: f32) -> f32 {
         bounds: Size::new(f32::MAX, f32::MAX),
         align_x: text::Alignment::Left,
         align_y: alignment::Vertical::Top,
-        shaping: text::Shaping::Basic,
+        shaping: text::Shaping::Auto,
         wrapping: text::Wrapping::None,
     });
     paragraph.min_bounds().width
@@ -225,7 +225,7 @@ fn text_spec(renderer: &Renderer, content: String, size: f32) -> text::Text<Stri
         bounds: Size::new(f32::MAX, f32::MAX),
         align_x: text::Alignment::Left,
         align_y: alignment::Vertical::Top,
-        shaping: text::Shaping::Basic,
+        shaping: text::Shaping::Auto,
         wrapping: text::Wrapping::None,
     }
 }
