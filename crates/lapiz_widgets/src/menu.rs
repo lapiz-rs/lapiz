@@ -442,29 +442,29 @@ impl<'a, Message> MenuOverlay<'a, Message> {
         let mut level = 0;
         while let Some(menu) = self.menu_bar.menu_at(&self.state.open[..level + 1]) {
             let height = PANEL_PADDING * 2.0 + menu.items.iter().map(Item::height).sum::<f32>();
-            let width = menu.width;
             let bounds = Rectangle::new(
                 Point::new(
-                    anchor.x.min((viewport.x + viewport.width - width).max(0.0)),
+                    anchor
+                        .x
+                        .min((viewport.x + viewport.width - menu.width).max(0.0)),
                     anchor
                         .y
                         .min((viewport.y + viewport.height - height).max(0.0)),
                 ),
-                Size::new(width, height),
+                Size::new(menu.width, height),
             );
-            let rows = {
-                let mut rows = Vec::new();
-                let mut y = bounds.y + PANEL_PADDING;
-                for item in &menu.items {
-                    let height = item.height();
-                    rows.push(Rectangle::new(
-                        Point::new(bounds.x + 1.0, y),
-                        Size::new(width - 2.0, height),
-                    ));
-                    y += height;
-                }
-                rows
-            };
+
+            let mut rows = Vec::new();
+            let mut y = bounds.y + PANEL_PADDING;
+            for item in &menu.items {
+                let height = item.height();
+                rows.push(Rectangle::new(
+                    Point::new(bounds.x + 1.0, y),
+                    Size::new(bounds.width - 2.0, height),
+                ));
+                y += height;
+            }
+
             let next = self
                 .state
                 .open
@@ -608,76 +608,75 @@ where
                 .menu_bar
                 .menu_at(&self.state.open[..level + 1])
                 .expect("open path resolves during layout");
-            renderer.fill_quad(
-                renderer::Quad {
-                    bounds: panel.bounds,
-                    border: Border {
-                        radius: 0.0.into(),
-                        width: 1.0,
-                        color: p.background.strong.color,
+            {
+                let hovered = hit.filter(|(l, _)| *l == level).map(|(_, index)| index);
+                let opened_submenu = self.state.open.get(level + 1).copied();
+                renderer.fill_quad(
+                    renderer::Quad {
+                        bounds: panel.bounds,
+                        border: Border {
+                            radius: 0.0.into(),
+                            width: 1.0,
+                            color: p.background.strong.color,
+                        },
+                        shadow: Shadow {
+                            color: Color::BLACK.scale_alpha(0.25),
+                            offset: Vector::new(3.0, 3.0),
+                            blur_radius: 0.0,
+                        },
+                        ..renderer::Quad::default()
                     },
-                    shadow: Shadow {
-                        color: Color::BLACK.scale_alpha(0.25),
-                        offset: Vector::new(3.0, 3.0),
-                        blur_radius: 0.0,
-                    },
-                    ..renderer::Quad::default()
-                },
-                p.background.weakest.color,
-            );
-            for (index, row) in panel.rows.iter().enumerate() {
-                let item = &menu.items[index];
-                match item {
-                    Item::Separator => {
-                        let y = row.y + row.height / 2.0;
-                        renderer.fill_quad(
-                            renderer::Quad {
-                                bounds: Rectangle::new(
-                                    Point::new(row.x + ITEM_PADDING_X, y),
-                                    Size::new(row.width - ITEM_PADDING_X * 2.0, 1.0),
-                                ),
-                                ..renderer::Quad::default()
-                            },
-                            p.background.strong.color,
-                        );
-                    }
-                    Item::Action {
-                        label,
-                        shortcut,
-                        checked,
-                        ..
-                    } => {
-                        let hovered = hit == Some((level, index));
-                        draw_entry(
-                            renderer,
-                            p,
-                            panel.bounds,
-                            *row,
+                    p.background.weakest.color,
+                );
+                for (index, row) in panel.rows.iter().enumerate() {
+                    match &menu.items[index] {
+                        Item::Separator => {
+                            let y = row.y + row.height / 2.0;
+                            renderer.fill_quad(
+                                renderer::Quad {
+                                    bounds: Rectangle::new(
+                                        Point::new(row.x + ITEM_PADDING_X, y),
+                                        Size::new(row.width - ITEM_PADDING_X * 2.0, 1.0),
+                                    ),
+                                    ..renderer::Quad::default()
+                                },
+                                p.background.strong.color,
+                            );
+                        }
+                        Item::Action {
                             label,
-                            hovered,
-                            *checked,
-                            shortcut.as_deref(),
-                            false,
-                        );
-                    }
-                    Item::Submenu { label, .. } => {
-                        let opened = level + 1 < self.state.open.len()
-                            && self.state.open[level + 1] == index;
-                        let hovered = opened || hit == Some((level, index));
-                        draw_entry(
-                            renderer,
-                            p,
-                            panel.bounds,
-                            *row,
-                            label,
-                            hovered,
-                            false,
-                            None,
-                            true,
-                        );
+                            shortcut,
+                            checked,
+                            ..
+                        } => {
+                            draw_entry(
+                                renderer,
+                                p,
+                                panel.bounds,
+                                *row,
+                                label,
+                                hovered == Some(index),
+                                *checked,
+                                shortcut.as_deref(),
+                                false,
+                            );
+                        }
+                        Item::Submenu { label, .. } => {
+                            draw_entry(
+                                renderer,
+                                p,
+                                panel.bounds,
+                                *row,
+                                label,
+                                hovered == Some(index) || opened_submenu == Some(index),
+                                false,
+                                None,
+                                true,
+                            );
+                        }
                     }
                 }
-            }
+            };
         }
     }
 
@@ -815,169 +814,174 @@ where
     }
 }
 
-pub struct MenuPanel<Message> {
-    menu: Menu<Message>,
+pub struct ContextMenu<'a, Message> {
+    underlay: Element<'a, Message, Theme, Renderer>,
+    menu_bar: MenuBar<Message>,
 }
 
-impl<Message> MenuPanel<Message> {
-    pub fn new(menu: Menu<Message>) -> Self {
-        Self { menu }
-    }
+#[derive(Default)]
+struct ContextMenuState {
+    show: bool,
+    cursor_position: Point,
+    bar: MenuBarState,
+}
 
-    fn height(&self) -> f32 {
-        PANEL_PADDING * 2.0 + self.menu.items.iter().map(Item::height).sum::<f32>()
-    }
-
-    fn row_at(&self, bounds: Rectangle, position: Point) -> Option<usize> {
-        if !bounds.contains(position) {
-            return None;
+impl<'a, Message> ContextMenu<'a, Message> {
+    pub fn new(
+        underlay: impl Into<Element<'a, Message, Theme, Renderer>>,
+        menu: Menu<Message>,
+    ) -> Self {
+        Self {
+            underlay: underlay.into(),
+            menu_bar: MenuBar::new().menu(String::new(), menu),
         }
-        let mut y = bounds.y + PANEL_PADDING;
-        for (index, item) in self.menu.items.iter().enumerate() {
-            let height = item.height();
-            if position.y >= y && position.y < y + height {
-                return Some(index);
-            }
-            y += height;
-        }
-        None
     }
 }
 
-impl<Message: Clone> Widget<Message, Theme, Renderer> for MenuPanel<Message> {
+impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Message> {
+    fn tag(&self) -> tree::Tag {
+        tree::Tag::of::<ContextMenuState>()
+    }
+
+    fn state(&self) -> tree::State {
+        tree::State::new(ContextMenuState::default())
+    }
+
+    fn children(&self) -> Vec<Tree> {
+        vec![Tree::new(&self.underlay)]
+    }
+
+    fn diff(&self, tree: &mut Tree) {
+        tree.diff_children(&[&self.underlay]);
+    }
+
     fn size(&self) -> Size<Length> {
-        Size::new(Length::Fixed(self.menu.width), Length::Shrink)
+        self.underlay.as_widget().size()
     }
 
     fn layout(
         &mut self,
-        _tree: &mut Tree,
-        _renderer: &Renderer,
+        tree: &mut Tree,
+        renderer: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
-        let intrinsic = Size::new(self.menu.width, self.height());
-        layout::Node::new(limits.resolve(Length::Fixed(self.menu.width), Length::Shrink, intrinsic))
+        self.underlay
+            .as_widget_mut()
+            .layout(&mut tree.children[0], renderer, limits)
     }
 
     fn update(
         &mut self,
-        _tree: &mut Tree,
+        tree: &mut Tree,
         event: &Event,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         _renderer: &Renderer,
         _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
-        _viewport: &Rectangle,
+        viewport: &Rectangle,
     ) {
-        if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) = event
-            && let Some(position) = cursor.position()
-            && let Some(index) = self.row_at(layout.bounds(), position)
-            && let Some(Item::Action { message, .. }) = self.menu.items.get(index)
+        if *event == Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))
+            && cursor.is_over(layout.bounds())
         {
-            shell.publish(message.clone());
-        }
-    }
-
-    fn draw(
-        &self,
-        _tree: &Tree,
-        renderer: &mut Renderer,
-        theme: &Theme,
-        _style: &renderer::Style,
-        layout: Layout<'_>,
-        cursor: mouse::Cursor,
-        _viewport: &Rectangle,
-    ) {
-        let bounds = layout.bounds();
-        let p = theme.extended_palette();
-        renderer.fill_quad(
-            renderer::Quad {
-                bounds,
-                border: Border {
-                    radius: 0.0.into(),
-                    width: 1.0,
-                    color: p.background.strong.color,
-                },
-                shadow: Shadow {
-                    color: Color::BLACK.scale_alpha(0.25),
-                    offset: Vector::new(3.0, 3.0),
-                    blur_radius: 0.0,
-                },
-                ..renderer::Quad::default()
-            },
-            p.background.weakest.color,
-        );
-        let hovered = cursor
-            .position()
-            .and_then(|position| self.row_at(bounds, position));
-        let mut y = bounds.y + PANEL_PADDING;
-        for (index, item) in self.menu.items.iter().enumerate() {
-            let height = item.height();
-            let row = Rectangle::new(
-                Point::new(bounds.x + 1.0, y),
-                Size::new(bounds.width - 2.0, height),
-            );
-            match item {
-                Item::Separator => {
-                    let mid = row.y + row.height / 2.0;
-                    renderer.fill_quad(
-                        renderer::Quad {
-                            bounds: Rectangle::new(
-                                Point::new(row.x + ITEM_PADDING_X, mid),
-                                Size::new(row.width - ITEM_PADDING_X * 2.0, 1.0),
-                            ),
-                            ..renderer::Quad::default()
-                        },
-                        p.background.strong.color,
-                    );
-                }
-                Item::Action {
-                    label,
-                    shortcut,
-                    checked,
-                    ..
-                } => {
-                    draw_entry(
-                        renderer,
-                        p,
-                        bounds,
-                        row,
-                        label,
-                        hovered == Some(index),
-                        *checked,
-                        shortcut.as_deref(),
-                        false,
-                    );
-                }
-                Item::Submenu { label, .. } => {
-                    draw_entry(renderer, p, bounds, row, label, false, false, None, true);
-                }
+            let state = tree.state.downcast_mut::<ContextMenuState>();
+            if !state.show || state.bar.open.is_empty() {
+                state.show = true;
+                state.bar.open = vec![0];
+                state.cursor_position = cursor.position().unwrap_or_default();
+            } else {
+                state.show = false;
+                state.bar.open.clear();
             }
-            y += height;
+            shell.capture_event();
+            shell.invalidate_layout();
+            shell.request_redraw();
         }
+
+        self.underlay.as_widget_mut().update(
+            &mut tree.children[0],
+            event,
+            layout,
+            cursor,
+            _renderer,
+            _clipboard,
+            shell,
+            viewport,
+        );
     }
 
     fn mouse_interaction(
         &self,
-        _tree: &Tree,
+        tree: &Tree,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
-        _viewport: &Rectangle,
-        _renderer: &Renderer,
+        viewport: &Rectangle,
+        renderer: &Renderer,
     ) -> mouse::Interaction {
-        match cursor
-            .position()
-            .and_then(|position| self.row_at(layout.bounds(), position))
-        {
-            Some(_) => mouse::Interaction::Pointer,
-            None => mouse::Interaction::None,
+        self.underlay.as_widget().mouse_interaction(
+            &tree.children[0],
+            layout,
+            cursor,
+            viewport,
+            renderer,
+        )
+    }
+
+    fn draw(
+        &self,
+        tree: &Tree,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        style: &renderer::Style,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        viewport: &Rectangle,
+    ) {
+        self.underlay.as_widget().draw(
+            &tree.children[0],
+            renderer,
+            theme,
+            style,
+            layout,
+            cursor,
+            viewport,
+        );
+    }
+
+    fn overlay<'b>(
+        &'b mut self,
+        tree: &'b mut Tree,
+        layout: Layout<'b>,
+        renderer: &Renderer,
+        viewport: &Rectangle,
+        translation: Vector,
+    ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
+        let state = tree.state.downcast_mut::<ContextMenuState>();
+        if !state.show || state.bar.open.is_empty() {
+            return self.underlay.as_widget_mut().overlay(
+                &mut tree.children[0],
+                layout,
+                renderer,
+                viewport,
+                translation,
+            );
         }
+
+        let origin = state.cursor_position;
+        Some(overlay::Element::new(Box::new(MenuOverlay {
+            state: &mut state.bar,
+            menu_bar: &self.menu_bar,
+            origin: origin + translation,
+            root_height: 0.0,
+            viewport: *viewport,
+        })))
     }
 }
 
-impl<'a, Message: Clone + 'a> From<MenuPanel<Message>> for Element<'a, Message, Theme, Renderer> {
-    fn from(value: MenuPanel<Message>) -> Self {
+impl<'a, Message: Clone + 'a> From<ContextMenu<'a, Message>>
+    for Element<'a, Message, Theme, Renderer>
+{
+    fn from(value: ContextMenu<'a, Message>) -> Self {
         Element::new(value)
     }
 }

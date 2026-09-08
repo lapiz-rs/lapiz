@@ -23,10 +23,10 @@ use lapiz_widgets::{
     button::Button,
     checkbox::Checkbox,
     combo_box::selection as pick_list,
-    context_menu::ContextMenu,
     drag_drop_column::{DragDropColumn, DragDropInfo},
     icon,
     label::Label,
+    menu::{ContextMenu, Menu},
     panel::{Panel, Style as PanelStyle},
     spin_slider::SpinSlider,
     text_input::TextInput,
@@ -542,14 +542,10 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
                 ..Default::default()
             });
 
-            let menu = move || {
-                column![
-                    Button::new(Label::new("Rename"))
-                        .width(Length::Fill)
-                        .on_press(on_message(LayerStackMessage::RenameLayer(layer_id)))
-                ]
-                .into()
-            };
+            let menu = Menu::new().item(
+                "Rename",
+                on_message(LayerStackMessage::RenameLayer(layer_id)),
+            );
             rows.push(ContextMenu::new(content, menu).into());
         }
 

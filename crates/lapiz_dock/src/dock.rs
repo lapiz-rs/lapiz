@@ -10,10 +10,7 @@ use iced_wgpu::Renderer;
 use iced_widget::{pane_grid, space, stack};
 use lapiz_runtime::Services;
 use lapiz_utils::wrapper;
-use lapiz_widgets::{
-    context_menu::ContextMenu,
-    menu::{Menu, MenuPanel},
-};
+use lapiz_widgets::menu::{ContextMenu, Menu};
 use parse_display::Display;
 use serde::Serialize;
 
@@ -216,14 +213,12 @@ impl<'a, Message: 'a> From<DockWidget<'a, Message>> for Element<'a, Message, The
                 let Some(active) = group_data.active() else {
                     return space().into();
                 };
-                let ctx_menu = ContextMenu::new(Element::new(tabs), move || {
-                    MenuPanel::new(
-                        Menu::new()
-                            .item("Close Active", TabEvent::Close(active.clone()))
-                            .item("Close Group", TabEvent::CloseGroup),
-                    )
-                    .into()
-                });
+                let ctx_menu = ContextMenu::new(
+                    Element::new(tabs),
+                    Menu::new()
+                        .item("Close Active", TabEvent::Close(active.clone()))
+                        .item("Close Group", TabEvent::CloseGroup),
+                );
                 let a_titlebar = Rc::clone(&a_titlebar);
                 pane_grid::Content::new(body).title_bar(pane_grid::TitleBar::new(
                     Element::new(ctx_menu)
