@@ -7,7 +7,7 @@ use iced_core::{
 use iced_wgpu::Renderer;
 use iced_widget::container;
 use taffy::prelude::{
-    AlignItems, AvailableSpace, Dimension, Display, FlexDirection, JustifyContent,
+    AlignItems, AvailableSpace, Dimension, Display, FlexDirection, FlexWrap, JustifyContent,
     LengthPercentage, TaffyAuto, TaffyTree,
 };
 
@@ -122,6 +122,15 @@ impl<'a, Message> Flex<'a, Message> {
         self.justify_content(JustifyContent::SpaceBetween)
     }
 
+    pub fn space_evenly(self) -> Self {
+        self.justify_content(JustifyContent::SpaceEvenly)
+    }
+
+    pub fn wrap(mut self) -> Self {
+        self.taffy_style.flex_wrap = FlexWrap::Wrap;
+        self
+    }
+
     pub fn width(mut self, width: impl Into<Length>) -> Self {
         self.width = width.into();
         self
@@ -199,121 +208,36 @@ impl<Message> Widget<Message, Theme, Renderer> for Flex<'_, Message> {
         renderer: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
-        let loose = limits.loose();
-        let measured = self
-            .children
-            .iter_mut()
-            .zip(&mut tree.children)
-            .map(|(child, state)| child.as_widget_mut().layout(state, renderer, &loose))
-            .collect::<Vec<_>>();
-        let horizontal = matches!(
-            self.direction,
-            FlexDirection::Row | FlexDirection::RowReverse
-        );
-        let mut intrinsic = Size::new(
-            self.padding.left + self.padding.right,
-            self.padding.top + self.padding.bottom,
-        );
-        for node in &measured {
-            if horizontal {
-                intrinsic.width += node.size().width;
-                intrinsic.height = intrinsic
-                    .height
-                    .max(node.size().height + self.padding.top + self.padding.bottom);
-            } else {
-                intrinsic.height += node.size().height;
-                intrinsic.width = intrinsic
-                    .width
-                    .max(node.size().width + self.padding.left + self.padding.right);
-            }
-        }
-        if self.children.len() > 1 {
-            if horizontal {
-                intrinsic.width += self.gap * (self.children.len() - 1) as f32;
-            } else {
-                intrinsic.height += self.gap * (self.children.len() - 1) as f32;
-            }
-        }
+        let horizontal = self.is_horizontal();
+        let measured = self.measure_children(tree, renderer, limits);
+        let intrinsic = self.intrinsic_size(&measured, horizontal);
         let resolved = limits.resolve(self.width, self.height, intrinsic);
+
+        let measure_height =
+            self.taffy_style.flex_wrap == FlexWrap::Wrap && matches!(self.height, Length::Shrink);
+
         let mut taffy = TaffyTree::<()>::new();
-        let leaves = self
-            .children
-            .iter()
-            .zip(&measured)
-            .map(|(child, node)| {
-                let size = child.as_widget().size();
-                let main = if horizontal { size.width } else { size.height };
-                let cross = if horizontal { size.height } else { size.width };
-                let mut style = taffy::Style {
-                    size: taffy::Size {
-                        width: Dimension::length(node.size().width),
-                        height: Dimension::length(node.size().height),
-                    },
-                    ..taffy::Style::default()
-                };
-                if main.is_fill() {
-                    style.flex_grow = main.fill_factor() as f32;
-                    if horizontal {
-                        style.size.width = Dimension::AUTO;
-                    } else {
-                        style.size.height = Dimension::AUTO;
-                    }
-                } else {
-                    style.flex_shrink = 0.0;
-                }
-                if cross.is_fill() {
-                    if horizontal {
-                        style.size.height = Dimension::percent(1.0);
-                    } else {
-                        style.size.width = Dimension::percent(1.0);
-                    }
-                }
-                taffy.new_leaf(style).unwrap()
-            })
-            .collect::<Vec<_>>();
-        let mut root_style = self.taffy_style.clone();
-        root_style.display = Display::Flex;
-        root_style.flex_direction = self.direction;
-        root_style.size = taffy::Size {
-            width: Dimension::length(resolved.width),
-            height: Dimension::length(resolved.height),
-        };
-        root_style.padding = taffy::Rect {
-            left: LengthPercentage::length(self.padding.left),
-            right: LengthPercentage::length(self.padding.right),
-            top: LengthPercentage::length(self.padding.top),
-            bottom: LengthPercentage::length(self.padding.bottom),
-        };
-        root_style.gap = taffy::Size {
-            width: LengthPercentage::length(self.gap),
-            height: LengthPercentage::length(self.gap),
-        };
-        let root = taffy.new_with_children(root_style, &leaves).unwrap();
-        taffy
-            .compute_layout(
-                root,
-                taffy::Size {
-                    width: AvailableSpace::Definite(resolved.width),
-                    height: AvailableSpace::Definite(resolved.height),
-                },
-            )
+        let leaves = self.taffy_leaves(&mut taffy, &measured, horizontal);
+        let root = taffy
+            .new_with_children(self.root_style(resolved, measure_height), &leaves)
             .unwrap();
-        let children = self
-            .children
-            .iter_mut()
-            .zip(&mut tree.children)
-            .zip(leaves)
-            .map(|((child, state), leaf)| {
-                let result = *taffy.layout(leaf).unwrap();
-                let size = Size::new(result.size.width, result.size.height);
-                let exact = layout::Limits::new(size, size);
-                child
-                    .as_widget_mut()
-                    .layout(state, renderer, &exact)
-                    .move_to(Point::new(result.location.x, result.location.y))
-            })
-            .collect();
-        layout::Node::with_children(resolved, children)
+        let available = taffy::Size {
+            width: AvailableSpace::Definite(resolved.width),
+            height: if measure_height {
+                AvailableSpace::MaxContent
+            } else {
+                AvailableSpace::Definite(resolved.height)
+            },
+        };
+        taffy.compute_layout(root, available).unwrap();
+
+        let size = if measure_height {
+            Size::new(resolved.width, taffy.layout(root).unwrap().size.height)
+        } else {
+            resolved
+        };
+        let children = self.place_children(tree, renderer, &taffy, &leaves);
+        layout::Node::with_children(size, children)
     }
 
     fn operate(
@@ -479,6 +403,157 @@ impl<Message> Widget<Message, Theme, Renderer> for Flex<'_, Message> {
             viewport,
             translation,
         )
+    }
+}
+
+impl<Message> Flex<'_, Message> {
+    fn is_horizontal(&self) -> bool {
+        matches!(
+            self.direction,
+            FlexDirection::Row | FlexDirection::RowReverse
+        )
+    }
+
+    fn measure_children(
+        &mut self,
+        tree: &mut Tree,
+        renderer: &Renderer,
+        limits: &layout::Limits,
+    ) -> Vec<layout::Node> {
+        let loose = limits.loose();
+        self.children
+            .iter_mut()
+            .zip(&mut tree.children)
+            .map(|(child, state)| child.as_widget_mut().layout(state, renderer, &loose))
+            .collect()
+    }
+
+    fn intrinsic_size(&self, measured: &[layout::Node], horizontal: bool) -> Size {
+        let mut intrinsic = Size::from(self.padding);
+        for node in measured {
+            let size = node.size();
+            if horizontal {
+                intrinsic.width += size.width;
+                intrinsic.height = intrinsic.height.max(size.height + self.padding.y());
+            } else {
+                intrinsic.height += size.height;
+                intrinsic.width = intrinsic.width.max(size.width + self.padding.x());
+            }
+        }
+        let gaps = self.gap * measured.len().saturating_sub(1) as f32;
+        if horizontal {
+            intrinsic.width += gaps;
+        } else {
+            intrinsic.height += gaps;
+        }
+        intrinsic
+    }
+
+    fn taffy_leaves(
+        &self,
+        taffy: &mut TaffyTree<()>,
+        measured: &[layout::Node],
+        horizontal: bool,
+    ) -> Vec<taffy::NodeId> {
+        self.children
+            .iter()
+            .zip(measured)
+            .map(|(child, node)| {
+                let style = self.leaf_style(child.as_widget().size(), node.size(), horizontal);
+                taffy.new_leaf(style).unwrap()
+            })
+            .collect()
+    }
+
+    fn leaf_style(
+        &self,
+        requested: Size<Length>,
+        measured: Size,
+        horizontal: bool,
+    ) -> taffy::Style {
+        let main = if horizontal {
+            requested.width
+        } else {
+            requested.height
+        };
+        let cross = if horizontal {
+            requested.height
+        } else {
+            requested.width
+        };
+        let mut style = taffy::Style {
+            size: taffy::Size {
+                width: Dimension::length(measured.width),
+                height: Dimension::length(measured.height),
+            },
+            ..taffy::Style::default()
+        };
+        if main.is_fill() {
+            style.flex_grow = main.fill_factor() as f32;
+            if horizontal {
+                style.size.width = Dimension::AUTO;
+            } else {
+                style.size.height = Dimension::AUTO;
+            }
+        } else {
+            style.flex_shrink = 0.0;
+        }
+        if cross.is_fill() {
+            if horizontal {
+                style.size.height = Dimension::percent(1.0);
+            } else {
+                style.size.width = Dimension::percent(1.0);
+            }
+        }
+        style
+    }
+
+    fn root_style(&self, resolved: Size, measure_height: bool) -> taffy::Style {
+        let mut style = self.taffy_style.clone();
+        style.display = Display::Flex;
+        style.flex_direction = self.direction;
+        style.size = taffy::Size {
+            width: Dimension::length(resolved.width),
+            height: if measure_height {
+                Dimension::AUTO
+            } else {
+                Dimension::length(resolved.height)
+            },
+        };
+        style.padding = taffy::Rect {
+            left: LengthPercentage::length(self.padding.left),
+            right: LengthPercentage::length(self.padding.right),
+            top: LengthPercentage::length(self.padding.top),
+            bottom: LengthPercentage::length(self.padding.bottom),
+        };
+        style.gap = taffy::Size {
+            width: LengthPercentage::length(self.gap),
+            height: LengthPercentage::length(self.gap),
+        };
+        style
+    }
+
+    fn place_children(
+        &mut self,
+        tree: &mut Tree,
+        renderer: &Renderer,
+        taffy: &TaffyTree<()>,
+        leaves: &[taffy::NodeId],
+    ) -> Vec<layout::Node> {
+        self.children
+            .iter_mut()
+            .zip(&mut tree.children)
+            .zip(leaves.iter().copied())
+            .map(|((child, state), leaf)| {
+                let result = *taffy.layout(leaf).unwrap();
+                let size = Size::new(result.size.width, result.size.height);
+                let exact = layout::Limits::new(size, size);
+                child
+                    .as_widget_mut()
+                    .layout(state, renderer, &exact)
+                    .move_to(Point::new(result.location.x, result.location.y))
+            })
+            .collect()
     }
 }
 

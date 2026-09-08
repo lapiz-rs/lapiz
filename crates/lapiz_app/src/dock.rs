@@ -996,13 +996,15 @@ impl Dock<Theme, Renderer> for ToolBoxDock {
             if !items.is_empty() {
                 items.push(separator());
             }
-            for row in group.tools.chunks(2) {
-                let mut buttons: Vec<_> = row.iter().map(tool_button).collect();
-                while buttons.len() < 2 {
-                    buttons.push(Space::new().width(28).height(28).into());
-                }
-                items.push(Flex::row(buttons).gap(1).into());
-            }
+            let buttons: Vec<_> = group.tools.iter().map(tool_button).collect();
+            items.push(
+                Flex::row(buttons)
+                    .wrap()
+                    .space_evenly()
+                    .gap(1)
+                    .width(Length::Fill)
+                    .into(),
+            );
         }
         let content = Flex::column(items).width(Length::Fill).gap(0).padding(4);
 
