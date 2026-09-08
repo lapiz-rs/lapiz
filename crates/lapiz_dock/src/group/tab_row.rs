@@ -164,7 +164,10 @@ where
         let state = tree.state.downcast_mut::<TabRowState<Renderer>>();
         state.labels.clear();
         state.bounds.clear();
-        let mut x = 0.0;
+        let height = self.font_size.0 + self.padding * 2.0;
+        let available = limits.max().width;
+
+        let mut natural_widths = Vec::with_capacity(self.group_data.len());
         for dock in &self.group_data.docks {
             let p = paragraph::Plain::new(iced_core::text::Text {
                 content: (self.title_of)(dock),
@@ -177,14 +180,30 @@ where
                 shaping: Shaping::Auto,
                 wrapping: text::Wrapping::None,
             });
-            let width = p.min_width() + self.padding * 2.0;
+            natural_widths.push(p.min_width() + self.padding * 2.0);
+            state.labels.push(p);
+        }
+
+        let total: f32 = natural_widths.iter().sum();
+        let overflow = total > available;
+
+        let mut x = 0.0;
+        for (i, natural) in natural_widths.iter().enumerate() {
+            let width = if overflow {
+                if i + 1 == natural_widths.len() {
+                    (available - x).max(0.0)
+                } else {
+                    natural * available / total
+                }
+            } else {
+                *natural
+            };
             state.bounds.push(Rectangle {
                 x,
                 y: 0.0,
                 width,
-                height: self.font_size.0 + self.padding * 2.0,
+                height,
             });
-            state.labels.push(p);
             x += width;
         }
         layout::Node::new(limits.resolve(
@@ -289,15 +308,28 @@ where
                 );
             }
 
-            // Title text
-            renderer.fill_text(
-                state.labels[i]
-                    .as_text()
-                    .with_content(state.labels[i].content().to_string()),
-                tab_rect.center(),
-                tab_style.text_color,
-                tab_rect,
-            );
+            let mut label = state.labels[i]
+                .as_text()
+                .with_content(state.labels[i].content().to_string());
+            let inner = Rectangle {
+                x: tab_rect.x + self.padding,
+                width: (tab_rect.width - self.padding * 2.0).max(0.0),
+                ..tab_rect
+            };
+            let position = if state.labels[i].min_width() > inner.width {
+                // Keep the start of the title visible instead of cutting both ends.
+                // TODO use `Ellipsis` once iced 0.15 lands.
+                label.align_x = text::Alignment::Left;
+                Point::new(inner.x, tab_rect.center().y)
+            } else {
+                tab_rect.center()
+            };
+            let clip = if label.align_x == text::Alignment::Left {
+                inner
+            } else {
+                tab_rect
+            };
+            renderer.fill_text(label, position, tab_style.text_color, clip);
         }
 
         // Drop indicator during tab drag
