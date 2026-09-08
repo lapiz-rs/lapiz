@@ -11,6 +11,7 @@ use lapiz_input::{
 };
 use lapiz_runtime::{Application, Services, plugin::Plugin, service::Service};
 use lapiz_utils::{Deref, DerefMut, wrapper};
+use lapiz_widgets::icon::Icon;
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -75,6 +76,7 @@ pub trait ToolFunction: 'static {
     type Message: Send + Sync + 'static;
 
     fn id() -> ToolId;
+    fn icon() -> Icon<'static>;
     fn activate(&mut self, _: &mut Services) -> Task<Self::Message> {
         Task::none()
     }
@@ -135,6 +137,7 @@ pub trait ToolFunction: 'static {
 
 pub trait ErasedToolFunction: 'static {
     fn id(&self) -> ToolId;
+    fn icon(&self) -> Icon<'static>;
     fn activate(&mut self, services: &mut Services) -> Task<ErasedToolFunctionMessage>;
     fn hover(
         &mut self,
@@ -180,6 +183,10 @@ pub trait ErasedToolFunction: 'static {
 impl<T: ToolFunction> ErasedToolFunction for T {
     fn id(&self) -> ToolId {
         T::id()
+    }
+
+    fn icon(&self) -> Icon<'static> {
+        T::icon()
     }
 
     fn activate(&mut self, services: &mut Services) -> Task<ErasedToolFunctionMessage> {
@@ -312,6 +319,11 @@ impl ToolFunctionRegistry {
     pub fn register<T: ToolFunction + Default>(&mut self) {
         self.spawners
             .insert(T::id(), Rc::new(|| Box::new(T::default())));
+    }
+
+    pub fn icon(&self, id: &ToolId) -> Option<Icon<'static>> {
+        let spawn = self.spawners.get(id)?;
+        Some(spawn().icon())
     }
 }
 

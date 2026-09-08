@@ -44,7 +44,7 @@ use lapiz_runtime::{Services, event::Event};
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_undo::BatchedUndoCommand;
 use lapiz_utils::log_err::LogErr;
-use lapiz_widgets::{button::Button, label::Label, panel::Panel};
+use lapiz_widgets::{button::Button, icon, label::Label, panel::Panel};
 use tracing::warn;
 use wgpu::{
     BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BufferUsages,
@@ -223,6 +223,10 @@ impl ToolFunction for PerspectiveTransformTool {
 
     fn id() -> ToolId {
         ToolId::new("perspective_transform_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::perspective()
     }
 
     fn activate(&mut self, _services: &mut Services) -> Task<Self::Message> {

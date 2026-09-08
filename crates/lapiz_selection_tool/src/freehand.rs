@@ -14,7 +14,9 @@ use lapiz_input::{
 use lapiz_runtime::Services;
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_utils::log_err::LogErr;
-use lapiz_widgets::{form::Form, label::Label, panel::Panel, segmented_control::SegmentedControl};
+use lapiz_widgets::{
+    form::Form, icon, label::Label, panel::Panel, segmented_control::SegmentedControl,
+};
 use lyon::tessellation::FillRule;
 use tracing::info;
 
@@ -52,6 +54,10 @@ impl ToolFunction for FreehandSelectionTool {
 
     fn id() -> ToolId {
         ToolId::new("freehand_selection_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::lasso()
     }
 
     fn begin(
@@ -224,6 +230,10 @@ impl ToolFunction for PolygonSelectionTool {
 
     fn id() -> ToolId {
         ToolId::new("polygon_selection_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::poly_lasso()
     }
 
     fn begin(

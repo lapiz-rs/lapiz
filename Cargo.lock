@@ -3661,6 +3661,7 @@ dependencies = [
  "lapiz_input",
  "lapiz_runtime",
  "lapiz_utils",
+ "lapiz_widgets",
  "log",
  "parse-display",
  "serde",

@@ -47,13 +47,15 @@ use lapiz_image::{
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
 use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::{Services, event::Event};
-use lapiz_tools::{ErasedToolFunctionMessage, ToolId};
+use lapiz_tools::{
+    ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId, manifest::ToolBoxManifest,
+};
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
     button::{Button, Status as ButtonStatus, Style as ButtonStyle},
     divider::Divider,
     flex::Flex,
-    icon::{self, Icon, Style as IconStyle},
+    icon::{self, Style as IconStyle},
     label::Label,
     panel::Panel,
     scrollable::Scrollable,
@@ -888,7 +890,9 @@ impl Dock<Theme, iced_wgpu::Renderer> for ToolOptionsDock {
     }
 }
 
-pub struct ToolBoxDock;
+pub struct ToolBoxDock {
+    manifest: ToolBoxManifest,
+}
 
 pub enum ToolBoxDockMessage {
     Switch(ToolId),
@@ -897,7 +901,21 @@ pub enum ToolBoxDockMessage {
 
 impl ToolBoxDock {
     pub fn new() -> Self {
-        Self
+        // TODO: move to a proper config directory once the app has one.
+        let manifest = match std::fs::read_to_string("assets/tool_box_manifest.toml") {
+            Ok(content) => match toml::from_str(&content) {
+                Ok(manifest) => manifest,
+                Err(error) => {
+                    log::error!("Failed to parse tool box manifest: {error}");
+                    ToolBoxManifest::default()
+                }
+            },
+            Err(error) => {
+                log::error!("Failed to read tool box manifest: {error}");
+                ToolBoxManifest::default()
+            }
+        };
+        Self { manifest }
     }
 }
 
@@ -915,21 +933,24 @@ impl Dock<Theme, Renderer> for ToolBoxDock {
     ) -> Element<'a, Self::Message, Theme, Renderer> {
         let active_tool = services
             .current_tool_proxy()
-            .and_then(|proxy| proxy.current_tool())
-            .map(ToString::to_string)
-            .unwrap_or_default();
-        let tool_button = |id: &'static str, glyph: Icon<'a>| {
-            let selected = active_tool == id;
-            let glyph = glyph.size(12).style(move |theme, _| {
-                let p = theme.extended_palette();
-                IconStyle {
-                    color: Some(if selected {
-                        p.primary.base.text
-                    } else {
-                        p.background.weak.text
-                    }),
-                }
-            });
+            .and_then(|proxy| proxy.current_tool());
+        let tool_button = |tool: &'a ToolId| {
+            let selected = active_tool == Some(tool);
+            let glyph = services
+                .service::<ToolFunctionRegistry>()
+                .icon(tool)
+                .unwrap_or_else(icon::info)
+                .size(12)
+                .style(move |theme, _| {
+                    let p = theme.extended_palette();
+                    IconStyle {
+                        color: Some(if selected {
+                            p.primary.base.text
+                        } else {
+                            p.background.weak.text
+                        }),
+                    }
+                });
             Button::new(glyph)
                 .width(28)
                 .height(28)
@@ -961,7 +982,7 @@ impl Dock<Theme, Renderer> for ToolBoxDock {
                         ..Default::default()
                     }
                 })
-                .on_press(ToolBoxDockMessage::Switch(ToolId::new(id.into())))
+                .on_press(ToolBoxDockMessage::Switch(tool.clone()))
                 .into()
         };
         let separator = || {
@@ -970,55 +991,20 @@ impl Dock<Theme, Renderer> for ToolBoxDock {
                 .padding([3, 0])
                 .into()
         };
-        let content = Flex::column([
-            Flex::row([
-                tool_button("pan_tool", icon::hand()),
-                tool_button("rotate_tool", icon::refresh()),
-            ])
-            .gap(1)
-            .into(),
-            Flex::row([
-                tool_button("zoom_tool", icon::zoom()),
-                tool_button("free_transform_tool", icon::transform()),
-            ])
-            .gap(1)
-            .into(),
-            separator(),
-            Flex::row([
-                tool_button("brush_tool", icon::brush()),
-                tool_button("bucket_tool", icon::fill()),
-            ])
-            .gap(1)
-            .into(),
-            Flex::row([
-                tool_button("rectangular_selection_tool", icon::rect_select()),
-                tool_button("elliptical_selection_tool", icon::ellipse_select()),
-            ])
-            .gap(1)
-            .into(),
-            Flex::row([
-                tool_button("freehand_selection_tool", icon::lasso()),
-                tool_button("polygon_selection_tool", icon::poly_lasso()),
-            ])
-            .gap(1)
-            .into(),
-            Flex::row([
-                tool_button("magic_wand_selection_tool", icon::magic_wand()),
-                tool_button("perspective_transform_tool", icon::perspective()),
-            ])
-            .gap(1)
-            .into(),
-            separator(),
-            Flex::row([
-                tool_button("liquify_tool", icon::smudge()),
-                Space::new().width(28).height(28).into(),
-            ])
-            .gap(1)
-            .into(),
-        ])
-        .width(Length::Fill)
-        .gap(0)
-        .padding(4);
+        let mut items = Vec::new();
+        for group in &self.manifest.groups {
+            if !items.is_empty() {
+                items.push(separator());
+            }
+            for row in group.tools.chunks(2) {
+                let mut buttons: Vec<_> = row.iter().map(tool_button).collect();
+                while buttons.len() < 2 {
+                    buttons.push(Space::new().width(28).height(28).into());
+                }
+                items.push(Flex::row(buttons).gap(1).into());
+            }
+        }
+        let content = Flex::column(items).width(Length::Fill).gap(0).padding(4);
 
         Scrollable::new(content)
             .width(Length::Fill)

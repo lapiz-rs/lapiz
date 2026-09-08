@@ -19,7 +19,7 @@ use lapiz_shader_graph::graph::{
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_undo::QueuedUndoCommand;
 use lapiz_utils::log_err::LogErr;
-use lapiz_widgets::{label::Label, panel::Panel};
+use lapiz_widgets::{icon, label::Label, panel::Panel};
 use log::error;
 
 use crate::{
@@ -97,6 +97,10 @@ impl ToolFunction for BrushTool {
 
     fn id() -> ToolId {
         ToolId::new("brush_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::brush()
     }
 
     #[tracing::instrument(skip_all, name = "brush_tool_begin")]

@@ -49,8 +49,8 @@ use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_undo::BatchedUndoCommand;
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
-    button::Button, combo_box::selection as pick_list, form::Form, label::Label, panel::Panel,
-    spin_box::SpinBox,
+    button::Button, combo_box::selection as pick_list, form::Form, icon, label::Label,
+    panel::Panel, spin_box::SpinBox,
 };
 use tracing::warn;
 use wgpu::{
@@ -616,6 +616,10 @@ impl ToolFunction for FreeTransformTool {
 
     fn id() -> ToolId {
         ToolId::new("free_transform_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::transform()
     }
 
     fn activate(&mut self, _services: &mut Services) -> Task<Self::Message> {

@@ -15,7 +15,7 @@ use lapiz_runtime::Services;
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
-    button::Button, fluent_builder::When, form::Form, label::Label, panel::Panel,
+    button::Button, fluent_builder::When, form::Form, icon, label::Label, panel::Panel,
     spin_slider::SpinSlider,
 };
 
@@ -59,6 +59,10 @@ impl ToolFunction for MagicWandSelectionTool {
 
     fn id() -> ToolId {
         ToolId::new("magic_wand_selection_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::magic_wand()
     }
 
     fn begin(

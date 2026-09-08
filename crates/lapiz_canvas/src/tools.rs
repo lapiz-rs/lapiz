@@ -4,6 +4,7 @@ use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
 use lapiz_math::number::AngleDifference;
 use lapiz_runtime::Services;
 use lapiz_tools::{ToolFunction, ToolId};
+use lapiz_widgets::icon;
 
 use crate::{CanvasAppExt, control::CanvasTransform};
 
@@ -18,6 +19,10 @@ impl ToolFunction for PanTool {
 
     fn id() -> ToolId {
         ToolId::new("pan_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::hand()
     }
 
     fn begin(
@@ -64,6 +69,10 @@ impl ToolFunction for RotateTool {
 
     fn id() -> ToolId {
         ToolId::new("rotate_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::refresh()
     }
 
     fn begin(
@@ -115,6 +124,10 @@ impl ToolFunction for ZoomTool {
 
     fn id() -> ToolId {
         ToolId::new("zoom_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::zoom()
     }
 
     fn begin(

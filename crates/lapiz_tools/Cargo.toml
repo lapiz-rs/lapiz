@@ -12,6 +12,7 @@ workspace = true
 lapiz_assets.workspace = true
 lapiz_input.workspace = true
 lapiz_runtime.workspace = true
+lapiz_widgets.workspace = true
 lapiz_utils.workspace = true
 iced_core.workspace = true
 iced_wgpu.workspace = true

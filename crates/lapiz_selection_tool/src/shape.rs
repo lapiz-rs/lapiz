@@ -14,6 +14,7 @@ use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
 use lapiz_runtime::Services;
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_utils::log_err::LogErr;
+use lapiz_widgets::icon;
 use lyon::tessellation::FillRule;
 use tracing::info;
 
@@ -87,6 +88,10 @@ impl ToolFunction for RectangularSelectionTool {
 
     fn id() -> ToolId {
         ToolId::new("rectangular_selection_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::rect_select()
     }
 
     fn begin(
@@ -210,6 +215,10 @@ impl ToolFunction for EllipticalSelectionTool {
 
     fn id() -> ToolId {
         ToolId::new("elliptical_selection_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::ellipse_select()
     }
 
     fn begin(

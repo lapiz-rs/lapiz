@@ -51,3 +51,14 @@ impl AssetSerializer for ToolBindingManifestSerializer {
         serde_json::to_writer(writer, asset)
     }
 }
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ToolBoxManifest {
+    pub groups: Vec<ToolBarGroup>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ToolBarGroup {
+    pub name: String,
+    pub tools: Vec<ToolId>,
+}

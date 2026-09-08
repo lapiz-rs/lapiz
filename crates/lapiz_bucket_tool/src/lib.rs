@@ -21,7 +21,7 @@ use lapiz_tools::{ToolFunction, ToolId, ToolsAppExt};
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
     button::Button, checkbox::Checkbox, combo_box::selection as pick_list, fluent_builder::When,
-    form::Form, label::Label, panel::Panel, spin_slider::SpinSlider,
+    form::Form, icon, label::Label, panel::Panel, spin_slider::SpinSlider,
 };
 use tracing::error;
 
@@ -82,6 +82,10 @@ impl ToolFunction for BucketTool {
 
     fn id() -> ToolId {
         ToolId::new("bucket_tool".into())
+    }
+
+    fn icon() -> icon::Icon<'static> {
+        icon::fill()
     }
 
     fn end(

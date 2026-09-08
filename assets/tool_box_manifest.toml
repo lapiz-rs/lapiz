@@ -1,0 +1,20 @@
+[[groups]]
+name = "navigation"
+tools = ["pan_tool", "rotate_tool", "zoom_tool", "free_transform_tool"]
+
+[[groups]]
+name = "painting"
+tools = [
+    "brush_tool",
+    "bucket_tool",
+    "rectangular_selection_tool",
+    "elliptical_selection_tool",
+    "freehand_selection_tool",
+    "polygon_selection_tool",
+    "magic_wand_selection_tool",
+    "perspective_transform_tool",
+]
+
+[[groups]]
+name = "retouch"
+tools = ["liquify_tool"]
