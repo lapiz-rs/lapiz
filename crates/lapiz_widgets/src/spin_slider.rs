@@ -1,3 +1,5 @@
+use std::{fmt::Display, ops::RangeInclusive, str::FromStr};
+
 use iced_core::{
     Background, Border, Color, Element, Event, Layout, Length, Pixels, Point, Rectangle, Shell,
     Size, Text, Widget,
@@ -11,10 +13,7 @@ use iced_core::{
     widget::tree::{self, Tree},
 };
 use iced_widget::{TextInput, text_input};
-
-use crate::text_input as text_input_ops;
 use num_traits::AsPrimitive;
-use std::{fmt::Display, ops::RangeInclusive, str::FromStr};
 
 pub struct SpinSlider<'a, T, Message, Theme = iced_core::Theme>
 where
@@ -338,7 +337,7 @@ where
         if self.disabled {
             if matches!(state.interaction, SpinSliderState::Editing { .. }) {
                 let mut input = self.text_input::<Renderer>("");
-                text_input_ops::unfocus(|operation| {
+                crate::text_input::unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
                         layout.child(0),
@@ -418,7 +417,7 @@ where
 
             if !matches!(state.interaction, SpinSliderState::Editing { .. }) {
                 let mut input = self.text_input::<Renderer>("");
-                text_input_ops::unfocus(|operation| {
+                crate::text_input::unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
                         layout.child(0),
@@ -448,7 +447,7 @@ where
             state.interaction = SpinSliderState::Idle;
             {
                 let mut input = self.text_input::<Renderer>("");
-                text_input_ops::unfocus(|operation| {
+                crate::text_input::unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
                         layout.child(0),
@@ -581,7 +580,7 @@ where
                         };
                         let edit_value = format!("{:.*}", self.precision, self.value);
                         let mut input = self.text_input::<Renderer>(&edit_value);
-                        text_input_ops::focus_and_select_all(|operation| {
+                        crate::text_input::focus_and_select_all(|operation| {
                             input.as_widget_mut().operate(
                                 &mut tree.children[0],
                                 layout.child(0),

@@ -7,9 +7,6 @@ use lapiz_runtime::Renderer;
 
 pub use iced_widget::text_input::{Catalog, Status, Style, StyleFn};
 
-/// Runs `apply` with an [`Operation`] that reports whether the visited text
-/// input is focused. Intended to be scoped to a single wrapped
-/// [`iced_widget::TextInput`], since it does not compare widget ids.
 pub fn is_focused(apply: impl FnOnce(&mut dyn Operation)) -> bool {
     struct IsFocused(bool);
 
@@ -28,9 +25,6 @@ pub fn is_focused(apply: impl FnOnce(&mut dyn Operation)) -> bool {
     operation.0
 }
 
-/// Runs `apply` with an [`Operation`] that focuses and selects the contents of
-/// the visited text input. Intended to be scoped to a single wrapped
-/// [`iced_widget::TextInput`], since it does not compare widget ids.
 pub fn focus_and_select_all(apply: impl FnOnce(&mut dyn Operation)) {
     struct FocusAndSelectAll;
 
@@ -56,7 +50,6 @@ pub fn focus_and_select_all(apply: impl FnOnce(&mut dyn Operation)) {
     apply(&mut FocusAndSelectAll);
 }
 
-/// Runs `apply` with an [`Operation`] that unfocuses the visited text input.
 pub fn unfocus(apply: impl FnOnce(&mut dyn Operation)) {
     struct Unfocus;
 
