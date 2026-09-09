@@ -25,16 +25,10 @@ pub struct Button<'a, Message> {
 
 impl<'a, Message> Button<'a, Message> {
     pub fn new(content: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
-        let content = content.into();
-        let size = content.as_widget().size();
-        let width = match size.width {
-            Length::Fill | Length::FillPortion(_) | Length::Fluid(_) => Length::Fill,
-            _ => Length::Shrink,
-        };
         Self {
-            content,
+            content: content.into(),
             press: Callback::Empty,
-            width,
+            width: Length::Fit,
             height: Length::Fixed(26.0),
             padding: Padding {
                 top: 5.0,
@@ -127,6 +121,7 @@ impl<Message> Widget<Message, Theme, Renderer> for Button<'_, Message> {
 
     fn diff(&mut self, tree: &mut Tree) {
         tree.diff_children(std::slice::from_mut(&mut self.content));
+        self.width = self.width.stack(self.content.as_widget().size().width);
     }
 
     fn size(&self) -> Size<Length> {

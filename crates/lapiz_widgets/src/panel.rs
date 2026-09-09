@@ -8,14 +8,18 @@ pub struct Panel<'a, Message> {
     inner: Container<'a, Message, Theme, Renderer>,
     width: Length,
     height: Length,
+    max_width: Option<Pixels>,
+    max_height: Option<Pixels>,
 }
 
 impl<'a, Message> Panel<'a, Message> {
     pub fn new(content: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
         Self {
             inner: Container::new(content).style(default),
-            width: Length::Shrink,
-            height: Length::Shrink,
+            width: Length::Fit,
+            height: Length::Fit,
+            max_width: None,
+            max_height: None,
         }
     }
 
@@ -30,12 +34,12 @@ impl<'a, Message> Panel<'a, Message> {
     }
 
     pub fn max_width(mut self, width: impl Into<Pixels>) -> Self {
-        self.width = self.width.max(width);
+        self.max_width = Some(width.into());
         self
     }
 
     pub fn max_height(mut self, height: impl Into<Pixels>) -> Self {
-        self.height = self.height.max(height);
+        self.max_height = Some(height.into());
         self
     }
 
@@ -84,7 +88,19 @@ impl<'a, Message: 'a> From<Panel<'a, Message>> for Element<'a, Message, Theme, R
             mut inner,
             width,
             height,
+            max_width,
+            max_height,
         } = value;
+        let width = match (width, max_width) {
+            (Length::Fixed(width), Some(max)) => Length::Fixed(width.min(max.0)),
+            (width, Some(max)) => width.max(max),
+            (width, None) => width,
+        };
+        let height = match (height, max_height) {
+            (Length::Fixed(height), Some(max)) => Length::Fixed(height.min(max.0)),
+            (height, Some(max)) => height.max(max),
+            (height, None) => height,
+        };
         inner = inner.width(width).height(height);
         inner.into()
     }

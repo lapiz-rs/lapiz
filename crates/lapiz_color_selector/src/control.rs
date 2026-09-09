@@ -443,10 +443,20 @@ impl Widget<ColorSelectorMessage, Theme, Renderer> for PlaneRow {
             .map_or(tree::State::new(()), |surface| surface.state())
     }
 
-    fn diff(&mut self, _tree: &mut Tree) {}
+    fn diff(&mut self, tree: &mut Tree) {
+        tree.diff_children_custom(
+            &mut self.surfaces,
+            |tree, surface| surface.diff(tree),
+            |surface| Tree {
+                tag: surface.tag(),
+                state: surface.state(),
+                children: Vec::new(),
+            },
+        );
+    }
 
     fn size(&self) -> Size<Length> {
-        Size::new(Length::Fill, Length::Shrink)
+        Size::new(Length::Fill, Length::Fit)
     }
 
     fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &Limits) -> layout::Node {

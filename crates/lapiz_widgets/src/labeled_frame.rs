@@ -26,8 +26,8 @@ impl<'a, Message> LabeledFrame<'a, Message> {
         Self {
             title: title.into(),
             content: content.into(),
-            width: Length::Shrink,
-            height: Length::Shrink,
+            width: Length::Fit,
+            height: Length::Fit,
         }
     }
 

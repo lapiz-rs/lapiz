@@ -19,7 +19,7 @@ impl<'a, Message: 'a> SegmentedControl<'a, Message> {
     pub fn new() -> Self {
         Self {
             segments: Vec::new(),
-            width: Length::Shrink,
+            width: Length::Fit,
             height: Length::Fixed(24.0),
         }
     }

@@ -54,15 +54,19 @@ where
             min: bound(bounds.start_bound()),
             max: bound(bounds.end_bound()),
             step: num_traits::One::one(),
-            content: text_input::TextInput::new("", text.clone())
-                .on_input(InternalMessage::Changed)
-                .size(12.0)
-                .padding([3.0, 6.0])
-                .style(crate::text_input::default),
+            content: Self::text_input(text.clone()),
             on_change: Some(Box::new(on_change)),
             text,
             width: Length::Fixed(DEFAULT_WIDTH),
         }
+    }
+
+    fn text_input(text: String) -> text_input::TextInput<'a, InternalMessage, Theme, Renderer> {
+        text_input::TextInput::new("", text)
+            .on_input(InternalMessage::Changed)
+            .size(12.0)
+            .padding([3.0, 6.0])
+            .style(crate::text_input::default)
     }
 
     pub fn step(mut self, step: T) -> Self {
@@ -230,12 +234,6 @@ where
                 shell.request_redraw();
             }
             Event::Keyboard(keyboard::Event::KeyPressed { key, text, .. }) => {
-                // TODO: The pre-simulation of text edits (which inspected the
-                // cursor state of the wrapped `text_input`) is no longer
-                // possible: `text_input::State` is private in the new iced.
-                // Invalid input is now only rejected reactively through
-                // `InternalMessage::Changed`, so it may become transiently
-                // visible.
                 let is_focused = {
                     let probe = &mut self.content;
                     text_input_ops::is_focused(|operation| {
@@ -264,10 +262,6 @@ where
                         shell.request_redraw();
                         return;
                     }
-                    // All other editing keys (including backspace, delete,
-                    // clipboard shortcuts, and character input) are handled by
-                    // the wrapped `text_input` itself; validation happens
-                    // reactively through `InternalMessage::Changed`.
                     _ => {}
                 }
                 self.forward_content(
@@ -317,7 +311,12 @@ where
         for message in messages.drain().map(|(message, _)| message) {
             match message {
                 InternalMessage::Changed(text) => {
-                    self.text = text;
+                    if self.accepts(&text) {
+                        self.text = text;
+                    }
+                    self.content = Self::text_input(self.text.clone());
+                    shell.invalidate_layout();
+
                     if let Ok(value) = T::from_str(&self.text)
                         && self.in_bounds(&value)
                         && value != self.value
@@ -327,7 +326,6 @@ where
                             shell.publish(message);
                         }
                     }
-                    shell.invalidate_layout();
                 }
             }
         }

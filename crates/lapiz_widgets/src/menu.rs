@@ -160,7 +160,7 @@ impl<Message> MenuBar<Message> {
         Self {
             labels: Vec::new(),
             menus: Vec::new(),
-            width: Length::Shrink,
+            width: Length::Fit,
             height: Length::Fixed(28.0),
         }
     }

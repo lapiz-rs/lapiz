@@ -302,7 +302,9 @@ impl iced_graphics::geometry::Renderer for Renderer {
 impl iced_core::renderer::Headless for Renderer {
     #[inline]
     async fn new(settings: iced_core::renderer::Settings, backend: Option<&str>) -> Option<Self> {
-        todo!()
+        let inner =
+            <iced_wgpu::Renderer as iced_core::renderer::Headless>::new(settings, backend).await?;
+        Some(Self { inner })
     }
 
     #[inline]

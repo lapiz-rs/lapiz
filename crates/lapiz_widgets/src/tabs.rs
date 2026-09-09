@@ -29,7 +29,7 @@ impl<'a, Message> TabBar<'a, Message> {
         Self {
             tabs: Vec::new(),
             variant: Variant::Line,
-            width: Length::Shrink,
+            width: Length::Fit,
             height: Length::Fixed(26.0),
         }
     }

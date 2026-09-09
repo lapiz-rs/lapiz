@@ -65,8 +65,8 @@ impl<'a, Message> Flex<'a, Message> {
             children: Vec::new(),
             taffy_style: taffy::Style::default(),
             direction: FlexDirection::Row,
-            width: Length::Shrink,
-            height: Length::Shrink,
+            width: Length::Fit,
+            height: Length::Fit,
             padding: Padding::ZERO,
             gap: 0.0,
             clip: false,
@@ -212,7 +212,7 @@ impl<Message> Widget<Message, Theme, Renderer> for Flex<'_, Message> {
         let resolved = limits.resolve(self.width, self.height, intrinsic);
 
         let measure_height =
-            self.taffy_style.flex_wrap == FlexWrap::Wrap && matches!(self.height, Length::Shrink);
+            self.taffy_style.flex_wrap == FlexWrap::Wrap && matches!(self.height, Length::Fit);
 
         let mut taffy = TaffyTree::<()>::new();
         let leaves = self.taffy_leaves(&mut taffy, &measured, horizontal);
