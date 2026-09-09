@@ -1,6 +1,5 @@
 use std::f32::consts::TAU;
 
-use iced_aw::ColorPicker;
 use iced_core::{Alignment, Border, Color, Length, Theme};
 use iced_wgpu::Renderer;
 use iced_widget::{Space, column, row, text};
@@ -545,28 +544,29 @@ impl ColorSelectorConfigEditorState {
                     .width(Length::Fill),
             ]
             .spacing(10),
-            SpinSlider::new(128..=512, config.max_plane_size,)
+            SpinSlider::new(128..=512, config.max_plane_size)
                 .on_confirm(ColorSelectorConfigMessage::MaxPlaneSizeChanged)
                 .prefix("Max plane size: ")
                 .suffix(" px"),
-            SpinSlider::new(1..=5, config.max_planes_per_row,)
+            SpinSlider::new(1..=5, config.max_planes_per_row)
                 .on_confirm(ColorSelectorConfigMessage::MaxPlanesPerRowChanged)
                 .prefix("Max planes per row: "),
             row![
                 Checkbox::new(config.use_out_of_gamut_color)
                     .label("Out-of-gamut color")
                     .on_toggle(ColorSelectorConfigMessage::OutOfGamutColorToggled),
-                ColorPicker::new(
-                    self.out_of_gamut_picker_open,
-                    Color::from_rgb(
-                        out_of_gamut_color.r,
-                        out_of_gamut_color.g,
-                        out_of_gamut_color.b,
-                    ),
-                    swatch,
-                    ColorSelectorConfigMessage::OutOfGamutPickerCancelled,
-                    ColorSelectorConfigMessage::OutOfGamutColorSubmitted,
-                ),
+                // TODO Color picker
+                // ColorPicker::new(
+                //     self.out_of_gamut_picker_open,
+                //     Color::from_rgb(
+                //         out_of_gamut_color.r,
+                //         out_of_gamut_color.g,
+                //         out_of_gamut_color.b,
+                //     ),
+                //     swatch,
+                //     ColorSelectorConfigMessage::OutOfGamutPickerCancelled,
+                //     ColorSelectorConfigMessage::OutOfGamutColorSubmitted,
+                // ),
                 Checkbox::new(config.clip_to_gamut)
                     .label("Clip to gamut")
                     .on_toggle(ColorSelectorConfigMessage::ClipToGamutToggled),
