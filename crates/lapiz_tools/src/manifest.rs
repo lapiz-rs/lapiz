@@ -1,4 +1,5 @@
 use lapiz_assets::{asset::Asset, loader::AssetSerializer};
+use lapiz_config::{Config, ConfigType};
 use lapiz_input::key::KeySequence;
 use serde::{Deserialize, Serialize};
 
@@ -52,6 +53,8 @@ impl AssetSerializer for ToolBindingManifestSerializer {
     }
 }
 
+pub type ToolBoxManifestConfig = Config<ToolBoxManifest>;
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ToolBoxManifest {
     pub groups: Vec<ToolBarGroup>,
@@ -61,4 +64,10 @@ pub struct ToolBoxManifest {
 pub struct ToolBarGroup {
     pub name: String,
     pub tools: Vec<ToolId>,
+}
+
+impl ConfigType for ToolBoxManifest {
+    const NAME: &'static str = "tool_box_manifest.toml";
+
+    const DEFAULT: &'static str = include_str!("../../../default_config/tool_box_manifest.toml");
 }

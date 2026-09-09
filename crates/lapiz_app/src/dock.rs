@@ -50,7 +50,8 @@ use lapiz_input::{
 use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::{Renderer, Services, event::Event};
 use lapiz_tools::{
-    ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId, manifest::ToolBoxManifest,
+    ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId,
+    manifest::{ToolBoxManifest, ToolBoxManifestConfig},
 };
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
@@ -892,7 +893,7 @@ impl Dock for ToolOptionsDock {
 }
 
 pub struct ToolBoxDock {
-    manifest: ToolBoxManifest,
+    manifest: ToolBoxManifestConfig,
 }
 
 pub enum ToolBoxDockMessage {
@@ -902,20 +903,9 @@ pub enum ToolBoxDockMessage {
 
 impl ToolBoxDock {
     pub fn new() -> Self {
-        // TODO: move to a proper config directory once the app has one.
-        let manifest = match std::fs::read_to_string("assets/tool_box_manifest.toml") {
-            Ok(content) => match toml::from_str(&content) {
-                Ok(manifest) => manifest,
-                Err(error) => {
-                    log::error!("Failed to parse tool box manifest: {error}");
-                    ToolBoxManifest::default()
-                }
-            },
-            Err(error) => {
-                log::error!("Failed to read tool box manifest: {error}");
-                ToolBoxManifest::default()
-            }
-        };
+        let manifest = ToolBoxManifestConfig::read_or_init()
+            .logged_err()
+            .unwrap_or_default();
         Self { manifest }
     }
 }

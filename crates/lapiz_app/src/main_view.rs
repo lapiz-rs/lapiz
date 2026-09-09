@@ -8,6 +8,7 @@ use iced::{
     pointer, window,
 };
 use iced_widget::pane_grid;
+use lapiz_actions::manifest::MenuBarManifestConfig;
 use lapiz_actions::{
     ActionFunctionRegistry, ActionId,
     manifest::{ActionCollection, KeyBindingDefManifest, MenuBarItem, MenuBarManifest},
@@ -32,6 +33,7 @@ use lapiz_runtime::{
     windows::{WindowView, WindowViewId},
 };
 use lapiz_tools::{ErasedToolFunctionMessage, GlobalToolBindings, ToolFunction};
+use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
     bar::StatusBar,
     divider::Divider,
@@ -53,7 +55,7 @@ use crate::dock::{
 pub struct MainView {
     dock_manager: DockManager,
     action_collection: ActionCollection,
-    menu_manifest: MenuBarManifest,
+    menu_manifest: MenuBarManifestConfig,
     canvas_group_anchor: Option<DockGroupId>,
 }
 
@@ -218,20 +220,9 @@ impl WindowView for MainView {
         );
         let action_collection = ActionCollection::new(&manifest);
 
-        // TODO: move to a proper config directory once the app has one.
-        let menu_manifest = match std::fs::read_to_string("assets/menu_bar_manifest.toml") {
-            Ok(content) => match toml::from_str(&content) {
-                Ok(manifest) => manifest,
-                Err(error) => {
-                    log::error!("Failed to parse menu bar manifest: {error}");
-                    MenuBarManifest::default()
-                }
-            },
-            Err(error) => {
-                log::error!("Failed to read menu bar manifest: {error}");
-                MenuBarManifest::default()
-            }
-        };
+        let menu_manifest = MenuBarManifestConfig::read_or_init()
+            .logged_err()
+            .unwrap_or_default();
 
         let (main_window, task) = window::open(window::Settings {
             decorations: false,

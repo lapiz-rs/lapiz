@@ -3089,6 +3089,7 @@ dependencies = [
  "iced_runtime",
  "lapiz_assets",
  "lapiz_canvas",
+ "lapiz_config",
  "lapiz_i18n",
  "lapiz_image",
  "lapiz_input",
@@ -3349,6 +3350,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "directories",
+ "lapiz_utils",
  "serde",
  "toml 1.1.5+spec-1.1.0",
 ]
@@ -3663,6 +3665,7 @@ dependencies = [
  "iced_wgpu",
  "iced_widget",
  "lapiz_assets",
+ "lapiz_config",
  "lapiz_input",
  "lapiz_runtime",
  "lapiz_utils",

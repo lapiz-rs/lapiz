@@ -4,14 +4,23 @@ use std::{
 };
 
 use lapiz_assets::{asset::Asset, loader::AssetSerializer};
+use lapiz_config::{Config, ConfigType};
 use lapiz_input::key::KeySequence;
 use serde::{Deserialize, Serialize};
 
 use crate::ActionId;
 
+pub type MenuBarManifestConfig = Config<MenuBarManifest>;
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MenuBarManifest {
     pub categories: Vec<MenuBarCategory>,
+}
+
+impl ConfigType for MenuBarManifest {
+    const NAME: &'static str = "menu_bar_manifest.toml";
+
+    const DEFAULT: &'static str = include_str!("../../../default_config/menu_bar_manifest.toml");
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
