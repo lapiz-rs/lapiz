@@ -16,6 +16,7 @@ use lapiz_brush::{BrushPlugin, editor::BrushEditor};
 use lapiz_bucket_tool::BucketPlugin;
 use lapiz_canvas::CanvasPlugin;
 use lapiz_color::ColorPlugin;
+use lapiz_color_selector::ColorSelectorPlugin;
 use lapiz_filter::{FilterPlugin, editor::FilterEditor, panel::FilterPanel};
 use lapiz_image::ImagePlugin;
 use lapiz_input::InputPlugin;
@@ -33,7 +34,6 @@ fn main() {
         .init();
 
     i18n::init();
-    lapiz_color_selector::init_i18n();
 
     log::info!("Running at {}", std::env::current_dir().unwrap().display());
 
@@ -102,7 +102,8 @@ fn main() {
         .add_plugin(SelectionPlugin)
         .add_plugin(FreeTransformPlugin)
         .add_plugin(ColorPlugin)
-        .add_plugin(ActionPlugin);
+        .add_plugin(ActionPlugin)
+        .add_plugin(ColorSelectorPlugin);
     app.build_plugins();
 
     {
