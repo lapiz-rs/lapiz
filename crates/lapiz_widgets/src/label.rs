@@ -1,7 +1,6 @@
+pub use iced_core::widget::text::{Catalog, Style, StyleFn};
 use iced_core::{Element, Font, Length, Pixels, Theme, alignment, font, text};
 use lapiz_runtime::Renderer;
-
-pub use iced_core::widget::text::{Catalog, Style, StyleFn};
 
 pub struct Label<'a> {
     inner: iced_widget::Text<'a, Theme, Renderer>,

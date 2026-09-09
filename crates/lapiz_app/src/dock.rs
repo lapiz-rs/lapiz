@@ -48,8 +48,7 @@ use lapiz_input::{
     mouse::{HoverMouseState, PressedMouseState},
 };
 use lapiz_render::render_context::RenderContextAppExt;
-use lapiz_runtime::Renderer;
-use lapiz_runtime::{Services, event::Event};
+use lapiz_runtime::{Renderer, Services, event::Event};
 use lapiz_tools::{
     ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId, manifest::ToolBoxManifest,
 };

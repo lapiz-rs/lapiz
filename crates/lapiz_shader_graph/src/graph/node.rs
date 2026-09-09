@@ -11,6 +11,7 @@ use dyn_clone::DynClone;
 use iced_core::{Length, Point};
 use iced_widget::Column;
 use lapiz_i18n::t;
+pub use lapiz_shader_graph_derive::stateless;
 use lapiz_utils::{cloneable_any::ClonableAnySync, wrapper};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -30,8 +31,6 @@ use crate::{
     },
     save::GraphSerializable,
 };
-
-pub use lapiz_shader_graph_derive::stateless;
 
 wrapper! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

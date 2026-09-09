@@ -1,10 +1,10 @@
-use windows::Win32::Foundation::HWND;
-use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFOEXW, MonitorFromWindow,
-};
-use windows::Win32::UI::WindowsAndMessaging::{
-    GWL_STYLE, GWLP_HWNDPARENT, GetWindowLongPtrW, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_NOZORDER, SetWindowLongPtrW, SetWindowPos, WS_MAXIMIZEBOX,
+use windows::Win32::{
+    Foundation::HWND,
+    Graphics::Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFOEXW, MonitorFromWindow},
+    UI::WindowsAndMessaging::{
+        GWL_STYLE, GWLP_HWNDPARENT, GetWindowLongPtrW, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+        SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetWindowLongPtrW, SetWindowPos, WS_MAXIMIZEBOX,
+    },
 };
 
 pub fn get_window_monitor_name(raw_window_id: u64) -> String {

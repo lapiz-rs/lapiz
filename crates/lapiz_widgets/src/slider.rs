@@ -1,10 +1,9 @@
 use std::ops::RangeInclusive;
 
 use iced_core::{Background, Border, Element, Length, Pixels, Theme};
+pub use iced_widget::slider::{Catalog, Handle, HandleShape, Rail, Status, Style, StyleFn};
 use lapiz_runtime::Renderer;
 use num_traits::FromPrimitive;
-
-pub use iced_widget::slider::{Catalog, Handle, HandleShape, Rail, Status, Style, StyleFn};
 
 pub struct Slider<'a, T, Message>
 where

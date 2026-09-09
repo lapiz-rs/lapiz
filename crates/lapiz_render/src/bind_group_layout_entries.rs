@@ -1,6 +1,7 @@
 // Stolen from bevy. This is sooo convenient.
 
 use core::num::NonZero;
+
 use variadics_please::all_tuples_with_size;
 use wgpu::{BindGroupLayoutEntry, BindingType, ShaderStages};
 
@@ -366,9 +367,12 @@ impl core::ops::Deref for DynamicBindGroupLayoutEntries {
 
 pub mod binding_types {
     use core::num::NonZero;
+
     use encase::ShaderType;
-    use wgpu::{BufferBindingType, SamplerBindingType, TextureSampleType, TextureViewDimension};
-    use wgpu::{StorageTextureAccess, TextureFormat};
+    use wgpu::{
+        BufferBindingType, SamplerBindingType, StorageTextureAccess, TextureFormat,
+        TextureSampleType, TextureViewDimension,
+    };
 
     use super::*;
 

@@ -134,8 +134,9 @@ impl LazuliArchive {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use uuid::Uuid;
+
+    use super::*;
 
     #[test]
     fn set_path_saves_an_in_memory_archive_and_switches_to_the_disk_database() {

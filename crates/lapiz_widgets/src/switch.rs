@@ -1,7 +1,6 @@
 use iced_core::{Background, Color, Element, Length, Pixels, Theme, text};
-use lapiz_runtime::Renderer;
-
 pub use iced_widget::toggler::{Catalog, Status, Style, StyleFn};
+use lapiz_runtime::Renderer;
 
 pub struct Switch<'a, Message> {
     inner: iced_widget::Toggler<'a, Message, Theme, Renderer>,

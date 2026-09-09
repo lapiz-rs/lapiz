@@ -65,7 +65,11 @@ impl Hsl {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{hsl::Hsl, rgb::Rgb, tests::TEST_EPSILON, tests::TEST_SEGMENTS};
+    use crate::model::{
+        hsl::Hsl,
+        rgb::Rgb,
+        tests::{TEST_EPSILON, TEST_SEGMENTS},
+    };
 
     #[test]
     fn roundtrip() {

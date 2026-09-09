@@ -1,8 +1,7 @@
 use iced_core::{Border, Color, Element, Padding, Theme, text};
+pub use iced_widget::container::{Catalog, Style, StyleFn};
 use iced_widget::{Container, Text, container};
 use lapiz_runtime::Renderer;
-
-pub use iced_widget::container::{Catalog, Style, StyleFn};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Tone {

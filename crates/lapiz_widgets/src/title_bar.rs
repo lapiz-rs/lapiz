@@ -2,10 +2,12 @@ use iced_core::{Border, Element, Length, Theme};
 use iced_widget::container;
 use lapiz_runtime::Renderer;
 
-use crate::button::{self, Button};
-use crate::callback::Callback;
-use crate::flex::{self, Flex};
-use crate::icon;
+use crate::{
+    button::{self, Button},
+    callback::Callback,
+    flex::{self, Flex},
+    icon,
+};
 
 pub type Style = container::Style;
 

@@ -134,8 +134,9 @@ impl CubicBezierCurve {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use glam::vec2;
+
+    use super::*;
 
     #[test]
     fn test_interpolates_through_control_points() {

@@ -13,8 +13,10 @@ use iced_core::{
     keyboard::{self, key},
     layout::{self, Limits, Node},
     overlay, pointer,
-    pointer::button,
-    pointer::mouse::{self, Interaction},
+    pointer::{
+        button,
+        mouse::{self, Interaction},
+    },
     renderer::{self, Quad},
     theme::{Base, Mode},
     widget::{Operation, Tree, tree},

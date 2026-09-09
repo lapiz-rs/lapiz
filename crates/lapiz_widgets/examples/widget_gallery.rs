@@ -27,8 +27,7 @@ use lapiz_widgets::{
     splitter::Splitter,
     switch::Switch,
     tabs::TabBar,
-    tag::Tag,
-    tag::Tone,
+    tag::{Tag, Tone},
     text_input::TextInput,
     tooltip::{Position, Tooltip},
 };

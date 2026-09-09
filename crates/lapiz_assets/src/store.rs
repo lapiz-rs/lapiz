@@ -267,11 +267,10 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::tag::TagFile;
     use crate::{
         bundle::directory::AssetDirectory,
         loader::{AssetRegistryBuilder, AssetSerializer},
-        tag::AssetTags,
+        tag::{AssetTags, TagFile},
     };
 
     #[derive(Debug, Serialize, Deserialize)]

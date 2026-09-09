@@ -4,8 +4,7 @@ use std::{
     collections::{HashMap, VecDeque},
 };
 
-use iced_core::{Element, window};
-use iced_core::{Length, Widget};
+use iced_core::{Element, Length, Widget, window};
 use iced_futures::{Subscription, backend::native};
 use iced_runtime::{Task, window::close_events};
 use iced_winit::program::Program;

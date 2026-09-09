@@ -23,9 +23,8 @@
 // Adobe Inc.
 
 use anyhow::{Result, bail};
-use descriptor::BrushDescriptorRoot;
-
 pub use cursor::Cursor;
+use descriptor::BrushDescriptorRoot;
 pub use descriptor::{
     AbrClass, AbrEnum, AbrIntegerEnum, AbrObject, AbrValue, BlendMode, BrushGroup, BrushTip,
     ComputedBrushTip, DBrushTip, Descriptor, DescriptorUnit, DualBrush, DynamicsControl,

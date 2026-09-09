@@ -1,7 +1,6 @@
 use iced_core::{Background, Border, Element, Length, Pixels, Theme, text};
-use lapiz_runtime::Renderer;
-
 pub use iced_widget::checkbox::{Catalog, Icon, Status, Style, StyleFn};
+use lapiz_runtime::Renderer;
 
 pub struct Checkbox<'a, Message> {
     checked: bool,

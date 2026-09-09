@@ -1,8 +1,9 @@
-use crate::render::{ComputedPenInput, PenInput, Time};
 use chrono::{DateTime, Utc};
 use glam::Vec2;
 use lapiz_input::mouse::PressedMouseState;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
+
+use crate::render::{ComputedPenInput, PenInput, Time};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RawPenInput {

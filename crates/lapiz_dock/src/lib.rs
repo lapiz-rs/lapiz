@@ -10,8 +10,7 @@ use iced_core::{Element, Point, Size, Theme, Vector, window};
 use iced_futures::Subscription;
 use iced_runtime::Task;
 use iced_widget::pane_grid;
-use lapiz_runtime::Renderer;
-use lapiz_runtime::Services;
+use lapiz_runtime::{Renderer, Services};
 use lapiz_widgets::window_decorations::WindowDecorations;
 use state::DockState;
 

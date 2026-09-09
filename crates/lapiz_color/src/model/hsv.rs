@@ -63,7 +63,11 @@ impl Hsv {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{hsv::Hsv, rgb::Rgb, tests::TEST_EPSILON, tests::TEST_SEGMENTS};
+    use crate::model::{
+        hsv::Hsv,
+        rgb::Rgb,
+        tests::{TEST_EPSILON, TEST_SEGMENTS},
+    };
 
     #[test]
     fn roundtrip() {

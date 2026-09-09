@@ -1,8 +1,7 @@
 use iced_core::{Element, Length, Theme};
+pub use iced_widget::svg::{Catalog, Status, Style, StyleFn};
 use iced_widget::{Svg, svg};
 use lapiz_runtime::Renderer;
-
-pub use iced_widget::svg::{Catalog, Status, Style, StyleFn};
 
 pub struct Icon<'a> {
     inner: Svg<'a, Theme>,

@@ -1,5 +1,7 @@
-use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+};
 
 use lapiz_assets::{asset::Asset, loader::AssetSerializer};
 use lapiz_input::key::KeySequence;

@@ -19,7 +19,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@1.96.0
         with:
-          components: rustfmt, clippy
+          components: clippy
+
+      - name: Install pinned nightly rustfmt
+        run: rustup toolchain install nightly-2026-06-16 --profile minimal --component rustfmt --no-self-update
 
       - uses: Swatinem/rust-cache@v2
 
@@ -45,10 +48,10 @@ jobs:
             libgbm-dev
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: cargo +nightly-2026-06-16 fmt --all -- --check
 
       - name: Run clippy
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+        run: cargo +1.96.0 clippy --workspace --all-targets --locked -- -D warnings
 
       - name: Run tests
-        run: cargo test --workspace --all-targets --locked
+        run: cargo +1.96.0 test --workspace --all-targets --locked

@@ -11,8 +11,7 @@ use lapiz_input::{
     key::KeyboardState,
     mouse::{HoverMouseState, PressedMouseState},
 };
-use lapiz_runtime::Renderer;
-use lapiz_runtime::Services;
+use lapiz_runtime::{Renderer, Services};
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{

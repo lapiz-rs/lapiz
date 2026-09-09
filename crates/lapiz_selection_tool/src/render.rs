@@ -25,8 +25,7 @@ use lapiz_render::{
     buffer::DynamicBuffer,
     render_context::RenderContextAppExt,
 };
-use lapiz_runtime::Renderer;
-use lapiz_runtime::Services;
+use lapiz_runtime::{Renderer, Services};
 use lyon::{
     path::Path,
     tessellation::{

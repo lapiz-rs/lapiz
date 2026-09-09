@@ -54,9 +54,10 @@ impl LazuliArchive {
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
     use crate::LazuliArchive;
-    use uuid::Uuid;
 
     #[test]
     fn metadata_table_contains_the_current_version() {

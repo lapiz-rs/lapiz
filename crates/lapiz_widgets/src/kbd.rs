@@ -1,8 +1,7 @@
 use iced_core::{Border, Element, Length, Padding, Pixels, Theme, alignment, text};
+pub use iced_widget::container::{Catalog, Style, StyleFn};
 use iced_widget::{Container, Text, container};
 use lapiz_runtime::Renderer;
-
-pub use iced_widget::container::{Catalog, Style, StyleFn};
 
 pub struct Kbd<'a> {
     content: Text<'a, Theme, Renderer>,

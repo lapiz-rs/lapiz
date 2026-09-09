@@ -1,8 +1,7 @@
 use iced_core::{Border, Element, Length, Padding, Pixels, Theme, alignment};
 use iced_widget::Container;
-use lapiz_runtime::Renderer;
-
 pub use iced_widget::container::{Catalog, Style, StyleFn};
+use lapiz_runtime::Renderer;
 
 pub struct Panel<'a, Message> {
     inner: Container<'a, Message, Theme, Renderer>,

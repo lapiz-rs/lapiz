@@ -1,6 +1,8 @@
-use std::collections::VecDeque;
-use std::sync::Arc;
-use std::{collections::HashMap, fmt::Display};
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt::Display,
+    sync::Arc,
+};
 
 use lapiz_assets::asset::{AssetHandle, AssetId};
 use lapiz_render::wesl_jit;
@@ -21,14 +23,13 @@ use lapiz_shader_graph::{
     save::{GraphDeserializeError, SerializableExternalVariable},
 };
 
+pub use crate::render::graph::{FILTER_GRAPH_NODES, FILTER_GRAPH_TYPES};
 use crate::{
     asset::{
         FilterGroupId, FilterPreset, FilterPresetMetadata, FilterSlotRef, SerializableFilterGroup,
     },
     render::graph::FilterGraphData,
 };
-
-pub use crate::render::graph::{FILTER_GRAPH_NODES, FILTER_GRAPH_TYPES};
 
 pub const EXTERNAL_VARIABLE_BASE_BINDING: u32 = 32;
 

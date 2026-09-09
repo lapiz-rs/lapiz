@@ -11,8 +11,7 @@ use lapiz_i18n::t;
 use lapiz_image::tile::TileStorageAppExt;
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
 use lapiz_render::render_context::RenderContextAppExt;
-use lapiz_runtime::Renderer;
-use lapiz_runtime::Services;
+use lapiz_runtime::{Renderer, Services};
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{

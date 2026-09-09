@@ -8,7 +8,6 @@ use std::{
 };
 
 use anyhow::anyhow;
-
 use glam::{Vec2, Vec3, Vec3Swizzles};
 use iced_core::{
     Event, Layout, Length, Rectangle, Shell, Size, Widget, layout,
@@ -20,6 +19,7 @@ use iced_widget::{column, container, row, text, text_editor, text_input};
 use indexmap::IndexMap;
 use lapiz_i18n::{Translated, t};
 use lapiz_math::curve::CubicCurve;
+use lapiz_shader_graph_derive::stateless;
 use lapiz_utils::{random_oklch_hue_chroma, wrapper};
 use lapiz_widgets::{
     button::Button, combo_box::ComboBox, curve_edit::CurveEdit, fluent_builder::When, label::Label,
@@ -29,10 +29,6 @@ use parking_lot::Mutex;
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
-fn button<'a, Message: 'a>(label: impl Into<String>) -> Button<'a, Message> {
-    Button::new(Label::new(label.into()))
-}
 
 use crate::{
     GraphElement, GraphRenderer, GraphTheme,
@@ -54,8 +50,6 @@ use crate::{
     save::{GraphSerializable, SerializableGraph},
     wgsl_std::types::{BoolType, ColorType, F32Type, I32Type, RectType, TextureType, Vec2FType},
 };
-
-use lapiz_shader_graph_derive::stateless;
 
 #[derive(Default, Clone)]
 pub struct ScalarMathNode;
@@ -2948,9 +2942,12 @@ fn repeat_schema_editor_view<Data: GraphData>(
                         move |ty| { RepeatNodeMessage::EditorChangeLocalType(id, ty.to_string()) },
                     )
                     .width(Length::Fill),
-                    button("Up").on_press(RepeatNodeMessage::EditorMoveLocalUp(id)),
-                    button("Down").on_press(RepeatNodeMessage::EditorMoveLocalDown(id)),
-                    button("Delete").on_press(RepeatNodeMessage::EditorRemoveLocal(id)),
+                    Button::new(Label::new("Up"))
+                        .on_press(RepeatNodeMessage::EditorMoveLocalUp(id)),
+                    Button::new(Label::new("Down"))
+                        .on_press(RepeatNodeMessage::EditorMoveLocalDown(id)),
+                    Button::new(Label::new("Delete"))
+                        .on_press(RepeatNodeMessage::EditorRemoveLocal(id)),
                 ]
                 .spacing(4),
             ]
@@ -2976,11 +2973,17 @@ fn repeat_schema_editor_view<Data: GraphData>(
         .width(Length::Fixed(300.0))
         .padding(4)
         .spacing(6)
-        .push(row![button("Add Variable").on_press(RepeatNodeMessage::EditorAddLocal)].spacing(6))
         .push(
             row![
-                button("Cancel").on_press(RepeatNodeMessage::EditorCancel),
-                button("Confirm").when(valid, |b| b.on_press(RepeatNodeMessage::EditorConfirm))
+                Button::new(Label::new("Add Variable")).on_press(RepeatNodeMessage::EditorAddLocal)
+            ]
+            .spacing(6),
+        )
+        .push(
+            row![
+                Button::new(Label::new("Cancel")).on_press(RepeatNodeMessage::EditorCancel),
+                Button::new(Label::new("Confirm"))
+                    .when(valid, |b| b.on_press(RepeatNodeMessage::EditorConfirm))
             ]
             .spacing(4),
         );
@@ -3071,7 +3074,7 @@ impl<Data: GraphData> GraphNode<Data> for RepeatNode {
         state: &Self::State,
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'static, Self::Message> {
-        let trigger = button("Edit").on_press(RepeatNodeMessage::ToggleEditor);
+        let trigger = Button::new(Label::new("Edit")).on_press(RepeatNodeMessage::ToggleEditor);
         let content = state
             .schema_draft
             .as_ref()
@@ -3743,10 +3746,11 @@ fn custom_expression_variable_rows<Data: GraphData>(
                         }
                     )
                     .width(Length::Fill),
-                    button("Up").on_press(CustomExpressionNodeMessage::MoveVariableUp(kind, id)),
-                    button("Down")
+                    Button::new(Label::new("Up"))
+                        .on_press(CustomExpressionNodeMessage::MoveVariableUp(kind, id)),
+                    Button::new(Label::new("Down"))
                         .on_press(CustomExpressionNodeMessage::MoveVariableDown(kind, id)),
-                    button("Delete")
+                    Button::new(Label::new("Delete"))
                         .on_press(CustomExpressionNodeMessage::RemoveVariable(kind, id)),
                 ]
                 .spacing(4),
@@ -3802,22 +3806,18 @@ fn custom_expression_editor_view<Data: GraphData>(
         .spacing(6)
         .push(text(t!("inputs")).size(12))
         .extend(input_rows)
-        .push(
-            button("Add Input").on_press(CustomExpressionNodeMessage::AddVariable(
-                CustomExpressionVariableKind::Input,
-            )),
-        )
+        .push(Button::new(Label::new("Add Input")).on_press(
+            CustomExpressionNodeMessage::AddVariable(CustomExpressionVariableKind::Input),
+        ))
         .push(text(t!("outputs")).size(12))
         .extend(output_rows)
-        .push(
-            button("Add Output").on_press(CustomExpressionNodeMessage::AddVariable(
-                CustomExpressionVariableKind::Output,
-            )),
-        )
+        .push(Button::new(Label::new("Add Output")).on_press(
+            CustomExpressionNodeMessage::AddVariable(CustomExpressionVariableKind::Output),
+        ))
         .push(
             row![
-                button("Cancel").on_press(CustomExpressionNodeMessage::Cancel),
-                button("Confirm").when(valid, |button| {
+                Button::new(Label::new("Cancel")).on_press(CustomExpressionNodeMessage::Cancel),
+                Button::new(Label::new("Confirm")).when(valid, |button| {
                     button.on_press(CustomExpressionNodeMessage::Confirm)
                 }),
             ]
@@ -3889,7 +3889,8 @@ impl<Data: GraphData> GraphNode<Data> for CustomExpressionNode {
         state: &'a Self::State,
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'a, Self::Message> {
-        let trigger = button("Edit").on_press(CustomExpressionNodeMessage::ToggleEditor);
+        let trigger =
+            Button::new(Label::new("Edit")).on_press(CustomExpressionNodeMessage::ToggleEditor);
         let content = state
             .draft
             .as_ref()

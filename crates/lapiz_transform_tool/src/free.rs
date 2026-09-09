@@ -44,8 +44,7 @@ use lapiz_render::{
     util::DevicePollExt,
     wesl_jit,
 };
-use lapiz_runtime::Renderer;
-use lapiz_runtime::{Services, event::Event};
+use lapiz_runtime::{Renderer, Services, event::Event};
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_undo::BatchedUndoCommand;
 use lapiz_utils::log_err::LogErr;

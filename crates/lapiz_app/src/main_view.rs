@@ -1,9 +1,10 @@
 use std::{any::Any, sync::Arc};
 
-use iced::keyboard::key;
 use iced::{
     Element, Length, Subscription, Task, Theme,
-    keyboard::{self},
+    keyboard::{
+        key, {self},
+    },
     pointer, window,
 };
 use iced_widget::pane_grid;
@@ -13,20 +14,20 @@ use lapiz_actions::{
 };
 use lapiz_assets::AssetAppExt;
 use lapiz_brush::tool::CurrentBrushPresetHandle;
-use lapiz_canvas::{CanvasAppExt, CanvasToolProxyAppExt};
 use lapiz_canvas::{
+    CanvasAppExt, CanvasToolProxyAppExt,
     event::{CanvasCreated, CanvasRemoved},
     tools::PanTool,
 };
-use lapiz_dock::group::DockGroupId;
 use lapiz_dock::{
     DockManager, DockMessage,
     dock::{Dock, DockId},
+    group::DockGroupId,
 };
+use lapiz_i18n::t;
 use lapiz_input::key::KeyboardState;
-use lapiz_runtime::Renderer;
 use lapiz_runtime::{
-    ApplicationTheme, Services,
+    ApplicationTheme, Renderer, Services,
     event::Event,
     windows::{WindowView, WindowViewId},
 };
@@ -42,8 +43,6 @@ use lapiz_widgets::{
 };
 use moxcms::ProfileText;
 use unic_langid::LanguageIdentifier;
-
-use lapiz_i18n::t;
 
 use crate::dock::{
     BRUSH_PRESETS_DOCK_ID, BrushPresetDock, COLOR_SELECTOR_DOCK_ID, CanvasDock, ColorSelectorDock,

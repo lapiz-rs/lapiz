@@ -8,8 +8,7 @@ use lapiz_input::{
     key::{KeySequence, KeyboardState},
     mouse::{HoverMouseState, PressedMouseState},
 };
-use lapiz_runtime::Renderer;
-use lapiz_runtime::{Application, Services, plugin::Plugin, service::Service};
+use lapiz_runtime::{Application, Renderer, Services, plugin::Plugin, service::Service};
 use lapiz_utils::{Deref, DerefMut, wrapper};
 use lapiz_widgets::icon::Icon;
 use parse_display::Display;

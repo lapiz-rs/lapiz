@@ -1,15 +1,13 @@
-use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 
+pub use fluent_bundle::{FluentArgs, FluentValue};
+pub use i18n_embed::fluent::FluentLanguageLoader;
 use i18n_embed::{
     DefaultLocalizer, DesktopLanguageRequester, I18nAssets, LanguageLoader, Localizer,
 };
 use parking_lot::RwLock;
-use unic_langid::LanguageIdentifier;
-
-pub use fluent_bundle::{FluentArgs, FluentValue};
-pub use i18n_embed::fluent::FluentLanguageLoader;
 pub use rust_embed::RustEmbed;
+use unic_langid::LanguageIdentifier;
 
 pub const AVAILABLE: &[(&str, &str)] = &[("en", "English"), ("zh-CN", "简体中文")];
 pub const FALLBACK: &str = "en";
@@ -217,8 +215,9 @@ impl<T: ToString> std::fmt::Display for Translated<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::LazyLock;
+
+    use super::*;
 
     #[test]
     fn available_ids_parse() {

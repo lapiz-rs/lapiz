@@ -1,16 +1,14 @@
-use iced_core::Renderer as _;
 use iced_core::{
     Alignment, Background, Border, Color, Element, Event, Layout, Length, Padding, Rectangle,
-    Shadow, Shell, Size, Theme, Vector, Widget, layout, overlay, pointer,
+    Renderer as _, Shadow, Shell, Size, Theme, Vector, Widget, layout, overlay, pointer,
     pointer::mouse,
     renderer,
     widget::{Operation, Tree, tree},
 };
+pub use iced_widget::button::{Catalog, Status, Style, StyleFn};
 use lapiz_runtime::Renderer;
 
 use crate::callback::{Callback, publish};
-
-pub use iced_widget::button::{Catalog, Status, Style, StyleFn};
 
 pub struct Button<'a, Message> {
     content: Element<'a, Message, Theme, Renderer>,

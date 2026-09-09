@@ -1,19 +1,20 @@
 use std::{fmt::Display, ops::RangeBounds, str::FromStr};
 
-use iced_core::Renderer as _;
-use iced_core::svg::Renderer as _;
 use iced_core::{
-    Border, Element, Event, Layout, Length, Point, Radians, Rectangle, Shell, Size, Theme, Widget,
-    keyboard, layout, pointer,
+    Border, Element, Event, Layout, Length, Point, Radians, Rectangle, Renderer as _, Shell, Size,
+    Theme, Widget, keyboard, layout, pointer,
     pointer::mouse,
     renderer, svg,
+    svg::Renderer as _,
     widget::{Operation, Tree, tree},
 };
 use iced_widget::text_input;
 use lapiz_runtime::Renderer;
 
-use crate::callback::{CallbackWith, publish_with};
-use crate::text_input as text_input_ops;
+use crate::{
+    callback::{CallbackWith, publish_with},
+    text_input as text_input_ops,
+};
 
 const STEPPER_WIDTH: f32 = 16.0;
 const DEFAULT_WIDTH: f32 = 80.0;

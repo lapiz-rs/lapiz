@@ -13,8 +13,7 @@ use lapiz_color::{
     platform,
 };
 use lapiz_render::render_context::RenderContextAppExt;
-use lapiz_runtime::Renderer;
-use lapiz_runtime::{Application, Services, plugin::Plugin};
+use lapiz_runtime::{Application, Renderer, Services, plugin::Plugin};
 use lapiz_widgets::{fluent_builder::When, radio::Radio, spin_slider::SpinSlider};
 use moxcms::ColorProfile;
 use parse_display::Display;

@@ -6,8 +6,9 @@ use smol::channel::{Receiver, Sender};
 
 #[doc(hidden)]
 pub mod __private {
-    pub use smol::channel::{Receiver, Sender, unbounded};
     pub use std::sync::LazyLock;
+
+    pub use smol::channel::{Receiver, Sender, unbounded};
 }
 
 pub use lapiz_runtime_derive::Event;

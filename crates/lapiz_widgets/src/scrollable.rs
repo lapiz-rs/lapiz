@@ -1,7 +1,6 @@
 use iced_core::{Element, Length, Theme};
-use lapiz_runtime::Renderer;
-
 pub use iced_widget::scrollable::{Catalog, Direction, Scrollbar, Status, Style, StyleFn};
+use lapiz_runtime::Renderer;
 
 pub struct Scrollable<'a, Message> {
     inner: iced_widget::Scrollable<'a, Message, Theme, Renderer>,

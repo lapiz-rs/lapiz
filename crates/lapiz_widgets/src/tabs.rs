@@ -1,8 +1,10 @@
 use iced_core::{Border, Element, Length, Shadow, Theme, Vector};
 use lapiz_runtime::Renderer;
 
-use crate::button::{self, Button, activated_style, transparent};
-use crate::flex::{self, Flex};
+use crate::{
+    button::{self, Button, activated_style, transparent},
+    flex::{self, Flex},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Variant {

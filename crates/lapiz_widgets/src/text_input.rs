@@ -1,11 +1,12 @@
-use iced_core::widget::Id;
-use iced_core::widget::operation::{Focusable, Operation, TextInput as TextInputOp};
 use iced_core::{
     Background, Border, Element, Length, Padding, Pixels, Rectangle, Theme, alignment,
+    widget::{
+        Id,
+        operation::{Focusable, Operation, TextInput as TextInputOp},
+    },
 };
-use lapiz_runtime::Renderer;
-
 pub use iced_widget::text_input::{Catalog, Status, Style, StyleFn};
+use lapiz_runtime::Renderer;
 
 pub fn is_focused(apply: impl FnOnce(&mut dyn Operation)) -> bool {
     struct IsFocused(bool);
