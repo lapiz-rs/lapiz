@@ -3,6 +3,7 @@ use std::f32::consts::FRAC_PI_2;
 use crate::render::{ComputedPenInput, PenInput, Time};
 use chrono::{DateTime, Utc};
 use glam::Vec2;
+use lapiz_input::mouse::PressedMouseState;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -10,6 +11,7 @@ pub struct RawPenInput {
     pub position: Vec2,
     pub pressure: f32,
     pub tilt: Vec2,
+    // TODO: split altitude and azimuth for better readability
     pub angle: Vec2,
     pub time: Time,
 }
@@ -17,25 +19,16 @@ pub struct RawPenInput {
 const TIMESTAMP_MOD: i64 = 1_000_000;
 
 impl RawPenInput {
-    const DEFAULT: Self = Self {
-        position: Vec2::new(0.0, 0.0),
-        pressure: 1.0,
-        tilt: Vec2::new(0.0, 0.0),
-        angle: Vec2::new(FRAC_PI_2, 0.0),
-        time: Time {
-            now: 0.0,
-            stroke_begin: 0.0,
-        },
-    };
-
-    pub fn new(position_ps: Vec2, stroke_begin: DateTime<Utc>) -> Self {
+    pub fn new(position_ps: Vec2, stroke_begin: DateTime<Utc>, mouse: &PressedMouseState) -> Self {
         Self {
             position: position_ps,
             time: Time {
                 now: (Utc::now().timestamp_micros() % TIMESTAMP_MOD) as f32,
                 stroke_begin: (stroke_begin.timestamp_micros() % TIMESTAMP_MOD) as f32,
             },
-            ..Self::DEFAULT
+            pressure: mouse.force,
+            tilt: mouse.tilt,
+            angle: Vec2::new(mouse.altitude, mouse.azimuth),
         }
     }
 }

@@ -200,9 +200,9 @@ impl CanvasBrushPresetOperator {
             .expect("Failed to bind selection layer");
         renderer.begin(&self.device, &self.queue, target_layer, selection_layer);
 
-        let sample = self
-            .input_processor
-            .push(RawPenInput::new(position, session.stroke_begin));
+        let sample =
+            self.input_processor
+                .push(RawPenInput::new(position, session.stroke_begin, input));
         let task = sample.map(|sample| renderer.update(&self.device, &self.queue, sample));
 
         self.session = Some(session);
@@ -221,9 +221,9 @@ impl CanvasBrushPresetOperator {
             .transform
             .window_to_pixel(Vec2::new(input.position.x, input.position.y));
 
-        let Some(sample) = self
-            .input_processor
-            .push(RawPenInput::new(position, session.stroke_begin))
+        let Some(sample) =
+            self.input_processor
+                .push(RawPenInput::new(position, session.stroke_begin, input))
         else {
             return Task::none();
         };
@@ -250,9 +250,9 @@ impl CanvasBrushPresetOperator {
             .window_to_pixel(Vec2::new(input.position.x, input.position.y));
 
         let mut updates = Vec::new();
-        for sample in self
-            .input_processor
-            .flush(RawPenInput::new(position, session.stroke_begin))
+        for sample in
+            self.input_processor
+                .flush(RawPenInput::new(position, session.stroke_begin, input))
         {
             updates.push(renderer.update(&self.device, &self.queue, sample));
         }
