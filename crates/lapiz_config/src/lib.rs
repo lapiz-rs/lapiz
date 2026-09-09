@@ -21,7 +21,16 @@ pub fn resolve_config_dir(name: &str) -> std::path::PathBuf {
 
 pub trait ConfigType: Serialize + DeserializeOwned {
     const NAME: &'static str;
+
     const DEFAULT: &'static str;
+
+    fn parse(value: &str) -> Result<Self> {
+        Ok(toml::from_str(value)?)
+    }
+
+    fn unparse(&self) -> Result<String> {
+        Ok(toml::to_string(self)?)
+    }
 }
 
 #[derive(Deref)]
@@ -32,7 +41,7 @@ pub struct Config<T: ConfigType> {
 impl<T: ConfigType> Default for Config<T> {
     fn default() -> Self {
         Self {
-            value: toml::from_str(T::DEFAULT).unwrap(),
+            value: T::parse(T::DEFAULT).unwrap(),
         }
     }
 }
@@ -47,14 +56,14 @@ impl<T: ConfigType> Config<T> {
         let content = std::fs::read_to_string(&path).unwrap_or_else(|_| T::DEFAULT.to_string());
 
         Ok(Self {
-            value: toml::from_str(&content)?,
+            value: T::parse(&content)?,
         })
     }
 
     pub fn write(&self) -> Result<()> {
         let path = resolve_config_dir(T::NAME);
         std::fs::create_dir_all(path.parent().unwrap())?;
-        std::fs::write(&path, toml::to_string(&self.value)?)?;
+        std::fs::write(&path, self.unparse()?)?;
         Ok(())
     }
 

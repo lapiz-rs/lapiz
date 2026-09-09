@@ -1,9 +1,6 @@
-use std::{
-    collections::HashMap,
-    io::{Read, Write},
-};
+use std::collections::HashMap;
 
-use lapiz_assets::{asset::Asset, loader::AssetSerializer};
+use anyhow::Result;
 use lapiz_config::{Config, ConfigType};
 use lapiz_input::key::KeySequence;
 use serde::{Deserialize, Serialize};
@@ -91,7 +88,7 @@ impl<'de> Deserialize<'de> for MenuBarItem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KeyBindingDef {
+pub struct ActionBinding {
     pub shortcut: KeySequence,
     pub action_name: String,
     #[serde(default)]
@@ -111,50 +108,26 @@ fn is_none<T>(value: &Option<T>) -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KeyBindingDefManifest {
+pub struct ActionBindingManifest {
     pub name: String,
-    pub actions: Vec<KeyBindingDef>,
+    pub actions: Vec<ActionBinding>,
 }
 
-impl Asset for KeyBindingDefManifest {
-    const TYPE_NAME: &'static str = "key_bindings";
-}
+impl ConfigType for ActionBindingManifest {
+    const NAME: &'static str = "action_bindings.json";
 
-#[derive(Default)]
-pub struct KeyBindingDefManifestLoader;
+    const DEFAULT: &'static str = include_str!("../../../default_config/action_bindings.json");
 
-#[derive(Debug, thiserror::Error)]
-pub enum KeyBindingDefManifestLoaderError {
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-    #[error(transparent)]
-    String(#[from] std::string::FromUtf8Error),
-    #[error(transparent)]
-    Json(#[from] serde_json::Error),
-}
-
-impl AssetSerializer for KeyBindingDefManifestLoader {
-    type Asset = KeyBindingDefManifest;
-
-    type Error = KeyBindingDefManifestLoaderError;
-
-    fn file_extension() -> &'static str {
-        "actions"
+    fn parse(value: &str) -> Result<Self> {
+        Ok(serde_json::from_str(value)?)
     }
 
-    fn read(&self, reader: &mut dyn Read) -> Result<Self::Asset, Self::Error> {
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let manifest: KeyBindingDefManifest = serde_json::from_slice(&buf)?;
-        Ok(manifest)
-    }
-
-    fn write(&self, asset: &Self::Asset, writer: &mut dyn Write) -> Result<(), Self::Error> {
-        let json = serde_json::to_string(asset)?;
-        writer.write_all(json.as_bytes())?;
-        Ok(())
+    fn unparse(&self) -> Result<String> {
+        Ok(serde_json::to_string(self)?)
     }
 }
+
+pub type ActionBindingManifestConfig = Config<ActionBindingManifest>;
 
 #[derive(Clone)]
 pub struct ActionCollection {
@@ -163,7 +136,7 @@ pub struct ActionCollection {
 }
 
 impl ActionCollection {
-    pub fn new(manifest: &KeyBindingDefManifest) -> Self {
+    pub fn new(manifest: &ActionBindingManifest) -> Self {
         let mut shortcuts = HashMap::new();
         let mut shortcuts_by_action = HashMap::new();
 

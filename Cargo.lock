@@ -3660,6 +3660,7 @@ dependencies = [
 name = "lapiz_tools"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "iced_core",
  "iced_runtime",
  "iced_wgpu",

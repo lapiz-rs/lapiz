@@ -9,13 +9,13 @@ use lapiz_input::{
     mouse::{HoverMouseState, PressedMouseState},
 };
 use lapiz_runtime::{Application, Renderer, Services, plugin::Plugin, service::Service};
-use lapiz_utils::{Deref, DerefMut, wrapper};
+use lapiz_utils::{Deref, DerefMut, log_err::LogErr, wrapper};
 use lapiz_widgets::icon::Icon;
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::manifest::{ToolBinding, ToolBindingManifest, ToolBindingManifestSerializer};
+use crate::manifest::{ToolBinding, ToolBindingManifest, ToolBindingManifestConfig};
 
 pub mod manifest;
 
@@ -26,31 +26,24 @@ impl Plugin for ToolsPlugin {
         app.add_service::<ToolFunctionRegistry>()
             .add_service::<ToolProxies>()
             .add_service::<GlobalToolBindings>();
-        app.runtime_mut()
-            .services_mut()
-            .add_asset_serializer::<ToolBindingManifestSerializer>();
     }
 
     fn finish(&self, app: &mut Application) {
-        let mut runtime = app.runtime_mut();
-        let services = runtime.services_mut();
-        let manifest = services
-            .assets()
-            .all_handles_of::<ToolBindingManifest>()
-            .expect("Failed to read tool binding manifests")
-            .into_iter()
-            .next()
-            .expect("At least one tool binding manifest should exist")
-            .get()
-            .expect("Failed to load tool binding manifest");
+        let tool_bindings = ToolBindingManifestConfig::read_or_init()
+            .logged_err()
+            .unwrap_or_default();
 
-        let bindings = manifest
+        let bindings = tool_bindings
             .bindings
             .iter()
             .cloned()
             .map(|binding| (binding.shortcut, binding))
             .collect();
-        services.service_mut::<GlobalToolBindings>().bindings = bindings;
+
+        app.runtime_mut()
+            .services_mut()
+            .service_mut::<GlobalToolBindings>()
+            .bindings = bindings;
     }
 }
 

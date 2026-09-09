@@ -8,10 +8,10 @@ use iced::{
     pointer, window,
 };
 use iced_widget::pane_grid;
-use lapiz_actions::manifest::MenuBarManifestConfig;
+use lapiz_actions::manifest::{ActionBindingManifestConfig, MenuBarManifestConfig};
 use lapiz_actions::{
     ActionFunctionRegistry, ActionId,
-    manifest::{ActionCollection, KeyBindingDefManifest, MenuBarItem, MenuBarManifest},
+    manifest::{ActionBindingManifest, ActionCollection, MenuBarItem, MenuBarManifest},
 };
 use lapiz_assets::AssetAppExt;
 use lapiz_brush::tool::CurrentBrushPresetHandle;
@@ -209,16 +209,15 @@ impl WindowView for MainView {
     }
 
     fn boot(services: &mut Services) -> (Self, Task<Self::Message>) {
-        let assets = services.assets();
-        let manifests = assets.all_handles_of::<KeyBindingDefManifest>().unwrap();
-        let manifest = manifests.first().unwrap().get().unwrap();
-
+        let action_bindings = ActionBindingManifestConfig::read_or_init()
+            .logged_err()
+            .unwrap_or_default();
         log::info!(
             "Loading {} key bindings from manifest {}",
-            manifest.actions.len(),
-            manifest.name
+            action_bindings.actions.len(),
+            action_bindings.name
         );
-        let action_collection = ActionCollection::new(&manifest);
+        let action_collection = ActionCollection::new(&action_bindings);
 
         let menu_manifest = MenuBarManifestConfig::read_or_init()
             .logged_err()

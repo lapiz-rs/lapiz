@@ -14,7 +14,6 @@ use crate::{
         CreateNewLayerAction, DeleteSelectedLayersAction, GroupSelectedLayersAction,
         MoveLayerDownAction, MoveLayerUpAction, SelectNextLayerAction, SelectPreviousLayerAction,
     },
-    manifest::KeyBindingDefManifestLoader,
     selection::DeleteSelectionAction,
     window::{OpenBrushEditorAction, ToggleFilterPanelAction},
 };
@@ -36,9 +35,6 @@ pub struct ActionPlugin;
 impl Plugin for ActionPlugin {
     fn build(&self, app: &mut Application) {
         let mut runtime = app.runtime_mut();
-        runtime
-            .services_mut()
-            .add_asset_serializer::<KeyBindingDefManifestLoader>();
         runtime.add_service::<ActionFunctionRegistry>();
         let services = runtime.services_mut();
         services

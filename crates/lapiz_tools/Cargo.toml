@@ -9,6 +9,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
 lapiz_assets.workspace = true
 lapiz_config.workspace = true
 lapiz_input.workspace = true
