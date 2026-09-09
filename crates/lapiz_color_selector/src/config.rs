@@ -1,19 +1,12 @@
 use std::f32::consts::TAU;
 
-use iced_core::{Alignment, Border, Color, Length, Theme};
+use iced_core::{Alignment, Color, Length, Theme};
 use iced_wgpu::Renderer;
 use iced_widget::{Space, column, row, text};
 use lapiz_color::model::rgb::Rgb;
 use lapiz_widgets::{
-    button::{self, Button},
-    checkbox::Checkbox,
-    combo_box::ComboBox,
-    label::Label,
-    panel::Panel,
-    radio::Radio,
-    scrollable::Scrollable,
-    spin_slider::SpinSlider,
-    text_input::TextInput,
+    button::Button, checkbox::Checkbox, combo_box::ComboBox, label::Label, panel::Panel,
+    radio::Radio, scrollable::Scrollable, spin_slider::SpinSlider, text_input::TextInput,
 };
 
 use crate::{ColorModel, GradientPlaneShape};
@@ -486,31 +479,31 @@ impl ColorSelectorConfigEditorState {
             .map(|(bar_index, _)| self.render_bar(config, bar_index))
             .collect::<Vec<_>>();
 
-        let out_of_gamut_color = config.out_of_gamut_color;
-        let swatch = Button::new(
-            Space::new()
-                .width(Length::Fixed(24.0))
-                .height(Length::Fixed(16.0)),
-        )
-        .width(Length::Fixed(32.0))
-        .height(Length::Fixed(20.0))
-        .on_press(ColorSelectorConfigMessage::OutOfGamutPickerToggled)
-        .style(move |theme: &Theme, _| button::Style {
-            background: Some(
-                Color::from_rgb(
-                    out_of_gamut_color.r,
-                    out_of_gamut_color.g,
-                    out_of_gamut_color.b,
-                )
-                .into(),
-            ),
-            border: Border {
-                color: theme.extended_palette().background.strong.color,
-                width: 1.0,
-                radius: 2.0.into(),
-            },
-            ..button::Style::default()
-        });
+        // let out_of_gamut_color = config.out_of_gamut_color;
+        // let swatch = Button::new(
+        //     Space::new()
+        //         .width(Length::Fixed(24.0))
+        //         .height(Length::Fixed(16.0)),
+        // )
+        // .width(Length::Fixed(32.0))
+        // .height(Length::Fixed(20.0))
+        // .on_press(ColorSelectorConfigMessage::OutOfGamutPickerToggled)
+        // .style(move |theme: &Theme, _| button::Style {
+        //     background: Some(
+        //         Color::from_rgb(
+        //             out_of_gamut_color.r,
+        //             out_of_gamut_color.g,
+        //             out_of_gamut_color.b,
+        //         )
+        //         .into(),
+        //     ),
+        //     border: Border {
+        //         color: theme.extended_palette().background.strong.color,
+        //         width: 1.0,
+        //         radius: 2.0.into(),
+        //     },
+        //     ..button::Style::default()
+        // });
 
         let planes_section = column![
             row![
