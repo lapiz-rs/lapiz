@@ -5,7 +5,11 @@ publish.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
-[dependencies]
-
 [lints]
 workspace = true
+
+[dependencies]
+anyhow.workspace = true
+directories.workspace = true
+serde.workspace = true
+toml.workspace = true
