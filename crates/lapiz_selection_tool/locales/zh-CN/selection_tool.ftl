@@ -1,0 +1,11 @@
+threshold = 阈值
+alpha_threshold = Alpha 阈值
+grow = 扩展
+close_gap = 闭合间隙
+antialiasing_approach = 抗锯齿方式
+none = 无
+fxaa = FXAA
+feather = 羽化
+fill_rule = 填充规则
+even_odd = 偶奇
+non_zero = 非零

@@ -22,10 +22,13 @@ pub type GraphRenderer = iced_wgpu::Renderer;
 pub type GraphTheme = Theme;
 pub type GraphElement<'a, Message> = Element<'a, Message, GraphTheme, GraphRenderer>;
 
+lapiz_i18n::define_i18n!("shader_graph");
+
 pub struct ShaderGraphPlugin;
 
 impl Plugin for ShaderGraphPlugin {
     fn build(&self, app: &mut Application) {
+        crate::i18n::init();
         app.runtime_mut()
             .services_mut()
             .add_asset_serializer::<SerializableGraphFunctionSerializer>();

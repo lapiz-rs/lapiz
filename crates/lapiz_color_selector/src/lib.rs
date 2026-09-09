@@ -26,6 +26,10 @@ use crate::{
     render::SurfaceDrawData,
 };
 
+lapiz_i18n::define_i18n!("color_selector");
+
+pub use i18n::init as init_i18n;
+
 pub mod config;
 mod control;
 mod pipeline;
@@ -34,6 +38,7 @@ mod render;
 const GRADIENT_RING_GAP: f32 = 5.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[display(style = "snake_case")]
 #[repr(u32)]
 pub enum GradientPlaneShape {
     Square,

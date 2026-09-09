@@ -7,6 +7,7 @@ use iced_runtime::Task;
 use iced_wgpu::Renderer;
 use iced_widget::space;
 use lapiz_canvas::{CanvasAppExt, CanvasUndoStackAppExt};
+use lapiz_i18n::t;
 use lapiz_input::{
     key::KeyboardState,
     mouse::{HoverMouseState, PressedMouseState},
@@ -159,15 +160,15 @@ impl ToolFunction for FreehandSelectionTool {
         _: &'a Services,
     ) -> Option<Element<'a, Self::Message, Theme, Renderer>> {
         let fields = Form::new().push(
-            "Fill Rule",
+            t!("fill_rule"),
             SegmentedControl::new()
                 .push(
-                    Label::new("Even Odd"),
+                    Label::new(t!("even_odd")),
                     self.fill_rule == FillRule::EvenOdd,
                     FreehandSelectionToolMessage::FillRuleChanged(FillRule::EvenOdd),
                 )
                 .push(
-                    Label::new("Non Zero"),
+                    Label::new(t!("non_zero")),
                     self.fill_rule == FillRule::NonZero,
                     FreehandSelectionToolMessage::FillRuleChanged(FillRule::NonZero),
                 ),
@@ -339,15 +340,15 @@ impl ToolFunction for PolygonSelectionTool {
         _: &'a Services,
     ) -> Option<Element<'a, Self::Message, Theme, Renderer>> {
         let fields = Form::new().push(
-            "Fill Rule",
+            t!("fill_rule"),
             SegmentedControl::new()
                 .push(
-                    Label::new("Even Odd"),
+                    Label::new(t!("even_odd")),
                     self.fill_rule == FillRule::EvenOdd,
                     PolygonSelectionToolMessage::FillRuleChanged(FillRule::EvenOdd),
                 )
                 .push(
-                    Label::new("Non Zero"),
+                    Label::new(t!("non_zero")),
                     self.fill_rule == FillRule::NonZero,
                     PolygonSelectionToolMessage::FillRuleChanged(FillRule::NonZero),
                 ),

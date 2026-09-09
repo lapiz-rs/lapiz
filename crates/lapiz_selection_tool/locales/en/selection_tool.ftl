@@ -1,0 +1,11 @@
+threshold = Threshold
+alpha_threshold = Alpha Threshold
+grow = Grow
+close_gap = Close Gap
+antialiasing_approach = Antialiasing Approach
+none = None
+fxaa = FXAA
+feather = Feather
+fill_rule = Fill Rule
+even_odd = Even Odd
+non_zero = Non Zero

@@ -10,6 +10,7 @@ use lapiz_canvas::{
     CCanvas, CanvasAppExt, CanvasId, CanvasUndoStackAppExt, command::TileReplaceCommand,
     event::CanvasUpdated,
 };
+use lapiz_i18n::t;
 use lapiz_image::{
     composite::{LayerPreviewOverriders, PixelPreviewOverrider},
     layer::{
@@ -141,13 +142,15 @@ impl WindowView for FilterPanel {
 
         let sidebar = Panel::new(
             column![
-                Label::new("Filters").strong(),
+                Label::new(t!("filters")).strong(),
                 Scrollable::new(column(filter_list).spacing(2))
                     .width(Length::Fill)
                     .height(Length::Fill),
                 row![
-                    Button::new(Label::new("New Filter")).on_press(FilterPanelMessage::NewFilter),
-                    Button::new(Label::new("Edit Filter")).on_press(FilterPanelMessage::EditFilter),
+                    Button::new(Label::new(t!("new_filter")))
+                        .on_press(FilterPanelMessage::NewFilter),
+                    Button::new(Label::new(t!("edit_filter")))
+                        .on_press(FilterPanelMessage::EditFilter),
                 ]
                 .spacing(4),
             ]
@@ -173,10 +176,10 @@ impl WindowView for FilterPanel {
                 })
                 .collect::<Vec<_>>();
             if variable_rows.is_empty() {
-                column![Label::new("No external variables.").muted()].spacing(6)
+                column![Label::new(t!("no_external_variables")).muted()].spacing(6)
             } else {
                 column![
-                    Label::new("Parameters").strong(),
+                    Label::new(t!("parameters")).strong(),
                     Scrollable::new(column(variable_rows).spacing(6))
                         .width(Length::Fill)
                         .height(Length::Fill),
@@ -184,7 +187,7 @@ impl WindowView for FilterPanel {
                 .spacing(6)
             }
         } else {
-            column![Label::new("Select a filter to adjust its parameters.").muted()]
+            column![Label::new(t!("select_a_filter_to_adjust")).muted()]
         };
 
         let ok_enabled = self.selected.is_some() && !self.rendering;
@@ -192,7 +195,7 @@ impl WindowView for FilterPanel {
 
         let footer = row![
             Space::new().width(Length::Fill),
-            Button::new(Label::new("Cancel")).on_press(FilterPanelMessage::Cancel),
+            Button::new(Label::new(t!("cancel"))).on_press(FilterPanelMessage::Cancel),
             Button::new(Label::new(ok_label))
                 .primary()
                 .on_press_maybe(ok_enabled.then_some(FilterPanelMessage::Confirm)),

@@ -12,6 +12,7 @@ use anyhow::Result;
 use bevy_math::IRect;
 use glam::{IVec2, UVec2};
 use imagers::{ImageDecoder, ImageReader};
+use lapiz_i18n::t;
 use lapiz_lazuli::LazuliArchive;
 use lapiz_runtime::{Application, Services, plugin::Plugin};
 use moxcms::ColorProfile;
@@ -41,10 +42,13 @@ pub mod scan_pixels;
 pub mod texel;
 pub mod tile;
 
+lapiz_i18n::define_i18n!("image");
+
 pub struct ImagePlugin;
 
 impl Plugin for ImagePlugin {
     fn build(&self, app: &mut Application) {
+        crate::i18n::init();
         app.add_service::<GpuTileStorage>()
             .add_service::<LayerPreviewOverriders>();
 
@@ -134,7 +138,7 @@ impl CImage {
     ) -> Self {
         let size = UVec2::new(img.width(), img.height());
         let mut layer = PixelLayer::from_image(img, tiles);
-        layer.properties_mut().set_name("Background".into());
+        layer.properties_mut().set_name(t!("background_layer"));
         Self::from_layer(size, layer, profile)
     }
 

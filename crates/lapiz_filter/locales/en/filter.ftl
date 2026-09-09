@@ -1,0 +1,15 @@
+filters = Filters
+new_filter = New Filter
+edit_filter = Edit Filter
+select_a_filter = Select a filter
+add_group = Add Group
+delete = Delete
+shader_groups = Shader Groups
+input_source = Input source
+output_target = Output target
+variables = Variables
+add_variable = Add Variable
+no_external_variables = No external variables.
+parameters = Parameters
+select_a_filter_to_adjust = Select a filter to adjust its parameters.
+cancel = Cancel

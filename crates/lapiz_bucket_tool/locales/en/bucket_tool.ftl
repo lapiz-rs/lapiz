@@ -1,0 +1,10 @@
+threshold = Threshold
+alpha_threshold = Alpha Threshold
+grow = Grow
+contiguous = Contiguous
+close_gap = Close Gap
+blend_function = Blend Function
+antialiasing_approach = Antialiasing Approach
+none = None
+fxaa = FXAA
+feather = Feather

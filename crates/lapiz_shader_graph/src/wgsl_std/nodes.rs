@@ -16,6 +16,7 @@ use iced_core::{
 };
 use iced_widget::{column, container, row, text, text_editor, text_input};
 use indexmap::IndexMap;
+use lapiz_i18n::t;
 use lapiz_math::curve::CubicCurve;
 use lapiz_utils::{random_oklch_hue_chroma, wrapper};
 use lapiz_widgets::{
@@ -3779,14 +3780,14 @@ fn custom_expression_editor_view<Data: GraphData>(
         .width(Length::Fixed(500.0))
         .padding(4)
         .spacing(6)
-        .push(text("Inputs").size(12))
+        .push(text(t!("inputs")).size(12))
         .extend(input_rows)
         .push(
             button("Add Input").on_press(CustomExpressionNodeMessage::AddVariable(
                 CustomExpressionVariableKind::Input,
             )),
         )
-        .push(text("Outputs").size(12))
+        .push(text(t!("outputs")).size(12))
         .extend(output_rows)
         .push(
             button("Add Output").on_press(CustomExpressionNodeMessage::AddVariable(

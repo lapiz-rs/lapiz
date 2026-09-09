@@ -14,6 +14,7 @@ bytemuck.workspace = true
 lapiz_anti_aliasing.workspace = true
 lapiz_canvas.workspace = true
 lapiz_color.workspace = true
+lapiz_i18n.workspace = true
 lapiz_image.workspace = true
 lapiz_input.workspace = true
 lapiz_render.workspace = true
@@ -32,6 +33,8 @@ indexmap.workspace = true
 tracing.workspace = true
 wesl.workspace = true
 wgpu.workspace = true
+
+rust-embed.workspace = true
 
 [build-dependencies]
 lapiz_image.workspace = true

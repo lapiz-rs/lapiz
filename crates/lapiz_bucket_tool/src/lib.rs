@@ -9,6 +9,7 @@ use iced_wgpu::Renderer;
 use iced_widget::row;
 use lapiz_canvas::{CanvasAppExt, CanvasUndoStackAppExt, command::TileReplaceCommand};
 use lapiz_color::ForegroundBackgroundColorExt;
+use lapiz_i18n::{Translated, t};
 use lapiz_image::{
     blend_modes::BlendMode,
     composite::{BlendFunction, BlendFunctionId, BlendFunctionRegistry},
@@ -27,12 +28,15 @@ use tracing::error;
 
 use crate::bucket::{Bucket, BucketAntialiasApproach, BucketParams};
 
+lapiz_i18n::define_i18n!("bucket_tool");
+
 pub mod bucket;
 
 pub struct BucketPlugin;
 
 impl Plugin for BucketPlugin {
     fn build(&self, app: &mut Application) {
+        crate::i18n::init();
         app.runtime_mut()
             .services_mut()
             .add_tool_function::<BucketTool>();
@@ -229,50 +233,53 @@ impl ToolFunction for BucketTool {
 
         let fields = Form::new()
             .push(
-                "Threshold",
+                t!("threshold"),
                 SpinSlider::new_01(self.threshold).on_confirm(BucketToolMessage::ThresholdChanged),
             )
             .push(
-                "Alpha Threshold",
+                t!("alpha_threshold"),
                 SpinSlider::new_01(self.alpha_threshold)
                     .on_confirm(BucketToolMessage::AlphaThresholdChanged),
             )
             .push(
-                "Grow",
+                t!("grow"),
                 SpinSlider::new(-64..=64, self.grow).on_confirm(BucketToolMessage::GrowChanged),
             )
             .push(
-                "Contiguous",
+                t!("contiguous"),
                 Checkbox::new(self.contiguous).on_toggle(BucketToolMessage::ContiguousChanged),
             )
             .push(
-                "Close Gap",
+                t!("close_gap"),
                 SpinSlider::new(0..=64, self.close_gap)
                     .on_confirm(BucketToolMessage::CloseGapChanged),
             )
             .push(
-                "Blend Function",
+                t!("blend_function"),
                 ComboBox::new(
-                    // TODO i18n
-                    blend_functions.all_ids().cloned().collect::<Vec<_>>(),
-                    Some(self.blend_function.clone()),
-                    BucketToolMessage::BlendFunctionChanged,
+                    blend_functions
+                        .all_ids()
+                        .cloned()
+                        .map(Translated)
+                        .collect::<Vec<_>>(),
+                    Some(Translated(self.blend_function.clone())),
+                    |option| BucketToolMessage::BlendFunctionChanged(option.into_inner()),
                 ),
             )
             .push(
-                "Antialiasing Approach",
+                t!("antialiasing_approach"),
                 row![
-                    Button::new(Label::new("None"))
+                    Button::new(Label::new(t!("none")))
                         .on_press(BucketToolMessage::AaApproachSelected(
                             BucketAntialiasApproach::None
                         ))
                         .activated(matches!(self.aa_approach, BucketAntialiasApproach::None)),
-                    Button::new(Label::new("FXAA"))
+                    Button::new(Label::new(t!("fxaa")))
                         .on_press(BucketToolMessage::AaApproachSelected(
                             BucketAntialiasApproach::Fxaa
                         ))
                         .activated(matches!(self.aa_approach, BucketAntialiasApproach::Fxaa)),
-                    Button::new(Label::new("Feather"))
+                    Button::new(Label::new(t!("feather")))
                         .on_press(BucketToolMessage::AaApproachSelected(
                             BucketAntialiasApproach::Feather(self.cached_feather)
                         ))
@@ -286,7 +293,7 @@ impl ToolFunction for BucketTool {
                 matches!(self.aa_approach, BucketAntialiasApproach::Feather(_)),
                 |form| {
                     form.push(
-                        "Feather",
+                        t!("feather"),
                         SpinSlider::new(0..=64, self.cached_feather)
                             .on_confirm(BucketToolMessage::FeatherChanged)
                             .precision(0),

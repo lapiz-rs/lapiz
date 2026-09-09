@@ -33,6 +33,7 @@ fn main() {
         .init();
 
     i18n::init();
+    lapiz_color_selector::init_i18n();
 
     log::info!("Running at {}", std::env::current_dir().unwrap().display());
 

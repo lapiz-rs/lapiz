@@ -29,10 +29,13 @@ pub mod render;
 pub mod tool;
 pub mod widget;
 
+lapiz_i18n::define_i18n!("brush");
+
 pub struct BrushPlugin;
 
 impl Plugin for BrushPlugin {
     fn build(&self, app: &mut Application) {
+        crate::i18n::init();
         let mut runtime = app.runtime_mut();
         let services = runtime.services_mut();
         services.add_asset_serializer::<BrushPresetSerializer>();

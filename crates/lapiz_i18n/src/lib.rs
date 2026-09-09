@@ -195,6 +195,21 @@ macro_rules! define_i18n {
     };
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Translated<T>(pub T);
+
+impl<T> Translated<T> {
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
+impl<T: ToString> std::fmt::Display for Translated<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&t!(&self.0.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

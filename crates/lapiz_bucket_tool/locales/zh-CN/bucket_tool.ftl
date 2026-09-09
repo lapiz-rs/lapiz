@@ -1,0 +1,10 @@
+threshold = 阈值
+alpha_threshold = Alpha 阈值
+grow = 扩展
+contiguous = 连续
+close_gap = 闭合间隙
+blend_function = 混合函数
+antialiasing_approach = 抗锯齿方式
+none = 无
+fxaa = FXAA
+feather = 羽化

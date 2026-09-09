@@ -12,10 +12,13 @@ pub mod magic_wand;
 pub mod render;
 pub mod shape;
 
+lapiz_i18n::define_i18n!("selection_tool");
+
 pub struct SelectionPlugin;
 
 impl Plugin for SelectionPlugin {
     fn build(&self, app: &mut Application) {
+        crate::i18n::init();
         app.runtime_mut()
             .services_mut()
             .add_tool_function::<RectangularSelectionTool>()

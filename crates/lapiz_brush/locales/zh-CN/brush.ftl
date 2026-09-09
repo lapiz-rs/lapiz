@@ -1,0 +1,11 @@
+new_brush = 新建笔刷
+new_function = 新建函数
+brushes = 笔刷
+functions = 函数
+select_a_brush_or_function = 选择一个笔刷或函数
+required_spacing = 必需间距
+main = 主
+new_postprocess = 新建后处理
+delete = 删除
+variables = 变量
+add_variable = 添加变量

@@ -46,3 +46,5 @@ brush_presets_dock = Brush Presets
 settings = Settings
 no_tool_options = No options for this tool
 canvas_dock = Canvas { $name }
+default_layer_name = Layer
+default_group_name = Group

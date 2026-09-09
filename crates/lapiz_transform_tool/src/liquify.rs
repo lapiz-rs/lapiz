@@ -19,6 +19,7 @@ use lapiz_canvas::{
     control::CanvasTransform,
     event::{CanvasActiveLayerChanged, CanvasUpdated},
 };
+use lapiz_i18n::t;
 use lapiz_image::{
     composite::{LayerPreviewOverriders, PixelPreviewOverrider},
     layer::LayerId,
@@ -447,7 +448,7 @@ impl ToolFunction for LiquifyTransformTool {
     ) -> Option<Element<'a, Self::Message, Theme, Renderer>> {
         let fields = Form::new()
             .push(
-                "Mode",
+                t!("mode"),
                 ComboBox::new(
                     vec![
                         LiquifyMode::Move,
@@ -462,7 +463,7 @@ impl ToolFunction for LiquifyTransformTool {
                 .width(Length::Fill),
             )
             .push(
-                "Size",
+                t!("size"),
                 SpinSlider::new(1.0..=2048.0, self.props.size)
                     .step(1.0)
                     .precision(0)
@@ -470,28 +471,28 @@ impl ToolFunction for LiquifyTransformTool {
                     .on_confirm(LiquifyToolMessage::SizeChanged),
             )
             .push(
-                "Amount",
+                t!("amount"),
                 SpinSlider::new_01(self.props.amount).on_confirm(LiquifyToolMessage::AmountChanged),
             )
             .push(
-                "Spacing",
+                t!("spacing"),
                 SpinSlider::new(0.01..=2.0, self.props.spacing)
                     .on_confirm(LiquifyToolMessage::SpacingChanged),
             )
             .push(
-                "Reverse Direction",
-                Button::new(Label::new("Toggle"))
+                t!("reverse_direction"),
+                Button::new(Label::new(t!("toggle")))
                     .activated(self.props.reverse)
                     .on_press(LiquifyToolMessage::ReverseToggled)
                     .width(Length::Fill),
             );
 
         let actions = row![
-            Button::new(Label::new("Cancel"))
+            Button::new(Label::new(t!("cancel")))
                 .on_press(LiquifyToolMessage::Cancel)
                 .danger()
                 .width(Length::Fill),
-            Button::new(Label::new("Confirm"))
+            Button::new(Label::new(t!("confirm")))
                 .on_press(LiquifyToolMessage::Confirm)
                 .primary()
                 .width(Length::Fill),

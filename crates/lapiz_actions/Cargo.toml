@@ -12,6 +12,7 @@ workspace = true
 anyhow.workspace = true
 lapiz_assets.workspace = true
 lapiz_canvas.workspace = true
+lapiz_i18n.workspace = true
 lapiz_image.workspace = true
 lapiz_input.workspace = true
 lapiz_render.workspace = true

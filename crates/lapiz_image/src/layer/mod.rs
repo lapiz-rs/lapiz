@@ -5,6 +5,7 @@ use std::{
 
 use dyn_clone::DynClone;
 use indexmap::IndexSet;
+use lapiz_i18n::t;
 use lapiz_runtime::service::Service;
 use lapiz_utils::wrapper;
 use parse_display::Display;
@@ -177,7 +178,7 @@ impl LayerStack {
             Box::new(PixelLayer),
             {
                 let mut props = LayerProperties::new::<PixelLayer>();
-                props.set(NameProp("Background".into()));
+                props.set(NameProp(t!("background_layer")));
                 props
             },
         ))

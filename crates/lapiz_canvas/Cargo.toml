@@ -14,6 +14,7 @@ bevy_math.workspace = true
 bytemuck.workspace = true
 lapiz_color.workspace = true
 lapiz_image.workspace = true
+lapiz_i18n.workspace = true
 lapiz_input.workspace = true
 lapiz_lazuli.workspace = true
 lapiz_math.workspace = true

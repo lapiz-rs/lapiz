@@ -5,6 +5,7 @@ use iced_futures::Subscription;
 use iced_runtime::Task;
 use iced_widget::{column, container, row, text};
 use lapiz_assets::{AssetAppExt, asset::AssetHandle};
+use lapiz_i18n::t;
 use lapiz_runtime::{
     Services,
     windows::{WindowView, WindowViewId},
@@ -134,10 +135,11 @@ impl WindowView for FilterEditor {
         let sidebar = Panel::new(
             column![
                 row![
-                    Button::new(Label::new("New Filter")).on_press(FilterEditorMessage::NewFilter)
+                    Button::new(Label::new(t!("new_filter")))
+                        .on_press(FilterEditorMessage::NewFilter)
                 ]
                 .spacing(4),
-                Label::new("Filters").strong(),
+                Label::new(t!("filters")).strong(),
                 column(filter_buttons).spacing(2),
             ]
             .spacing(6),
@@ -148,7 +150,7 @@ impl WindowView for FilterEditor {
         let Some(selected) = self.selected.as_ref() else {
             return row![
                 sidebar,
-                Panel::new(Label::new("Select a filter")).padding(12)
+                Panel::new(Label::new(t!("select_a_filter"))).padding(12)
             ];
         };
 
@@ -372,9 +374,10 @@ impl FilterEditor {
         selected: &'a SelectedFilter,
     ) -> Element<'a, FilterEditorMessage, GraphTheme, GraphRenderer> {
         let group_count = selected.instance.groups().len();
-        let mut graph_list =
-            column![Button::new(Label::new("Add Group")).on_press(FilterEditorMessage::AddGroup),]
-                .spacing(3);
+        let mut graph_list = column![
+            Button::new(Label::new(t!("add_group"))).on_press(FilterEditorMessage::AddGroup),
+        ]
+        .spacing(3);
 
         for index in 0..group_count {
             let group = &selected.instance.groups()[index];
@@ -388,9 +391,11 @@ impl FilterEditor {
                 .width(Length::Fill)
                 .activated(is_current)
                 .on_press(FilterEditorMessage::SwitchGroup(index)),
-                Button::new(Label::new("Delete")).danger().on_press_maybe(
-                    (group_count > 1).then_some(FilterEditorMessage::RemoveGroup(index)),
-                ),
+                Button::new(Label::new(t!("delete")))
+                    .danger()
+                    .on_press_maybe(
+                        (group_count > 1).then_some(FilterEditorMessage::RemoveGroup(index)),
+                    ),
             ]
             .spacing(2)
             .when(index > 0, |controls| {
@@ -440,11 +445,11 @@ impl FilterEditor {
         };
 
         column![
-            text("Shader Groups"),
+            text(t!("shader_groups")),
             Scrollable::new(graph_list).height(Length::Fill),
             container(row![
                 column![
-                    text("Input source"),
+                    text(t!("input_source")),
                     ComboBox::new(
                         slot_options.clone(),
                         input_value,
@@ -453,7 +458,7 @@ impl FilterEditor {
                 ]
                 .spacing(2),
                 column![
-                    text("Output target"),
+                    text(t!("output_target")),
                     ComboBox::new(
                         slot_options,
                         output_value,
@@ -484,7 +489,7 @@ impl FilterEditor {
                                 FilterEditorMessage::RenameExternalVariable(id, name)
                             })
                             .width(Length::Fill),
-                        Button::new(Label::new("Delete"))
+                        Button::new(Label::new(t!("delete")))
                             .danger()
                             .on_press(FilterEditorMessage::RemoveExternalVariable(id)),
                     ]
@@ -507,7 +512,7 @@ impl FilterEditor {
             .copied()
             .collect::<Vec<_>>();
         let variables = column![
-            text("Variables"),
+            text(t!("variables")),
             Scrollable::new(column(variable_rows).spacing(6)).height(Length::Fill),
             TextInput::new("New variable name", &self.new_external_name)
                 .on_input(FilterEditorMessage::ExternalNameChanged),
@@ -516,7 +521,7 @@ impl FilterEditor {
                 self.new_external_type,
                 FilterEditorMessage::ExternalTypeChanged,
             ),
-            Button::new(Label::new("Add Variable")).on_press_maybe(
+            Button::new(Label::new(t!("add_variable"))).on_press_maybe(
                 (!self.new_external_name.is_empty() && self.new_external_type.is_some())
                     .then_some(FilterEditorMessage::CreateExternalVariable),
             ),

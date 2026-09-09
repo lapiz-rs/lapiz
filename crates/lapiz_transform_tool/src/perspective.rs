@@ -20,6 +20,7 @@ use lapiz_canvas::{
     control::CanvasTransform,
     event::{CanvasActiveLayerChanged, CanvasUpdated},
 };
+use lapiz_i18n::t;
 use lapiz_image::{
     composite::{LayerPreviewOverriders, PixelPreviewOverrider},
     layer::LayerId,
@@ -504,11 +505,11 @@ impl ToolFunction for PerspectiveTransformTool {
         _services: &'a Services,
     ) -> Option<Element<'a, Self::Message, Theme, Renderer>> {
         let actions = row![
-            Button::new(Label::new("Cancel"))
+            Button::new(Label::new(t!("cancel")))
                 .on_press(PerspectiveTransformToolMessage::Cancel)
                 .danger()
                 .width(Length::Fill),
-            Button::new(Label::new("Confirm"))
+            Button::new(Label::new(t!("confirm")))
                 .on_press(PerspectiveTransformToolMessage::Confirm)
                 .primary()
                 .width(Length::Fill),

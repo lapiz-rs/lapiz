@@ -1,0 +1,11 @@
+new_brush = New Brush
+new_function = New Function
+brushes = Brushes
+functions = Functions
+select_a_brush_or_function = Select a brush or function
+required_spacing = Required Spacing
+main = Main
+new_postprocess = New Postprocess
+delete = Delete
+variables = Variables
+add_variable = Add Variable

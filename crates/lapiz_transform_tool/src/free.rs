@@ -23,6 +23,7 @@ use lapiz_canvas::{
     control::CanvasTransform,
     event::{CanvasActiveLayerChanged, CanvasUpdated},
 };
+use lapiz_i18n::t;
 use lapiz_image::{
     composite::{LayerPreviewOverriders, PixelPreviewOverrider},
     layer::LayerId,
@@ -987,7 +988,7 @@ impl ToolFunction for FreeTransformTool {
 
         let fields = Form::new()
             .push(
-                "Sampling",
+                t!("sampling"),
                 ComboBox::new(
                     vec![SamplingMethod::NearestNeighbor],
                     Some(SamplingMethod::NearestNeighbor),
@@ -996,9 +997,9 @@ impl ToolFunction for FreeTransformTool {
                 .width(Length::Fill),
             )
             .push(
-                "Translation",
+                t!("translation"),
                 row![
-                    text("X"),
+                    text(t!("x")),
                     SpinBox::new(
                         &session.translate.x,
                         f32::MIN..=f32::MAX,
@@ -1006,7 +1007,7 @@ impl ToolFunction for FreeTransformTool {
                     )
                     .step(1.0)
                     .width(Length::FillPortion(1)),
-                    text("Y"),
+                    text(t!("y")),
                     SpinBox::new(
                         &session.translate.y,
                         f32::MIN..=f32::MAX,
@@ -1019,7 +1020,7 @@ impl ToolFunction for FreeTransformTool {
                 .spacing(4),
             )
             .push(
-                "Rotation",
+                t!("rotation"),
                 SpinBox::new(
                     &session.rotate,
                     f32::MIN..=f32::MAX,
@@ -1029,9 +1030,9 @@ impl ToolFunction for FreeTransformTool {
                 .width(Length::Fill),
             )
             .push(
-                "Scale",
+                t!("scale"),
                 row![
-                    text("X"),
+                    text(t!("x")),
                     SpinBox::new(
                         &session.scale.x,
                         f32::MIN..=f32::MAX,
@@ -1039,7 +1040,7 @@ impl ToolFunction for FreeTransformTool {
                     )
                     .step(0.01)
                     .width(Length::FillPortion(1)),
-                    text("Y"),
+                    text(t!("y")),
                     SpinBox::new(
                         &session.scale.y,
                         f32::MIN..=f32::MAX,
@@ -1052,7 +1053,7 @@ impl ToolFunction for FreeTransformTool {
                 .spacing(4),
             )
             .push(
-                "Shear",
+                t!("shear"),
                 SpinBox::new(
                     &session.shear,
                     f32::MIN..=f32::MAX,
@@ -1062,7 +1063,7 @@ impl ToolFunction for FreeTransformTool {
                 .width(Length::Fill),
             )
             .push(
-                "Shear Direction",
+                t!("shear_direction"),
                 ComboBox::new(
                     vec![ShearAxis::Horizontal, ShearAxis::Vertical],
                     Some(shear_axis),
@@ -1072,20 +1073,20 @@ impl ToolFunction for FreeTransformTool {
             );
 
         let mirrors = row![
-            Button::new(Label::new("Mirror Horizontally"))
+            Button::new(Label::new(t!("mirror_horizontally")))
                 .on_press(FreeTransformToolMessage::MirrorHorizontally)
                 .width(Length::Fill),
-            Button::new(Label::new("Mirror Vertically"))
+            Button::new(Label::new(t!("mirror_vertically")))
                 .on_press(FreeTransformToolMessage::MirrorVertically)
                 .width(Length::Fill),
         ]
         .spacing(4);
         let actions = row![
-            Button::new(Label::new("Cancel"))
+            Button::new(Label::new(t!("cancel")))
                 .on_press(FreeTransformToolMessage::Cancel)
                 .danger()
                 .width(Length::Fill),
-            Button::new(Label::new("Confirm"))
+            Button::new(Label::new(t!("confirm")))
                 .on_press(FreeTransformToolMessage::Confirm)
                 .primary()
                 .width(Length::Fill),

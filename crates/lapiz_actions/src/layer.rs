@@ -8,6 +8,7 @@ use lapiz_canvas::{
         MoveLayersCommand,
     },
 };
+use lapiz_i18n::t;
 use lapiz_image::layer::{
     LayerId, LayerPosition, LayerStackNode,
     group_layer::GroupLayer,
@@ -54,7 +55,7 @@ impl ActionFunction for CreateNewLayerAction {
                     }
                     (*cur_parent.id(), cur_position)
                 };
-                let name = canvas.image.next_name_of_layer("Layer".into());
+                let name = canvas.image.next_name_of_layer(t!("default_layer_name"));
 
                 let new_layer =
                     LayerStackNode::without_parent(LayerId::random(), Box::new(PixelLayer), {
@@ -90,7 +91,7 @@ impl ActionFunction for GroupSelectedLayersAction {
         };
 
         let cmd = services.update_canvas(&canvas_id, |canvas, _| {
-            let group_name = canvas.image.next_name_of_layer("Group".to_string());
+            let group_name = canvas.image.next_name_of_layer(t!("default_group_name"));
             let reduced_layers = canvas
                 .image
                 .layer_stack()

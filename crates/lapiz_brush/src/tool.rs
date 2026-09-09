@@ -8,6 +8,7 @@ use lapiz_assets::asset::AssetHandle;
 use lapiz_canvas::{
     CanvasAppExt, CanvasUndoStackAppExt, command::TileReplaceCommand, event::CanvasUpdated,
 };
+use lapiz_i18n::t;
 use lapiz_image::{composite::LayerPreviewOverriders, tile::TileStorageAppExt};
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
 use lapiz_render::render_context::RenderContextAppExt;
@@ -298,7 +299,7 @@ impl ToolFunction for BrushTool {
             Panel::new(
                 column(variables)
                     .spacing(8)
-                    .push(Label::new("Variables").strong()),
+                    .push(Label::new(t!("variables")).strong()),
             )
             .padding(8)
             .width(Length::Fill)

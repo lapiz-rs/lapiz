@@ -7,6 +7,7 @@ use iced_core::{
 };
 use iced_widget::{button, column, row, stack};
 use indexmap::IndexMap;
+use lapiz_i18n::Translated;
 use lapiz_image::{
     composite::BlendFunctionRegistry,
     layer::{
@@ -588,9 +589,15 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
         let mut params: Vec<Element<'_, Message, iced_core::Theme, iced_wgpu::Renderer>> = vec![];
 
         if let Some(blend) = active_layer.get_blend_function() {
-            let all = view.blend_functions.all_ids().cloned().collect::<Vec<_>>();
+            let all = view
+                .blend_functions
+                .all_ids()
+                .cloned()
+                .map(Translated)
+                .collect::<Vec<_>>();
             params.push(
-                ComboBox::new(all, Some(blend.clone()), move |id| {
+                ComboBox::new(all, Some(Translated(blend.clone())), move |option| {
+                    let id = option.into_inner();
                     let message = property_command(canvas, active_id, active_layer, |p| {
                         p.set_blend_function(id.clone())
                     });

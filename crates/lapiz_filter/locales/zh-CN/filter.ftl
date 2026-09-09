@@ -1,0 +1,15 @@
+filters = 滤镜
+new_filter = 新建滤镜
+edit_filter = 编辑滤镜
+select_a_filter = 选择一个滤镜
+add_group = 添加分组
+delete = 删除
+shader_groups = 着色器分组
+input_source = 输入源
+output_target = 输出目标
+variables = 变量
+add_variable = 添加变量
+no_external_variables = 无外部变量。
+parameters = 参数
+select_a_filter_to_adjust = 选择一个滤镜以调整其参数。
+cancel = 取消

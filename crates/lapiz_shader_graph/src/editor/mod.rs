@@ -29,6 +29,7 @@ use iced_widget::{
     row, stack,
 };
 use indexmap::IndexMap;
+use lapiz_i18n::t;
 use lapiz_widgets::{button::Button, color::ColorMix, icon, label::Label};
 use uuid::Uuid;
 
@@ -152,7 +153,7 @@ impl<'a, Data: GraphData> From<GraphEditor<'a, Data>>
                 ))
                 .into()
         });
-        let main_graph_path = Button::new(Label::new("Main Graph")).on_press(
+        let main_graph_path = Button::new(Label::new(t!("main_graph"))).on_press(
             GraphEditorMessage::Editor(GraphEditorEditorMessage::BackToSubgraphOrMain(None)),
         );
         let path_breadcrumb = row![main_graph_path].extend(subgraph_path);
