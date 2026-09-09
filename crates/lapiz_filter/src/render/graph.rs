@@ -19,7 +19,7 @@ use lapiz_shader_graph::{
     },
 };
 use lapiz_utils::random_oklch_hue_chroma;
-use lapiz_widgets::combo_box::selection as pick_list;
+use lapiz_widgets::combo_box::ComboBox;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone)]
@@ -391,7 +391,7 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithLayerNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> lapiz_shader_graph::GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 BlendMode::ALL,
                 Some(state.blend_mode),
                 BlendWithLayerNodeMessage::ModeChanged,
@@ -485,7 +485,7 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithInputNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> lapiz_shader_graph::GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 BlendMode::ALL,
                 Some(state.blend_mode),
                 BlendWithInputNodeMessage::ModeChanged,

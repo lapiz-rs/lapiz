@@ -5,9 +5,9 @@ use iced_wgpu::Renderer;
 use iced_widget::{Space, column, row, text};
 use lapiz_color::model::rgb::Rgb;
 use lapiz_widgets::{
-    button::{Button, Style as ButtonStyle},
+    button::{self, Button},
     checkbox::Checkbox,
-    combo_box::selection as pick_list,
+    combo_box::ComboBox,
     label::Label,
     panel::Panel,
     radio::Radio,
@@ -439,7 +439,7 @@ impl ColorSelectorConfigEditorState {
 
         row![
             self.column_label("Config"),
-            pick_list(items, selected, |item| {
+            ComboBox::new(items, selected, |item| {
                 ColorSelectorConfigMessage::ConfigSelected(item.index)
             })
             .placeholder("No configs")
@@ -495,7 +495,7 @@ impl ColorSelectorConfigEditorState {
         .width(Length::Fixed(32.0))
         .height(Length::Fixed(20.0))
         .on_press(ColorSelectorConfigMessage::OutOfGamutPickerToggled)
-        .style(move |theme: &Theme, _| ButtonStyle {
+        .style(move |theme: &Theme, _| button::Style {
             background: Some(
                 Color::from_rgb(
                     out_of_gamut_color.r,
@@ -509,7 +509,7 @@ impl ColorSelectorConfigEditorState {
                 width: 1.0,
                 radius: 2.0.into(),
             },
-            ..ButtonStyle::default()
+            ..button::Style::default()
         });
 
         let planes_section = column![
@@ -607,17 +607,15 @@ impl ColorSelectorConfigEditorState {
                 .spacing(8),
                 row![
                     self.column_label("Model"),
-                    pick_list(
-                        ColorModel::PLANE_MODELS.to_vec(),
-                        Some(plane.model),
-                        move |model| ColorSelectorConfigMessage::PlaneModelChanged(index, model),
-                    )
+                    ComboBox::new(ColorModel::PLANE_MODELS, Some(plane.model), move |model| {
+                        ColorSelectorConfigMessage::PlaneModelChanged(index, model)
+                    },)
                     .width(Length::Fill),
                 ]
                 .spacing(10),
                 row![
                     self.column_label("Shape"),
-                    pick_list(
+                    ComboBox::new(
                         vec![GradientPlaneShape::Square, GradientPlaneShape::Triangle],
                         Some(plane.shape),
                         move |shape| ColorSelectorConfigMessage::PlaneShapeChanged(index, shape),
@@ -733,7 +731,7 @@ impl ColorSelectorConfigEditorState {
                 .spacing(8),
                 row![
                     self.column_label("Model"),
-                    pick_list(ColorModel::ALL.to_vec(), Some(bar.model), move |model| {
+                    ComboBox::new(ColorModel::ALL, Some(bar.model), move |model| {
                         ColorSelectorConfigMessage::BarModelChanged(index, model)
                     },)
                     .width(Length::Fill),

@@ -52,10 +52,10 @@ use lapiz_tools::{
 };
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
-    button::{Button, Status as ButtonStatus, Style as ButtonStyle},
+    button::{self, Button},
     divider::Divider,
     flex::Flex,
-    icon::{self, Style as IconStyle},
+    icon,
     label::Label,
     panel::Panel,
     scrollable::Scrollable,
@@ -943,7 +943,7 @@ impl Dock for ToolBoxDock {
                 .size(12)
                 .style(move |theme, _| {
                     let p = theme.extended_palette();
-                    IconStyle {
+                    icon::Style {
                         color: Some(if selected {
                             p.primary.base.text
                         } else {
@@ -957,8 +957,9 @@ impl Dock for ToolBoxDock {
                 .padding(8)
                 .style(move |theme, status| {
                     let p = theme.extended_palette();
-                    let hovered = matches!(status, ButtonStatus::Hovered | ButtonStatus::Pressed);
-                    ButtonStyle {
+                    let hovered =
+                        matches!(status, button::Status::Hovered | button::Status::Pressed);
+                    button::Style {
                         background: Some(
                             if selected {
                                 p.primary.base.color

@@ -26,8 +26,8 @@ use lapiz_shader_graph::{
     save::{SerializableGraph, SerializableGraphFunction},
 };
 use lapiz_widgets::{
-    button::Button, combo_box::selection as pick_list, fluent_builder::When, label::Label,
-    panel::Panel, scrollable::Scrollable, text_input::TextInput,
+    button::Button, combo_box::ComboBox, fluent_builder::When, label::Label, panel::Panel,
+    scrollable::Scrollable, text_input::TextInput,
 };
 use uuid::Uuid;
 
@@ -456,7 +456,7 @@ impl BrushEditor {
             Scrollable::new(column(variable_rows).spacing(6)).height(Length::Fill),
             TextInput::new("New variable name", &self.new_external_name)
                 .on_input(BrushEditorMessage::ExternalNameChanged),
-            pick_list(
+            ComboBox::new(
                 types,
                 self.new_external_type,
                 BrushEditorMessage::ExternalTypeChanged,

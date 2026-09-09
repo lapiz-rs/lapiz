@@ -638,7 +638,7 @@ impl<T: AssetBundle> ErasedAssetBundle for T {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeSet, io::Error as IoError};
+    use std::{collections::BTreeSet, io};
 
     use super::*;
     use crate::tag::TagId;
@@ -652,7 +652,7 @@ mod tests {
 
     impl AssetBundle for ReadonlyBundle {
         const READONLY: bool = true;
-        type Error = IoError;
+        type Error = io::Error;
 
         fn metadata(&self) -> Result<AssetBundleMetadata, Self::Error> {
             Ok(AssetBundleMetadata {
@@ -674,7 +674,7 @@ mod tests {
             _: &Path,
             _: &dyn ErasedAssetSerializer,
         ) -> Result<Arc<dyn ErasedAsset>, Self::Error> {
-            Err(IoError::other("not used by this test"))
+            Err(io::Error::other("not used by this test"))
         }
 
         fn add_asset(
@@ -683,15 +683,15 @@ mod tests {
             _: &dyn ErasedAsset,
             _: &dyn ErasedAssetSerializer,
         ) -> Result<UntypedAssetId, Self::Error> {
-            Err(IoError::other("readonly"))
+            Err(io::Error::other("readonly"))
         }
 
         fn read_tag(&self, _: &Path) -> Result<TagFile, Self::Error> {
-            Err(IoError::other("not used by this test"))
+            Err(io::Error::other("not used by this test"))
         }
 
         fn add_tag(&self, _: &Path, _: &TagFile) -> Result<(), Self::Error> {
-            Err(IoError::other("readonly"))
+            Err(io::Error::other("readonly"))
         }
 
         fn read_asset_tags(&self, _: &Path) -> Result<Option<AssetTags>, Self::Error> {
@@ -699,7 +699,7 @@ mod tests {
         }
 
         fn write_asset_tags(&self, _: &Path, _: &AssetTags) -> Result<(), Self::Error> {
-            Err(IoError::other("readonly"))
+            Err(io::Error::other("readonly"))
         }
     }
 

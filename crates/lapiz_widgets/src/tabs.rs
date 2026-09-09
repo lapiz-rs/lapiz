@@ -1,10 +1,8 @@
 use iced_core::{Border, Element, Length, Shadow, Theme, Vector};
 use iced_wgpu::Renderer;
 
-use crate::button::{
-    Button, Status as ButtonStatus, Style as ButtonStyle, activated_style, transparent,
-};
-use crate::flex::{Flex, Status, Style as FlexStyle};
+use crate::button::{self, Button, activated_style, transparent};
+use crate::flex::{self, Flex};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Variant {
@@ -110,7 +108,7 @@ impl<'a, Message: 'a> From<TabBar<'a, Message>> for Element<'a, Message, Theme, 
     }
 }
 
-fn style(theme: &Theme, status: ButtonStatus, variant: Variant, selected: bool) -> ButtonStyle {
+fn style(theme: &Theme, status: button::Status, variant: Variant, selected: bool) -> button::Style {
     if variant == Variant::Block && selected {
         return activated_style(theme, status);
     }
@@ -130,9 +128,9 @@ fn style(theme: &Theme, status: ButtonStatus, variant: Variant, selected: bool) 
     style
 }
 
-fn tab_bar(theme: &Theme, _status: Status) -> FlexStyle {
+fn tab_bar(theme: &Theme, _status: flex::Status) -> flex::Style {
     let p = theme.extended_palette();
-    FlexStyle::default().border(Border {
+    flex::Style::default().border(Border {
         radius: 0.0.into(),
         width: 1.0,
         color: p.background.strong.color,

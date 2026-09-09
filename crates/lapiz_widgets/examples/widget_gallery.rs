@@ -6,7 +6,7 @@ use lapiz_widgets::{
     button::{Button, icon_button, toggle_button},
     checkbox::Checkbox,
     collapsible::Collapsible,
-    combo_box::{ComboBox, State as ComboState},
+    combo_box::{self, ComboBox},
     curve_edit::CurveEdit,
     divider::Divider,
     flex::Flex,
@@ -61,7 +61,7 @@ struct Gallery {
     value: f32,
     split: f32,
     curve: CubicCurve,
-    combo: ComboState<String>,
+    combo: combo_box::State<String>,
     selected_combo: Option<String>,
     tab: usize,
     available: usize,
@@ -85,7 +85,7 @@ impl Gallery {
                 Vec2::new(0.72, 0.86),
                 Vec2::new(1.0, 1.0),
             ]),
-            combo: ComboState::new(vec![
+            combo: combo_box::State::new(vec![
                 String::from("Normal"),
                 String::from("Multiply"),
                 String::from("Screen"),
@@ -151,21 +151,20 @@ impl Gallery {
                 SpinBox::new(&self.number, 1..=512, Message::Number)
                     .width(110)
                     .into(),
-                ComboBox::new(
+                ComboBox::searchable(
                     &self.combo,
                     "Searchable blend mode",
-                    self.selected_combo.as_ref(),
+                    self.selected_combo.clone(),
                     Message::Combo,
                 )
                 .width(220)
                 .into(),
                 ComboBox::new(
-                    &self.combo,
-                    "Selection-only blend mode",
-                    self.selected_combo.as_ref(),
+                    self.combo.options().to_vec(),
+                    self.selected_combo.clone(),
                     Message::Combo,
                 )
-                .searchable(false)
+                .placeholder("Selection-only blend mode")
                 .width(220)
                 .into(),
             ])

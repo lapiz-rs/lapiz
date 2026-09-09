@@ -20,8 +20,8 @@ use lapiz_runtime::{Application, Services, plugin::Plugin};
 use lapiz_tools::{ToolFunction, ToolId, ToolsAppExt};
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
-    button::Button, checkbox::Checkbox, combo_box::selection as pick_list, fluent_builder::When,
-    form::Form, icon, label::Label, panel::Panel, spin_slider::SpinSlider,
+    button::Button, checkbox::Checkbox, combo_box::ComboBox, fluent_builder::When, form::Form,
+    icon, label::Label, panel::Panel, spin_slider::SpinSlider,
 };
 use tracing::error;
 
@@ -252,10 +252,10 @@ impl ToolFunction for BucketTool {
             )
             .push(
                 "Blend Function",
-                pick_list(
+                ComboBox::new(
                     // TODO i18n
                     blend_functions.all_ids().cloned().collect::<Vec<_>>(),
-                    Some(&self.blend_function),
+                    Some(self.blend_function.clone()),
                     BucketToolMessage::BlendFunctionChanged,
                 ),
             )

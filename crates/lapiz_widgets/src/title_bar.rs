@@ -2,9 +2,9 @@ use iced_core::{Border, Element, Length, Theme};
 use iced_wgpu::Renderer;
 use iced_widget::container;
 
-use crate::button::{Button, Status as ButtonStatus, Style as ButtonStyle};
+use crate::button::{self, Button};
 use crate::callback::Callback;
-use crate::flex::{Flex, Status};
+use crate::flex::{self, Flex};
 use crate::icon;
 
 pub type Style = container::Style;
@@ -14,7 +14,7 @@ pub struct TitleBar<'a, Message> {
     minimize: Callback<'a, Message>,
     maximize: Callback<'a, Message>,
     close: Callback<'a, Message>,
-    class: <Theme as crate::flex::Catalog>::Class<'a>,
+    class: <Theme as flex::Catalog>::Class<'a>,
 }
 
 impl<'a, Message> TitleBar<'a, Message> {
@@ -32,12 +32,12 @@ impl<'a, Message> TitleBar<'a, Message> {
     crate::callback_methods!(maximize);
     crate::callback_methods!(close);
 
-    pub fn style(mut self, style: impl Fn(&Theme, Status) -> Style + 'a) -> Self {
+    pub fn style(mut self, style: impl Fn(&Theme, flex::Status) -> Style + 'a) -> Self {
         self.class = Box::new(style);
         self
     }
 
-    pub fn class(mut self, class: impl Into<<Theme as crate::flex::Catalog>::Class<'a>>) -> Self {
+    pub fn class(mut self, class: impl Into<<Theme as flex::Catalog>::Class<'a>>) -> Self {
         self.class = class.into();
         self
     }
@@ -84,19 +84,19 @@ impl<'a, Message: 'a> From<TitleBar<'a, Message>> for Element<'a, Message, Theme
     }
 }
 
-fn close_button(theme: &Theme, status: ButtonStatus) -> ButtonStyle {
+fn close_button(theme: &Theme, status: button::Status) -> button::Style {
     let p = theme.extended_palette();
     match status {
-        ButtonStatus::Hovered | ButtonStatus::Pressed => ButtonStyle {
+        button::Status::Hovered | button::Status::Pressed => button::Style {
             background: Some(p.danger.base.color.into()),
             text_color: p.danger.base.text,
             ..Default::default()
         },
-        ButtonStatus::Active | ButtonStatus::Disabled => crate::button::transparent(theme, status),
+        button::Status::Active | button::Status::Disabled => button::transparent(theme, status),
     }
 }
 
-pub fn default(theme: &Theme, _status: Status) -> Style {
+pub fn default(theme: &Theme, _status: flex::Status) -> Style {
     let p = theme.extended_palette();
     Style::default()
         .background(p.background.base.color)

@@ -260,7 +260,7 @@ fn scan_asset_tags(
 mod tests {
     use std::{
         collections::BTreeSet,
-        io::{Error as IoError, Read, Write},
+        io::{self, Read, Write},
     };
 
     use serde::{Deserialize, Serialize};
@@ -288,7 +288,7 @@ mod tests {
 
     impl AssetSerializer for TestAssetSerializer {
         type Asset = TestAsset;
-        type Error = IoError;
+        type Error = io::Error;
 
         fn file_extension() -> &'static str {
             "storetest"
@@ -298,7 +298,7 @@ mod tests {
             let mut value = String::new();
             reader.read_to_string(&mut value)?;
             Ok(TestAsset {
-                value: value.trim().parse().map_err(IoError::other)?,
+                value: value.trim().parse().map_err(io::Error::other)?,
             })
         }
 

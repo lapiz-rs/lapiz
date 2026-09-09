@@ -19,8 +19,8 @@ use indexmap::IndexMap;
 use lapiz_math::curve::CubicCurve;
 use lapiz_utils::{random_oklch_hue_chroma, wrapper};
 use lapiz_widgets::{
-    button::Button, combo_box::selection as pick_list, curve_edit::CurveEdit, fluent_builder::When,
-    label::Label, popover::Popover,
+    button::Button, combo_box::ComboBox, curve_edit::CurveEdit, fluent_builder::When, label::Label,
+    popover::Popover,
 };
 use parking_lot::Mutex;
 use parse_display::Display;
@@ -239,7 +239,7 @@ impl<Data: GraphData> GraphNode<Data> for ScalarMathNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 ScalarMathNodeMode::ALL,
                 Some(*state),
                 ScalarMathNodeMessage::ModeChanged,
@@ -560,7 +560,7 @@ impl<Data: GraphData> GraphNode<Data> for VectorMathNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 VectorMathNodeMode::ALL,
                 Some(*state),
                 VectorMathNodeMessage::ModeChanged,
@@ -715,7 +715,7 @@ impl<Data: GraphData> GraphNode<Data> for RectMathNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 RectMathNodeMode::ALL,
                 Some(*state),
                 RectMathNodeMessage::ModeChanged,
@@ -862,7 +862,7 @@ impl<Data: GraphData> GraphNode<Data> for CompareNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 CompareNodeMode::ALL,
                 Some(*state),
                 CompareNodeMessage::ModeChanged,
@@ -1489,7 +1489,7 @@ impl<Data: GraphData> GraphNode<Data> for TextureNode {
             .find(|texture| Some(texture.external_id) == **state)
             .cloned();
         ctx.view_all_slots_with_header(
-            pick_list(textures, selected, |texture| {
+            ComboBox::new(textures, selected, |texture| {
                 TextureNodeMessage::TextureChanged(TextureId(Some(texture.external_id)))
             })
             .width(Length::Fill),
@@ -1726,7 +1726,7 @@ impl<Data: GraphData> GraphNode<Data> for GraphFunctionNode {
             .find(|reference| Some(reference.id) == state.id)
             .cloned();
         ctx.view_all_slots_with_header(
-            pick_list(functions, selected, |reference| {
+            ComboBox::new(functions, selected, |reference| {
                 GraphFunctionNodeMessage::FunctionChanged(reference.id)
             })
             .width(Length::Fill),
@@ -1870,7 +1870,8 @@ impl<Data: GraphData> GraphNode<Data> for GraphInputNode {
                     .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(GraphInputNodeMessage::NameChanged),
-                pick_list(types, state.ty, GraphInputNodeMessage::TypeChanged).width(Length::Fill),
+                ComboBox::new(types, state.ty, GraphInputNodeMessage::TypeChanged)
+                    .width(Length::Fill),
             ]
             .spacing(2),
             GraphInputNodeMessage::LiteralUpdate,
@@ -1981,7 +1982,8 @@ impl<Data: GraphData> GraphNode<Data> for GraphOutputNode {
                     .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(GraphOutputNodeMessage::NameChanged),
-                pick_list(types, state.ty, GraphOutputNodeMessage::TypeChanged).width(Length::Fill),
+                ComboBox::new(types, state.ty, GraphOutputNodeMessage::TypeChanged)
+                    .width(Length::Fill),
             ]
             .spacing(2),
             GraphOutputNodeMessage::LiteralUpdate,
@@ -2137,7 +2139,7 @@ impl<Data: GraphData> GraphNode<Data> for ExternalVariableNode {
             .find(|reference| Some(reference.id) == *state)
             .cloned();
         ctx.view_all_slots_with_header(
-            pick_list(variables, selected, |reference| {
+            ComboBox::new(variables, selected, |reference| {
                 ExternalVariableNodeMessage::VariableChanged(reference.id)
             })
             .width(Length::Fill),
@@ -2712,7 +2714,7 @@ impl<Data: GraphData> GraphNode<Data> for RepeatInputNode {
             .variable
             .and_then(|id| locals.iter().find(|reference| reference.id == id).cloned());
         ctx.view_all_slots_with_header(
-            pick_list(locals, selected, |reference| {
+            ComboBox::new(locals, selected, |reference| {
                 RepeatInputNodeMessage::VariableChanged(reference.id)
             })
             .width(Length::Fill),
@@ -2818,7 +2820,7 @@ impl<Data: GraphData> GraphNode<Data> for RepeatOutputNode {
             .variable
             .and_then(|id| locals.iter().find(|reference| reference.id == id).cloned());
         ctx.view_all_slots_with_header(
-            pick_list(locals, selected, |reference| {
+            ComboBox::new(locals, selected, |reference| {
                 RepeatOutputNodeMessage::VariableChanged(reference.id)
             })
             .width(Length::Fill),
@@ -2917,7 +2919,7 @@ fn repeat_schema_editor_view<Data: GraphData>(
                     .style(lapiz_widgets::text_input::default)
                     .on_input(move |name| { RepeatNodeMessage::EditorRenameLocal(id, name) }),
                 row![
-                    pick_list(
+                    ComboBox::new(
                         type_names.clone(),
                         local.ty.as_ref().map(|t| t.name()),
                         move |ty| { RepeatNodeMessage::EditorChangeLocalType(id, ty.to_string()) },
@@ -3712,7 +3714,7 @@ fn custom_expression_variable_rows<Data: GraphData>(
                 ]
                 .spacing(4),
                 row![
-                    pick_list(
+                    ComboBox::new(
                         type_names.clone(),
                         variable.ty.as_ref().map(|ty| ty.name()),
                         move |ty| {

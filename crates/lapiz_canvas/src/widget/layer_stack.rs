@@ -22,12 +22,12 @@ use lapiz_image::{
 use lapiz_widgets::{
     button::Button,
     checkbox::Checkbox,
-    combo_box::selection as pick_list,
+    combo_box::ComboBox,
     drag_drop_column::{DragDropColumn, DragDropInfo},
     icon,
     label::Label,
     menu::{ContextMenu, Menu},
-    panel::{Panel, Style as PanelStyle},
+    panel::{self, Panel},
     spin_slider::SpinSlider,
     text_input::TextInput,
 };
@@ -533,7 +533,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
                     .height(30),
             )
             .width(Length::Fill)
-            .style(move |theme: &iced_core::Theme| PanelStyle {
+            .style(move |theme: &iced_core::Theme| panel::Style {
                 background: if is_selected {
                     Some(theme.extended_palette().primary.weak.color.into())
                 } else {
@@ -590,7 +590,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
         if let Some(blend) = active_layer.get_blend_function() {
             let all = view.blend_functions.all_ids().cloned().collect::<Vec<_>>();
             params.push(
-                pick_list(all, Some(blend), move |id| {
+                ComboBox::new(all, Some(blend.clone()), move |id| {
                     let message = property_command(canvas, active_id, active_layer, |p| {
                         p.set_blend_function(id.clone())
                     });

@@ -2,13 +2,13 @@ use std::time::Duration;
 
 use iced_core::{Border, Color, Element, Pixels, Shadow, Theme, Vector};
 use iced_wgpu::Renderer;
-use iced_widget::{Tooltip as IcedTooltip, container};
+use iced_widget::container;
 
 pub use iced_widget::container::{Catalog, Style, StyleFn};
 pub use iced_widget::tooltip::Position;
 
 pub struct Tooltip<'a, Message> {
-    inner: IcedTooltip<'a, Message, Theme, Renderer>,
+    inner: iced_widget::Tooltip<'a, Message, Theme, Renderer>,
 }
 
 impl<'a, Message> Tooltip<'a, Message> {
@@ -18,7 +18,7 @@ impl<'a, Message> Tooltip<'a, Message> {
         position: Position,
     ) -> Self {
         Self {
-            inner: IcedTooltip::new(content, tooltip, position)
+            inner: iced_widget::Tooltip::new(content, tooltip, position)
                 .gap(7)
                 .padding(5)
                 .style(default),

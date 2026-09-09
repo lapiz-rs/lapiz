@@ -2,7 +2,7 @@ use iced_core::{Background, Color, Element, Length, Pixels, Theme};
 use iced_wgpu::Renderer;
 use iced_widget::svg;
 
-use crate::button::{Button, Status as ButtonStatus, Style as ButtonStyle};
+use crate::button::{self, Button};
 use crate::{flex::Flex, icon::Icon, label::Label};
 
 pub struct Radio<'a, Message> {
@@ -171,9 +171,9 @@ pub fn default(theme: &Theme, status: Status) -> Style {
     }
 }
 
-fn button_style(theme: &Theme, _status: ButtonStatus) -> ButtonStyle {
-    ButtonStyle {
+fn button_style(theme: &Theme, _status: button::Status) -> button::Style {
+    button::Style {
         text_color: theme.extended_palette().background.base.text,
-        ..ButtonStyle::default()
+        ..button::Style::default()
     }
 }

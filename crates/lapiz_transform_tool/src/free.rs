@@ -49,8 +49,8 @@ use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_undo::BatchedUndoCommand;
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
-    button::Button, combo_box::selection as pick_list, form::Form, icon, label::Label,
-    panel::Panel, spin_box::SpinBox,
+    button::Button, combo_box::ComboBox, form::Form, icon, label::Label, panel::Panel,
+    spin_box::SpinBox,
 };
 use tracing::warn;
 use wgpu::{
@@ -988,7 +988,7 @@ impl ToolFunction for FreeTransformTool {
         let fields = Form::new()
             .push(
                 "Sampling",
-                pick_list(
+                ComboBox::new(
                     vec![SamplingMethod::NearestNeighbor],
                     Some(SamplingMethod::NearestNeighbor),
                     FreeTransformToolMessage::SamplingChanged,
@@ -1063,7 +1063,7 @@ impl ToolFunction for FreeTransformTool {
             )
             .push(
                 "Shear Direction",
-                pick_list(
+                ComboBox::new(
                     vec![ShearAxis::Horizontal, ShearAxis::Vertical],
                     Some(shear_axis),
                     FreeTransformToolMessage::ShearAxisChanged,

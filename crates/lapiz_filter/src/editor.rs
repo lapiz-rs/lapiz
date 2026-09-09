@@ -19,8 +19,8 @@ use lapiz_shader_graph::{
     },
 };
 use lapiz_widgets::{
-    button::Button, combo_box::selection as pick_list, fluent_builder::When, label::Label,
-    panel::Panel, scrollable::Scrollable, text_input::TextInput,
+    button::Button, combo_box::ComboBox, fluent_builder::When, label::Label, panel::Panel,
+    scrollable::Scrollable, text_input::TextInput,
 };
 use uuid::Uuid;
 
@@ -445,7 +445,7 @@ impl FilterEditor {
             container(row![
                 column![
                     text("Input source"),
-                    pick_list(
+                    ComboBox::new(
                         slot_options.clone(),
                         input_value,
                         FilterEditorMessage::GroupInputChanged,
@@ -454,7 +454,7 @@ impl FilterEditor {
                 .spacing(2),
                 column![
                     text("Output target"),
-                    pick_list(
+                    ComboBox::new(
                         slot_options,
                         output_value,
                         FilterEditorMessage::GroupOutputChanged,
@@ -511,7 +511,7 @@ impl FilterEditor {
             Scrollable::new(column(variable_rows).spacing(6)).height(Length::Fill),
             TextInput::new("New variable name", &self.new_external_name)
                 .on_input(FilterEditorMessage::ExternalNameChanged),
-            pick_list(
+            ComboBox::new(
                 types,
                 self.new_external_type,
                 FilterEditorMessage::ExternalTypeChanged,

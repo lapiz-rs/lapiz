@@ -45,8 +45,8 @@ use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_undo::BatchedUndoCommand;
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
-    button::Button, combo_box::selection as pick_list, form::Form, icon, label::Label,
-    panel::Panel, spin_slider::SpinSlider,
+    button::Button, combo_box::ComboBox, form::Form, icon, label::Label, panel::Panel,
+    spin_slider::SpinSlider,
 };
 use parse_display::Display;
 use tracing::warn;
@@ -448,7 +448,7 @@ impl ToolFunction for LiquifyTransformTool {
         let fields = Form::new()
             .push(
                 "Mode",
-                pick_list(
+                ComboBox::new(
                     vec![
                         LiquifyMode::Move,
                         LiquifyMode::Scale,

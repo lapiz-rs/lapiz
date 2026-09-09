@@ -22,7 +22,7 @@ use lapiz_shader_graph::{
     },
 };
 use lapiz_utils::random_oklch_hue_chroma;
-use lapiz_widgets::combo_box::selection as pick_list;
+use lapiz_widgets::combo_box::ComboBox;
 use serde::{Deserialize, Serialize};
 
 use crate::render::{ComputedPenInput, Time};
@@ -949,7 +949,7 @@ impl<Data: GraphData> GraphNode<Data> for PasteTextureNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 PasteTextureMode::ALL,
                 Some(state.mode),
                 PasteTextureNodeMessage::ModeChanged,
@@ -1128,7 +1128,7 @@ impl<Data: GraphData> GraphNode<Data> for BlendColorNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 BlendMode::ALL,
                 Some(state.blend_mode),
                 BlendModeNodeMessage::ModeChanged,
@@ -1308,7 +1308,7 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithInputNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 BlendMode::ALL,
                 Some(state.blend_mode),
                 BlendModeNodeMessage::ModeChanged,
@@ -1395,7 +1395,7 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithLayerNode {
         ctx: GraphNodeViewContext<'_, Data>,
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
-            pick_list(
+            ComboBox::new(
                 BlendMode::ALL,
                 Some(state.blend_mode),
                 BlendModeNodeMessage::ModeChanged,

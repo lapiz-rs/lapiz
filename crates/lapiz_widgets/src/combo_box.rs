@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use iced_core::{Border, Color, Element, Length, Padding, Pixels, Shadow, Theme, Vector};
 use iced_wgpu::Renderer;
 use iced_widget::{overlay::menu, pick_list, text_input};
@@ -33,15 +31,24 @@ where
     }
 }
 
+enum Inner<'a, T, Message>
+where
+    T: std::fmt::Display + Clone,
+{
+    Plain {
+        options: Vec<T>,
+        selected: Option<T>,
+        on_selected: Box<dyn Fn(T) -> Message + 'a>,
+    },
+    Searchable(Box<iced_widget::ComboBox<'a, T, Message>>),
+}
+
 pub struct ComboBox<'a, T, Message>
 where
     T: std::fmt::Display + Clone,
 {
-    state: &'a State<T>,
+    inner: Inner<'a, T, Message>,
     placeholder: String,
-    selected: Option<&'a T>,
-    on_selected: Box<dyn Fn(T) -> Message + 'static>,
-    searchable: bool,
     width: Length,
     menu_height: Length,
     padding: Padding,
@@ -55,17 +62,17 @@ where
     T: std::fmt::Display + Clone,
 {
     pub fn new(
-        state: &'a State<T>,
-        placeholder: &str,
-        selected: Option<&'a T>,
-        on_selected: impl Fn(T) -> Message + 'static,
+        options: impl Into<Vec<T>>,
+        selected: Option<T>,
+        on_selected: impl Fn(T) -> Message + 'a,
     ) -> Self {
         Self {
-            state,
-            placeholder: placeholder.to_owned(),
-            selected,
-            on_selected: Box::new(on_selected),
-            searchable: true,
+            inner: Inner::Plain {
+                options: options.into(),
+                selected,
+                on_selected: Box::new(on_selected),
+            },
+            placeholder: String::new(),
             width: Length::Shrink,
             menu_height: Length::Shrink,
             padding: Padding::from([5, 8]),
@@ -75,8 +82,35 @@ where
         }
     }
 
-    pub fn searchable(mut self, searchable: bool) -> Self {
-        self.searchable = searchable;
+    pub fn searchable(
+        state: &'a State<T>,
+        placeholder: impl Into<String>,
+        selected: Option<T>,
+        on_selected: impl Fn(T) -> Message + 'static,
+    ) -> Self
+    where
+        T: 'static,
+        Message: 'static,
+    {
+        Self {
+            inner: Inner::Searchable(Box::new(iced_widget::ComboBox::new(
+                &state.combo,
+                &placeholder.into(),
+                selected.as_ref(),
+                on_selected,
+            ))),
+            placeholder: String::new(),
+            width: Length::Shrink,
+            menu_height: Length::Shrink,
+            padding: Padding::from([5, 8]),
+            size: Pixels(12.0),
+            input_class: Box::new(crate::text_input::default),
+            menu_class: Box::new(menu_style),
+        }
+    }
+
+    pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
+        self.placeholder = placeholder.into();
         self
     }
 
@@ -130,56 +164,33 @@ where
 impl<'a, T, Message> From<ComboBox<'a, T, Message>> for Element<'a, Message, Theme, Renderer>
 where
     T: std::fmt::Display + Clone + PartialEq + 'a + 'static,
-    Message: Clone + 'a + 'static,
+    Message: Clone + 'a,
 {
     fn from(value: ComboBox<'a, T, Message>) -> Self {
-        if value.searchable {
-            iced_widget::ComboBox::new(
-                &value.state.combo,
-                &value.placeholder,
-                value.selected,
-                value.on_selected,
-            )
-            .width(value.width)
-            .menu_height(value.menu_height)
-            .padding(value.padding)
-            .size(value.size)
-            .input_class(value.input_class)
-            .menu_class(value.menu_class)
-            .into()
-        } else {
-            iced_widget::PickList::new(
-                value.state.options.as_slice(),
-                value.selected,
-                value.on_selected,
-            )
-            .placeholder(value.placeholder)
-            .width(value.width)
-            .menu_height(value.menu_height)
-            .padding(value.padding)
-            .text_size(value.size)
-            .style(pick_list_style)
-            .menu_class(value.menu_class)
-            .into()
+        match value.inner {
+            Inner::Searchable(combo) => (*combo)
+                .width(value.width)
+                .menu_height(value.menu_height)
+                .padding(value.padding)
+                .size(value.size)
+                .input_class(value.input_class)
+                .menu_class(value.menu_class)
+                .into(),
+            Inner::Plain {
+                options,
+                selected,
+                on_selected,
+            } => iced_widget::PickList::new(options, selected, on_selected)
+                .placeholder(value.placeholder)
+                .width(value.width)
+                .menu_height(value.menu_height)
+                .padding(value.padding)
+                .text_size(value.size)
+                .style(pick_list_style)
+                .menu_class(value.menu_class)
+                .into(),
         }
     }
-}
-
-pub fn selection<'a, T, L, V, Message>(
-    options: L,
-    selected: Option<V>,
-    on_selected: impl Fn(T) -> Message + 'a,
-) -> iced_widget::PickList<'a, T, L, V, Message, Theme, Renderer>
-where
-    T: ToString + PartialEq + Clone + 'a,
-    L: Borrow<[T]> + 'a,
-    V: Borrow<T> + 'a,
-    Message: Clone,
-{
-    iced_widget::PickList::new(options, selected, on_selected)
-        .text_size(Pixels(12.0))
-        .style(pick_list_style)
-        .menu_style(menu_style)
 }
 
 pub fn menu_style(theme: &Theme) -> menu::Style {

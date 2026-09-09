@@ -2,18 +2,17 @@ use std::ops::RangeInclusive;
 
 use iced_core::{Background, Border, Element, Length, Theme};
 use iced_wgpu::Renderer;
-use iced_widget::ProgressBar as IcedProgressBar;
 
 pub use iced_widget::progress_bar::{Catalog, Style, StyleFn};
 
 pub struct ProgressBar<'a> {
-    inner: IcedProgressBar<'a, Theme>,
+    inner: iced_widget::ProgressBar<'a, Theme>,
 }
 
 impl<'a> ProgressBar<'a> {
     pub fn new(range: RangeInclusive<f32>, value: f32) -> Self {
         Self {
-            inner: IcedProgressBar::new(range, value).style(default),
+            inner: iced_widget::ProgressBar::new(range, value).style(default),
         }
     }
 

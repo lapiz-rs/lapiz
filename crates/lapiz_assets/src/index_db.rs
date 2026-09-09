@@ -7,7 +7,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
-use rusqlite::{Connection, Error as SqliteError, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use uuid::Uuid;
 
 use crate::{
@@ -391,7 +391,7 @@ RETURNING 0;
 
         match result {
             Ok(_) => Ok(ItemStatus::Outdated),
-            Err(SqliteError::QueryReturnedNoRows) => Ok(ItemStatus::UpToDate),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(ItemStatus::UpToDate),
             Err(e) => Err(e.into()),
         }
     }

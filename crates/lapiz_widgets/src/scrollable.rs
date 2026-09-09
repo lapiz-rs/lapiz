@@ -1,17 +1,16 @@
 use iced_core::{Element, Length, Theme};
 use iced_wgpu::Renderer;
-use iced_widget::Scrollable as IcedScrollable;
 
 pub use iced_widget::scrollable::{Catalog, Direction, Scrollbar, Status, Style, StyleFn};
 
 pub struct Scrollable<'a, Message> {
-    inner: IcedScrollable<'a, Message, Theme, Renderer>,
+    inner: iced_widget::Scrollable<'a, Message, Theme, Renderer>,
 }
 
 impl<'a, Message> Scrollable<'a, Message> {
     pub fn new(content: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
         Self {
-            inner: IcedScrollable::new(content).style(default),
+            inner: iced_widget::Scrollable::new(content).style(default),
         }
     }
 
