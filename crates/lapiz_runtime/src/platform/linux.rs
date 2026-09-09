@@ -1,4 +1,4 @@
-pub fn get_window_monitor_name(window: u64) -> String {
+pub fn get_window_monitor_name(_window: u64) -> String {
     // TODO
     String::new()
 }
