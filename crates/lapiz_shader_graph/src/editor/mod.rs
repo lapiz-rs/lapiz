@@ -6,8 +6,8 @@ use std::{
 
 use bevy_color::{Oklcha, Srgba};
 use iced_core::{
-    Background, Border, Clipboard, Color, Element, Event, Layout, Length, Point, Shell, Size,
-    Transformation, Vector,
+    Background, Border, Color, Element, Event, Layout, Length, Point, Shell, Size, Transformation,
+    Vector,
     alignment::Vertical,
     gradient::ColorStop,
     keyboard::{self, key},
@@ -31,7 +31,7 @@ use iced_widget::{
 };
 use indexmap::IndexMap;
 use lapiz_i18n::t;
-use lapiz_widgets::{button::Button, color::ColorMix, icon, label::Label};
+use lapiz_widgets::{button::Button, icon, label::Label};
 use uuid::Uuid;
 
 use crate::{

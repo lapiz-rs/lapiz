@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use glam::Vec2;
 use iced_core::{
-    Clipboard, Color, Element, Event, Layout, Length, Point, Rectangle, Renderer as _, Shell, Size,
-    Theme, Vector, Widget,
+    Color, Element, Event, Layout, Length, Point, Rectangle, Renderer as _, Shell, Size, Theme,
+    Vector, Widget,
     layout::{self, Limits},
     pointer,
     pointer::mouse,

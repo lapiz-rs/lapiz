@@ -5,7 +5,6 @@ use iced_core::{
 };
 use iced_futures::Subscription;
 use iced_runtime::Task;
-use lapiz_runtime::Renderer;
 use iced_widget::row;
 use lapiz_canvas::{CanvasAppExt, CanvasUndoStackAppExt, command::TileReplaceCommand};
 use lapiz_color::ForegroundBackgroundColorExt;
@@ -17,6 +16,7 @@ use lapiz_image::{
 };
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
 use lapiz_render::render_context::RenderContextAppExt;
+use lapiz_runtime::Renderer;
 use lapiz_runtime::{Application, Services, plugin::Plugin};
 use lapiz_tools::{ToolFunction, ToolId, ToolsAppExt};
 use lapiz_utils::log_err::LogErr;

@@ -1,5 +1,5 @@
 use iced_core::{
-    Alignment, Clipboard, Element, Event, Layout, Length, Point, Rectangle, Shell, Size,
+    Alignment, Element, Event, Layout, Length, Point, Rectangle, Shell, Size,
     layout::{self, Limits, flex},
     pointer,
     pointer::mouse,

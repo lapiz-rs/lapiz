@@ -43,7 +43,9 @@ impl DemoEditor {
         }
     }
 
-    fn view(&self) -> iced_core::Element<'_, GraphEditorMessage, iced::Theme, lapiz_runtime::Renderer> {
+    fn view(
+        &self,
+    ) -> iced_core::Element<'_, GraphEditorMessage, iced::Theme, lapiz_runtime::Renderer> {
         GraphEditorView::new(&self.graph, &self.editor_state).into()
     }
 

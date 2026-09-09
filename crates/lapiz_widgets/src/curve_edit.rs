@@ -1,8 +1,8 @@
 use glam::Vec2;
 use iced_core::Renderer as _;
 use iced_core::{
-    Background, Border, Clipboard, Color, Element, Event, Layout, Length, Point, Rectangle, Shell,
-    Size, Theme, Widget,
+    Background, Border, Color, Element, Event, Layout, Length, Point, Rectangle, Shell, Size,
+    Theme, Widget,
     keyboard::{self, key},
     layout, pointer,
     pointer::mouse::{self, Cursor},

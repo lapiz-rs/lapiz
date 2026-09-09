@@ -1,5 +1,3 @@
-use std::f32::consts::FRAC_PI_2;
-
 use crate::render::{ComputedPenInput, PenInput, Time};
 use chrono::{DateTime, Utc};
 use glam::Vec2;

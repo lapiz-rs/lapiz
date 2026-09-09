@@ -1,6 +1,6 @@
 use iced_core::{Border, Element, Length, Padding, Pixels, Theme, alignment};
-use lapiz_runtime::Renderer;
 use iced_widget::Container;
+use lapiz_runtime::Renderer;
 
 pub use iced_widget::container::{Catalog, Style, StyleFn};
 

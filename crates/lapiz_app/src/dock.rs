@@ -10,7 +10,6 @@ use iced::{
     window,
 };
 use iced_core::Point;
-use iced_runtime::task;
 use iced_widget::{space, stack};
 use lapiz_assets::AssetAppExt;
 use lapiz_brush::{asset::BrushPreset, tool::BrushServicesExt, widget::BrushPresetListDelegate};

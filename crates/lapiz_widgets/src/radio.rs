@@ -1,6 +1,6 @@
 use iced_core::{Background, Color, Element, Length, Pixels, Theme};
-use lapiz_runtime::Renderer;
 use iced_widget::svg;
+use lapiz_runtime::Renderer;
 
 use crate::button::{self, Button};
 use crate::{flex::Flex, icon::Icon, label::Label};

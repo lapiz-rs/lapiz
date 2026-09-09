@@ -1,6 +1,6 @@
 use iced_core::{Element, Pixels, Theme};
-use lapiz_runtime::Renderer;
 use iced_widget::rule;
+use lapiz_runtime::Renderer;
 
 pub use iced_widget::rule::{Catalog, FillMode, Style, StyleFn};
 

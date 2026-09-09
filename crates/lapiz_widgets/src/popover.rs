@@ -1,8 +1,9 @@
 use iced_core::{
-    Clipboard, Element, Event, Layout, Length, Point, Rectangle, Shell, Size, Theme, Vector,
-    Widget,
+    Element, Event, Layout, Length, Point, Rectangle, Shell, Size, Theme, Vector, Widget,
     layout::{Limits, Node},
-    overlay, pointer::mouse, renderer,
+    overlay,
+    pointer::mouse,
+    renderer,
     widget::{Operation, Tree},
 };
 use lapiz_runtime::Renderer;
@@ -216,9 +217,9 @@ impl<'a, 'b, Message> overlay::Overlay<Message, Theme, Renderer> for Overlay<'a,
         shell: &mut Shell<'_, Message>,
     ) {
         let viewport = layout.bounds();
-        self.content.as_widget_mut().update(
-            self.tree, event, layout, cursor, renderer, shell, &viewport,
-        );
+        self.content
+            .as_widget_mut()
+            .update(self.tree, event, layout, cursor, renderer, shell, &viewport);
     }
 
     fn operate(&mut self, layout: Layout<'_>, renderer: &Renderer, operation: &mut dyn Operation) {

@@ -3,7 +3,6 @@ use std::sync::Arc;
 use glam::{Vec2, Vec3};
 use iced_core::{Element, Length, Point, Rectangle, Theme};
 use iced_runtime::Task;
-use lapiz_runtime::Renderer;
 use iced_widget::{Row, column, text};
 use lapiz_color::{
     Color,
@@ -14,6 +13,7 @@ use lapiz_color::{
     platform,
 };
 use lapiz_render::render_context::RenderContextAppExt;
+use lapiz_runtime::Renderer;
 use lapiz_runtime::{Application, Services, plugin::Plugin};
 use lapiz_widgets::{fluent_builder::When, radio::Radio, spin_slider::SpinSlider};
 use moxcms::ColorProfile;

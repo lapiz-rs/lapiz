@@ -1,6 +1,6 @@
 use std::{any::Any, collections::HashMap, rc::Rc, sync::Arc};
 
-use iced_core::{Element, Point, Theme, pointer};
+use iced_core::{Element, Theme};
 use iced_runtime::{Task, futures::Subscription};
 use iced_widget::{Stack, space};
 use lapiz_assets::AssetAppExt;

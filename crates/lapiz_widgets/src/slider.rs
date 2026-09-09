@@ -58,13 +58,7 @@ where
 
 impl<'a, T, Message> From<Slider<'a, T, Message>> for Element<'a, Message, Theme, Renderer>
 where
-    T: Copy
-        + From<u8>
-        + PartialOrd
-        + Into<f64>
-        + FromPrimitive
-        + num_traits::AsPrimitive<f64>
-        + 'a,
+    T: Copy + From<u8> + PartialOrd + Into<f64> + FromPrimitive + num_traits::AsPrimitive<f64> + 'a,
     Message: Clone + 'a,
 {
     fn from(value: Slider<'a, T, Message>) -> Self {

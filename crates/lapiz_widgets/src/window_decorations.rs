@@ -1,6 +1,6 @@
 use iced_core::{
-    Element, Layout, Length, Rectangle, Size, Theme, Widget, layout,
-    pointer::mouse, renderer, widget::Tree,
+    Element, Layout, Length, Rectangle, Size, Theme, Widget, layout, pointer::mouse, renderer,
+    widget::Tree,
 };
 use lapiz_runtime::Renderer;
 

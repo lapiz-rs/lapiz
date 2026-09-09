@@ -1,8 +1,6 @@
 use iced_core::{
     Element, Event, Layout, Length, Pixels, Point, Rectangle, Renderer as _, Shell, Size, Theme,
-    alignment,
-    clipboard::Clipboard,
-    layout, pointer,
+    alignment, layout, pointer,
     pointer::mouse,
     renderer,
     text::{self, LineHeight, Renderer as _, Shaping, paragraph},

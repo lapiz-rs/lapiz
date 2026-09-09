@@ -1,6 +1,6 @@
 use iced_core::{Element, Length, Theme};
-use lapiz_runtime::Renderer;
 use iced_widget::scrollable;
+use lapiz_runtime::Renderer;
 
 use crate::{button::Button, callback::Callback, flex::Flex, icon, label::Label, panel::Panel};
 

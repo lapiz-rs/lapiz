@@ -4,7 +4,6 @@ use bevy_math::Rect;
 use glam::Vec2;
 use iced_core::{Element, Length, Theme};
 use iced_runtime::Task;
-use lapiz_runtime::Renderer;
 use iced_widget::space;
 use lapiz_canvas::{CanvasAppExt, CanvasUndoStackAppExt};
 use lapiz_i18n::t;
@@ -12,6 +11,7 @@ use lapiz_input::{
     key::KeyboardState,
     mouse::{HoverMouseState, PressedMouseState},
 };
+use lapiz_runtime::Renderer;
 use lapiz_runtime::Services;
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_utils::log_err::LogErr;

@@ -1,7 +1,7 @@
 use bevy_math::Rect;
 use glam::Vec2;
 use iced_core::{
-    Clipboard, Element, Event, Layout, Length, Point, Rectangle, Shell, Size, Widget,
+    Element, Event, Layout, Length, Point, Rectangle, Shell, Size, Widget,
     layout::{self, Limits},
     pointer::{self, mouse},
     renderer,

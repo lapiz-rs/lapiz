@@ -9,11 +9,9 @@ use encase::ShaderType;
 use glam::{Mat3, Vec2};
 use iced_core::{
     Alignment, Color, Element, Length, Point, Rectangle, Size, Theme, Vector, Widget,
-    keyboard::Modifiers, layout,
-    pointer::mouse, renderer, widget,
+    keyboard::Modifiers, layout, pointer::mouse, renderer, widget,
 };
 use iced_runtime::{Task, futures::Subscription};
-use lapiz_runtime::Renderer;
 use iced_widget::{
     canvas::{Frame, Path, Stroke},
     column, row, space, text,
@@ -46,6 +44,7 @@ use lapiz_render::{
     util::DevicePollExt,
     wesl_jit,
 };
+use lapiz_runtime::Renderer;
 use lapiz_runtime::{Services, event::Event};
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_undo::BatchedUndoCommand;

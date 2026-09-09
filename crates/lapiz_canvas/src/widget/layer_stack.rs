@@ -2,7 +2,8 @@ use iced_core::{
     Alignment, Element, Font, Layout, Length, Point, Rectangle, Size,
     font::Weight,
     layout::{self, Limits},
-    pointer::mouse, renderer,
+    pointer::mouse,
+    renderer,
     widget::Tree,
 };
 use iced_widget::{button, column, row, stack};
@@ -586,7 +587,8 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
             .height(Length::Fill);
         let active_layer = canvas.active_layer_node().properties();
         let active_id = canvas.active_layer_id();
-        let mut params: Vec<Element<'_, Message, iced_core::Theme, lapiz_runtime::Renderer>> = vec![];
+        let mut params: Vec<Element<'_, Message, iced_core::Theme, lapiz_runtime::Renderer>> =
+            vec![];
 
         if let Some(blend) = active_layer.get_blend_function() {
             let all = view

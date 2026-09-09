@@ -3,8 +3,8 @@ use std::{fmt::Display, ops::RangeBounds, str::FromStr};
 use iced_core::Renderer as _;
 use iced_core::svg::Renderer as _;
 use iced_core::{
-    Border, Clipboard, Element, Event, Layout, Length, Point, Radians, Rectangle, Shell, Size,
-    Theme, Widget, keyboard, layout, pointer,
+    Border, Element, Event, Layout, Length, Point, Radians, Rectangle, Shell, Size, Theme, Widget,
+    keyboard, layout, pointer,
     pointer::mouse,
     renderer, svg,
     widget::{Operation, Tree, tree},

@@ -1,6 +1,6 @@
 use iced_core::{
-    Background, Border, Clipboard, Color, Element, Event, Layout, Length, Pixels, Point, Rectangle,
-    Shell, Size, Text, Widget,
+    Background, Border, Color, Element, Event, Layout, Length, Pixels, Point, Rectangle, Shell,
+    Size, Text, Widget,
     alignment::{Horizontal, Vertical},
     border::{self},
     keyboard::{self, key::Key},

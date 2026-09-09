@@ -1,6 +1,8 @@
-use iced_core::widget::operation::{Focusable, Operation, TextInput as TextInputOp};
 use iced_core::widget::Id;
-use iced_core::{Background, Border, Element, Length, Padding, Pixels, Rectangle, Theme, alignment};
+use iced_core::widget::operation::{Focusable, Operation, TextInput as TextInputOp};
+use iced_core::{
+    Background, Border, Element, Length, Padding, Pixels, Rectangle, Theme, alignment,
+};
 use lapiz_runtime::Renderer;
 
 pub use iced_widget::text_input::{Catalog, Status, Style, StyleFn};
@@ -41,7 +43,12 @@ pub fn focus_and_select_all(apply: impl FnOnce(&mut dyn Operation)) {
             state.focus();
         }
 
-        fn text_input(&mut self, _id: Option<&Id>, _bounds: Rectangle, state: &mut dyn TextInputOp) {
+        fn text_input(
+            &mut self,
+            _id: Option<&Id>,
+            _bounds: Rectangle,
+            state: &mut dyn TextInputOp,
+        ) {
             state.select_all();
         }
     }

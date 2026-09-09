@@ -1,8 +1,8 @@
 use iced_core::Renderer as _;
 use iced_core::text::{Paragraph as _, Renderer as _};
 use iced_core::{
-    Border, Clipboard, Color, Element, Event, Font, Layout, Length, Point, Radians, Rectangle,
-    Shadow, Shell, Size, Theme, Vector, Widget, alignment, keyboard, layout, overlay, pointer,
+    Border, Color, Element, Event, Font, Layout, Length, Point, Radians, Rectangle, Shadow, Shell,
+    Size, Theme, Vector, Widget, alignment, keyboard, layout, overlay, pointer,
     pointer::mouse,
     renderer, svg, text,
     widget::{Tree, tree},

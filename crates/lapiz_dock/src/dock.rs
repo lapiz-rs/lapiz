@@ -1,15 +1,14 @@
 use std::{any::Any, collections::HashMap, sync::Arc};
 
 use iced_core::{
-    Element, Layout, Length, Rectangle, Renderer as _, Size, Theme, layout,
-    pointer::mouse, renderer,
-    widget, window,
+    Element, Layout, Length, Rectangle, Renderer as _, Size, Theme, layout, pointer::mouse,
+    renderer, widget, window,
 };
 use iced_futures::Subscription;
 use iced_runtime::Task;
-use lapiz_runtime::Renderer;
 use iced_widget::{pane_grid, space, stack};
 use lapiz_i18n::t;
+use lapiz_runtime::Renderer;
 use lapiz_runtime::Services;
 use lapiz_utils::wrapper;
 use lapiz_widgets::menu::{ContextMenu, Menu};

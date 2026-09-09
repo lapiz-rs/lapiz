@@ -1,6 +1,6 @@
 use iced_core::{Element, Length, Theme};
-use lapiz_runtime::Renderer;
 use iced_widget::{Svg, svg};
+use lapiz_runtime::Renderer;
 
 pub use iced_widget::svg::{Catalog, Status, Style, StyleFn};
 

@@ -11,8 +11,9 @@ use anyhow::anyhow;
 
 use glam::{Vec2, Vec3, Vec3Swizzles};
 use iced_core::{
-    Clipboard, Event, Layout, Length, Rectangle, Shell, Size, Widget, layout,
-    pointer::mouse, renderer,
+    Event, Layout, Length, Rectangle, Shell, Size, Widget, layout,
+    pointer::mouse,
+    renderer,
     widget::{Operation, Tree, tree},
 };
 use iced_widget::{column, container, row, text, text_editor, text_input};

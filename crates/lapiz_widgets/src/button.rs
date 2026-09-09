@@ -1,7 +1,7 @@
 use iced_core::Renderer as _;
 use iced_core::{
-    Alignment, Background, Border, Clipboard, Color, Element, Event, Layout, Length, Padding,
-    Rectangle, Shadow, Shell, Size, Theme, Vector, Widget, layout, overlay, pointer,
+    Alignment, Background, Border, Color, Element, Event, Layout, Length, Padding, Rectangle,
+    Shadow, Shell, Size, Theme, Vector, Widget, layout, overlay, pointer,
     pointer::mouse,
     renderer,
     widget::{Operation, Tree, tree},

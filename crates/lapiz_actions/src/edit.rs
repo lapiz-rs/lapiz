@@ -1,4 +1,4 @@
-use std::{any::TypeId, path::PathBuf, sync::Arc};
+use std::{any::TypeId, sync::Arc};
 
 use iced_core::clipboard::Content;
 use iced_runtime::{Task, clipboard};
