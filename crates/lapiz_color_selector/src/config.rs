@@ -438,7 +438,8 @@ impl ColorSelectorConfigEditorState {
             })
             .placeholder(t!("no_configs"))
             .width(Length::Fill),
-            Button::new(Label::new(t!("add"))).on_press(ColorSelectorConfigMessage::AddConfig),
+            Button::new(Label::new(t!("add_config")))
+                .on_press(ColorSelectorConfigMessage::AddConfig),
             Button::new(Label::new(t!("up")))
                 .on_press_maybe(not_first.then_some(ColorSelectorConfigMessage::MoveConfigUp)),
             Button::new(Label::new(t!("down")))

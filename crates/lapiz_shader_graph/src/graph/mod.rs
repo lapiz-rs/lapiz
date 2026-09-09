@@ -569,7 +569,7 @@ impl<Data: GraphData> Graph<Data> {
                     return Err(GraphCompileError::NodeCodeGenError(
                         ContextualGraphNodeCodeGenError {
                             node_id,
-                            node_title: node.data.name().to_string(),
+                            node_title: node.data.id().to_string(),
                             err,
                             code: code.clone(),
                         },

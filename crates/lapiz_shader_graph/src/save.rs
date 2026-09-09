@@ -198,7 +198,7 @@ impl<Data: GraphData> Graph<Data> {
             if raw_outputs.len() != ser_node.outputs.len() {
                 errs.push(GraphDeserializeError::UnmatchedOutputSlotCount {
                     node: ser_node.id,
-                    node_name: node.name(),
+                    node_name: node.id(),
                     expected: raw_outputs.len(),
                     found: ser_node.outputs.len(),
                 });
@@ -280,7 +280,7 @@ impl<Data: GraphData> Graph<Data> {
                     inputs: node.inputs.clone(),
                     outputs: node.outputs.clone(),
                     data: GraphNodeTypeId {
-                        name: node.data.name().to_string(),
+                        name: node.data.id().to_string(),
                     },
                     state: node.data.serialize_state()?,
                 });

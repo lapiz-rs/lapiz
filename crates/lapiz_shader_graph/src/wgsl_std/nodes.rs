@@ -16,7 +16,7 @@ use iced_core::{
 };
 use iced_widget::{column, container, row, text, text_editor, text_input};
 use indexmap::IndexMap;
-use lapiz_i18n::t;
+use lapiz_i18n::{Translated, t};
 use lapiz_math::curve::CubicCurve;
 use lapiz_utils::{random_oklch_hue_chroma, wrapper};
 use lapiz_widgets::{
@@ -59,6 +59,7 @@ use lapiz_shader_graph_derive::stateless;
 pub struct ScalarMathNode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]
+#[display(style = "snake_case")]
 pub enum ScalarMathNodeMode {
     Add,
     Subtract,
@@ -147,8 +148,8 @@ impl<Data: GraphData> GraphNode<Data> for ScalarMathNode {
     type State = ScalarMathNodeMode;
     type Message = ScalarMathNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Scalar Math"
+    fn id(&self) -> &'static str {
+        "scalar_math_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -166,38 +167,38 @@ impl<Data: GraphData> GraphNode<Data> for ScalarMathNode {
     ) -> Vec<GraphDefaultInputSlot> {
         match state {
             ScalarMathNodeMode::Add | ScalarMathNodeMode::Max | ScalarMathNodeMode::Min => vec![
-                GraphDefaultInputSlot::new::<F32Type>("A".into()),
-                GraphDefaultInputSlot::new::<F32Type>("B".into()),
+                GraphDefaultInputSlot::new::<F32Type>("a".into()),
+                GraphDefaultInputSlot::new::<F32Type>("b".into()),
             ],
             ScalarMathNodeMode::Subtract => vec![
-                GraphDefaultInputSlot::new::<F32Type>("Minuend".into()),
-                GraphDefaultInputSlot::new::<F32Type>("Subtrahend".into()),
+                GraphDefaultInputSlot::new::<F32Type>("minuend".into()),
+                GraphDefaultInputSlot::new::<F32Type>("subtrahend".into()),
             ],
             ScalarMathNodeMode::Multiply => vec![
-                GraphDefaultInputSlot::new::<F32Type>("A".into()),
-                GraphDefaultInputSlot::new::<F32Type>("B".into()),
+                GraphDefaultInputSlot::new::<F32Type>("a".into()),
+                GraphDefaultInputSlot::new::<F32Type>("b".into()),
             ],
             ScalarMathNodeMode::Divide => vec![
-                GraphDefaultInputSlot::new::<F32Type>("Dividend".into()),
-                GraphDefaultInputSlot::new::<F32Type>("Divisor".into()),
+                GraphDefaultInputSlot::new::<F32Type>("dividend".into()),
+                GraphDefaultInputSlot::new::<F32Type>("divisor".into()),
             ],
             ScalarMathNodeMode::Pow => vec![
-                GraphDefaultInputSlot::new::<F32Type>("Base".into()),
-                GraphDefaultInputSlot::new::<F32Type>("Exponent".into()),
+                GraphDefaultInputSlot::new::<F32Type>("base".into()),
+                GraphDefaultInputSlot::new::<F32Type>("exponent".into()),
             ],
             ScalarMathNodeMode::Acosh => {
-                vec![GraphDefaultInputSlot::new::<F32Type>("X".into())]
+                vec![GraphDefaultInputSlot::new::<F32Type>("x".into())]
             }
             ScalarMathNodeMode::Mix => vec![
-                GraphDefaultInputSlot::new::<F32Type>("A".into()),
-                GraphDefaultInputSlot::new::<F32Type>("B".into()),
-                GraphDefaultInputSlot::new::<F32Type>("Factor".into()),
+                GraphDefaultInputSlot::new::<F32Type>("a".into()),
+                GraphDefaultInputSlot::new::<F32Type>("b".into()),
+                GraphDefaultInputSlot::new::<F32Type>("factor".into()),
             ],
             ScalarMathNodeMode::Ln
             | ScalarMathNodeMode::Log2
             | ScalarMathNodeMode::Sqrt
             | ScalarMathNodeMode::InverseSqrt => {
-                vec![GraphDefaultInputSlot::new::<F32Type>("X".into())]
+                vec![GraphDefaultInputSlot::new::<F32Type>("x".into())]
             }
             ScalarMathNodeMode::Acos
             | ScalarMathNodeMode::Asin
@@ -221,7 +222,7 @@ impl<Data: GraphData> GraphNode<Data> for ScalarMathNode {
             | ScalarMathNodeMode::Tan
             | ScalarMathNodeMode::Tanh
             | ScalarMathNodeMode::Trunc => {
-                vec![GraphDefaultInputSlot::new::<F32Type>("X".into())]
+                vec![GraphDefaultInputSlot::new::<F32Type>("x".into())]
             }
         }
     }
@@ -231,7 +232,7 @@ impl<Data: GraphData> GraphNode<Data> for ScalarMathNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<F32Type>("Result".into())]
+        vec![GraphDefaultOutputSlot::new::<F32Type>("result".into())]
     }
 
     fn view(
@@ -241,9 +242,13 @@ impl<Data: GraphData> GraphNode<Data> for ScalarMathNode {
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
             ComboBox::new(
-                ScalarMathNodeMode::ALL,
-                Some(*state),
-                ScalarMathNodeMessage::ModeChanged,
+                ScalarMathNodeMode::ALL
+                    .to_vec()
+                    .into_iter()
+                    .map(Translated)
+                    .collect::<Vec<_>>(),
+                Some(Translated(*state)),
+                |option| ScalarMathNodeMessage::ModeChanged(option.into_inner()),
             )
             .width(Length::Fill),
             ScalarMathNodeMessage::LiteralUpdate,
@@ -318,6 +323,7 @@ impl<Data: GraphData> GraphNode<Data> for ScalarMathNode {
 pub struct VectorMathNode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]
+#[display(style = "snake_case")]
 pub enum VectorMathNodeMode {
     Add,
     Subtract,
@@ -414,8 +420,8 @@ impl<Data: GraphData> GraphNode<Data> for VectorMathNode {
     type State = VectorMathNodeMode;
     type Message = VectorMathNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Vector Math"
+    fn id(&self) -> &'static str {
+        "vector_math_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -433,49 +439,49 @@ impl<Data: GraphData> GraphNode<Data> for VectorMathNode {
     ) -> Vec<GraphDefaultInputSlot> {
         match state {
             VectorMathNodeMode::Add | VectorMathNodeMode::Max | VectorMathNodeMode::Min => vec![
-                GraphDefaultInputSlot::new::<Vec2FType>("A".into()),
-                GraphDefaultInputSlot::new::<Vec2FType>("B".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("a".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("b".into()),
             ],
             VectorMathNodeMode::Subtract => vec![
-                GraphDefaultInputSlot::new::<Vec2FType>("Minuend".into()),
-                GraphDefaultInputSlot::new::<Vec2FType>("Subtrahend".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("minuend".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("subtrahend".into()),
             ],
             VectorMathNodeMode::Multiply => vec![
-                GraphDefaultInputSlot::new::<Vec2FType>("A".into()),
-                GraphDefaultInputSlot::new::<Vec2FType>("B".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("a".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("b".into()),
             ],
             VectorMathNodeMode::Divide => vec![
-                GraphDefaultInputSlot::new::<Vec2FType>("Dividend".into()),
-                GraphDefaultInputSlot::new::<Vec2FType>("Divisor".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("dividend".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("divisor".into()),
             ],
             VectorMathNodeMode::Pow => vec![
-                GraphDefaultInputSlot::new::<Vec2FType>("Base".into()),
-                GraphDefaultInputSlot::new::<Vec2FType>("Exponent".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("base".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("exponent".into()),
             ],
             VectorMathNodeMode::Distance | VectorMathNodeMode::Dot => vec![
-                GraphDefaultInputSlot::new::<Vec2FType>("A".into()),
-                GraphDefaultInputSlot::new::<Vec2FType>("B".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("a".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("b".into()),
             ],
             VectorMathNodeMode::Reflect => vec![
-                GraphDefaultInputSlot::new::<Vec2FType>("Incident".into()),
-                GraphDefaultInputSlot::new::<Vec2FType>("Normal".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("incident".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("normal".into()),
             ],
             VectorMathNodeMode::Mix => vec![
-                GraphDefaultInputSlot::new::<Vec2FType>("A".into()),
-                GraphDefaultInputSlot::new::<Vec2FType>("B".into()),
-                GraphDefaultInputSlot::new::<Vec2FType>("Factor".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("a".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("b".into()),
+                GraphDefaultInputSlot::new::<Vec2FType>("factor".into()),
             ],
             VectorMathNodeMode::Acosh => {
-                vec![GraphDefaultInputSlot::new::<Vec2FType>("X".into())]
+                vec![GraphDefaultInputSlot::new::<Vec2FType>("x".into())]
             }
             VectorMathNodeMode::Ln
             | VectorMathNodeMode::Log2
             | VectorMathNodeMode::Sqrt
             | VectorMathNodeMode::InverseSqrt => {
-                vec![GraphDefaultInputSlot::new::<Vec2FType>("X".into())]
+                vec![GraphDefaultInputSlot::new::<Vec2FType>("x".into())]
             }
             VectorMathNodeMode::Length => {
-                vec![GraphDefaultInputSlot::new::<Vec2FType>("Vector".into())]
+                vec![GraphDefaultInputSlot::new::<Vec2FType>("vector".into())]
             }
             VectorMathNodeMode::Acos
             | VectorMathNodeMode::Asin
@@ -499,7 +505,7 @@ impl<Data: GraphData> GraphNode<Data> for VectorMathNode {
             | VectorMathNodeMode::Tan
             | VectorMathNodeMode::Tanh
             | VectorMathNodeMode::Trunc => {
-                vec![GraphDefaultInputSlot::new::<Vec2FType>("X".into())]
+                vec![GraphDefaultInputSlot::new::<Vec2FType>("x".into())]
             }
         }
     }
@@ -546,11 +552,11 @@ impl<Data: GraphData> GraphNode<Data> for VectorMathNode {
             | VectorMathNodeMode::Tan
             | VectorMathNodeMode::Tanh
             | VectorMathNodeMode::Trunc => {
-                vec![GraphDefaultOutputSlot::new::<Vec2FType>("Result".into())]
+                vec![GraphDefaultOutputSlot::new::<Vec2FType>("result".into())]
             }
 
             VectorMathNodeMode::Dot | VectorMathNodeMode::Distance | VectorMathNodeMode::Length => {
-                vec![GraphDefaultOutputSlot::new::<F32Type>("Result".into())]
+                vec![GraphDefaultOutputSlot::new::<F32Type>("result".into())]
             }
         }
     }
@@ -562,9 +568,13 @@ impl<Data: GraphData> GraphNode<Data> for VectorMathNode {
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
             ComboBox::new(
-                VectorMathNodeMode::ALL,
-                Some(*state),
-                VectorMathNodeMessage::ModeChanged,
+                VectorMathNodeMode::ALL
+                    .to_vec()
+                    .into_iter()
+                    .map(Translated)
+                    .collect::<Vec<_>>(),
+                Some(Translated(*state)),
+                |option| VectorMathNodeMessage::ModeChanged(option.into_inner()),
             )
             .width(Length::Fill),
             VectorMathNodeMessage::LiteralUpdate,
@@ -645,6 +655,7 @@ impl<Data: GraphData> GraphNode<Data> for VectorMathNode {
 pub struct RectMathNode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]
+#[display(style = "snake_case")]
 pub enum RectMathNodeMode {
     Union,
     Intersection,
@@ -671,8 +682,8 @@ impl<Data: GraphData> GraphNode<Data> for RectMathNode {
     type State = RectMathNodeMode;
     type Message = RectMathNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Rect Math"
+    fn id(&self) -> &'static str {
+        "rect_math_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -690,13 +701,13 @@ impl<Data: GraphData> GraphNode<Data> for RectMathNode {
     ) -> Vec<GraphDefaultInputSlot> {
         match state {
             RectMathNodeMode::Union | RectMathNodeMode::Intersection => vec![
-                GraphDefaultInputSlot::new::<RectType>("A".into()),
-                GraphDefaultInputSlot::new::<RectType>("B".into()),
+                GraphDefaultInputSlot::new::<RectType>("a".into()),
+                GraphDefaultInputSlot::new::<RectType>("b".into()),
             ],
             RectMathNodeMode::Inflate | RectMathNodeMode::Shrink => {
                 vec![
-                    GraphDefaultInputSlot::new::<RectType>("Rect".into()),
-                    GraphDefaultInputSlot::new::<Vec2FType>("Amount".into()),
+                    GraphDefaultInputSlot::new::<RectType>("rect".into()),
+                    GraphDefaultInputSlot::new::<Vec2FType>("mix_amount".into()),
                 ]
             }
         }
@@ -707,7 +718,7 @@ impl<Data: GraphData> GraphNode<Data> for RectMathNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<RectType>("Result".into())]
+        vec![GraphDefaultOutputSlot::new::<RectType>("result".into())]
     }
 
     fn view(
@@ -717,9 +728,13 @@ impl<Data: GraphData> GraphNode<Data> for RectMathNode {
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
             ComboBox::new(
-                RectMathNodeMode::ALL,
-                Some(*state),
-                RectMathNodeMessage::ModeChanged,
+                RectMathNodeMode::ALL
+                    .to_vec()
+                    .into_iter()
+                    .map(Translated)
+                    .collect::<Vec<_>>(),
+                Some(Translated(*state)),
+                |option| RectMathNodeMessage::ModeChanged(option.into_inner()),
             )
             .width(Length::Fill),
             RectMathNodeMessage::LiteralUpdate,
@@ -794,6 +809,7 @@ impl<Data: GraphData> GraphNode<Data> for RectMathNode {
 pub struct CompareNode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]
+#[display(style = "snake_case")]
 pub enum CompareNodeMode {
     #[display("Less Than")]
     LessThan,
@@ -826,8 +842,8 @@ impl<Data: GraphData> GraphNode<Data> for CompareNode {
     type State = CompareNodeMode;
     type Message = CompareNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Compare"
+    fn id(&self) -> &'static str {
+        "compare_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -844,8 +860,8 @@ impl<Data: GraphData> GraphNode<Data> for CompareNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<F32Type>("Lhs".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Rhs".into()),
+            GraphDefaultInputSlot::new::<F32Type>("lhs".into()),
+            GraphDefaultInputSlot::new::<F32Type>("rhs".into()),
         ]
     }
 
@@ -854,7 +870,7 @@ impl<Data: GraphData> GraphNode<Data> for CompareNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<BoolType>("Result".into())]
+        vec![GraphDefaultOutputSlot::new::<BoolType>("result".into())]
     }
 
     fn view(
@@ -864,9 +880,13 @@ impl<Data: GraphData> GraphNode<Data> for CompareNode {
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
             ComboBox::new(
-                CompareNodeMode::ALL,
-                Some(*state),
-                CompareNodeMessage::ModeChanged,
+                CompareNodeMode::ALL
+                    .to_vec()
+                    .into_iter()
+                    .map(Translated)
+                    .collect::<Vec<_>>(),
+                Some(Translated(*state)),
+                |option| CompareNodeMessage::ModeChanged(option.into_inner()),
             )
             .width(Length::Fill),
             CompareNodeMessage::LiteralUpdate,
@@ -910,8 +930,8 @@ pub struct ScalarSelectNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for ScalarSelectNode {
-    fn name(&self) -> &'static str {
-        "Scalar Select"
+    fn id(&self) -> &'static str {
+        "scalar_select_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -923,9 +943,9 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for ScalarSelectNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<BoolType>("Condition".into()),
-            GraphDefaultInputSlot::new::<F32Type>("False".into()),
-            GraphDefaultInputSlot::new::<F32Type>("True".into()),
+            GraphDefaultInputSlot::new::<BoolType>("condition".into()),
+            GraphDefaultInputSlot::new::<F32Type>("false".into()),
+            GraphDefaultInputSlot::new::<F32Type>("true".into()),
         ]
     }
 
@@ -933,7 +953,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for ScalarSelectNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<F32Type>("Result".into())]
+        vec![GraphDefaultOutputSlot::new::<F32Type>("result".into())]
     }
 
     fn generate_code(
@@ -957,8 +977,8 @@ pub struct VectorSelectNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for VectorSelectNode {
-    fn name(&self) -> &'static str {
-        "Vector Select"
+    fn id(&self) -> &'static str {
+        "vector_select_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -970,9 +990,9 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for VectorSelectNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<BoolType>("Condition".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("False".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("True".into()),
+            GraphDefaultInputSlot::new::<BoolType>("condition".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("false".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("true".into()),
         ]
     }
 
@@ -980,7 +1000,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for VectorSelectNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<Vec2FType>("Result".into())]
+        vec![GraphDefaultOutputSlot::new::<Vec2FType>("result".into())]
     }
 
     fn generate_code(
@@ -1014,8 +1034,8 @@ pub trait GraphDataWithTime: GraphData {
 
 #[stateless]
 impl<Data: GraphDataWithTime> StatelessCommonGraphNode<Data> for TimeNode {
-    fn name(&self) -> &'static str {
-        "Time"
+    fn id(&self) -> &'static str {
+        "time_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1034,8 +1054,8 @@ impl<Data: GraphDataWithTime> StatelessCommonGraphNode<Data> for TimeNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<F32Type>("Now".into()),
-            GraphDefaultOutputSlot::new::<F32Type>("Stroke Begin".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("now".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("stroke_begin".into()),
         ]
     }
 
@@ -1062,8 +1082,8 @@ pub struct ClampNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for ClampNode {
-    fn name(&self) -> &'static str {
-        "Clamp"
+    fn id(&self) -> &'static str {
+        "clamp_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1075,9 +1095,9 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for ClampNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<F32Type>("Value".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Min".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Max".into()),
+            GraphDefaultInputSlot::new::<F32Type>("value".into()),
+            GraphDefaultInputSlot::new::<F32Type>("min".into()),
+            GraphDefaultInputSlot::new::<F32Type>("max".into()),
         ]
     }
 
@@ -1085,7 +1105,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for ClampNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<F32Type>("Result".into())]
+        vec![GraphDefaultOutputSlot::new::<F32Type>("result".into())]
     }
 
     fn generate_code(
@@ -1109,8 +1129,8 @@ pub struct StepNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for StepNode {
-    fn name(&self) -> &'static str {
-        "Step"
+    fn id(&self) -> &'static str {
+        "step_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1122,8 +1142,8 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for StepNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<F32Type>("Edge".into()),
-            GraphDefaultInputSlot::new::<F32Type>("X".into()),
+            GraphDefaultInputSlot::new::<F32Type>("edge".into()),
+            GraphDefaultInputSlot::new::<F32Type>("x".into()),
         ]
     }
 
@@ -1131,7 +1151,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for StepNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<F32Type>("Result".into())]
+        vec![GraphDefaultOutputSlot::new::<F32Type>("result".into())]
     }
 
     fn generate_code(
@@ -1154,8 +1174,8 @@ pub struct SmoothStepNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for SmoothStepNode {
-    fn name(&self) -> &'static str {
-        "Smooth Step"
+    fn id(&self) -> &'static str {
+        "smooth_step_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1167,9 +1187,9 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for SmoothStepNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<F32Type>("Edge0".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Edge1".into()),
-            GraphDefaultInputSlot::new::<F32Type>("X".into()),
+            GraphDefaultInputSlot::new::<F32Type>("edge0".into()),
+            GraphDefaultInputSlot::new::<F32Type>("edge1".into()),
+            GraphDefaultInputSlot::new::<F32Type>("x".into()),
         ]
     }
 
@@ -1177,7 +1197,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for SmoothStepNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<F32Type>("Result".into())]
+        vec![GraphDefaultOutputSlot::new::<F32Type>("result".into())]
     }
 
     fn generate_code(
@@ -1201,8 +1221,8 @@ pub struct SplitComponentsNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for SplitComponentsNode {
-    fn name(&self) -> &'static str {
-        "Split Components"
+    fn id(&self) -> &'static str {
+        "split_components_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1213,7 +1233,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for SplitComponentsNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<Vec2FType>("Vector".into())]
+        vec![GraphDefaultInputSlot::new::<Vec2FType>("vector".into())]
     }
 
     fn create_outputs(
@@ -1221,8 +1241,8 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for SplitComponentsNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<F32Type>("X".into()),
-            GraphDefaultOutputSlot::new::<F32Type>("Y".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("x".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("y".into()),
         ]
     }
 
@@ -1246,8 +1266,8 @@ pub struct CombineComponentsNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for CombineComponentsNode {
-    fn name(&self) -> &'static str {
-        "Combine Components"
+    fn id(&self) -> &'static str {
+        "combine_components_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1259,8 +1279,8 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for CombineComponentsNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<F32Type>("X".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Y".into()),
+            GraphDefaultInputSlot::new::<F32Type>("x".into()),
+            GraphDefaultInputSlot::new::<F32Type>("y".into()),
         ]
     }
 
@@ -1268,7 +1288,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for CombineComponentsNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<Vec2FType>("Vector".into())]
+        vec![GraphDefaultOutputSlot::new::<Vec2FType>("vector".into())]
     }
 
     fn generate_code(
@@ -1291,8 +1311,8 @@ pub struct CombineColorComponentsNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for CombineColorComponentsNode {
-    fn name(&self) -> &'static str {
-        "Combine Color Components"
+    fn id(&self) -> &'static str {
+        "combine_color_components_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1304,10 +1324,10 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for CombineColorComponentsN
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<F32Type>("R".into()),
-            GraphDefaultInputSlot::new::<F32Type>("G".into()),
-            GraphDefaultInputSlot::new::<F32Type>("B".into()),
-            GraphDefaultInputSlot::new::<F32Type>("A".into()),
+            GraphDefaultInputSlot::new::<F32Type>("r".into()),
+            GraphDefaultInputSlot::new::<F32Type>("g".into()),
+            GraphDefaultInputSlot::new::<F32Type>("b".into()),
+            GraphDefaultInputSlot::new::<F32Type>("a".into()),
         ]
     }
 
@@ -1315,7 +1335,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for CombineColorComponentsN
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
     fn generate_code(
@@ -1340,8 +1360,8 @@ pub struct SplitColorComponentsNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for SplitColorComponentsNode {
-    fn name(&self) -> &'static str {
-        "Split Color Components"
+    fn id(&self) -> &'static str {
+        "split_color_components_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1352,7 +1372,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for SplitColorComponentsNod
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultInputSlot::new::<ColorType>("color".into())]
     }
 
     fn create_outputs(
@@ -1360,10 +1380,10 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for SplitColorComponentsNod
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<F32Type>("R".into()),
-            GraphDefaultOutputSlot::new::<F32Type>("G".into()),
-            GraphDefaultOutputSlot::new::<F32Type>("B".into()),
-            GraphDefaultOutputSlot::new::<F32Type>("A".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("r".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("g".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("b".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("a".into()),
         ]
     }
 
@@ -1396,8 +1416,8 @@ pub struct GetPixelColorNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for GetPixelColorNode {
-    fn name(&self) -> &'static str {
-        "Get Pixel Color"
+    fn id(&self) -> &'static str {
+        "get_pixel_color_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1409,8 +1429,8 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for GetPixelColorNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<TextureType>("Texture".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("Position".into()),
+            GraphDefaultInputSlot::new::<TextureType>("texture".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("position".into()),
         ]
     }
 
@@ -1418,7 +1438,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for GetPixelColorNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
     fn generate_code(
@@ -1450,8 +1470,8 @@ impl<Data: GraphData> GraphNode<Data> for TextureNode {
     type State = TextureId;
     type Message = TextureNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Texture"
+    fn id(&self) -> &'static str {
+        "texture_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -1475,7 +1495,7 @@ impl<Data: GraphData> GraphNode<Data> for TextureNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<TextureType>("Texture".into())]
+        vec![GraphDefaultOutputSlot::new::<TextureType>("texture".into())]
     }
 
     fn view(
@@ -1529,8 +1549,8 @@ pub struct ColorMixNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for ColorMixNode {
-    fn name(&self) -> &'static str {
-        "Color Mix"
+    fn id(&self) -> &'static str {
+        "color_mix_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1542,9 +1562,9 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for ColorMixNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<ColorType>("Color A".into()),
-            GraphDefaultInputSlot::new::<ColorType>("Color B".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Factor".into()),
+            GraphDefaultInputSlot::new::<ColorType>("color_a".into()),
+            GraphDefaultInputSlot::new::<ColorType>("color_b".into()),
+            GraphDefaultInputSlot::new::<F32Type>("factor".into()),
         ]
     }
 
@@ -1552,7 +1572,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for ColorMixNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<ColorType>("Result".into())]
+        vec![GraphDefaultOutputSlot::new::<ColorType>("result".into())]
     }
 
     fn generate_code(
@@ -1576,8 +1596,8 @@ pub struct TextureSizeNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for TextureSizeNode {
-    fn name(&self) -> &'static str {
-        "Texture Size"
+    fn id(&self) -> &'static str {
+        "texture_size_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1588,14 +1608,14 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for TextureSizeNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<TextureType>("Texture".into())]
+        vec![GraphDefaultInputSlot::new::<TextureType>("texture".into())]
     }
 
     fn create_outputs(
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<Vec2FType>("Size".into())]
+        vec![GraphDefaultOutputSlot::new::<Vec2FType>("size".into())]
     }
 
     fn generate_code(
@@ -1650,8 +1670,8 @@ impl<Data: GraphData> GraphNode<Data> for GraphFunctionNode {
     type State = GraphFunctionNodeState;
     type Message = GraphFunctionNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Function"
+    fn id(&self) -> &'static str {
+        "function_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -1809,8 +1829,8 @@ impl<Data: GraphData> GraphNode<Data> for GraphInputNode {
     type State = GraphInputNodeState;
     type Message = GraphInputNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Graph Input"
+    fn id(&self) -> &'static str {
+        "graph_input_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -1867,7 +1887,7 @@ impl<Data: GraphData> GraphNode<Data> for GraphInputNode {
             .collect::<Vec<_>>();
         ctx.view_all_slots_with_header(
             column![
-                text_input("Name", &state.name)
+                text_input(&t!("name"), &state.name)
                     .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(GraphInputNodeMessage::NameChanged),
@@ -1921,8 +1941,8 @@ impl<Data: GraphData> GraphNode<Data> for GraphOutputNode {
     type State = GraphOutputNodeState;
     type Message = GraphOutputNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Graph Output"
+    fn id(&self) -> &'static str {
+        "graph_output_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -1979,7 +1999,7 @@ impl<Data: GraphData> GraphNode<Data> for GraphOutputNode {
             .collect::<Vec<_>>();
         ctx.view_all_slots_with_header(
             column![
-                text_input("Name", &state.name)
+                text_input(&t!("name"), &state.name)
                     .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(GraphOutputNodeMessage::NameChanged),
@@ -2044,8 +2064,8 @@ impl<Data: GraphData> GraphNode<Data> for ExternalVariableNode {
     type State = Option<ExternalVariableId>;
     type Message = ExternalVariableNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "External Variable"
+    fn id(&self) -> &'static str {
+        "external_variable_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -2195,8 +2215,8 @@ impl<Data: GraphData> GraphNode<Data> for CurveNode {
     type State = CurveNodeState;
     type Message = CurveNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Curve"
+    fn id(&self) -> &'static str {
+        "curve_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -2212,7 +2232,7 @@ impl<Data: GraphData> GraphNode<Data> for CurveNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<F32Type>("X".into())]
+        vec![GraphDefaultInputSlot::new::<F32Type>("x".into())]
     }
 
     fn create_outputs(
@@ -2220,7 +2240,7 @@ impl<Data: GraphData> GraphNode<Data> for CurveNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<F32Type>("Y".into())]
+        vec![GraphDefaultOutputSlot::new::<F32Type>("y".into())]
     }
 
     fn view(
@@ -2297,8 +2317,8 @@ pub struct RandomNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for RandomNode {
-    fn name(&self) -> &'static str {
-        "Random Number"
+    fn id(&self) -> &'static str {
+        "random_number_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -2309,7 +2329,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for RandomNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<F32Type>("Seed".into())]
+        vec![GraphDefaultInputSlot::new::<F32Type>("seed".into())]
     }
 
     fn create_outputs(
@@ -2317,8 +2337,8 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for RandomNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<F32Type>("Scalar".into()),
-            GraphDefaultOutputSlot::new::<Vec2FType>("Vec2".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("scalar".into()),
+            GraphDefaultOutputSlot::new::<Vec2FType>("vec2".into()),
         ]
     }
 
@@ -2356,8 +2376,8 @@ pub struct RepeatIterationNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for RepeatIterationNode {
-    fn name(&self) -> &'static str {
-        "Repeat Iteration"
+    fn id(&self) -> &'static str {
+        "repeat_iteration_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -2375,7 +2395,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for RepeatIterationNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<I32Type>("Iteration".into())]
+        vec![GraphDefaultOutputSlot::new::<I32Type>("iteration".into())]
     }
 
     fn update_signature(&self, mut ctx: GraphNodeUpdateSignatureContext<'_, Data>) {
@@ -2658,8 +2678,8 @@ impl<Data: GraphData> GraphNode<Data> for RepeatInputNode {
     type State = RepeatInputNodeState;
     type Message = RepeatInputNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Repeat Input"
+    fn id(&self) -> &'static str {
+        "repeat_input_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -2764,8 +2784,8 @@ impl<Data: GraphData> GraphNode<Data> for RepeatOutputNode {
     type State = RepeatOutputNodeState;
     type Message = RepeatOutputNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Repeat Output"
+    fn id(&self) -> &'static str {
+        "repeat_output_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -2915,7 +2935,7 @@ fn repeat_schema_editor_view<Data: GraphData>(
         .map(|local| {
             let id = local.id;
             column![
-                text_input("Variable Name", &local.name)
+                text_input(&t!("variable_name"), &local.name)
                     .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(move |name| { RepeatNodeMessage::EditorRenameLocal(id, name) }),
@@ -2976,8 +2996,8 @@ impl<Data: GraphData> GraphNode<Data> for RepeatNode {
 
     type Message = RepeatNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Repeat"
+    fn id(&self) -> &'static str {
+        "repeat_node"
     }
 
     fn default_state(&self, ctx: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -3022,7 +3042,7 @@ impl<Data: GraphData> GraphNode<Data> for RepeatNode {
         state: &Self::State,
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        std::iter::once(GraphDefaultInputSlot::new::<I32Type>("Iterations".into()))
+        std::iter::once(GraphDefaultInputSlot::new::<I32Type>("iterations".into()))
             .chain(state.locals.lock().values().map(|local| {
                 GraphDefaultInputSlot::new_boxed(format!("{} In", local.name), local.ty.clone())
             }))
@@ -3816,8 +3836,8 @@ impl<Data: GraphData> GraphNode<Data> for CustomExpressionNode {
 
     type Message = CustomExpressionNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Custom Expression"
+    fn id(&self) -> &'static str {
+        "custom_expression_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {

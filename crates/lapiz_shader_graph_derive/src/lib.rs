@@ -45,8 +45,8 @@ fn generate_graph_node_impl(impl_block: &ItemImpl, crate_path: &TokenStream2) ->
             type State = #crate_path::graph::node::StatelessState;
             type Message = #crate_path::graph::slot::ErasedGraphLiteralUpdateMessage;
 
-            fn name(&self) -> &'static str {
-                <Self as #crate_path::graph::node::StatelessCommonGraphNode<#data_ty>>::name(self)
+            fn id(&self) -> &'static str {
+                <Self as #crate_path::graph::node::StatelessCommonGraphNode<#data_ty>>::id(self)
             }
 
             fn default_state(

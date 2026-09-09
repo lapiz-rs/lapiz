@@ -114,7 +114,12 @@ pub fn t(key: &str, args: Option<&'_ FluentArgs<'_>>) -> String {
             return loader.get_args_fluent(key, args);
         }
     }
-    log::warn!("missing i18n message {key:?} across all registered domains");
+    static WARNED: parking_lot::Mutex<Vec<String>> = parking_lot::Mutex::new(Vec::new());
+    let mut warned = WARNED.lock();
+    if !warned.iter().any(|seen| seen == key) {
+        warned.push(key.to_string());
+        log::warn!("missing i18n message {key:?} across all registered domains");
+    }
     key.to_string()
 }
 

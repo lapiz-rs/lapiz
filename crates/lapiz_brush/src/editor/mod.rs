@@ -194,9 +194,13 @@ impl WindowView for BrushEditor {
             TextInput::new("Name", &self.name_buffer)
                 .on_input(BrushEditorMessage::NameChanged)
                 .width(Length::Fill),
-            Button::new(Label::new(if self.dirty { "Save *" } else { "Save" }))
-                .primary()
-                .on_press(BrushEditorMessage::Save),
+            Button::new(Label::new(if self.dirty {
+                t!("save_dirty")
+            } else {
+                t!("save")
+            }))
+            .primary()
+            .on_press(BrushEditorMessage::Save),
         ]
         .spacing(6);
 
@@ -355,9 +359,13 @@ impl BrushEditor {
             TextInput::new("Name", &self.name_buffer)
                 .on_input(BrushEditorMessage::NameChanged)
                 .width(Length::Fill),
-            Button::new(Label::new(if self.dirty { "Save *" } else { "Save" }))
-                .primary()
-                .on_press(BrushEditorMessage::Save),
+            Button::new(Label::new(if self.dirty {
+                t!("save_dirty")
+            } else {
+                t!("save")
+            }))
+            .primary()
+            .on_press(BrushEditorMessage::Save),
         ]
         .spacing(6);
 
@@ -394,7 +402,7 @@ impl BrushEditor {
         let graph_count = brush.instance.stroke_postprocess_graphs().len();
         for index in 0..graph_count {
             let controls = row![
-                Button::new(Label::new(format!("Postprocess {index}")))
+                Button::new(Label::new(t!("postprocess", index = index)))
                     .width(Length::Fill)
                     .on_press(BrushEditorMessage::SwitchGraph(
                         BrushPresetGraph::StrokePostprocess { index },
@@ -455,7 +463,7 @@ impl BrushEditor {
         let variables = column![
             text(t!("variables")),
             Scrollable::new(column(variable_rows).spacing(6)).height(Length::Fill),
-            TextInput::new("New variable name", &self.new_external_name)
+            TextInput::new(&t!("new_variable_name"), &self.new_external_name)
                 .on_input(BrushEditorMessage::ExternalNameChanged),
             ComboBox::new(
                 types,

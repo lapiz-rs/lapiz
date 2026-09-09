@@ -1,9 +1,8 @@
-use std::fmt;
-
 use bevy_math::IRect;
 use encase::ShaderType;
 use glam::Vec4;
 use iced_core::Length;
+use lapiz_i18n::{Translated, t};
 use lapiz_image::blend_modes::BlendMode;
 use lapiz_shader_graph::{
     GraphElement,
@@ -23,6 +22,7 @@ use lapiz_shader_graph::{
 };
 use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::combo_box::ComboBox;
+use parse_display::Display;
 use serde::{Deserialize, Serialize};
 
 use crate::render::{ComputedPenInput, Time};
@@ -158,8 +158,8 @@ pub struct PenPositionNode;
 
 #[stateless]
 impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for PenPositionNode {
-    fn name(&self) -> &'static str {
-        "Pen Position"
+    fn id(&self) -> &'static str {
+        "pen_position_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -177,7 +177,7 @@ impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for PenPosition
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<Vec2FType>("Position".into())]
+        vec![GraphDefaultOutputSlot::new::<Vec2FType>("position".into())]
     }
 
     fn generate_code(
@@ -197,8 +197,8 @@ pub struct DrawDirectionNode;
 
 #[stateless]
 impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for DrawDirectionNode {
-    fn name(&self) -> &'static str {
-        "Draw Direction"
+    fn id(&self) -> &'static str {
+        "draw_direction_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -217,8 +217,8 @@ impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for DrawDirecti
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<F32Type>("Angle".into()),
-            GraphDefaultOutputSlot::new::<Vec2FType>("Direction".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("angle".into()),
+            GraphDefaultOutputSlot::new::<Vec2FType>("direction".into()),
         ]
     }
 
@@ -240,8 +240,8 @@ pub struct PenPressureNode;
 
 #[stateless]
 impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for PenPressureNode {
-    fn name(&self) -> &'static str {
-        "Pen Pressure"
+    fn id(&self) -> &'static str {
+        "pen_pressure_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -259,7 +259,7 @@ impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for PenPressure
         &self,
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<F32Type>("Pressure".into())]
+        vec![GraphDefaultOutputSlot::new::<F32Type>("pressure".into())]
     }
 
     fn generate_code(
@@ -279,8 +279,8 @@ pub struct PenTiltNode;
 
 #[stateless]
 impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for PenTiltNode {
-    fn name(&self) -> &'static str {
-        "Pen Tilt"
+    fn id(&self) -> &'static str {
+        "pen_tilt_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -298,7 +298,7 @@ impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for PenTiltNode
         &self,
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<Vec2FType>("Tilt".into())]
+        vec![GraphDefaultOutputSlot::new::<Vec2FType>("tilt".into())]
     }
 
     fn generate_code(
@@ -318,8 +318,8 @@ pub struct PenAngleNode;
 
 #[stateless]
 impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for PenAngleNode {
-    fn name(&self) -> &'static str {
-        "Pen Angle"
+    fn id(&self) -> &'static str {
+        "pen_angle_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -338,8 +338,8 @@ impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for PenAngleNod
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<F32Type>("Altitude".into()),
-            GraphDefaultOutputSlot::new::<F32Type>("Azimuth".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("altitude".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("azimuth".into()),
         ]
     }
 
@@ -361,8 +361,8 @@ pub struct DabIndexNode;
 
 #[stateless]
 impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for DabIndexNode {
-    fn name(&self) -> &'static str {
-        "Dab Index"
+    fn id(&self) -> &'static str {
+        "dab_index_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -380,7 +380,7 @@ impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for DabIndexNod
         &self,
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<I32Type>("Dab Index".into())]
+        vec![GraphDefaultOutputSlot::new::<I32Type>("dab_index".into())]
     }
 
     fn generate_code(
@@ -400,8 +400,8 @@ pub struct StrokeDistanceNode;
 
 #[stateless]
 impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for StrokeDistanceNode {
-    fn name(&self) -> &'static str {
-        "Stroke Distance"
+    fn id(&self) -> &'static str {
+        "stroke_distance_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -420,7 +420,7 @@ impl<Data: GraphDataWithPenInput> StatelessCommonGraphNode<Data> for StrokeDista
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![GraphDefaultOutputSlot::new::<F32Type>(
-            "Stroke Distance".into(),
+            "stroke_distance".into(),
         )]
     }
 
@@ -441,8 +441,8 @@ pub struct InitialPenPositionNode;
 
 #[stateless]
 impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data> for InitialPenPositionNode {
-    fn name(&self) -> &'static str {
-        "Initial Pen Position"
+    fn id(&self) -> &'static str {
+        "initial_pen_position_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -460,7 +460,7 @@ impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data> for Init
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<Vec2FType>("Position".into())]
+        vec![GraphDefaultOutputSlot::new::<Vec2FType>("position".into())]
     }
 
     fn generate_code(
@@ -482,8 +482,8 @@ pub struct InitialDrawDirectionNode;
 impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data>
     for InitialDrawDirectionNode
 {
-    fn name(&self) -> &'static str {
-        "Initial Draw Direction"
+    fn id(&self) -> &'static str {
+        "initial_draw_direction_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -502,8 +502,8 @@ impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data>
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<F32Type>("Angle".into()),
-            GraphDefaultOutputSlot::new::<Vec2FType>("Direction".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("angle".into()),
+            GraphDefaultOutputSlot::new::<Vec2FType>("direction".into()),
         ]
     }
 
@@ -525,8 +525,8 @@ pub struct InitialPenPressureNode;
 
 #[stateless]
 impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data> for InitialPenPressureNode {
-    fn name(&self) -> &'static str {
-        "Initial Pen Pressure"
+    fn id(&self) -> &'static str {
+        "initial_pen_pressure_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -544,7 +544,7 @@ impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data> for Init
         &self,
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<F32Type>("Pressure".into())]
+        vec![GraphDefaultOutputSlot::new::<F32Type>("pressure".into())]
     }
 
     fn generate_code(
@@ -564,8 +564,8 @@ pub struct InitialPenTiltNode;
 
 #[stateless]
 impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data> for InitialPenTiltNode {
-    fn name(&self) -> &'static str {
-        "Initial Pen Tilt"
+    fn id(&self) -> &'static str {
+        "initial_pen_tilt_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -583,7 +583,7 @@ impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data> for Init
         &self,
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<Vec2FType>("Tilt".into())]
+        vec![GraphDefaultOutputSlot::new::<Vec2FType>("tilt".into())]
     }
 
     fn generate_code(
@@ -603,8 +603,8 @@ pub struct InitialPenAngleNode;
 
 #[stateless]
 impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data> for InitialPenAngleNode {
-    fn name(&self) -> &'static str {
-        "Initial Pen Angle"
+    fn id(&self) -> &'static str {
+        "initial_pen_angle_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -623,8 +623,8 @@ impl<Data: GraphDataWithInitialPenInput> StatelessCommonGraphNode<Data> for Init
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<F32Type>("Altitude".into()),
-            GraphDefaultOutputSlot::new::<F32Type>("Azimuth".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("altitude".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("azimuth".into()),
         ]
     }
 
@@ -646,8 +646,8 @@ pub struct PixelPositionNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for PixelPositionNode {
-    fn name(&self) -> &'static str {
-        "Pixel Position"
+    fn id(&self) -> &'static str {
+        "pixel_position_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -665,7 +665,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for PixelPositionNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<Vec2FType>("Position".into())]
+        vec![GraphDefaultOutputSlot::new::<Vec2FType>("position".into())]
     }
 
     fn generate_code(
@@ -681,8 +681,8 @@ pub struct FilterWithinMaskNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for FilterWithinMaskNode {
-    fn name(&self) -> &'static str {
-        "Filter Within Mask"
+    fn id(&self) -> &'static str {
+        "filter_within_mask_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -694,12 +694,12 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for FilterWithinMaskNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<ColorType>("Color".into()),
-            GraphDefaultInputSlot::new::<TextureType>("Mask".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("Translation".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Rotation".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("Scale".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("Anchor".into()),
+            GraphDefaultInputSlot::new::<ColorType>("color".into()),
+            GraphDefaultInputSlot::new::<TextureType>("mask".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("translation".into()),
+            GraphDefaultInputSlot::new::<F32Type>("rotation".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("scale".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("anchor".into()),
         ]
     }
 
@@ -708,8 +708,8 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for FilterWithinMaskNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<ColorType>("Color".into()),
-            GraphDefaultOutputSlot::new::<RectType>("Bounds".into()),
+            GraphDefaultOutputSlot::new::<ColorType>("color".into()),
+            GraphDefaultOutputSlot::new::<RectType>("bounds".into()),
         ]
     }
 
@@ -748,8 +748,8 @@ pub struct FilterWithinBoundsNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for FilterWithinBoundsNode {
-    fn name(&self) -> &'static str {
-        "Filter Within Bounds"
+    fn id(&self) -> &'static str {
+        "filter_within_bounds_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -761,8 +761,8 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for FilterWithinBoundsNode 
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<ColorType>("Color".into()),
-            GraphDefaultInputSlot::new::<RectType>("Bounds".into()),
+            GraphDefaultInputSlot::new::<ColorType>("color".into()),
+            GraphDefaultInputSlot::new::<RectType>("bounds".into()),
         ]
     }
 
@@ -771,8 +771,8 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for FilterWithinBoundsNode 
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<ColorType>("Color".into()),
-            GraphDefaultOutputSlot::new::<RectType>("Bounds".into()),
+            GraphDefaultOutputSlot::new::<ColorType>("color".into()),
+            GraphDefaultOutputSlot::new::<RectType>("bounds".into()),
         ]
     }
 
@@ -799,8 +799,8 @@ pub struct OutputColorNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for OutputColorNode {
-    fn name(&self) -> &'static str {
-        "Output Color"
+    fn id(&self) -> &'static str {
+        "output_color_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -811,7 +811,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for OutputColorNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultInputSlot::new::<ColorType>("color".into())]
     }
 
     fn create_outputs(
@@ -837,8 +837,8 @@ pub struct OutputBoundsNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for OutputBoundsNode {
-    fn name(&self) -> &'static str {
-        "Output Bounds"
+    fn id(&self) -> &'static str {
+        "output_bounds_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -849,7 +849,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for OutputBoundsNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<RectType>("Bounds".into())]
+        vec![GraphDefaultInputSlot::new::<RectType>("bounds".into())]
     }
 
     fn create_outputs(
@@ -874,7 +874,23 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for OutputBoundsNode {
 #[derive(Default, Clone)]
 pub struct PasteTextureNode;
 
-#[derive(Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq)]
+struct BlendModeOption(BlendMode);
+
+impl BlendModeOption {
+    fn into_inner(self) -> BlendMode {
+        self.0
+    }
+}
+
+impl std::fmt::Display for BlendModeOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&t!(&format!("blend_{}", self.0)))
+    }
+}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Display)]
+#[display(style = "snake_case")]
 pub enum PasteTextureMode {
     Clamp,
     #[default]
@@ -883,15 +899,6 @@ pub enum PasteTextureMode {
 
 impl PasteTextureMode {
     const ALL: [PasteTextureMode; 2] = [PasteTextureMode::Clamp, PasteTextureMode::Wrap];
-}
-
-impl fmt::Display for PasteTextureMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PasteTextureMode::Clamp => f.write_str("Clamp"),
-            PasteTextureMode::Wrap => f.write_str("Wrap"),
-        }
-    }
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
@@ -909,8 +916,8 @@ impl<Data: GraphData> GraphNode<Data> for PasteTextureNode {
     type State = PasteTextureNodeState;
     type Message = PasteTextureNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Paste Texture"
+    fn id(&self) -> &'static str {
+        "paste_texture_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -927,11 +934,11 @@ impl<Data: GraphData> GraphNode<Data> for PasteTextureNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<TextureType>("Texture".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("Translation".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Rotation".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("Scale".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("Anchor".into()),
+            GraphDefaultInputSlot::new::<TextureType>("texture".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("translation".into()),
+            GraphDefaultInputSlot::new::<F32Type>("rotation".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("scale".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("anchor".into()),
         ]
     }
 
@@ -940,7 +947,7 @@ impl<Data: GraphData> GraphNode<Data> for PasteTextureNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
     fn view(
@@ -950,9 +957,13 @@ impl<Data: GraphData> GraphNode<Data> for PasteTextureNode {
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
             ComboBox::new(
-                PasteTextureMode::ALL,
-                Some(state.mode),
-                PasteTextureNodeMessage::ModeChanged,
+                PasteTextureMode::ALL
+                    .to_vec()
+                    .into_iter()
+                    .map(Translated)
+                    .collect::<Vec<_>>(),
+                Some(Translated(state.mode)),
+                |option| PasteTextureNodeMessage::ModeChanged(option.into_inner()),
             )
             .width(Length::Fill),
             PasteTextureNodeMessage::LiteralUpdate,
@@ -998,8 +1009,8 @@ pub struct CurrentPixelColorNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for CurrentPixelColorNode {
-    fn name(&self) -> &'static str {
-        "Current Pixel Color"
+    fn id(&self) -> &'static str {
+        "current_pixel_color_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1010,14 +1021,14 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for CurrentPixelColorNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<Vec2FType>("Position".into())]
+        vec![GraphDefaultInputSlot::new::<Vec2FType>("position".into())]
     }
 
     fn create_outputs(
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
     fn generate_code(
@@ -1037,8 +1048,8 @@ pub struct LayerPixelColorNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for LayerPixelColorNode {
-    fn name(&self) -> &'static str {
-        "Layer Pixel Color"
+    fn id(&self) -> &'static str {
+        "layer_pixel_color_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1049,14 +1060,14 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for LayerPixelColorNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<Vec2FType>("Position".into())]
+        vec![GraphDefaultInputSlot::new::<Vec2FType>("position".into())]
     }
 
     fn create_outputs(
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
     fn generate_code(
@@ -1089,8 +1100,8 @@ impl<Data: GraphData> GraphNode<Data> for BlendColorNode {
     type State = BlendColorNodeState;
     type Message = BlendModeNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Blend Color"
+    fn id(&self) -> &'static str {
+        "blend_color_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -1109,8 +1120,8 @@ impl<Data: GraphData> GraphNode<Data> for BlendColorNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<ColorType>("Src Color".into()),
-            GraphDefaultInputSlot::new::<ColorType>("Dst Color".into()),
+            GraphDefaultInputSlot::new::<ColorType>("src_color".into()),
+            GraphDefaultInputSlot::new::<ColorType>("dst_color".into()),
         ]
     }
 
@@ -1119,7 +1130,7 @@ impl<Data: GraphData> GraphNode<Data> for BlendColorNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
     fn view(
@@ -1129,9 +1140,13 @@ impl<Data: GraphData> GraphNode<Data> for BlendColorNode {
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
             ComboBox::new(
-                BlendMode::ALL,
-                Some(state.blend_mode),
-                BlendModeNodeMessage::ModeChanged,
+                BlendMode::ALL
+                    .to_vec()
+                    .into_iter()
+                    .map(BlendModeOption)
+                    .collect::<Vec<_>>(),
+                Some(BlendModeOption(state.blend_mode)),
+                |option| BlendModeNodeMessage::ModeChanged(option.into_inner()),
             )
             .width(Length::Fill),
             BlendModeNodeMessage::LiteralUpdate,
@@ -1172,8 +1187,8 @@ pub struct StrokeBoundsNode;
 
 #[stateless]
 impl StatelessCommonGraphNode<BrushStrokePostprocessGraphData> for StrokeBoundsNode {
-    fn name(&self) -> &'static str {
-        "Stroke Bounds"
+    fn id(&self) -> &'static str {
+        "stroke_bounds_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1191,7 +1206,7 @@ impl StatelessCommonGraphNode<BrushStrokePostprocessGraphData> for StrokeBoundsN
         &self,
         _: GraphNodeCreateSlotsContext<'_, BrushStrokePostprocessGraphData>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<RectType>("Bounds".into())]
+        vec![GraphDefaultOutputSlot::new::<RectType>("bounds".into())]
     }
 
     fn generate_code(
@@ -1210,8 +1225,8 @@ pub struct EllipticalMaskNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for EllipticalMaskNode {
-    fn name(&self) -> &'static str {
-        "Elliptical Mask"
+    fn id(&self) -> &'static str {
+        "elliptical_mask_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1223,10 +1238,10 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for EllipticalMaskNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<Vec2FType>("Sample Position".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("Center".into()),
-            GraphDefaultInputSlot::new::<Vec2FType>("Radii".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Rotation".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("sample_position".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("center".into()),
+            GraphDefaultInputSlot::new::<Vec2FType>("radii".into()),
+            GraphDefaultInputSlot::new::<F32Type>("rotation".into()),
         ]
     }
 
@@ -1235,8 +1250,8 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for EllipticalMaskNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![
-            GraphDefaultOutputSlot::new::<F32Type>("Mask Value".into()),
-            GraphDefaultOutputSlot::new::<RectType>("Bounds".into()),
+            GraphDefaultOutputSlot::new::<F32Type>("mask_value".into()),
+            GraphDefaultOutputSlot::new::<RectType>("bounds".into()),
         ]
     }
 
@@ -1269,8 +1284,8 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithInputNode {
     type State = BlendWithBufferNodeState;
     type Message = BlendModeNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Blend With Input"
+    fn id(&self) -> &'static str {
+        "blend_with_input_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -1289,8 +1304,8 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithInputNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<ColorType>("Color".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Opacity".into()),
+            GraphDefaultInputSlot::new::<ColorType>("color".into()),
+            GraphDefaultInputSlot::new::<F32Type>("opacity".into()),
         ]
     }
 
@@ -1299,7 +1314,7 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithInputNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
     fn view(
@@ -1309,9 +1324,13 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithInputNode {
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
             ComboBox::new(
-                BlendMode::ALL,
-                Some(state.blend_mode),
-                BlendModeNodeMessage::ModeChanged,
+                BlendMode::ALL
+                    .to_vec()
+                    .into_iter()
+                    .map(BlendModeOption)
+                    .collect::<Vec<_>>(),
+                Some(BlendModeOption(state.blend_mode)),
+                |option| BlendModeNodeMessage::ModeChanged(option.into_inner()),
             )
             .width(Length::Fill),
             BlendModeNodeMessage::LiteralUpdate,
@@ -1356,8 +1375,8 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithLayerNode {
     type State = BlendWithLayerNodeState;
     type Message = BlendModeNodeMessage;
 
-    fn name(&self) -> &'static str {
-        "Blend With Layer"
+    fn id(&self) -> &'static str {
+        "blend_with_layer_node"
     }
 
     fn default_state(&self, _: GraphNodeDefaultStateContext<'_, Data>) -> Self::State {
@@ -1376,8 +1395,8 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithLayerNode {
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![
-            GraphDefaultInputSlot::new::<ColorType>("Color".into()),
-            GraphDefaultInputSlot::new::<F32Type>("Opacity".into()),
+            GraphDefaultInputSlot::new::<ColorType>("color".into()),
+            GraphDefaultInputSlot::new::<F32Type>("opacity".into()),
         ]
     }
 
@@ -1386,7 +1405,7 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithLayerNode {
         _: &Self::State,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<ColorType>("Color".into())]
+        vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
     fn view(
@@ -1396,9 +1415,13 @@ impl<Data: GraphData> GraphNode<Data> for BlendWithLayerNode {
     ) -> GraphElement<'static, Self::Message> {
         ctx.view_all_slots_with_header(
             ComboBox::new(
-                BlendMode::ALL,
-                Some(state.blend_mode),
-                BlendModeNodeMessage::ModeChanged,
+                BlendMode::ALL
+                    .to_vec()
+                    .into_iter()
+                    .map(BlendModeOption)
+                    .collect::<Vec<_>>(),
+                Some(BlendModeOption(state.blend_mode)),
+                |option| BlendModeNodeMessage::ModeChanged(option.into_inner()),
             )
             .width(Length::Fill),
             BlendModeNodeMessage::LiteralUpdate,
@@ -1436,8 +1459,8 @@ pub struct OutputSpacingNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for OutputSpacingNode {
-    fn name(&self) -> &'static str {
-        "Output Spacing"
+    fn id(&self) -> &'static str {
+        "output_spacing_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1452,7 +1475,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for OutputSpacingNode {
         &self,
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<F32Type>("Spacing".into())]
+        vec![GraphDefaultInputSlot::new::<F32Type>("spacing".into())]
     }
 
     fn create_outputs(
@@ -1475,8 +1498,8 @@ pub struct OutputRequiredSpacingNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for OutputRequiredSpacingNode {
-    fn name(&self) -> &'static str {
-        "Output Required Spacing"
+    fn id(&self) -> &'static str {
+        "output_required_spacing_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1492,7 +1515,7 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for OutputRequiredSpacingNo
         _: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
         vec![GraphDefaultInputSlot::new::<F32Type>(
-            "Required Spacing".into(),
+            "required_spacing".into(),
         )]
     }
 
@@ -1516,8 +1539,8 @@ pub struct SelectionMaskNode;
 
 #[stateless]
 impl<Data: GraphData> StatelessCommonGraphNode<Data> for SelectionMaskNode {
-    fn name(&self) -> &'static str {
-        "Selection Mask"
+    fn id(&self) -> &'static str {
+        "selection_mask_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1528,14 +1551,14 @@ impl<Data: GraphData> StatelessCommonGraphNode<Data> for SelectionMaskNode {
         &self,
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultInputSlot> {
-        vec![GraphDefaultInputSlot::new::<Vec2FType>("Position".into())]
+        vec![GraphDefaultInputSlot::new::<Vec2FType>("position".into())]
     }
 
     fn create_outputs(
         &self,
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
-        vec![GraphDefaultOutputSlot::new::<F32Type>("Value".to_string())]
+        vec![GraphDefaultOutputSlot::new::<F32Type>("value".to_string())]
     }
 
     fn generate_code(
@@ -1556,8 +1579,8 @@ pub struct ForegroundColorNode;
 
 #[stateless]
 impl<Data: GraphDataWithBrushResource> StatelessCommonGraphNode<Data> for ForegroundColorNode {
-    fn name(&self) -> &'static str {
-        "Foreground Color"
+    fn id(&self) -> &'static str {
+        "foreground_color_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1576,7 +1599,7 @@ impl<Data: GraphDataWithBrushResource> StatelessCommonGraphNode<Data> for Foregr
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![GraphDefaultOutputSlot::new::<ColorType>(
-            "Color".to_string(),
+            "color".to_string(),
         )]
     }
 
@@ -1597,8 +1620,8 @@ pub struct BackgroundColorNode;
 
 #[stateless]
 impl<Data: GraphDataWithBrushResource> StatelessCommonGraphNode<Data> for BackgroundColorNode {
-    fn name(&self) -> &'static str {
-        "Background Color"
+    fn id(&self) -> &'static str {
+        "background_color_node"
     }
 
     fn header_hue_chroma(&self) -> (f32, f32) {
@@ -1617,7 +1640,7 @@ impl<Data: GraphDataWithBrushResource> StatelessCommonGraphNode<Data> for Backgr
         _ctx: GraphNodeCreateSlotsContext<'_, Data>,
     ) -> Vec<GraphDefaultOutputSlot> {
         vec![GraphDefaultOutputSlot::new::<ColorType>(
-            "Color".to_string(),
+            "color".to_string(),
         )]
     }
 

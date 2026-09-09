@@ -10,6 +10,7 @@ use downcast_rs::Downcast;
 use dyn_clone::DynClone;
 use iced_core::{Length, Point};
 use iced_widget::Column;
+use lapiz_i18n::t;
 use lapiz_utils::{cloneable_any::ClonableAnySync, wrapper};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -41,7 +42,7 @@ pub trait GraphNode<Data: GraphData>: Send + Sync + 'static + DynClone {
     type State: Send + Sync + 'static + GraphSerializable<Data>;
     type Message: Send + Sync + 'static + Clone;
 
-    fn name(&self) -> &'static str;
+    fn id(&self) -> &'static str;
     fn default_state(&self, ctx: GraphNodeDefaultStateContext<'_, Data>) -> Self::State;
     fn header_hue_chroma(&self) -> (f32, f32);
     fn create_inputs(
@@ -104,7 +105,7 @@ impl std::fmt::Debug for ErasedGraphNodeMessage {
 }
 
 pub trait ErasedGraphNode<Data: GraphData>: Send + Sync + 'static + DynClone + Downcast {
-    fn name(&self) -> &'static str;
+    fn id(&self) -> &'static str;
     fn default_state(
         &self,
         ctx: GraphNodeDefaultStateContext<'_, Data>,
@@ -159,8 +160,8 @@ dyn_clone::clone_trait_object!(<Data> ErasedGraphNode<Data>);
 downcast_rs::impl_downcast!(ErasedGraphNode<Data> where Data: GraphData);
 
 impl<T: GraphNode<Data>, Data: GraphData> ErasedGraphNode<Data> for T {
-    fn name(&self) -> &'static str {
-        self.name()
+    fn id(&self) -> &'static str {
+        self.id()
     }
 
     fn default_state(
@@ -312,8 +313,8 @@ impl<Data: GraphData> StatefulGraphNode<Data> {
         }
     }
 
-    pub fn name(&self) -> &'static str {
-        self.data.name()
+    pub fn id(&self) -> &'static str {
+        self.data.id()
     }
 
     pub fn header_hue_chroma(&self) -> (f32, f32) {
@@ -402,7 +403,7 @@ pub struct StatelessState {
 }
 
 pub trait StatelessCommonGraphNode<Data: GraphData>: Send + Sync + 'static + DynClone {
-    fn name(&self) -> &'static str;
+    fn id(&self) -> &'static str;
     fn header_hue_chroma(&self) -> (f32, f32);
     fn create_inputs(
         &self,
@@ -481,7 +482,7 @@ impl<Data: GraphData> GraphNodeViewContext<'_, Data> {
     ) -> Option<GraphElement<'a, Message>> {
         let slot_id = *self.inputs.get(index)?;
         let slot = self.slots.get_input(&slot_id)?;
-        Some(input_slot(slot_id, slot.name.clone(), slot).map(map_literal))
+        Some(input_slot(slot_id, t!(&slot.name), slot).map(map_literal))
     }
 
     pub fn view_output_slot<'a, Message: 'static>(
@@ -490,7 +491,7 @@ impl<Data: GraphData> GraphNodeViewContext<'_, Data> {
     ) -> Option<GraphElement<'a, Message>> {
         let slot_id = *self.outputs.get(index)?;
         let slot = self.slots.get_output(&slot_id)?;
-        Some(output_slot(slot_id, slot.name.clone(), slot))
+        Some(output_slot(slot_id, t!(&slot.name), slot))
     }
 
     pub fn view_all_inputs<'a, Message: 'static>(
@@ -501,7 +502,7 @@ impl<Data: GraphData> GraphNodeViewContext<'_, Data> {
             .iter()
             .filter_map(|id| {
                 let slot = self.slots.get_input(id)?;
-                Some(input_slot(*id, slot.name.clone(), slot).map(map_literal))
+                Some(input_slot(*id, t!(&slot.name), slot).map(map_literal))
             })
             .collect()
     }
@@ -511,7 +512,7 @@ impl<Data: GraphData> GraphNodeViewContext<'_, Data> {
             .iter()
             .filter_map(|id| {
                 let slot = self.slots.get_output(id)?;
-                Some(output_slot(*id, slot.name.clone(), slot))
+                Some(output_slot(*id, t!(&slot.name), slot))
             })
             .collect()
     }
@@ -761,11 +762,11 @@ impl<Data: GraphData> GraphNodeRegistry<Data> {
 
     pub fn register<T: ErasedGraphNode<Data> + Default>(&mut self) {
         let node = Box::new(T::default());
-        self.nodes.insert(node.name(), node);
+        self.nodes.insert(node.id(), node);
     }
 
     pub fn register_boxed(&mut self, node: Box<dyn ErasedGraphNode<Data>>) {
-        self.nodes.insert(node.name(), node);
+        self.nodes.insert(node.id(), node);
     }
 
     pub fn get(&self, name: &str) -> Option<Box<dyn ErasedGraphNode<Data>>> {

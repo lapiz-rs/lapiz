@@ -3353,6 +3353,7 @@ dependencies = [
  "lapiz_widgets",
  "log",
  "parking_lot",
+ "parse-display",
  "ringbuffer",
  "rust-embed",
  "serde",
