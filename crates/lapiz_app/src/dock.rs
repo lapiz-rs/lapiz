@@ -44,7 +44,10 @@ use lapiz_image::{
     },
     tile::{GpuTileStorage, TileStorageAppExt},
 };
-use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
+use lapiz_input::{
+    key::KeyboardState,
+    mouse::{HoverMouseState, PressedMouseState},
+};
 use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::Renderer;
 use lapiz_runtime::{Services, event::Event};
@@ -598,6 +601,7 @@ pub fn construct_canvas_dock_id(canvas: CanvasId) -> String {
 pub struct CanvasDock {
     canvas: CanvasId,
 
+    is_mouse_pressed: bool,
     compositor: ImageCompositor,
     cursor_position: Point,
 
@@ -610,6 +614,7 @@ impl CanvasDock {
     pub fn new(canvas: CanvasId, window_id: window::Id) -> Self {
         Self {
             canvas,
+            is_mouse_pressed: false,
             compositor: ImageCompositor::default(),
             cursor_position: Point::default(),
             window_id: RefCell::new(window_id),
@@ -719,33 +724,43 @@ impl Dock for CanvasDock {
                         let keyboard_state = services.service::<KeyboardState>().clone();
 
                         match event {
-                            pointer::Event::PointerPressed { position, .. }
+                            pointer::Event::PointerPressed { position, button }
                                 if event.is_primary_press() =>
                             {
+                                self.is_mouse_pressed = true;
                                 self.cursor_position = position;
                                 tool_proxy.mouse_pressed(
                                     &keyboard_state,
-                                    &PressedMouseState {
-                                        position: self.cursor_position,
-                                    },
+                                    &PressedMouseState::from_button(position, button),
                                     services,
                                 )
                             }
-                            pointer::Event::PointerReleased { position, .. }
+                            pointer::Event::PointerReleased { position, button }
                                 if event.is_primary_release() =>
                             {
+                                self.is_mouse_pressed = false;
                                 self.cursor_position = position;
                                 tool_proxy.mouse_released(
                                     &keyboard_state,
-                                    &PressedMouseState {
-                                        position: self.cursor_position,
-                                    },
+                                    &PressedMouseState::from_button(position, button),
                                     services,
                                 )
                             }
-                            pointer::Event::PointerMoved { position, .. } => {
+                            pointer::Event::PointerMoved { position, source } => {
                                 self.cursor_position = position;
-                                tool_proxy.mouse_moved(&keyboard_state, position, services)
+                                if self.is_mouse_pressed {
+                                    tool_proxy.mouse_moved_pressing(
+                                        &keyboard_state,
+                                        &PressedMouseState::from_pointer(position, source),
+                                        services,
+                                    )
+                                } else {
+                                    tool_proxy.mouse_moved_hovering(
+                                        &keyboard_state,
+                                        &HoverMouseState::from_pointer(position, source),
+                                        services,
+                                    )
+                                }
                             }
                             _ => Task::none(),
                         }

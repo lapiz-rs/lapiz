@@ -1,14 +1,14 @@
 use std::{any::Any, collections::HashMap, rc::Rc, sync::Arc};
 
-use iced_core::{Element, Point, Theme};
+use iced_core::{Element, Point, Theme, pointer};
 use iced_runtime::{Task, futures::Subscription};
-use lapiz_runtime::Renderer;
 use iced_widget::{Stack, space};
 use lapiz_assets::AssetAppExt;
 use lapiz_input::{
     key::{KeySequence, KeyboardState},
     mouse::{HoverMouseState, PressedMouseState},
 };
+use lapiz_runtime::Renderer;
 use lapiz_runtime::{Application, Services, plugin::Plugin, service::Service};
 use lapiz_utils::{Deref, DerefMut, wrapper};
 use lapiz_widgets::icon::Icon;
@@ -331,6 +331,7 @@ impl Service for ToolFunctionRegistry {}
 
 struct State {
     function: ToolId,
+    // TODO prevent tool switching on some scenarios like the tool is updating
     is_updating: bool,
 }
 
@@ -454,10 +455,10 @@ impl ToolProxy {
             .begin(keyboard, mouse, services)
     }
 
-    pub fn mouse_moved(
+    pub fn mouse_moved_pressing(
         &mut self,
         keyboard: &KeyboardState,
-        position: Point,
+        mouse: &PressedMouseState,
         services: &mut Services,
     ) -> Task<ErasedToolFunctionMessage> {
         let Some(state) = self.override_state.as_ref().or(self.current_state.as_ref()) else {
@@ -465,9 +466,26 @@ impl ToolProxy {
         };
         let function = self.tool_functions.get_mut(&state.function).unwrap();
         if state.is_updating {
-            function.update(keyboard, &PressedMouseState { position }, services)
+            function.update(keyboard, mouse, services)
         } else {
-            function.hover(keyboard, &HoverMouseState { position }, services)
+            Task::none()
+        }
+    }
+
+    pub fn mouse_moved_hovering(
+        &mut self,
+        keyboard: &KeyboardState,
+        mouse: &HoverMouseState,
+        services: &mut Services,
+    ) -> Task<ErasedToolFunctionMessage> {
+        let Some(state) = self.override_state.as_ref().or(self.current_state.as_ref()) else {
+            return Task::none();
+        };
+        let function = self.tool_functions.get_mut(&state.function).unwrap();
+        if state.is_updating {
+            Task::none()
+        } else {
+            function.hover(keyboard, mouse, services)
         }
     }
 
@@ -504,7 +522,8 @@ impl ToolProxy {
     pub fn tool_option_widget<'a>(
         &'a self,
         services: &'a Services,
-    ) -> Option<Element<'a, ErasedToolFunctionMessage, iced_core::Theme, lapiz_runtime::Renderer>> {
+    ) -> Option<Element<'a, ErasedToolFunctionMessage, iced_core::Theme, lapiz_runtime::Renderer>>
+    {
         let overrider_widget = self
             .override_state
             .as_ref()

@@ -3438,6 +3438,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.13.1",
  "futures",
+ "glam 0.30.10",
  "iced_core",
  "indexmap",
  "lapiz_assets",

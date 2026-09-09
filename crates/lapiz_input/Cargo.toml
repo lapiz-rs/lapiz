@@ -17,3 +17,4 @@ lapiz_utils.workspace = true
 lapiz_runtime.workspace = true
 futures.workspace = true
 parse-display.workspace = true
+glam.workspace = true
