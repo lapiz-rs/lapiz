@@ -627,7 +627,6 @@ pub enum CanvasDockMessage {
     WidgetRectChange(Rect),
     ToolFunctionMessage(ErasedToolFunctionMessage),
     RawWindowIdUpdate(u64),
-    MonitorNameUpdate(Option<String>),
 }
 
 impl Dock for CanvasDock {
@@ -774,28 +773,11 @@ impl Dock for CanvasDock {
                 })
                 .unwrap_or_else(Task::none)
                 .map(CanvasDockMessage::ToolFunctionMessage),
-            CanvasDockMessage::WindowMoved => {
-                let window_id = *self.window_id.borrow();
-
-                // TODO: The forked iced branch no longer has the
-                // `GetMonitorName` window action. Query the monitor name by
-                // other means (e.g. Win32 `MonitorFromWindow`) or re-add the
-                // action upstream. The placeholder keeps the canvas rendering
-                // with the default color profile.
-                let monitor_name =
-                    Task::done(CanvasDockMessage::MonitorNameUpdate(Some(String::new())));
-
-                let window_raw_id =
-                    window::raw_id::<()>(window_id).map(CanvasDockMessage::RawWindowIdUpdate);
-
-                Task::batch([monitor_name, window_raw_id])
-            }
+            CanvasDockMessage::WindowMoved => window::raw_id::<()>(*self.window_id.borrow())
+                .map(CanvasDockMessage::RawWindowIdUpdate),
             CanvasDockMessage::RawWindowIdUpdate(id) => {
                 self.raw_window_id = Some(id);
-                Task::none()
-            }
-            CanvasDockMessage::MonitorNameUpdate(name) => {
-                self.monitor_name = name;
+                self.monitor_name = Some(lapiz_runtime::platform::get_window_monitor_name(id));
                 Task::none()
             }
         }
