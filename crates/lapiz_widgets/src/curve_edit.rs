@@ -137,7 +137,7 @@ impl<Message> Widget<Message, Theme, Renderer> for CurveEdit<'_, Message> {
         let bounds = layout.bounds();
 
         match event {
-            Event::Pointer(event) if event.is_primary_click() => {
+            Event::Pointer(event) if event.is_primary_press() => {
                 let Some(position) = cursor.position_in(bounds) else {
                     return;
                 };

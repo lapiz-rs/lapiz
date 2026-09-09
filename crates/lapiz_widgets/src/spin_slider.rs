@@ -436,7 +436,7 @@ where
 
         if let (SpinSliderState::Editing { value }, Event::Pointer(event)) =
             (&state.interaction, event)
-            && event.is_primary_click()
+            && event.is_primary_press()
         {
             let position = cursor.position();
             if position.is_some_and(|position| field.contains(position)) {
@@ -506,7 +506,7 @@ where
         }
 
         match event {
-            Event::Pointer(event) if event.is_primary_click() => {
+            Event::Pointer(event) if event.is_primary_press() => {
                 let Some(position) = cursor.position() else {
                     return;
                 };

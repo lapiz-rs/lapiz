@@ -189,7 +189,7 @@ impl<Message> Widget<Message, Theme, Renderer> for Button<'_, Message> {
             let state = tree.state.downcast_mut::<State>();
             match event {
                 Event::Pointer(event)
-                    if event.is_primary_click()
+                    if event.is_primary_press()
                         && self.press.is_set()
                         && cursor.is_over(layout.bounds()) =>
                 {

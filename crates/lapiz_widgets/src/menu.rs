@@ -306,7 +306,7 @@ where
     ) {
         let state = tree.state.downcast_mut::<MenuBarState>();
         match event {
-            Event::Pointer(event) if event.is_primary_click() && state.open.is_empty() => {
+            Event::Pointer(event) if event.is_primary_press() && state.open.is_empty() => {
                 let Some(position) = cursor.position() else {
                     return;
                 };
@@ -579,7 +579,7 @@ where
                     }
                 }
             }
-            Event::Pointer(event) if event.is_primary_click() => {
+            Event::Pointer(event) if event.is_primary_press() => {
                 let panels = self.panels();
                 let hit = cursor
                     .position()
@@ -900,8 +900,8 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
-        if let Event::Pointer(e @ pointer::Event::PointerPressed { .. }) = event
-            && e.is_secondary_click()
+        if let Event::Pointer(event) = event
+            && event.is_secondary_press()
             && cursor.is_over(layout.bounds())
         {
             let state = tree.state.downcast_mut::<ContextMenuState>();

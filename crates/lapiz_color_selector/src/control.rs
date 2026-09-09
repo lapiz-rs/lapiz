@@ -323,7 +323,7 @@ impl Widget<ColorSelectorMessage, Theme, Renderer> for GradientSurface {
         };
 
         match event {
-            Event::Pointer(event) if event.is_primary_click() => {
+            Event::Pointer(event) if event.is_primary_press() => {
                 shell.publish(ColorSelectorMessage::SurfacePress(
                     self.surface_target,
                     position,

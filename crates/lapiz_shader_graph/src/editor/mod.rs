@@ -558,7 +558,7 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
         const SLOT_PIN_SNAP: f32 = 3.0 * 3.0;
         let slot_pin_snap = SLOT_PIN_SNAP / state.view_scale;
         match event {
-            Event::Pointer(e @ pointer::Event::PointerPressed { .. }) if e.is_secondary_click() => {
+            Event::Pointer(event) if event.is_secondary_press() => {
                 let Some(cursor) = cursor.position_over(layout.bounds()) else {
                     return;
                 };
@@ -589,7 +589,7 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                     shell.capture_event();
                 }
             }
-            Event::Pointer(event) if event.is_primary_click() => {
+            Event::Pointer(event) if event.is_primary_press() => {
                 if cursor.position_over(layout.bounds()).is_none() {
                     return;
                 }

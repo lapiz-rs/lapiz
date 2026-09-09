@@ -219,7 +219,7 @@ where
         let mut sub_shell = shell.local(&mut messages);
 
         match event {
-            Event::Pointer(event) if event.is_primary_click() && stepper.is_some() => {
+            Event::Pointer(event) if event.is_primary_press() && stepper.is_some() => {
                 self.step_value(stepper == Some(true), shell);
                 shell.capture_event();
                 shell.request_redraw();

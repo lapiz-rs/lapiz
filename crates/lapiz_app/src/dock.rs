@@ -720,7 +720,7 @@ impl Dock for CanvasDock {
 
                         match event {
                             pointer::Event::PointerPressed { position, .. }
-                                if event.is_primary_click() =>
+                                if event.is_primary_press() =>
                             {
                                 self.cursor_position = position;
                                 tool_proxy.mouse_pressed(

@@ -2357,7 +2357,7 @@ dependencies = [
 [[package]]
 name = "iced"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "iced_core",
  "iced_debug",
@@ -2373,7 +2373,7 @@ dependencies = [
 [[package]]
 name = "iced_beacon"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "bincode",
  "futures",
@@ -2388,7 +2388,7 @@ dependencies = [
 [[package]]
 name = "iced_core"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "bitflags 2.13.1",
  "bytes",
@@ -2408,7 +2408,7 @@ dependencies = [
 [[package]]
 name = "iced_debug"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "iced_beacon",
  "iced_core",
@@ -2419,7 +2419,7 @@ dependencies = [
 [[package]]
 name = "iced_devtools"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "iced_debug",
  "iced_program",
@@ -2430,7 +2430,7 @@ dependencies = [
 [[package]]
 name = "iced_futures"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "futures",
  "iced_core",
@@ -2444,7 +2444,7 @@ dependencies = [
 [[package]]
 name = "iced_graphics"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "bitflags 2.13.1",
  "bytemuck",
@@ -2462,7 +2462,7 @@ dependencies = [
 [[package]]
 name = "iced_program"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "iced_graphics",
  "iced_runtime",
@@ -2471,7 +2471,7 @@ dependencies = [
 [[package]]
 name = "iced_renderer"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "iced_graphics",
  "iced_tiny_skia",
@@ -2483,7 +2483,7 @@ dependencies = [
 [[package]]
 name = "iced_runtime"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "bytes",
  "iced_core",
@@ -2495,7 +2495,7 @@ dependencies = [
 [[package]]
 name = "iced_selector"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "iced_core",
 ]
@@ -2503,7 +2503,7 @@ dependencies = [
 [[package]]
 name = "iced_tiny_skia"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "bytemuck",
  "cosmic-text",
@@ -2520,7 +2520,7 @@ dependencies = [
 [[package]]
 name = "iced_wgpu"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "bitflags 2.13.1",
  "bytemuck",
@@ -2540,7 +2540,7 @@ dependencies = [
 [[package]]
 name = "iced_widget"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "iced_renderer",
  "iced_runtime",
@@ -2554,7 +2554,7 @@ dependencies = [
 [[package]]
 name = "iced_winit"
 version = "0.15.0-dev"
-source = "git+https://github.com/443eb9/iced.git?branch=unify-pointer-event#9f563dd1d7d67f2f1b79f0b4eec5980b5d88926e"
+source = "git+https://github.com/443eb9/iced.git?rev=c014126fc1148e9020fa60d3a528e5731cc6df17#c014126fc1148e9020fa60d3a528e5731cc6df17"
 dependencies = [
  "arboard",
  "iced_debug",

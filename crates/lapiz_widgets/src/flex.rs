@@ -284,7 +284,7 @@ impl<Message> Widget<Message, Theme, Renderer> for Flex<'_, Message> {
             return;
         }
         let message = match event {
-            Event::Pointer(event) if event.is_primary_click() => publish(&mut self.press),
+            Event::Pointer(event) if event.is_primary_press() => publish(&mut self.press),
             Event::Pointer(e @ pointer::Event::PointerReleased { .. })
                 if e.is_primary_release() =>
             {

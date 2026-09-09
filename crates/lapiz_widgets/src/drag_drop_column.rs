@@ -161,7 +161,7 @@ where
         state.pointer = position;
 
         match event {
-            Event::Pointer(event) if event.is_primary_click() => {
+            Event::Pointer(event) if event.is_primary_press() => {
                 let Some(index) = layout
                     .children()
                     .enumerate()

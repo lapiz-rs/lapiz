@@ -80,7 +80,7 @@ impl<Message, Theme> Widget<Message, Theme, lapiz_runtime::Renderer> for CanvasW
             shell.publish((self.on_pointer_event)(event.clone()));
             shell.capture_event();
         } else if let pointer::Event::PointerPressed { position, .. } = event
-            && event.is_primary_click()
+            && event.is_primary_press()
         {
             shell.publish((self.on_focus)(*position));
             shell.publish((self.on_pointer_event)(event.clone()));

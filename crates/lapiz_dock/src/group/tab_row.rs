@@ -385,7 +385,7 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
                 }
             }
 
-            Event::Pointer(event) if event.is_primary_click() => {
+            Event::Pointer(event) if event.is_primary_press() => {
                 if !cursor.is_over(layout.bounds()) {
                     return;
                 }
