@@ -2,7 +2,7 @@ use iced_core::{
     Alignment, Element, Font, Layout, Length, Point, Rectangle, Size,
     font::Weight,
     layout::{self, Limits},
-    mouse, renderer,
+    pointer::mouse, renderer,
     widget::Tree,
 };
 use iced_widget::{button, column, row, stack};
@@ -200,7 +200,7 @@ pub fn property_button_style(
     selected: bool,
 ) -> impl Fn(&iced_core::Theme, button::Status) -> button::Style {
     move |theme: &iced_core::Theme, status| {
-        let palette = theme.extended_palette();
+        let palette = theme.palette();
         if selected {
             button::Style {
                 background: Some(iced_core::Background::Color(palette.primary.base.color)),
@@ -381,7 +381,7 @@ where
 }
 
 impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
-    for Element<'a, Message, iced_core::Theme, iced_wgpu::Renderer>
+    for Element<'a, Message, iced_core::Theme, lapiz_runtime::Renderer>
 {
     fn from(view: LayerStackView<'a, Message>) -> Self {
         let canvas = view.canvas;
@@ -397,7 +397,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
             .map(|(node, _)| *node.id())
             .collect::<Vec<_>>();
 
-        let mut rows: Vec<Element<'a, Message, iced_core::Theme, iced_wgpu::Renderer>> =
+        let mut rows: Vec<Element<'a, Message, iced_core::Theme, lapiz_runtime::Renderer>> =
             Vec::with_capacity(layer_nodes.len());
 
         for (node, depth) in &layer_nodes {
@@ -411,7 +411,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
             let is_active = canvas.active_layer_id() == layer_id;
             let is_renaming = view.renaming_layer == Some(layer_id);
 
-            let mut children: Vec<Element<'_, Message, iced_core::Theme, iced_wgpu::Renderer>> =
+            let mut children: Vec<Element<'_, Message, iced_core::Theme, lapiz_runtime::Renderer>> =
                 vec![];
 
             if let Some(visible) = properties.get_visible() {
@@ -536,7 +536,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
             .width(Length::Fill)
             .style(move |theme: &iced_core::Theme| panel::Style {
                 background: if is_selected {
-                    Some(theme.extended_palette().primary.weak.color.into())
+                    Some(theme.palette().primary.weak.color.into())
                 } else {
                     None
                 },
@@ -586,7 +586,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
             .height(Length::Fill);
         let active_layer = canvas.active_layer_node().properties();
         let active_id = canvas.active_layer_id();
-        let mut params: Vec<Element<'_, Message, iced_core::Theme, iced_wgpu::Renderer>> = vec![];
+        let mut params: Vec<Element<'_, Message, iced_core::Theme, lapiz_runtime::Renderer>> = vec![];
 
         if let Some(blend) = active_layer.get_blend_function() {
             let all = view
@@ -623,7 +623,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
             );
         }
 
-        let params: Element<'_, Message, iced_core::Theme, iced_wgpu::Renderer> =
+        let params: Element<'_, Message, iced_core::Theme, lapiz_runtime::Renderer> =
             if params.is_empty() {
                 iced_widget::Space::new()
                     .width(Length::Fill)

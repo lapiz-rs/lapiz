@@ -1,7 +1,8 @@
 use iced_core::{
-    Element, Layout, Length, Rectangle, Size, Theme, Widget, layout, mouse, renderer, widget::Tree,
+    Element, Layout, Length, Rectangle, Size, Theme, Widget, layout,
+    pointer::mouse, renderer, widget::Tree,
 };
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 #[derive(Clone, Debug, Default)]
 pub struct WindowDecorations {

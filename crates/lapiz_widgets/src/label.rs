@@ -1,5 +1,5 @@
 use iced_core::{Element, Font, Length, Pixels, Theme, alignment, font, text};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 pub use iced_core::widget::text::{Catalog, Style, StyleFn};
 
@@ -85,18 +85,18 @@ pub fn default(_theme: &Theme) -> Style {
 
 pub fn muted(theme: &Theme) -> Style {
     Style {
-        color: Some(theme.extended_palette().background.weak.text),
+        color: Some(theme.palette().background.weak.text),
     }
 }
 
 pub fn faint(theme: &Theme) -> Style {
-    let mut color = theme.extended_palette().background.weak.text;
+    let mut color = theme.palette().background.weak.text;
     color.a *= 0.7;
     Style { color: Some(color) }
 }
 
 pub fn accent(theme: &Theme) -> Style {
     Style {
-        color: Some(theme.extended_palette().primary.strong.color),
+        color: Some(theme.palette().primary.strong.color),
     }
 }

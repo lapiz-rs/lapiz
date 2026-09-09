@@ -2,11 +2,13 @@ use iced_core::{
     Element, Event, Layout, Length, Pixels, Point, Rectangle, Renderer as _, Shell, Size, Theme,
     alignment,
     clipboard::Clipboard,
-    layout, mouse, renderer,
+    layout, pointer,
+    pointer::mouse,
+    renderer,
     text::{self, LineHeight, Renderer as _, Shaping, paragraph},
     widget::{Tree, tree},
 };
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 use crate::{
     dock::{DockId, TabEvent},
@@ -125,10 +127,6 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
         tree::State::new(TabRowState::default())
     }
 
-    fn children(&self) -> Vec<Tree> {
-        vec![]
-    }
-
     fn size(&self) -> Size<Length> {
         Size::new(
             Length::Fill,
@@ -160,6 +158,8 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
                 align_y: alignment::Vertical::Center,
                 shaping: Shaping::Auto,
                 wrapping: text::Wrapping::None,
+                ellipsis: text::Ellipsis::None,
+                hint_factor: None,
             });
             natural_widths.push(p.min_width() + self.padding * 2.0);
             state.labels.push(p);
@@ -343,7 +343,6 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         _renderer: &Renderer,
-        _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         _viewport: &Rectangle,
     ) {
@@ -351,7 +350,7 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
         let state = tree.state.downcast_mut::<TabRowState>();
 
         match event {
-            Event::Mouse(mouse::Event::CursorMoved { position }) => {
+            Event::Pointer(pointer::Event::PointerMoved { position, .. }) => {
                 // Update hover
                 state.hovered = cursor
                     .position_in(bounds)
@@ -386,7 +385,7 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
                 }
             }
 
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+            Event::Pointer(event) if event.is_primary_click() => {
                 if !cursor.is_over(layout.bounds()) {
                     return;
                 }
@@ -405,7 +404,9 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
                 }
             }
 
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
+            Event::Pointer(e @ pointer::Event::PointerReleased { .. })
+                if e.is_primary_release() =>
+            {
                 match state.action {
                     TabAction::Pressing { index: i } => {
                         if let Some(dock_id) = self.group_data.iter().nth(i) {

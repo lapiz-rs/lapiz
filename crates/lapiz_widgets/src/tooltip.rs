@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use iced_core::{Border, Color, Element, Pixels, Shadow, Theme, Vector};
-use iced_wgpu::Renderer;
 use iced_widget::container;
+use lapiz_runtime::Renderer;
 
 pub use iced_widget::container::{Catalog, Style, StyleFn};
 pub use iced_widget::tooltip::Position;
@@ -63,7 +63,7 @@ impl<'a, Message: 'a> From<Tooltip<'a, Message>> for Element<'a, Message, Theme,
 }
 
 pub fn default(theme: &Theme) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     container::Style::default()
         .background(p.background.weak.color)
         .color(p.background.weak.text)

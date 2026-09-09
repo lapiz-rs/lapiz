@@ -127,8 +127,8 @@ impl FilterMainPipeline {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("filter main pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("filter main pipeline"),
@@ -223,8 +223,8 @@ impl FilterBoundsEvalPipeline {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("filter bounds eval pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("filter bounds eval pipeline"),

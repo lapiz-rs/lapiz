@@ -45,8 +45,9 @@ impl GraphValueType for F32Type {
         literal: &Self::AssociatedLiteralType,
         writer: &mut QueueWriteBufferView,
     ) -> Result<()> {
-        let mut writer = DynamicUniformBuffer::new(writer.as_mut());
-        writer.write(literal)?;
+        let mut buffer = DynamicUniformBuffer::new(Vec::new());
+        buffer.write(literal)?;
+        writer.copy_from_slice(buffer.as_ref());
         Ok(())
     }
 
@@ -104,8 +105,9 @@ impl GraphValueType for Vec2FType {
         literal: &Self::AssociatedLiteralType,
         writer: &mut QueueWriteBufferView,
     ) -> Result<()> {
-        let mut writer = DynamicUniformBuffer::new(writer.as_mut());
-        writer.write(literal)?;
+        let mut buffer = DynamicUniformBuffer::new(Vec::new());
+        buffer.write(literal)?;
+        writer.copy_from_slice(buffer.as_ref());
         Ok(())
     }
 
@@ -162,8 +164,9 @@ impl GraphValueType for I32Type {
         literal: &Self::AssociatedLiteralType,
         writer: &mut QueueWriteBufferView,
     ) -> Result<()> {
-        let mut writer = DynamicUniformBuffer::new(writer.as_mut());
-        writer.write(literal)?;
+        let mut buffer = DynamicUniformBuffer::new(Vec::new());
+        buffer.write(literal)?;
+        writer.copy_from_slice(buffer.as_ref());
         Ok(())
     }
 
@@ -214,8 +217,9 @@ impl GraphValueType for BoolType {
         literal: &Self::AssociatedLiteralType,
         writer: &mut QueueWriteBufferView,
     ) -> Result<()> {
-        let mut writer = DynamicUniformBuffer::new(writer.as_mut());
-        writer.write(&if *literal { 1u32 } else { 0u32 })?;
+        let mut buffer = DynamicUniformBuffer::new(Vec::with_capacity(writer.len()));
+        buffer.write(&if *literal { 1u32 } else { 0u32 })?;
+        writer.copy_from_slice(buffer.as_ref());
         Ok(())
     }
 
@@ -274,8 +278,9 @@ impl GraphValueType for ColorType {
         literal: &Self::AssociatedLiteralType,
         writer: &mut QueueWriteBufferView,
     ) -> Result<()> {
-        let mut writer = DynamicUniformBuffer::new(writer.as_mut());
-        writer.write(literal)?;
+        let mut buffer = DynamicUniformBuffer::new(Vec::new());
+        buffer.write(literal)?;
+        writer.copy_from_slice(buffer.as_ref());
         Ok(())
     }
 
@@ -367,8 +372,9 @@ impl GraphValueType for TextureType {
         literal: &Self::AssociatedLiteralType,
         writer: &mut QueueWriteBufferView,
     ) -> Result<()> {
-        let mut writer = DynamicUniformBuffer::new(writer.as_mut());
-        writer.write(&literal.local_index)?;
+        let mut buffer = DynamicUniformBuffer::new(Vec::with_capacity(writer.len()));
+        buffer.write(&literal.local_index)?;
+        writer.copy_from_slice(buffer.as_ref());
         Ok(())
     }
 
@@ -423,8 +429,9 @@ impl GraphValueType for RectType {
         literal: &Self::AssociatedLiteralType,
         writer: &mut QueueWriteBufferView,
     ) -> Result<()> {
-        let mut writer = DynamicUniformBuffer::new(writer.as_mut());
-        writer.write(literal)?;
+        let mut buffer = DynamicUniformBuffer::new(Vec::new());
+        buffer.write(literal)?;
+        writer.copy_from_slice(buffer.as_ref());
         Ok(())
     }
 

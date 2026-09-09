@@ -1,10 +1,12 @@
 use iced_core::Renderer as _;
 use iced_core::{
     Alignment, Background, Border, Clipboard, Color, Element, Event, Layout, Length, Padding,
-    Rectangle, Shadow, Shell, Size, Theme, Vector, Widget, layout, mouse, overlay, renderer, touch,
+    Rectangle, Shadow, Shell, Size, Theme, Vector, Widget, layout, overlay, pointer,
+    pointer::mouse,
+    renderer,
     widget::{Operation, Tree, tree},
 };
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 use crate::callback::{Callback, publish};
 
@@ -24,11 +26,15 @@ pub struct Button<'a, Message> {
 impl<'a, Message> Button<'a, Message> {
     pub fn new(content: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
         let content = content.into();
-        let size = content.as_widget().size_hint();
+        let size = content.as_widget().size();
+        let width = match size.width {
+            Length::Fill | Length::FillPortion(_) | Length::Fluid(_) => Length::Fill,
+            _ => Length::Shrink,
+        };
         Self {
             content,
             press: Callback::Empty,
-            width: size.width.fluid(),
+            width,
             height: Length::Fixed(26.0),
             padding: Padding {
                 top: 5.0,
@@ -119,12 +125,8 @@ impl<Message> Widget<Message, Theme, Renderer> for Button<'_, Message> {
         tree::State::new(State::default())
     }
 
-    fn children(&self) -> Vec<Tree> {
-        vec![Tree::new(&self.content)]
-    }
-
-    fn diff(&self, tree: &mut Tree) {
-        tree.diff_children(std::slice::from_ref(&self.content));
+    fn diff(&mut self, tree: &mut Tree) {
+        tree.diff_children(std::slice::from_mut(&mut self.content));
     }
 
     fn size(&self) -> Size<Length> {
@@ -176,7 +178,6 @@ impl<Message> Widget<Message, Theme, Renderer> for Button<'_, Message> {
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
@@ -186,23 +187,22 @@ impl<Message> Widget<Message, Theme, Renderer> for Button<'_, Message> {
             layout.children().next().unwrap(),
             cursor,
             renderer,
-            clipboard,
             shell,
             viewport,
         );
         if !shell.is_event_captured() {
             let state = tree.state.downcast_mut::<State>();
             match event {
-                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                | Event::Touch(touch::Event::FingerPressed { .. })
-                    if self.press.is_set() && cursor.is_over(layout.bounds()) =>
+                Event::Pointer(event)
+                    if event.is_primary_click()
+                        && self.press.is_set()
+                        && cursor.is_over(layout.bounds()) =>
                 {
                     state.pressed = true;
                     shell.capture_event();
                 }
-                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
-                | Event::Touch(touch::Event::FingerLifted { .. })
-                    if state.pressed =>
+                Event::Pointer(e @ pointer::Event::PointerReleased { .. })
+                    if e.is_primary_release() && state.pressed =>
                 {
                     state.pressed = false;
                     if cursor.is_over(layout.bounds())
@@ -212,7 +212,11 @@ impl<Message> Widget<Message, Theme, Renderer> for Button<'_, Message> {
                     }
                     shell.capture_event();
                 }
-                Event::Touch(touch::Event::FingerLost { .. }) => state.pressed = false,
+                Event::Pointer(pointer::Event::PointerLeft {
+                    kind: pointer::Kind::Touch(_),
+                }) => {
+                    state.pressed = false;
+                }
                 _ => {}
             }
         }
@@ -318,7 +322,7 @@ impl<'a, Message: 'a> From<Button<'a, Message>> for Element<'a, Message, Theme, 
 }
 
 pub fn default(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let base = Style {
         background: Some(Background::Color(p.background.weakest.color)),
         text_color: p.background.base.text,
@@ -352,7 +356,7 @@ pub fn default(theme: &Theme, status: Status) -> Style {
 }
 
 pub fn primary(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let base = Style {
         background: Some(Background::Color(p.primary.base.color)),
         text_color: p.primary.base.text,
@@ -388,7 +392,7 @@ pub fn primary(theme: &Theme, status: Status) -> Style {
 }
 
 pub fn transparent(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let base = Style {
         text_color: p.background.weak.text,
         border: Border::default(),
@@ -411,7 +415,7 @@ pub fn transparent(theme: &Theme, status: Status) -> Style {
 }
 
 pub fn outline(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let base = Style {
         text_color: p.background.base.text,
         border: Border {
@@ -437,7 +441,7 @@ pub fn outline(theme: &Theme, status: Status) -> Style {
 }
 
 pub fn danger(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let base = Style {
         text_color: p.danger.base.color,
         border: Border {
@@ -459,7 +463,7 @@ pub fn danger(theme: &Theme, status: Status) -> Style {
 }
 
 pub fn activated_style(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let mut style = primary(theme, status);
     style.shadow = Shadow::default();
     style.background = Some(Background::Color(match status {

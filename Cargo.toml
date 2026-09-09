@@ -109,7 +109,7 @@ futures = "0.3"
 glam = { version = "0.30", features = ["encase", "serde", "bytemuck"] }
 half = "2"
 i18n-embed = { version = "0.16", features = ["fluent-system", "desktop-requester"] }
-iced = { version = "0.14", default-features = false, features = [
+iced = { version = "0.15.0-dev", default-features = false, features = [
     "wgpu",
     "crisp",
     "web-colors",
@@ -122,13 +122,13 @@ iced = { version = "0.14", default-features = false, features = [
     "selector",
     "smol",
 ] }
-iced_core = "0.14"
-iced_futures = { version = "0.14", features = ["smol"] }
-iced_graphics = { version = "0.14", features = ["geometry"] }
-iced_runtime = "0.14"
-iced_wgpu = { version = "0.14", features = ["geometry"] }
-iced_widget = { version = "0.14", features = ["wgpu", "canvas", "svg", "advanced"] }
-iced_winit = "0.14"
+iced_core = "0.15.0-dev"
+iced_futures = { version = "0.15.0-dev", features = ["smol"] }
+iced_graphics = { version = "0.15.0-dev", features = ["geometry"] }
+iced_runtime = "0.15.0-dev"
+iced_wgpu = { version = "0.15.0-dev", features = ["geometry", "svg"] }
+iced_widget = { version = "0.15.0-dev", features = ["wgpu", "canvas", "svg", "advanced"] }
+iced_winit = "0.15.0-dev"
 image = "0.25"
 indexmap = { version = "2", features = ["serde"] }
 log = "0.4"
@@ -170,25 +170,24 @@ uuid = { version = "1", features = ["v4", "v5", "serde"] }
 variadics_please = "2"
 wesl = { version = "0.4", features = ["package", "naga-ext"] }
 wesl-quote = "0.4"
-wgpu = "27"
+wgpu = "29"
 windows = "0.62"
-winit = "0.30"
+winit = "0.31.0-beta.3"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zip = "8"
 
 [patch.crates-io]
-naga = { git = "https://github.com/gfx-rs/wgpu", rev = "7a2afeb014cb30a976059717c4ae7c85f01d858e", package = "naga" }
-iced = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_beacon = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_core = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_debug = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_devtools = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_futures = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_graphics = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_program = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_renderer = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_runtime = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_selector = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_wgpu = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_widget = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
-iced_winit = { git = "https://github.com/443eb9/iced.git", rev = "3d180b29bcdef61209d62bfa99e5b48e56549a44" }
+iced = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_beacon = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_core = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_debug = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_devtools = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_futures = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_graphics = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_program = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_renderer = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_runtime = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_selector = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_wgpu = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_widget = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }
+iced_winit = { git = "https://github.com/443eb9/iced.git", branch = "unify-pointer-event" }

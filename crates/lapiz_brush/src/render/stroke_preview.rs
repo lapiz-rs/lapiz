@@ -340,8 +340,8 @@ impl ComposeStrokePreviewPipeline {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("compose stroke preview pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("compose stroke preview shader"),

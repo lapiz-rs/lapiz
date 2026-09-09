@@ -1,5 +1,5 @@
 use iced_core::{Element, Length, Theme};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 pub use iced_widget::scrollable::{Catalog, Direction, Scrollbar, Status, Style, StyleFn};
 
@@ -62,7 +62,7 @@ impl<'a, Message: 'a> From<Scrollable<'a, Message>> for Element<'a, Message, The
 }
 
 pub fn default(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let active = matches!(status, Status::Dragged { .. });
     let mut style = iced_widget::scrollable::default(theme, status);
     style.vertical_rail.background = Some(p.background.base.color.into());

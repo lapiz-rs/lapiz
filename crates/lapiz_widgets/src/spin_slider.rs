@@ -4,11 +4,15 @@ use iced_core::{
     alignment::{Horizontal, Vertical},
     border::{self},
     keyboard::{self, key::Key},
-    layout, mouse, renderer,
-    text::{Alignment, LineHeight, Shaping, Wrapping},
+    layout, pointer,
+    pointer::mouse,
+    renderer,
+    text::{Alignment, Ellipsis, LineHeight, Shaping, Wrapping},
     widget::tree::{self, Tree},
 };
 use iced_widget::{TextInput, text_input};
+
+use crate::text_input as text_input_ops;
 use num_traits::AsPrimitive;
 use std::{fmt::Display, ops::RangeInclusive, str::FromStr};
 
@@ -172,7 +176,7 @@ where
         value: &'b str,
     ) -> Element<'b, SpinSliderInputMessage, Theme, Renderer>
     where
-        Renderer: iced_core::text::Renderer + 'b,
+        Renderer: iced_core::text::Renderer + 'static,
         for<'c> <Theme as text_input::Catalog>::Class<'c>: From<text_input::StyleFn<'c, Theme>>,
     {
         TextInput::new("", value)
@@ -261,7 +265,7 @@ where
     T: Copy + PartialOrd + Display + FromStr + AsPrimitive<f64> + 'static,
     Theme: Catalog,
     f64: AsPrimitive<T>,
-    Renderer: iced_core::Renderer + iced_core::text::Renderer,
+    Renderer: iced_core::Renderer + iced_core::text::Renderer + 'static,
     for<'a> <Theme as text_input::Catalog>::Class<'a>: From<text_input::StyleFn<'a, Theme>>,
 {
     fn tag(&self) -> tree::Tag {
@@ -272,17 +276,14 @@ where
         tree::State::new(SpinSliderTreeState::<T>::default())
     }
 
-    fn children(&self) -> Vec<Tree> {
-        vec![Tree::new(self.text_input::<Renderer>(""))]
-    }
-
-    fn diff(&self, tree: &mut Tree) {
+    fn diff(&mut self, tree: &mut Tree) {
         let state = tree.state.downcast_ref::<SpinSliderTreeState<T>>();
         let value = match &state.interaction {
             SpinSliderState::Editing { value } => value.clone(),
             _ => format!("{:.*}", self.precision, self.value),
         };
-        tree.diff_children(&[&self.text_input::<Renderer>(&value)]);
+        let mut text_input = self.text_input::<Renderer>(&value);
+        tree.diff_children(&mut [&mut text_input]);
     }
 
     fn size(&self) -> Size<Length> {
@@ -323,7 +324,6 @@ where
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
@@ -337,10 +337,15 @@ where
 
         if self.disabled {
             if matches!(state.interaction, SpinSliderState::Editing { .. }) {
-                tree.children[0]
-                    .state
-                    .downcast_mut::<text_input::State<Renderer::Paragraph>>()
-                    .unfocus();
+                let mut input = self.text_input::<Renderer>("");
+                text_input_ops::unfocus(|operation| {
+                    input.as_widget_mut().operate(
+                        &mut tree.children[0],
+                        layout.child(0),
+                        renderer,
+                        operation,
+                    );
+                });
             }
             state.interaction = SpinSliderState::Idle;
             return;
@@ -349,15 +354,14 @@ where
         if let SpinSliderState::Editing { value } = &state.interaction {
             let input_value = value.clone();
             let mut input = self.text_input::<Renderer>(&input_value);
-            let mut input_messages = Vec::new();
-            let mut input_shell = Shell::new(&mut input_messages);
+            let mut input_messages = iced_core::shell::Bus::new();
+            let mut input_shell = shell.local(&mut input_messages);
             input.as_widget_mut().update(
                 &mut tree.children[0],
                 event,
                 layout.child(0),
                 cursor,
                 renderer,
-                clipboard,
                 &mut input_shell,
                 viewport,
             );
@@ -367,8 +371,8 @@ where
                 shell.capture_event();
             }
             shell.request_redraw_at(input_shell.redraw_request());
-            if input_shell.is_layout_invalid() {
-                shell.invalidate_layout();
+            if let Some(diff) = input_shell.is_layout_invalid() {
+                shell.invalidate_layout_with(diff);
             }
             if input_shell.are_widgets_invalid() {
                 shell.invalidate_widgets();
@@ -376,7 +380,7 @@ where
             shell.input_method_mut().merge(input_shell.input_method());
             drop(input_shell);
 
-            for message in input_messages {
+            for message in input_messages.drain().map(|(message, _)| message) {
                 match message {
                     SpinSliderInputMessage::Changed(value) => {
                         state.interaction = SpinSliderState::Editing { value };
@@ -413,10 +417,15 @@ where
             }
 
             if !matches!(state.interaction, SpinSliderState::Editing { .. }) {
-                tree.children[0]
-                    .state
-                    .downcast_mut::<text_input::State<Renderer::Paragraph>>()
-                    .unfocus();
+                let mut input = self.text_input::<Renderer>("");
+                text_input_ops::unfocus(|operation| {
+                    input.as_widget_mut().operate(
+                        &mut tree.children[0],
+                        layout.child(0),
+                        renderer,
+                        operation,
+                    );
+                });
             }
 
             shell.request_redraw();
@@ -425,10 +434,9 @@ where
             }
         }
 
-        if let (
-            SpinSliderState::Editing { value },
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
-        ) = (&state.interaction, event)
+        if let (SpinSliderState::Editing { value }, Event::Pointer(event)) =
+            (&state.interaction, event)
+            && event.is_primary_click()
         {
             let position = cursor.position();
             if position.is_some_and(|position| field.contains(position)) {
@@ -438,10 +446,17 @@ where
 
             let edited_value = value.parse::<T>().ok().map(|value| self.snap(value));
             state.interaction = SpinSliderState::Idle;
-            tree.children[0]
-                .state
-                .downcast_mut::<text_input::State<Renderer::Paragraph>>()
-                .unfocus();
+            {
+                let mut input = self.text_input::<Renderer>("");
+                text_input_ops::unfocus(|operation| {
+                    input.as_widget_mut().operate(
+                        &mut tree.children[0],
+                        layout.child(0),
+                        renderer,
+                        operation,
+                    );
+                });
+            }
 
             if position.is_some_and(|position| minus.contains(position)) {
                 {
@@ -491,7 +506,7 @@ where
         }
 
         match event {
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+            Event::Pointer(event) if event.is_primary_click() => {
                 let Some(position) = cursor.position() else {
                     return;
                 };
@@ -532,7 +547,7 @@ where
 
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::CursorMoved { position })
+            Event::Pointer(pointer::Event::PointerMoved { position, .. })
                 if matches!(
                     state.interaction,
                     SpinSliderState::Pressing {
@@ -549,7 +564,9 @@ where
                 }
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
+            Event::Pointer(e @ pointer::Event::PointerReleased { .. })
+                if e.is_primary_release() =>
+            {
                 match std::mem::take(&mut state.interaction) {
                     SpinSliderState::Dragging { value } => {
                         if let Some(on_confirm) = &self.on_confirm {
@@ -562,11 +579,16 @@ where
                         state.interaction = SpinSliderState::Editing {
                             value: format!("{:.*}", self.precision, self.value),
                         };
-                        let input_state = tree.children[0]
-                            .state
-                            .downcast_mut::<text_input::State<Renderer::Paragraph>>();
-                        input_state.focus();
-                        input_state.select_all();
+                        let edit_value = format!("{:.*}", self.precision, self.value);
+                        let mut input = self.text_input::<Renderer>(&edit_value);
+                        text_input_ops::focus_and_select_all(|operation| {
+                            input.as_widget_mut().operate(
+                                &mut tree.children[0],
+                                layout.child(0),
+                                renderer,
+                                operation,
+                            );
+                        });
                         shell.invalidate_layout();
                         shell.request_redraw();
                     }
@@ -579,7 +601,7 @@ where
                 shell.request_redraw();
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::WheelScrolled { delta })
+            Event::Pointer(pointer::Event::WheelScrolled { delta })
                 if matches!(state.interaction, SpinSliderState::Idle)
                     && state.modifiers.control()
                     && cursor.is_over(bounds) =>
@@ -792,7 +814,7 @@ where
     f64: AsPrimitive<T>,
     Message: 'a,
     Theme: Catalog + 'a,
-    Renderer: iced_core::Renderer + iced_core::text::Renderer + 'a,
+    Renderer: iced_core::Renderer + iced_core::text::Renderer + 'static,
     for<'b> <Theme as text_input::Catalog>::Class<'b>: From<text_input::StyleFn<'b, Theme>>,
 {
     fn from(widget: SpinSlider<'a, T, Message, Theme>) -> Self {
@@ -906,6 +928,8 @@ fn fill_text<Renderer>(
             align_y: Vertical::Center,
             shaping: Shaping::Auto,
             wrapping: Wrapping::None,
+            ellipsis: Ellipsis::None,
+            hint_factor: None,
         },
         Point::new(bounds.center_x(), bounds.center_y()),
         color,
@@ -936,7 +960,7 @@ impl Catalog for iced_core::Theme {
 }
 
 pub fn default(theme: &iced_core::Theme, status: Status) -> Style {
-    let palette = theme.extended_palette();
+    let palette = theme.palette();
     let value_bar = palette.primary.base.color.scale_alpha(match status {
         Status::Hovered | Status::Editing => 0.22,
         Status::Dragged => 0.28,
@@ -946,7 +970,7 @@ pub fn default(theme: &iced_core::Theme, status: Status) -> Style {
     Style {
         background: palette.background.base.color.into(),
         value_bar: value_bar.into(),
-        button_background: theme.extended_palette().background.weakest.color.into(),
+        button_background: theme.palette().background.weakest.color.into(),
         border_color: palette.background.strong.color,
         text_color: None,
     }

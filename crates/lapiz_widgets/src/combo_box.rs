@@ -1,5 +1,5 @@
 use iced_core::{Border, Color, Element, Length, Padding, Pixels, Shadow, Theme, Vector};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::{overlay::menu, pick_list, text_input};
 
 pub use iced_widget::combo_box::Catalog;
@@ -40,7 +40,7 @@ where
         selected: Option<T>,
         on_selected: Box<dyn Fn(T) -> Message + 'a>,
     },
-    Searchable(Box<iced_widget::ComboBox<'a, T, Message>>),
+    Searchable(Box<iced_widget::ComboBox<'a, T, Message, Theme, Renderer>>),
 }
 
 pub struct ComboBox<'a, T, Message>
@@ -95,7 +95,7 @@ where
         Self {
             inner: Inner::Searchable(Box::new(iced_widget::ComboBox::new(
                 &state.combo,
-                &placeholder.into(),
+                placeholder.into(),
                 selected.as_ref(),
                 on_selected,
             ))),
@@ -180,7 +180,8 @@ where
                 options,
                 selected,
                 on_selected,
-            } => iced_widget::PickList::new(options, selected, on_selected)
+            } => iced_widget::PickList::new(selected, options, |option: &T| option.to_string())
+                .on_select(on_selected)
                 .placeholder(value.placeholder)
                 .width(value.width)
                 .menu_height(value.menu_height)
@@ -194,7 +195,7 @@ where
 }
 
 pub fn menu_style(theme: &Theme) -> menu::Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     menu::Style {
         background: p.background.weakest.color.into(),
         border: Border {
@@ -214,7 +215,7 @@ pub fn menu_style(theme: &Theme) -> menu::Style {
 }
 
 pub fn pick_list_style(theme: &Theme, status: pick_list::Status) -> pick_list::Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let highlighted = !matches!(status, pick_list::Status::Active);
     pick_list::Style {
         text_color: p.background.base.text,

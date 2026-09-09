@@ -1,5 +1,5 @@
 use iced_core::{Element, Padding, Pixels, Theme, text};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::{Column, column};
 
 use crate::label::Label;

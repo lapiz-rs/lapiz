@@ -129,7 +129,7 @@ impl Bucket {
 
         let seed_mode_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("seed_mode_pipeline_layout"),
-            bind_group_layouts: &[&seed_mode_layout],
+            bind_group_layouts: &[Some(&seed_mode_layout)],
             ..Default::default()
         });
         let seed_mode_shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -168,7 +168,7 @@ impl Bucket {
         let thresholding_pipeline_layout =
             device.create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: Some("thresholding_pipeline_layout"),
-                bind_group_layouts: &[&thresholding_layout],
+                bind_group_layouts: &[Some(&thresholding_layout)],
                 ..Default::default()
             });
         let thresholding_shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -202,7 +202,7 @@ impl Bucket {
 
         let ccl_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("ccl_pipeline_layout"),
-            bind_group_layouts: &[&ccl_layout],
+            bind_group_layouts: &[Some(&ccl_layout)],
             ..Default::default()
         });
 
@@ -273,7 +273,7 @@ impl Bucket {
 
         let grow_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("grow_pipeline_layout"),
-            bind_group_layouts: &[&grow_layout],
+            bind_group_layouts: &[Some(&grow_layout)],
             ..Default::default()
         });
 
@@ -316,7 +316,7 @@ impl Bucket {
         let close_gap_and_feather_pipeline_layout =
             device.create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: Some("close_gap_and_feather_pipeline_layout"),
-                bind_group_layouts: &[&close_gap_and_feather_layout],
+                bind_group_layouts: &[Some(&close_gap_and_feather_layout)],
                 ..Default::default()
             });
         let close_gap_and_feather_shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -421,7 +421,7 @@ impl Bucket {
     pub fn set_blend_function(&mut self, device: &Device, blend_function: &dyn BlendFunction) {
         let composite_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("composite_pipeline_layout"),
-            bind_group_layouts: &[&self.composite_layout],
+            bind_group_layouts: &[Some(&self.composite_layout)],
             ..Default::default()
         });
 

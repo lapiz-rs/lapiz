@@ -2,11 +2,12 @@ use iced_core::Renderer as _;
 use iced_core::text::{Paragraph as _, Renderer as _};
 use iced_core::{
     Border, Clipboard, Color, Element, Event, Font, Layout, Length, Point, Radians, Rectangle,
-    Shadow, Shell, Size, Theme, Vector, Widget, alignment, keyboard, layout, mouse, overlay,
+    Shadow, Shell, Size, Theme, Vector, Widget, alignment, keyboard, layout, overlay, pointer,
+    pointer::mouse,
     renderer, svg, text,
     widget::{Tree, tree},
 };
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 const ROOT_PADDING: f32 = 8.0;
 const ITEM_HEIGHT: f32 = 24.0;
@@ -212,6 +213,8 @@ fn text_width(content: &str, size: f32) -> f32 {
         align_y: alignment::Vertical::Top,
         shaping: text::Shaping::Auto,
         wrapping: text::Wrapping::None,
+        ellipsis: text::Ellipsis::None,
+        hint_factor: None,
     });
     paragraph.min_bounds().width
 }
@@ -227,6 +230,8 @@ fn text_spec(renderer: &Renderer, content: String, size: f32) -> text::Text<Stri
         align_y: alignment::Vertical::Top,
         shaping: text::Shaping::Auto,
         wrapping: text::Wrapping::None,
+        ellipsis: text::Ellipsis::None,
+        hint_factor: None,
     }
 }
 
@@ -242,7 +247,7 @@ where
         tree::State::new(MenuBarState::default())
     }
 
-    fn diff(&self, tree: &mut Tree) {
+    fn diff(&mut self, tree: &mut Tree) {
         let state = tree.state.downcast_mut::<MenuBarState>();
         let labels = self.labels.clone();
         if state.labels != labels {
@@ -296,15 +301,12 @@ where
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         _renderer: &Renderer,
-        _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         _viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_mut::<MenuBarState>();
         match event {
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                if state.open.is_empty() =>
-            {
+            Event::Pointer(event) if event.is_primary_click() && state.open.is_empty() => {
                 let Some(position) = cursor.position() else {
                     return;
                 };
@@ -316,7 +318,9 @@ where
                 shell.invalidate_layout();
                 shell.request_redraw();
             }
-            Event::Mouse(mouse::Event::CursorMoved { position }) if !state.open.is_empty() => {
+            Event::Pointer(pointer::Event::PointerMoved { position, .. })
+                if !state.open.is_empty() =>
+            {
                 if let Some(index) = root_at(layout, *position)
                     && state.open[0] != index
                 {
@@ -340,7 +344,7 @@ where
         _viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_ref::<MenuBarState>();
-        let p = theme.extended_palette();
+        let p = theme.palette();
         for (index, root_layout) in layout.children().enumerate() {
             let bounds = root_layout.bounds();
             let open = state.open.first() == Some(&index);
@@ -547,11 +551,10 @@ where
         _layout: Layout<'_>,
         cursor: mouse::Cursor,
         _renderer: &Renderer,
-        _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
     ) {
         match event {
-            Event::Mouse(mouse::Event::CursorMoved { position }) => {
+            Event::Pointer(pointer::Event::PointerMoved { position, .. }) => {
                 let panels = self.panels();
                 if let Some((level, index)) = Self::hit_test(&panels, *position) {
                     let opens_submenu =
@@ -576,7 +579,7 @@ where
                     }
                 }
             }
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+            Event::Pointer(event) if event.is_primary_click() => {
                 let panels = self.panels();
                 let hit = cursor
                     .position()
@@ -619,7 +622,7 @@ where
         cursor: mouse::Cursor,
     ) {
         let panels = self.panels();
-        let p = theme.extended_palette();
+        let p = theme.palette();
         let hit = cursor
             .position()
             .and_then(|position| Self::hit_test(&panels, position));
@@ -716,7 +719,7 @@ where
 
 fn draw_entry(
     renderer: &mut Renderer,
-    p: &iced_core::theme::palette::Extended,
+    p: &iced_core::theme::palette::Palette,
     panel_bounds: Rectangle,
     row: Rectangle,
     label: &str,
@@ -868,12 +871,8 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
         tree::State::new(ContextMenuState::default())
     }
 
-    fn children(&self) -> Vec<Tree> {
-        vec![Tree::new(&self.underlay)]
-    }
-
-    fn diff(&self, tree: &mut Tree) {
-        tree.diff_children(&[&self.underlay]);
+    fn diff(&mut self, tree: &mut Tree) {
+        tree.diff_children(&mut [&mut self.underlay]);
     }
 
     fn size(&self) -> Size<Length> {
@@ -898,11 +897,11 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         _renderer: &Renderer,
-        _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
-        if *event == Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))
+        if let Event::Pointer(e @ pointer::Event::PointerPressed { .. }) = event
+            && e.is_secondary_click()
             && cursor.is_over(layout.bounds())
         {
             let state = tree.state.downcast_mut::<ContextMenuState>();
@@ -925,7 +924,6 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
             layout,
             cursor,
             _renderer,
-            _clipboard,
             shell,
             viewport,
         );

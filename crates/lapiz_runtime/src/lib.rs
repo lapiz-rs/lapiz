@@ -5,15 +5,14 @@ use std::{
 };
 
 use iced_core::{Element, window};
-use iced_core::{Length, Theme, Widget};
+use iced_core::{Length, Widget};
 use iced_futures::{Subscription, backend::native};
 use iced_runtime::{Task, window::close_events};
-use iced_wgpu::window::compositor::WgpuContext;
 use iced_winit::program::Program;
 
 use crate::{
     plugin::Plugin,
-    service::{FromServices, RenderContext, Service},
+    service::{FromServices, Service},
     windows::{WindowCommandBuffer, WindowViewManager, WindowViewManagerMessage},
 };
 
@@ -22,8 +21,12 @@ pub mod event;
 pub use event::__private;
 pub mod platform;
 pub mod plugin;
+pub mod renderer;
 pub mod service;
 pub mod windows;
+
+pub type Renderer = renderer::Renderer;
+pub type Theme = iced_core::Theme;
 
 pub struct ApplicationTheme(pub Theme);
 
@@ -112,7 +115,7 @@ impl Program for Application {
 
     type Theme = Theme;
 
-    type Renderer = iced_wgpu::Renderer;
+    type Renderer = renderer::Renderer;
 
     type Executor = native::smol::Executor;
 
@@ -179,9 +182,7 @@ impl Program for Application {
         window: window::Id,
     ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
         struct DummyWidget;
-        impl<Message, Theme, Renderer: iced_core::Renderer> Widget<Message, Theme, Renderer>
-            for DummyWidget
-        {
+        impl Widget<ApplicationMessage, Theme, Renderer> for DummyWidget {
             fn size(&self) -> iced_core::Size<iced_core::Length> {
                 iced_core::Size::new(iced_core::Length::Fill, iced_core::Length::Fill)
             }
@@ -202,7 +203,7 @@ impl Program for Application {
                 _theme: &Theme,
                 _style: &iced_core::renderer::Style,
                 _layout: iced_core::Layout<'_>,
-                _cursor: iced_core::mouse::Cursor,
+                _cursor: iced_core::pointer::mouse::Cursor,
                 _viewport: &iced_core::Rectangle,
             ) {
             }
@@ -211,8 +212,8 @@ impl Program for Application {
         state
             .wm
             .view(window, &state.services)
+            .map(|e| e.map(ApplicationMessage::Window))
             .unwrap_or_else(|| Element::new(DummyWidget))
-            .map(ApplicationMessage::Window)
     }
 
     fn subscription(&self, state: &Self::State) -> Subscription<Self::Message> {
@@ -223,17 +224,6 @@ impl Program for Application {
         let window_closed = close_events().map(ApplicationMessage::WindowClosed);
 
         Subscription::batch([windows, window_closed])
-    }
-
-    fn compositor_context(&self, state: &Self::State) -> Option<WgpuContext> {
-        let render_context = state.services.service::<RenderContext>();
-        let context = WgpuContext {
-            instance: render_context.instance.as_ref().clone(),
-            adapter: render_context.adapter.as_ref().clone(),
-            device: render_context.device.as_ref().clone(),
-            queue: render_context.queue.as_ref().clone(),
-        };
-        Some(context)
     }
 }
 
@@ -309,6 +299,10 @@ impl Services {
                     std::any::type_name::<T>()
                 )
             })
+    }
+
+    pub fn has_service<T: Service>(&self) -> bool {
+        self.services.contains_key(&TypeId::of::<T>())
     }
 
     pub fn get_service<T: Service>(&self) -> Option<&T> {

@@ -21,6 +21,7 @@ parking_lot.workspace = true
 futures.workspace = true
 smol.workspace = true
 parse-display.workspace = true
+raw-window-handle.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { workspace = true, features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

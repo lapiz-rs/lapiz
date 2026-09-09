@@ -45,7 +45,7 @@ impl ScanPixelsPipeline {
         let scan_pixels_pipeline_layout =
             device.create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: Some("scan_pixels_pipeline_layout"),
-                bind_group_layouts: &[&layout],
+                bind_group_layouts: &[Some(&layout)],
                 ..Default::default()
             });
         let scan_pixels_shader = device.create_shader_module(ShaderModuleDescriptor {

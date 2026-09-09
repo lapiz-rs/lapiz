@@ -12,8 +12,9 @@ use iced_core::{
     gradient::ColorStop,
     keyboard::{self, key},
     layout::{self, Limits, Node},
-    mouse::{self, Interaction},
-    overlay,
+    overlay, pointer,
+    pointer::button,
+    pointer::mouse::{self, Interaction},
     renderer::{self, Quad},
     theme::{Base, Mode},
     widget::{Operation, Tree, tree},
@@ -24,7 +25,7 @@ use iced_graphics::{
 };
 use iced_widget::{
     column, container,
-    core::{Rectangle, Widget, mouse::Cursor},
+    core::{Rectangle, Widget, pointer::mouse::Cursor},
     overlay::menu,
     row, stack,
 };
@@ -393,9 +394,9 @@ impl<'a> DrawableNode<'a> {
         )
         .style(move |theme| {
             let accent = themed_color(theme, header_hue, header_chroma);
-            let panel = theme.extended_palette().background.weaker.color;
+            let panel = theme.palette().background.weaker.color;
             container::Style {
-                background: Some(accent.mix(&panel, 0.2).into()),
+                background: Some(accent.mix(panel, 0.2).into()),
                 ..Default::default()
             }
         })
@@ -410,7 +411,7 @@ impl<'a> DrawableNode<'a> {
             .width(NODE_WIDTH),
         )
         .style(|t| container::Style {
-            background: Some(t.extended_palette().background.weaker.color.into()),
+            background: Some(t.palette().background.weaker.color.into()),
             ..Default::default()
         });
 
@@ -427,21 +428,13 @@ impl<'a> DrawableNode<'a> {
 impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
     for GraphEditorView<'a, Data>
 {
-    fn children(&self) -> Vec<Tree> {
-        self.graph
-            .nodes
-            .values()
-            .map(|node| Tree::new(&node.widget))
-            .collect()
-    }
-
-    fn diff(&self, tree: &mut Tree) {
+    fn diff(&mut self, tree: &mut Tree) {
         tree.diff_children(
-            &self
+            &mut self
                 .graph
                 .nodes
-                .values()
-                .map(|n| &n.widget)
+                .iter_mut()
+                .map(|(_, n)| &mut n.widget)
                 .collect::<Vec<_>>(),
         );
     }
@@ -518,7 +511,6 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &GraphRenderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, GraphEditorMessage>,
         viewport: &Rectangle,
     ) {
@@ -532,8 +524,8 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
             state.keyboard_modifiers = *modifiers;
         }
         state.slot_pins.clear();
-        let mut messages = Vec::new();
-        let mut children_shell = Shell::new(&mut messages);
+        let mut messages = iced_core::shell::Bus::new();
+        let mut children_shell = shell.local(&mut messages);
         for ((child, tree), layout) in self
             .graph
             .nodes
@@ -547,7 +539,6 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                 layout,
                 graph_cursor,
                 renderer,
-                clipboard,
                 &mut children_shell,
                 &graph_viewport,
             );
@@ -567,7 +558,7 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
         const SLOT_PIN_SNAP: f32 = 3.0 * 3.0;
         let slot_pin_snap = SLOT_PIN_SNAP / state.view_scale;
         match event {
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)) => {
+            Event::Pointer(e @ pointer::Event::PointerPressed { .. }) if e.is_secondary_click() => {
                 let Some(cursor) = cursor.position_over(layout.bounds()) else {
                     return;
                 };
@@ -575,7 +566,10 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                 shell.capture_event();
                 shell.request_redraw();
             }
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Middle)) => {
+            Event::Pointer(pointer::Event::PointerPressed {
+                button: button::Source::Mouse(mouse::Button::Middle),
+                ..
+            }) => {
                 let Some(cursor) = cursor.position_over(layout.bounds()) else {
                     return;
                 };
@@ -586,13 +580,16 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                 };
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Middle)) => {
+            Event::Pointer(pointer::Event::PointerReleased {
+                button: button::Source::Mouse(mouse::Button::Middle),
+                ..
+            }) => {
                 if matches!(state.interaction, InteractionState::ViewDragging { .. }) {
                     state.interaction = InteractionState::Idle;
                     shell.capture_event();
                 }
             }
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+            Event::Pointer(event) if event.is_primary_click() => {
                 if cursor.position_over(layout.bounds()).is_none() {
                     return;
                 }
@@ -699,7 +696,9 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                 };
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
+            Event::Pointer(e @ pointer::Event::PointerReleased { .. })
+                if e.is_primary_release() =>
+            {
                 match std::mem::take(&mut state.interaction) {
                     InteractionState::NodeDragging {
                         cursor_origin,
@@ -777,7 +776,7 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                     interaction => state.interaction = interaction,
                 }
             }
-            Event::Mouse(mouse::Event::CursorMoved { .. }) => match &state.interaction {
+            Event::Pointer(pointer::Event::PointerMoved { .. }) => match &state.interaction {
                 InteractionState::Idle => {}
                 InteractionState::EdgeConnecting { .. } => {
                     shell.request_redraw();
@@ -841,7 +840,7 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                     shell.request_redraw();
                 }
             },
-            Event::Mouse(mouse::Event::WheelScrolled { delta }) => {
+            Event::Pointer(pointer::Event::WheelScrolled { delta }) => {
                 let Some(cursor) = cursor.position_over(layout.bounds()) else {
                     return;
                 };
@@ -962,13 +961,13 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                     bounds: layout.bounds(),
                     ..Default::default()
                 },
-                theme.extended_palette().background.base.color,
+                theme.palette().background.base.color,
             );
         }
 
         let mut frame = Frame::with_bounds(renderer, graph_viewport);
         {
-            let ink = theme.extended_palette().background.base.text;
+            let ink = theme.palette().background.base.text;
             let width = 1.0 / view_transformation.scale_factor();
             for (step, alpha) in [(20.0, 0.04), (100.0, 0.08)] {
                 let stroke = Stroke {
@@ -1096,7 +1095,7 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                                     bounds: node_bounds.expand(2.0),
                                     border: Border::default()
                                         .width(2.0)
-                                        .color(theme.extended_palette().primary.base.color),
+                                        .color(theme.palette().primary.base.color),
                                     ..Default::default()
                                 },
                                 Color::TRANSPARENT,
@@ -1177,17 +1176,12 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                                 width: (cursor_origin.x - cursor_pos.x).abs(),
                                 height: (cursor_origin.y - cursor_pos.y).abs(),
                             },
-                            border: Border::default().width(2.0).color(
-                                theme
-                                    .extended_palette()
-                                    .primary
-                                    .strong
-                                    .color
-                                    .scale_alpha(0.5),
-                            ),
+                            border: Border::default()
+                                .width(2.0)
+                                .color(theme.palette().primary.strong.color.scale_alpha(0.5)),
                             ..Default::default()
                         },
-                        theme.extended_palette().primary.base.color.scale_alpha(0.3),
+                        theme.palette().primary.base.color.scale_alpha(0.3),
                     );
                 });
             });
@@ -1250,6 +1244,7 @@ impl<'a, Data: GraphData> Widget<GraphEditorMessage, GraphTheme, GraphRenderer>
                 menu_state,
                 &self.node_creation_menu_items,
                 hovered,
+                &|item: &NodeCreationMenuItem| item.node_title.to_string(),
                 move |name| {
                     position.take();
                     let node_id = GraphNodeId::new(Uuid::new_v4());
@@ -1348,7 +1343,6 @@ impl iced_core::Overlay<GraphEditorMessage, GraphTheme, GraphRenderer>
         layout: Layout<'_>,
         cursor: Cursor,
         renderer: &GraphRenderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, GraphEditorMessage>,
     ) {
         self.content.as_overlay_mut().update(
@@ -1356,7 +1350,6 @@ impl iced_core::Overlay<GraphEditorMessage, GraphTheme, GraphRenderer>
             layout.children().next().unwrap_or(layout),
             cursor * self.transformation.inverse(),
             renderer,
-            clipboard,
             shell,
         );
     }

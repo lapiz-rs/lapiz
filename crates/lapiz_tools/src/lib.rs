@@ -2,7 +2,7 @@ use std::{any::Any, collections::HashMap, rc::Rc, sync::Arc};
 
 use iced_core::{Element, Point, Theme};
 use iced_runtime::{Task, futures::Subscription};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::{Stack, space};
 use lapiz_assets::AssetAppExt;
 use lapiz_input::{
@@ -121,7 +121,7 @@ pub trait ToolFunction: 'static {
     fn tool_option_widget<'a>(
         &'a self,
         _: &'a Services,
-    ) -> Option<Element<'a, Self::Message, iced_core::Theme, iced_wgpu::Renderer>> {
+    ) -> Option<Element<'a, Self::Message, iced_core::Theme, lapiz_runtime::Renderer>> {
         None
     }
     fn canvas_overlay<'a>(
@@ -504,7 +504,7 @@ impl ToolProxy {
     pub fn tool_option_widget<'a>(
         &'a self,
         services: &'a Services,
-    ) -> Option<Element<'a, ErasedToolFunctionMessage, iced_core::Theme, iced_wgpu::Renderer>> {
+    ) -> Option<Element<'a, ErasedToolFunctionMessage, iced_core::Theme, lapiz_runtime::Renderer>> {
         let overrider_widget = self
             .override_state
             .as_ref()

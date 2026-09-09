@@ -1,5 +1,5 @@
 use iced_core::{Element, Length, Theme};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 use crate::{button::Button, callback::Callback, flex::Flex, icon, panel::Panel};
 

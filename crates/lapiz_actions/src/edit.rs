@@ -1,5 +1,6 @@
-use std::{any::TypeId, path::PathBuf};
+use std::{any::TypeId, path::PathBuf, sync::Arc};
 
+use iced_core::clipboard::Content;
 use iced_runtime::{Task, clipboard};
 use lapiz_canvas::{CanvasAppExt, CanvasUndoStackAppExt, command::InsertLayerCommand};
 use lapiz_image::{
@@ -62,7 +63,7 @@ impl ActionFunction for RedoAction {
 pub struct PasteIntoNewLayerAction;
 
 pub enum PasteMessage {
-    Clipboard(Option<String>),
+    Clipboard(Result<Arc<Content>, iced_core::clipboard::Error>),
 }
 
 impl ActionFunction for PasteIntoNewLayerAction {
@@ -73,7 +74,7 @@ impl ActionFunction for PasteIntoNewLayerAction {
     }
 
     fn trigger(&self, _services: &mut Services) -> Task<Self::Message> {
-        clipboard::read().map(PasteMessage::Clipboard)
+        clipboard::read(iced_core::clipboard::Kind::Files).map(PasteMessage::Clipboard)
     }
 
     fn handle_message(
@@ -81,15 +82,19 @@ impl ActionFunction for PasteIntoNewLayerAction {
         message: Self::Message,
         services: &mut Services,
     ) -> Task<Self::Message> {
-        let PasteMessage::Clipboard(Some(clipboard)) = message else {
+        let PasteMessage::Clipboard(Ok(content)) = message else {
             return Task::none();
         };
 
-        let paths = clipboard
-            .lines()
-            .map(|line| PathBuf::from(line.trim()))
-            .filter(|path| path.exists())
-            .collect::<Vec<_>>();
+        let paths = match content.as_ref() {
+            Content::Files(path_bufs) => path_bufs
+                .iter()
+                .filter(|path| path.exists())
+                .cloned()
+                .collect::<Vec<_>>(),
+            _ => return Task::none(),
+        };
+
         if paths.is_empty() {
             return Task::none();
         }

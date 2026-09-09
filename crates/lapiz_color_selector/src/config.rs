@@ -1,7 +1,9 @@
 use std::f32::consts::TAU;
 
 use iced_core::{Alignment, Color, Length, Theme, text::IntoFragment};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
+
+// TODO: Re-add the color picker once it is ported or vendored into `lapiz_widgets`.
 use iced_widget::{Space, column, row, text};
 use lapiz_color::model::rgb::Rgb;
 use lapiz_i18n::{Translated, t};
@@ -461,7 +463,7 @@ impl ColorSelectorConfigEditorState {
         let Some(index) = self.selected_config else {
             return text(t!("no_configs_hint"))
                 .style(|theme: &Theme| text::Style {
-                    color: Some(theme.extended_palette().background.weak.text),
+                    color: Some(theme.palette().background.weak.text),
                 })
                 .width(Length::Fill)
                 .into();
@@ -481,31 +483,7 @@ impl ColorSelectorConfigEditorState {
             .map(|(bar_index, _)| self.render_bar(config, bar_index))
             .collect::<Vec<_>>();
 
-        // let out_of_gamut_color = config.out_of_gamut_color;
-        // let swatch = Button::new(
-        //     Space::new()
-        //         .width(Length::Fixed(24.0))
-        //         .height(Length::Fixed(16.0)),
-        // )
-        // .width(Length::Fixed(32.0))
-        // .height(Length::Fixed(20.0))
-        // .on_press(ColorSelectorConfigMessage::OutOfGamutPickerToggled)
-        // .style(move |theme: &Theme, _| button::Style {
-        //     background: Some(
-        //         Color::from_rgb(
-        //             out_of_gamut_color.r,
-        //             out_of_gamut_color.g,
-        //             out_of_gamut_color.b,
-        //         )
-        //         .into(),
-        //     ),
-        //     border: Border {
-        //         color: theme.extended_palette().background.strong.color,
-        //         width: 1.0,
-        //         radius: 2.0.into(),
-        //     },
-        //     ..button::Style::default()
-        // });
+        // The color swatch remains hidden until the color picker is available again.
 
         let planes_section = column![
             row![
@@ -552,17 +530,6 @@ impl ColorSelectorConfigEditorState {
                     .label(t!("out_of_gamut_color"))
                     .on_toggle(ColorSelectorConfigMessage::OutOfGamutColorToggled),
                 // TODO Color picker
-                // ColorPicker::new(
-                //     self.out_of_gamut_picker_open,
-                //     Color::from_rgb(
-                //         out_of_gamut_color.r,
-                //         out_of_gamut_color.g,
-                //         out_of_gamut_color.b,
-                //     ),
-                //     swatch,
-                //     ColorSelectorConfigMessage::OutOfGamutPickerCancelled,
-                //     ColorSelectorConfigMessage::OutOfGamutColorSubmitted,
-                // ),
                 Checkbox::new(config.clip_to_gamut)
                     .label(t!("clip_to_gamut"))
                     .on_toggle(ColorSelectorConfigMessage::ClipToGamutToggled),

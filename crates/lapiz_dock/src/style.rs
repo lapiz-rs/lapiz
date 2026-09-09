@@ -43,7 +43,7 @@ pub struct DropIndicatorStyle {
 }
 
 pub fn default_style(theme: &Theme) -> DockStyle {
-    let palette = theme.extended_palette();
+    let palette = theme.palette();
 
     DockStyle {
         tab_bar: TabBarStyle {

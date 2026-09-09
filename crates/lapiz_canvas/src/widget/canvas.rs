@@ -3,7 +3,8 @@ use glam::Vec2;
 use iced_core::{
     Clipboard, Element, Event, Layout, Length, Point, Rectangle, Shell, Size, Widget,
     layout::{self, Limits},
-    mouse, renderer, touch,
+    pointer::{self, mouse},
+    renderer,
     widget::Tree,
 };
 use iced_wgpu::primitive::Renderer;
@@ -17,19 +18,24 @@ pub struct CanvasWidget<'a, Message> {
     pub canvas: &'a CCanvas,
     pub tile_storage: GpuTileStorage,
     pub on_focus: Box<dyn Fn(Point) -> Message + 'a>,
-    pub on_mouse_event: Box<dyn Fn(mouse::Event) -> Message + 'a>,
-    pub on_widget_rect_change: Box<dyn Fn(Rect) -> Message + 'a>,
+    pub on_pointer_event: Box<dyn Fn(pointer::Event) -> Message + 'a>,
+    pub on_widget_rect_change: Box<dyn Fn(Rect) -> Message>,
     pub color_profile: ColorProfile,
     pub window_id: u64,
     pub monitor_name: String,
 }
 
-impl<Message, Theme> Widget<Message, Theme, iced_wgpu::Renderer> for CanvasWidget<'_, Message> {
+impl<Message, Theme> Widget<Message, Theme, lapiz_runtime::Renderer> for CanvasWidget<'_, Message> {
     fn size(&self) -> Size<Length> {
         Size::new(Length::Fill, Length::Fill)
     }
 
-    fn layout(&mut self, _: &mut Tree, _: &iced_wgpu::Renderer, limits: &Limits) -> layout::Node {
+    fn layout(
+        &mut self,
+        _: &mut Tree,
+        _: &lapiz_runtime::Renderer,
+        limits: &Limits,
+    ) -> layout::Node {
         layout::atomic(limits, Length::Fill, Length::Fill)
     }
 
@@ -39,8 +45,7 @@ impl<Message, Theme> Widget<Message, Theme, iced_wgpu::Renderer> for CanvasWidge
         event: &Event,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
-        _: &iced_wgpu::Renderer,
-        _: &mut dyn Clipboard,
+        _: &lapiz_runtime::Renderer,
         shell: &mut Shell<'_, Message>,
         _: &Rectangle,
     ) {
@@ -53,49 +58,40 @@ impl<Message, Theme> Widget<Message, Theme, iced_wgpu::Renderer> for CanvasWidge
             shell.publish((self.on_widget_rect_change)(widget_rect));
         }
 
-        if let Event::Mouse(event) = event
-            && let Some(cursor_pos) = cursor.land().position_over(bounds)
-        {
-            if self.is_focusing {
-                shell.publish((self.on_mouse_event)(*event));
-                shell.capture_event();
-            } else if let mouse::Event::ButtonPressed(mouse::Button::Left) = event {
-                shell.publish((self.on_focus)(cursor_pos));
-                shell.publish((self.on_mouse_event)(*event));
-                shell.capture_event();
+        let Event::Pointer(event) = event else {
+            return;
+        };
+
+        let is_over = match event {
+            pointer::Event::PointerEntered { position, .. }
+            | pointer::Event::PointerMoved { position, .. }
+            | pointer::Event::PointerPressed { position, .. }
+            | pointer::Event::PointerReleased { position, .. } => bounds.contains(*position),
+            pointer::Event::PointerLeft { .. } | pointer::Event::WheelScrolled { .. } => {
+                cursor.land().is_over(bounds)
             }
+        };
+
+        if !is_over {
+            return;
         }
 
-        if let Event::Touch(event) = event {
-            match event {
-                touch::Event::FingerPressed { position, .. } => {
-                    shell.publish((self.on_focus)(*position));
-                    shell.publish((self.on_mouse_event)(mouse::Event::ButtonPressed(
-                        mouse::Button::Left,
-                    )));
-                    shell.capture_event();
-                }
-                touch::Event::FingerMoved { position, .. } if self.is_focusing => {
-                    shell.publish((self.on_mouse_event)(mouse::Event::CursorMoved {
-                        position: *position,
-                    }));
-                    shell.capture_event();
-                }
-                touch::Event::FingerLifted { .. } => {
-                    shell.publish((self.on_mouse_event)(mouse::Event::ButtonReleased(
-                        mouse::Button::Left,
-                    )));
-                    shell.capture_event();
-                }
-                _ => {}
-            }
+        if self.is_focusing {
+            shell.publish((self.on_pointer_event)(event.clone()));
+            shell.capture_event();
+        } else if let pointer::Event::PointerPressed { position, .. } = event
+            && event.is_primary_click()
+        {
+            shell.publish((self.on_focus)(*position));
+            shell.publish((self.on_pointer_event)(event.clone()));
+            shell.capture_event();
         }
     }
 
     fn draw(
         &self,
         _: &Tree,
-        renderer: &mut iced_wgpu::Renderer,
+        renderer: &mut lapiz_runtime::Renderer,
         _: &Theme,
         _: &renderer::Style,
         layout: Layout<'_>,
@@ -121,7 +117,7 @@ impl<Message, Theme> Widget<Message, Theme, iced_wgpu::Renderer> for CanvasWidge
 }
 
 impl<'a, Message, Theme> From<CanvasWidget<'a, Message>>
-    for Element<'a, Message, Theme, iced_wgpu::Renderer>
+    for Element<'a, Message, Theme, lapiz_runtime::Renderer>
 where
     Message: 'a,
 {

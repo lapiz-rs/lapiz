@@ -1,10 +1,12 @@
 use iced_core::Renderer as _;
 use iced_core::{
     Clipboard, Element, Event, Layout, Length, Point, Rectangle, Shell, Size, Theme, Vector,
-    Widget, layout, mouse, overlay, renderer,
+    Widget, layout, overlay, pointer,
+    pointer::mouse,
+    renderer,
     widget::{Operation, Tree, tree},
 };
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 use crate::callback::{CallbackWith, publish_with};
 
@@ -110,12 +112,8 @@ impl<Message> Widget<Message, Theme, Renderer> for Splitter<'_, Message> {
         tree::State::new(State::default())
     }
 
-    fn children(&self) -> Vec<Tree> {
-        vec![Tree::new(&self.first), Tree::new(&self.second)]
-    }
-
-    fn diff(&self, tree: &mut Tree) {
-        tree.diff_children(&[&self.first, &self.second]);
+    fn diff(&mut self, tree: &mut Tree) {
+        tree.diff_children(&mut [&mut self.first, &mut self.second]);
     }
 
     fn size(&self) -> Size<Length> {
@@ -189,24 +187,23 @@ impl<Message> Widget<Message, Theme, Renderer> for Splitter<'_, Message> {
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_mut::<State>();
         let handle = self.handle_bounds(layout.bounds());
         match event {
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                if cursor.is_over(handle) =>
-            {
+            Event::Pointer(event) if event.is_primary_click() && cursor.is_over(handle) => {
                 state.dragging = true;
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) if state.dragging => {
+            Event::Pointer(e @ pointer::Event::PointerReleased { .. })
+                if e.is_primary_release() && state.dragging =>
+            {
                 state.dragging = false;
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::CursorMoved { position }) if state.dragging => {
+            Event::Pointer(pointer::Event::PointerMoved { position, .. }) if state.dragging => {
                 let bounds = layout.bounds();
                 let ratio = match self.axis {
                     Axis::Horizontal => {
@@ -238,7 +235,6 @@ impl<Message> Widget<Message, Theme, Renderer> for Splitter<'_, Message> {
                 child_layout,
                 cursor,
                 renderer,
-                clipboard,
                 shell,
                 viewport,
             );
@@ -270,7 +266,7 @@ impl<Message> Widget<Message, Theme, Renderer> for Splitter<'_, Message> {
                 viewport,
             );
         }
-        let p = theme.extended_palette();
+        let p = theme.palette();
         renderer.fill_quad(
             renderer::Quad {
                 bounds: self.handle_bounds(layout.bounds()),

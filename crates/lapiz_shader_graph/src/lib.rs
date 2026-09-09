@@ -18,7 +18,7 @@ pub mod wgsl_std;
 
 pub type GraphSerializer<'a> = toml::Serializer<'a>;
 pub type GraphDeserializer<'a> = toml::de::Deserializer<'a>;
-pub type GraphRenderer = iced_wgpu::Renderer;
+pub type GraphRenderer = lapiz_runtime::Renderer;
 pub type GraphTheme = Theme;
 pub type GraphElement<'a, Message> = Element<'a, Message, GraphTheme, GraphRenderer>;
 

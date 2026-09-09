@@ -162,14 +162,14 @@ impl Layer for PixelLayer {
         let with_overrider_pipeline_layout =
             device.create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: "pixel layer blend pipeline layout with overrider".into(),
-                bind_group_layouts: &[&with_overrider_layout],
+                bind_group_layouts: &[Some(&with_overrider_layout)],
                 ..Default::default()
             });
 
         let without_overrider_pipeline_layout =
             device.create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: "pixel layer blend pipeline layout without overrider".into(),
-                bind_group_layouts: &[&without_overrider_layout],
+                bind_group_layouts: &[Some(&without_overrider_layout)],
                 ..Default::default()
             });
 

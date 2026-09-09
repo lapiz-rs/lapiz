@@ -64,8 +64,8 @@ impl BrushInputSamplingPipeline {
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("brush input sampling pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
 
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
@@ -190,8 +190,8 @@ impl BrushMainPipeline {
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("brush main pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
 
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
@@ -373,8 +373,8 @@ impl BrushPostProcessPipeline {
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("brush postprocess pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
 
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
@@ -512,8 +512,8 @@ impl BrushMainBoundsEvalPipeline {
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("brush main bounds eval pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
 
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
@@ -624,8 +624,8 @@ impl BrushPostProcessBoundsEvalPipeline {
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("brush postprocess bounds eval pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
 
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {

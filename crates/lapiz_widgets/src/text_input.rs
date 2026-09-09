@@ -1,7 +1,70 @@
-use iced_core::{Background, Border, Element, Length, Padding, Pixels, Theme, alignment};
-use iced_wgpu::Renderer;
+use iced_core::widget::operation::{Focusable, Operation, TextInput as TextInputOp};
+use iced_core::widget::Id;
+use iced_core::{Background, Border, Element, Length, Padding, Pixels, Rectangle, Theme, alignment};
+use lapiz_runtime::Renderer;
 
-pub use iced_widget::text_input::{Catalog, Icon, Status, Style, StyleFn};
+pub use iced_widget::text_input::{Catalog, Status, Style, StyleFn};
+
+/// Runs `apply` with an [`Operation`] that reports whether the visited text
+/// input is focused. Intended to be scoped to a single wrapped
+/// [`iced_widget::TextInput`], since it does not compare widget ids.
+pub fn is_focused(apply: impl FnOnce(&mut dyn Operation)) -> bool {
+    struct IsFocused(bool);
+
+    impl Operation for IsFocused {
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
+            operate(self);
+        }
+
+        fn focusable(&mut self, _id: Option<&Id>, _bounds: Rectangle, state: &mut dyn Focusable) {
+            self.0 |= state.is_focused();
+        }
+    }
+
+    let mut operation = IsFocused(false);
+    apply(&mut operation);
+    operation.0
+}
+
+/// Runs `apply` with an [`Operation`] that focuses and selects the contents of
+/// the visited text input. Intended to be scoped to a single wrapped
+/// [`iced_widget::TextInput`], since it does not compare widget ids.
+pub fn focus_and_select_all(apply: impl FnOnce(&mut dyn Operation)) {
+    struct FocusAndSelectAll;
+
+    impl Operation for FocusAndSelectAll {
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
+            operate(self);
+        }
+
+        fn focusable(&mut self, _id: Option<&Id>, _bounds: Rectangle, state: &mut dyn Focusable) {
+            state.focus();
+        }
+
+        fn text_input(&mut self, _id: Option<&Id>, _bounds: Rectangle, state: &mut dyn TextInputOp) {
+            state.select_all();
+        }
+    }
+
+    apply(&mut FocusAndSelectAll);
+}
+
+/// Runs `apply` with an [`Operation`] that unfocuses the visited text input.
+pub fn unfocus(apply: impl FnOnce(&mut dyn Operation)) {
+    struct Unfocus;
+
+    impl Operation for Unfocus {
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
+            operate(self);
+        }
+
+        fn focusable(&mut self, _id: Option<&Id>, _bounds: Rectangle, state: &mut dyn Focusable) {
+            state.unfocus();
+        }
+    }
+
+    apply(&mut Unfocus);
+}
 
 pub struct TextInput<'a, Message> {
     inner: iced_widget::TextInput<'a, Message, Theme, Renderer>,
@@ -10,7 +73,7 @@ pub struct TextInput<'a, Message> {
 impl<'a, Message: Clone> TextInput<'a, Message> {
     pub fn new(placeholder: &str, value: &str) -> Self {
         Self {
-            inner: iced_widget::TextInput::new(placeholder, value)
+            inner: iced_widget::TextInput::new(placeholder.to_owned(), value.to_owned())
                 .size(12)
                 .style(default),
         }
@@ -60,7 +123,7 @@ impl<'a, Message: Clone> TextInput<'a, Message> {
     }
 
     pub fn align_x(mut self, alignment: impl Into<alignment::Horizontal>) -> Self {
-        self.inner = self.inner.align_x(alignment);
+        self.inner = self.inner.align_x(alignment.into());
         self
     }
 
@@ -96,7 +159,7 @@ impl<'a, Message: Clone + 'a> From<TextInput<'a, Message>>
 }
 
 pub fn default(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let focused = matches!(status, Status::Focused { .. });
     let hovered = matches!(
         status,
@@ -116,7 +179,6 @@ pub fn default(theme: &Theme, status: Status) -> Style {
                 p.background.strong.color
             },
         },
-        icon: p.background.weak.text,
         placeholder: p.background.weak.text,
         value: p.background.base.text,
         selection: p.primary.weak.color,
@@ -141,6 +203,6 @@ pub fn transparent(theme: &Theme, status: Status) -> Style {
 
 pub fn invalid(theme: &Theme, status: Status) -> Style {
     let mut style = default(theme, status);
-    style.border.color = theme.extended_palette().danger.base.color;
+    style.border.color = theme.palette().danger.base.color;
     style
 }

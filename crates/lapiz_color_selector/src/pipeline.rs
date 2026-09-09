@@ -92,8 +92,8 @@ impl ComputeBoundsPipeline {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("compute_bounds_pipeline_layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("compute_bounds_pipeline"),
@@ -243,8 +243,8 @@ impl GradientPipeline {
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("gradient_pipeline_layout"),
-            bind_group_layouts: &[layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(layout)],
+            immediate_size: 0,
         });
 
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -284,7 +284,7 @@ impl GradientPipeline {
             primitive: Default::default(),
             depth_stencil: Default::default(),
             multisample: Default::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: Default::default(),
         });
 
@@ -315,8 +315,8 @@ impl GradientRingPipeline {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("gradient_ring_pipeline_layout"),
-            bind_group_layouts: &[layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(layout)],
+            immediate_size: 0,
         });
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("gradient_ring_pipeline"),
@@ -355,7 +355,7 @@ impl GradientRingPipeline {
             primitive: Default::default(),
             depth_stencil: Default::default(),
             multisample: Default::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: Default::default(),
         });
         let mesh = GradientMesh::new_plane(device, GradientPlaneShape::Square, 1.0);

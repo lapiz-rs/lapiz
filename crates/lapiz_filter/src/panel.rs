@@ -79,7 +79,7 @@ impl Clone for FilterPanelMessage {
     }
 }
 
-type Element<'a> = iced_core::Element<'a, FilterPanelMessage, Theme, iced_wgpu::Renderer>;
+type Element<'a> = iced_core::Element<'a, FilterPanelMessage, Theme, lapiz_runtime::Renderer>;
 
 impl WindowView for FilterPanel {
     type Message = FilterPanelMessage;

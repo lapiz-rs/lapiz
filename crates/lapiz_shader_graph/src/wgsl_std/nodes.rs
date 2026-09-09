@@ -11,7 +11,8 @@ use anyhow::anyhow;
 
 use glam::{Vec2, Vec3, Vec3Swizzles};
 use iced_core::{
-    Clipboard, Event, Layout, Length, Rectangle, Shell, Size, Widget, layout, mouse, renderer,
+    Clipboard, Event, Layout, Length, Rectangle, Shell, Size, Widget, layout,
+    pointer::mouse, renderer,
     widget::{Operation, Tree, tree},
 };
 use iced_widget::{column, container, row, text, text_editor, text_input};
@@ -1887,7 +1888,7 @@ impl<Data: GraphData> GraphNode<Data> for GraphInputNode {
             .collect::<Vec<_>>();
         ctx.view_all_slots_with_header(
             column![
-                text_input(&t!("name"), &state.name)
+                text_input(t!("name"), state.name.clone())
                     .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(GraphInputNodeMessage::NameChanged),
@@ -1999,7 +2000,7 @@ impl<Data: GraphData> GraphNode<Data> for GraphOutputNode {
             .collect::<Vec<_>>();
         ctx.view_all_slots_with_header(
             column![
-                text_input(&t!("name"), &state.name)
+                text_input(t!("name"), state.name.clone())
                     .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(GraphOutputNodeMessage::NameChanged),
@@ -2935,7 +2936,7 @@ fn repeat_schema_editor_view<Data: GraphData>(
         .map(|local| {
             let id = local.id;
             column![
-                text_input(&t!("variable_name"), &local.name)
+                text_input(t!("variable_name"), local.name.clone())
                     .size(12.0)
                     .style(lapiz_widgets::text_input::default)
                     .on_input(move |name| { RepeatNodeMessage::EditorRenameLocal(id, name) }),
@@ -2985,7 +2986,7 @@ fn repeat_schema_editor_view<Data: GraphData>(
 
     container(panel)
         .style(|theme| container::Style {
-            background: Some(theme.extended_palette().background.base.color.into()),
+            background: Some(theme.palette().background.base.color.into()),
             ..container::transparent(theme)
         })
         .into()
@@ -3525,7 +3526,7 @@ fn custom_expression_text_editor(
     content: &text_editor::Content<GraphRenderer>,
 ) -> text_editor::TextEditor<
     '_,
-    iced_core::text::highlighter::PlainText,
+    iced_core::text::parser::PlainText,
     text_editor::Action,
     GraphTheme,
     GraphRenderer,
@@ -3550,20 +3551,20 @@ impl Widget<CustomExpressionNodeMessage, GraphTheme, GraphRenderer>
         })
     }
 
-    fn children(&self) -> Vec<Tree> {
-        let content = text_editor::Content::with_text(self.code);
-        let editor = custom_expression_text_editor(&content);
-        vec![Tree::new(&editor as &dyn Widget<_, _, _>)]
-    }
-
-    fn diff(&self, tree: &mut Tree) {
+    fn diff(&mut self, tree: &mut Tree) {
         let state = tree.state.downcast_mut::<CustomExpressionCodeEditorState>();
         if state.content.borrow().text() != self.code {
             *state.content.borrow_mut() = text_editor::Content::with_text(self.code);
         }
         let content = state.content.borrow();
-        let editor = custom_expression_text_editor(&content);
-        tree.children[0].diff(&editor as &dyn Widget<_, _, _>);
+        let mut editor = custom_expression_text_editor(&content);
+
+        if tree.children.is_empty() {
+            tree.children
+                .push(Tree::new(&editor as &dyn Widget<_, _, _>));
+        } else {
+            tree.children[0].diff(&mut editor as &mut dyn Widget<_, _, _>);
+        }
     }
 
     fn size(&self) -> Size<Length> {
@@ -3607,20 +3608,18 @@ impl Widget<CustomExpressionNodeMessage, GraphTheme, GraphRenderer>
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &GraphRenderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, CustomExpressionNodeMessage>,
         viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_ref::<CustomExpressionCodeEditorState>();
-        let mut actions = Vec::new();
-        let mut child_shell = Shell::new(&mut actions);
+        let mut actions = iced_core::shell::Bus::new();
+        let mut child_shell = shell.local(&mut actions);
         custom_expression_text_editor(&state.content.borrow()).update(
             &mut tree.children[0],
             event,
             layout,
             cursor,
             renderer,
-            clipboard,
             &mut child_shell,
             viewport,
         );
@@ -3720,13 +3719,13 @@ fn custom_expression_variable_rows<Data: GraphData>(
             let id = variable.id;
             column![
                 row![
-                    text_input("Slot Name", &variable.display_name)
+                    text_input("Slot Name", variable.display_name.clone())
                         .size(12.0)
                         .style(lapiz_widgets::text_input::default)
                         .on_input(move |name| {
                             CustomExpressionNodeMessage::ChangeDisplayName(kind, id, name)
                         }),
-                    text_input("WGSL Name", &variable.name)
+                    text_input("WGSL Name", variable.name.clone())
                         .size(12.0)
                         .style(lapiz_widgets::text_input::default)
                         .on_input(move |name| {
@@ -3825,7 +3824,7 @@ fn custom_expression_editor_view<Data: GraphData>(
         );
     container(panel)
         .style(|theme| container::Style {
-            background: Some(theme.extended_palette().background.base.color.into()),
+            background: Some(theme.palette().background.base.color.into()),
             ..container::transparent(theme)
         })
         .into()

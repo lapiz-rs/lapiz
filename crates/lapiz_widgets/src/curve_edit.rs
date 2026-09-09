@@ -4,14 +4,14 @@ use iced_core::{
     Background, Border, Clipboard, Color, Element, Event, Layout, Length, Point, Rectangle, Shell,
     Size, Theme, Widget,
     keyboard::{self, key},
-    layout,
-    mouse::{self, Cursor},
+    layout, pointer,
+    pointer::mouse::{self, Cursor},
     renderer::{self, Quad},
     widget::{self, tree},
 };
 use iced_graphics::geometry::{Frame, Path, Renderer as _, Stroke};
-use iced_wgpu::Renderer;
 use lapiz_math::curve::CubicCurve;
+use lapiz_runtime::Renderer;
 
 use crate::callback::{CallbackWith, publish_with};
 
@@ -130,7 +130,6 @@ impl<Message> Widget<Message, Theme, Renderer> for CurveEdit<'_, Message> {
         layout: Layout<'_>,
         cursor: Cursor,
         _renderer: &Renderer,
-        _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         _viewport: &Rectangle,
     ) {
@@ -138,7 +137,7 @@ impl<Message> Widget<Message, Theme, Renderer> for CurveEdit<'_, Message> {
         let bounds = layout.bounds();
 
         match event {
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+            Event::Pointer(event) if event.is_primary_click() => {
                 let Some(position) = cursor.position_in(bounds) else {
                     return;
                 };
@@ -181,7 +180,7 @@ impl<Message> Widget<Message, Theme, Renderer> for CurveEdit<'_, Message> {
                 shell.request_redraw();
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::CursorMoved { position }) if state.dragging => {
+            Event::Pointer(pointer::Event::PointerMoved { position, .. }) if state.dragging => {
                 let index = state
                     .selected_index
                     .expect("dragging without a selected point");
@@ -203,7 +202,9 @@ impl<Message> Widget<Message, Theme, Renderer> for CurveEdit<'_, Message> {
                 }
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) if state.dragging => {
+            Event::Pointer(e @ pointer::Event::PointerReleased { .. })
+                if e.is_primary_release() && state.dragging =>
+            {
                 state.dragging = false;
                 let curve = state
                     .drag_curve
@@ -406,7 +407,7 @@ impl Catalog for iced_core::Theme {
 }
 
 pub fn default(theme: &iced_core::Theme, _status: Status) -> Style {
-    let palette = theme.extended_palette();
+    let palette = theme.palette();
     Style {
         background: palette.background.base.color.into(),
         border: Border {

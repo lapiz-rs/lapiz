@@ -1,5 +1,5 @@
 use iced_core::{Border, Element, Length, Theme};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::container;
 
 use crate::button::{self, Button};
@@ -85,7 +85,7 @@ impl<'a, Message: 'a> From<TitleBar<'a, Message>> for Element<'a, Message, Theme
 }
 
 fn close_button(theme: &Theme, status: button::Status) -> button::Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     match status {
         button::Status::Hovered | button::Status::Pressed => button::Style {
             background: Some(p.danger.base.color.into()),
@@ -97,7 +97,7 @@ fn close_button(theme: &Theme, status: button::Status) -> button::Style {
 }
 
 pub fn default(theme: &Theme, _status: flex::Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     Style::default()
         .background(p.background.base.color)
         .color(p.background.base.text)

@@ -4,7 +4,7 @@ use bevy_math::Rect;
 use glam::Vec2;
 use iced_core::{Element, Length, Theme};
 use iced_runtime::Task;
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::space;
 use lapiz_canvas::{CanvasAppExt, CanvasUndoStackAppExt};
 use lapiz_i18n::t;

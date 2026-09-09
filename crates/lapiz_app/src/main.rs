@@ -21,7 +21,7 @@ use lapiz_filter::{FilterPlugin, editor::FilterEditor, panel::FilterPanel};
 use lapiz_image::ImagePlugin;
 use lapiz_input::InputPlugin;
 use lapiz_render::RenderPlugin;
-use lapiz_runtime::{Application, service::RenderContext, windows::WindowCommandBuffer};
+use lapiz_runtime::{Application, windows::WindowCommandBuffer};
 use lapiz_selection_tool::SelectionPlugin;
 use lapiz_shader_graph::ShaderGraphPlugin;
 use lapiz_tools::ToolsPlugin;
@@ -83,7 +83,7 @@ fn main() {
         );
     }
 
-    app.add_service::<RenderContext>()
+    app.add_service_instance(lapiz_runtime::renderer::global_render_context())
         .add_service::<WindowCommandBuffer>()
         .add_plugin(AssetsPlugin {
             asset_root: "assets".into(),

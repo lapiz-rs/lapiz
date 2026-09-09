@@ -3,7 +3,8 @@ use std::{any::Any, collections::HashMap};
 use iced_core::{
     Border, Element, Length, Point, Rectangle, Size, Widget,
     alignment::Vertical,
-    layout, mouse,
+    layout,
+    pointer::mouse,
     renderer::{self, Quad},
     text::IntoFragment,
     widget::{Operation, Tree},
@@ -125,7 +126,7 @@ impl<Message> Widget<Message, GraphTheme, GraphRenderer> for SlotPin {
                 bounds: self.overhanging_bounds(layout.bounds()),
                 border: Border::default().width(1.0).color(
                     theme
-                        .extended_palette()
+                        .palette()
                         .background
                         .base
                         .text

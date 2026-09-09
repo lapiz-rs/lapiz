@@ -57,7 +57,7 @@ impl CopyLayerPipeline {
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("copy layer pipeline layout"),
-            bind_group_layouts: &[&layout],
+            bind_group_layouts: &[Some(&layout)],
             ..Default::default()
         });
 

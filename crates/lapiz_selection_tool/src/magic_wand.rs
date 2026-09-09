@@ -1,7 +1,7 @@
 use glam::{Vec2, Vec4};
 use iced_core::{Element, Length, Theme};
 use iced_runtime::Task;
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::row;
 use lapiz_bucket_tool::{
     BucketTool,

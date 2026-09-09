@@ -7,7 +7,7 @@ use bevy_math::IRect;
 use glam::{IVec2, Vec2};
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::space;
 use lapiz_canvas::{CanvasAppExt, CanvasUndoStackAppExt};
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};

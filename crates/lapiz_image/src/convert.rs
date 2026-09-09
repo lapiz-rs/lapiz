@@ -58,8 +58,8 @@ impl ColorProfileConvertPipeline {
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("color_space_convert_pipeline_layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
 
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {

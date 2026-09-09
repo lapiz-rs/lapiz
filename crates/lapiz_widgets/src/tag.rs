@@ -1,5 +1,5 @@
 use iced_core::{Border, Color, Element, Padding, Theme, text};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::{Container, Text, container};
 
 pub use iced_widget::container::{Catalog, Style, StyleFn};
@@ -59,48 +59,48 @@ impl<'a, Message: 'a> From<Tag<'a, Message>> for Element<'a, Message, Theme, Ren
 pub fn neutral(theme: &Theme) -> Style {
     styled(
         theme,
-        theme.extended_palette().background.weakest.color,
-        theme.extended_palette().background.weak.text,
+        theme.palette().background.weakest.color,
+        theme.palette().background.weak.text,
     )
 }
 
 pub fn primary(theme: &Theme) -> Style {
     styled(
         theme,
-        theme.extended_palette().primary.weak.color,
-        theme.extended_palette().primary.strong.color,
+        theme.palette().primary.weak.color,
+        theme.palette().primary.strong.color,
     )
 }
 
 pub fn accent(theme: &Theme) -> Style {
     styled(
         theme,
-        theme.extended_palette().secondary.weak.color,
-        theme.extended_palette().secondary.strong.color,
+        theme.palette().secondary.weak.color,
+        theme.palette().secondary.strong.color,
     )
 }
 
 pub fn success(theme: &Theme) -> Style {
     styled(
         theme,
-        theme.extended_palette().success.weak.color,
-        theme.extended_palette().success.base.color,
+        theme.palette().success.weak.color,
+        theme.palette().success.base.color,
     )
 }
 
 pub fn warning(theme: &Theme) -> Style {
     styled(
         theme,
-        theme.extended_palette().warning.weak.color,
-        theme.extended_palette().warning.base.color,
+        theme.palette().warning.weak.color,
+        theme.palette().warning.base.color,
     )
 }
 
 pub fn danger(theme: &Theme) -> Style {
     styled(
         theme,
-        theme.extended_palette().danger.weak.color,
-        theme.extended_palette().danger.base.color,
+        theme.palette().danger.weak.color,
+        theme.palette().danger.base.color,
     )
 }
 
@@ -111,6 +111,6 @@ fn styled(theme: &Theme, background: Color, color: Color) -> Style {
         .border(Border {
             radius: 0.0.into(),
             width: 1.0,
-            color: theme.extended_palette().background.strong.color,
+            color: theme.palette().background.strong.color,
         })
 }

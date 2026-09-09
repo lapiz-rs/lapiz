@@ -1,5 +1,5 @@
 use iced_core::{Element, Length, Theme};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::{Svg, svg};
 
 pub use iced_widget::svg::{Catalog, Status, Style, StyleFn};
@@ -61,25 +61,25 @@ impl<'a, Message: 'a> From<Icon<'a>> for Element<'a, Message, Theme, Renderer> {
 
 pub fn default(theme: &Theme, _status: Status) -> Style {
     Style {
-        color: Some(theme.extended_palette().background.base.text),
+        color: Some(theme.palette().background.base.text),
     }
 }
 
 pub fn muted(theme: &Theme, _status: Status) -> Style {
     Style {
-        color: Some(theme.extended_palette().background.weak.text),
+        color: Some(theme.palette().background.weak.text),
     }
 }
 
 pub fn accent(theme: &Theme, _status: Status) -> Style {
     Style {
-        color: Some(theme.extended_palette().primary.strong.color),
+        color: Some(theme.palette().primary.strong.color),
     }
 }
 
 pub fn danger(theme: &Theme, _status: Status) -> Style {
     Style {
-        color: Some(theme.extended_palette().danger.base.color),
+        color: Some(theme.palette().danger.base.color),
     }
 }
 

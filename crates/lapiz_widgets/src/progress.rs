@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 
 use iced_core::{Background, Border, Element, Length, Theme};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 pub use iced_widget::progress_bar::{Catalog, Style, StyleFn};
 
@@ -27,7 +27,7 @@ impl<'a> ProgressBar<'a> {
     }
 
     pub fn vertical(mut self) -> Self {
-        self.inner = self.inner.vertical();
+        self.inner = self.inner.vertical(true);
         self
     }
 
@@ -61,23 +61,23 @@ impl<'a, Message: 'a> From<ProgressBar<'a>> for Element<'a, Message, Theme, Rend
 }
 
 pub fn default(theme: &Theme) -> Style {
-    styled(theme, theme.extended_palette().primary.base.color)
+    styled(theme, theme.palette().primary.base.color)
 }
 
 pub fn success(theme: &Theme) -> Style {
-    styled(theme, theme.extended_palette().success.base.color)
+    styled(theme, theme.palette().success.base.color)
 }
 
 pub fn warning(theme: &Theme) -> Style {
-    styled(theme, theme.extended_palette().warning.base.color)
+    styled(theme, theme.palette().warning.base.color)
 }
 
 pub fn danger(theme: &Theme) -> Style {
-    styled(theme, theme.extended_palette().danger.base.color)
+    styled(theme, theme.palette().danger.base.color)
 }
 
 fn styled(theme: &Theme, bar: iced_core::Color) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     Style {
         background: Background::Color(p.background.strongest.color),
         bar: Background::Color(bar),

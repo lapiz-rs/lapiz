@@ -1,5 +1,5 @@
 use iced_core::{Element, Pixels, Theme};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::rule;
 
 pub use iced_widget::rule::{Catalog, FillMode, Style, StyleFn};
@@ -44,7 +44,7 @@ impl<'a, Message: 'a> From<Divider<'a>> for Element<'a, Message, Theme, Renderer
 
 pub fn default(theme: &Theme) -> Style {
     Style {
-        color: theme.extended_palette().background.strong.color,
+        color: theme.palette().background.strong.color,
         radius: 0.0.into(),
         fill_mode: FillMode::Full,
         snap: true,
@@ -53,7 +53,7 @@ pub fn default(theme: &Theme) -> Style {
 
 pub fn strong(theme: &Theme) -> Style {
     Style {
-        color: theme.extended_palette().background.stronger.color,
+        color: theme.palette().background.stronger.color,
         ..default(theme)
     }
 }

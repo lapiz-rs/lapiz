@@ -1,37 +1,41 @@
 use iced_core::{Border, Element, Length, Padding, Pixels, Theme, alignment};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::Container;
 
 pub use iced_widget::container::{Catalog, Style, StyleFn};
 
 pub struct Panel<'a, Message> {
     inner: Container<'a, Message, Theme, Renderer>,
+    width: Length,
+    height: Length,
 }
 
 impl<'a, Message> Panel<'a, Message> {
     pub fn new(content: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
         Self {
             inner: Container::new(content).style(default),
+            width: Length::Shrink,
+            height: Length::Shrink,
         }
     }
 
     pub fn width(mut self, width: impl Into<Length>) -> Self {
-        self.inner = self.inner.width(width);
+        self.width = width.into();
         self
     }
 
     pub fn height(mut self, height: impl Into<Length>) -> Self {
-        self.inner = self.inner.height(height);
+        self.height = height.into();
         self
     }
 
     pub fn max_width(mut self, width: impl Into<Pixels>) -> Self {
-        self.inner = self.inner.max_width(width);
+        self.width = self.width.max(width);
         self
     }
 
     pub fn max_height(mut self, height: impl Into<Pixels>) -> Self {
-        self.inner = self.inner.max_height(height);
+        self.height = self.height.max(height);
         self
     }
 
@@ -76,12 +80,18 @@ impl<'a, Message> Panel<'a, Message> {
 
 impl<'a, Message: 'a> From<Panel<'a, Message>> for Element<'a, Message, Theme, Renderer> {
     fn from(value: Panel<'a, Message>) -> Self {
-        value.inner.into()
+        let Panel {
+            mut inner,
+            width,
+            height,
+        } = value;
+        inner = inner.width(width).height(height);
+        inner.into()
     }
 }
 
 pub fn default(theme: &Theme) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     Style::default()
         .background(p.background.weakest.color)
         .color(p.background.base.text)
@@ -93,7 +103,7 @@ pub fn default(theme: &Theme) -> Style {
 }
 
 pub fn inset(theme: &Theme) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     Style::default()
         .background(p.background.strongest.color)
         .color(p.background.base.text)

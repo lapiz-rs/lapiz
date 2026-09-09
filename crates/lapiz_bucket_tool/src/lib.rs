@@ -5,7 +5,7 @@ use iced_core::{
 };
 use iced_futures::Subscription;
 use iced_runtime::Task;
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::row;
 use lapiz_canvas::{CanvasAppExt, CanvasUndoStackAppExt, command::TileReplaceCommand};
 use lapiz_color::ForegroundBackgroundColorExt;

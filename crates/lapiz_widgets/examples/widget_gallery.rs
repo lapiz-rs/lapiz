@@ -119,7 +119,7 @@ impl Gallery {
         }
     }
 
-    fn view(&self) -> Element<'_, Message> {
+    fn view(&self) -> Element<'_, Message, Theme, lapiz_runtime::Renderer> {
         let controls = LabeledFrame::new(
             Label::new("INPUTS").muted(),
             Flex::column([

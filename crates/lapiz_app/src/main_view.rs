@@ -4,9 +4,8 @@ use iced::keyboard::key;
 use iced::{
     Element, Length, Subscription, Task, Theme,
     keyboard::{self},
-    mouse, window,
+    pointer, window,
 };
-use iced_wgpu::Renderer;
 use iced_widget::pane_grid;
 use lapiz_actions::{
     ActionFunctionRegistry, ActionId,
@@ -25,6 +24,7 @@ use lapiz_dock::{
     dock::{Dock, DockId},
 };
 use lapiz_input::key::KeyboardState;
+use lapiz_runtime::Renderer;
 use lapiz_runtime::{
     ApplicationTheme, Services,
     event::Event,
@@ -62,7 +62,7 @@ pub enum MainViewMessage {
     Dock(DockMessage),
     WindowEvent(window::Id, window::Event),
     KeyboardEvent(window::Id, keyboard::Event),
-    MouseEvent(window::Id, mouse::Event),
+    PointerEvent(window::Id, pointer::Event),
     CanvasCreated(CanvasCreated),
     CanvasRemoved(CanvasRemoved),
     TriggerAction(ActionId),
@@ -322,7 +322,7 @@ impl WindowView for MainView {
         &'a self,
         window: window::Id,
         services: &'a Services,
-    ) -> impl Into<Element<'a, Self::Message, Theme, iced_wgpu::Renderer>> {
+    ) -> impl Into<Element<'a, Self::Message, Theme, lapiz_runtime::Renderer>> {
         let dock = self
             .dock_manager
             .view(window, services)?
@@ -479,15 +479,15 @@ impl WindowView for MainView {
                     _ => Task::none(),
                 }
             }
-            MainViewMessage::MouseEvent(window, event) => {
+            MainViewMessage::PointerEvent(window, event) => {
                 match event {
-                    mouse::Event::CursorMoved { position } => {
+                    pointer::Event::PointerMoved { position, .. } => {
                         return self
                             .dock_manager
                             .on_cursor_moved(window, position)
                             .map(MainViewMessage::Dock);
                     }
-                    mouse::Event::ButtonReleased(mouse::Button::Left) => {
+                    pointer::Event::PointerReleased { .. } if event.is_primary_release() => {
                         return self
                             .dock_manager
                             .on_float_window_drag_end()
@@ -590,7 +590,7 @@ impl WindowView for MainView {
         let external = iced::event::listen_with(|event, _status, window| match event {
             iced::Event::Window(e) => Some(MainViewMessage::WindowEvent(window, e)),
             iced::Event::Keyboard(e) => Some(MainViewMessage::KeyboardEvent(window, e)),
-            iced::Event::Mouse(e) => Some(MainViewMessage::MouseEvent(window, e)),
+            iced::Event::Pointer(e) => Some(MainViewMessage::PointerEvent(window, e)),
             _ => None,
         });
 

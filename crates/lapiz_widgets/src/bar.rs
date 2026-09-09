@@ -1,5 +1,5 @@
 use iced_core::{Border, Element, Length, Theme};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 use crate::flex::{Flex, Status, Style};
 
@@ -37,7 +37,7 @@ impl<'a, Message: 'a> From<StatusBar<'a, Message>> for Element<'a, Message, Them
 }
 
 pub fn status_bar(theme: &Theme, _status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     Style::default()
         .background(p.background.base.color)
         .color(p.background.weak.text)

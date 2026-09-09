@@ -1,5 +1,5 @@
 use iced_core::{Border, Element, Length, Padding, Pixels, Theme, alignment, text};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::{Container, Text, container};
 
 pub use iced_widget::container::{Catalog, Style, StyleFn};
@@ -72,7 +72,7 @@ impl<'a, Message: 'a> From<Kbd<'a>> for Element<'a, Message, Theme, Renderer> {
 }
 
 pub fn default(theme: &Theme) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     container::Style::default()
         .background(p.background.weakest.color)
         .color(p.background.weak.text)
@@ -84,7 +84,7 @@ pub fn default(theme: &Theme) -> Style {
 }
 
 pub fn accent(theme: &Theme) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     container::Style::default()
         .background(p.primary.weak.color)
         .color(p.primary.strong.color)

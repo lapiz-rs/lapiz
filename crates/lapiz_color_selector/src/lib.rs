@@ -3,7 +3,7 @@ use std::sync::Arc;
 use glam::{Vec2, Vec3};
 use iced_core::{Element, Length, Point, Rectangle, Theme};
 use iced_runtime::Task;
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::{Row, column, text};
 use lapiz_color::{
     Color,

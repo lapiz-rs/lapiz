@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use iced_core::{Element, Length, Theme};
 use iced_runtime::Task;
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::column;
 use lapiz_assets::asset::AssetHandle;
 use lapiz_canvas::{

@@ -1,7 +1,9 @@
 use iced_core::{
     Alignment, Clipboard, Element, Event, Layout, Length, Point, Rectangle, Shell, Size,
     layout::{self, Limits, flex},
-    mouse, renderer,
+    pointer,
+    pointer::mouse,
+    renderer,
     widget::{Tree, Widget, tree},
 };
 
@@ -14,7 +16,8 @@ pub struct DragDropInfo<'a> {
     pub mouse_position: Point,
 }
 
-pub struct DragDropColumn<'a, Message, Theme = iced_core::Theme, Renderer = iced_wgpu::Renderer> {
+pub struct DragDropColumn<'a, Message, Theme = iced_core::Theme, Renderer = lapiz_runtime::Renderer>
+{
     children: Vec<Element<'a, Message, Theme, Renderer>>,
     spacing: f32,
     width: Length,
@@ -91,12 +94,8 @@ where
         tree::State::new(State::default())
     }
 
-    fn children(&self) -> Vec<Tree> {
-        self.children.iter().map(Tree::new).collect()
-    }
-
-    fn diff(&self, tree: &mut Tree) {
-        tree.diff_children(&self.children);
+    fn diff(&mut self, tree: &mut Tree) {
+        tree.diff_children(&mut self.children);
     }
 
     fn size(&self) -> Size<Length> {
@@ -125,7 +124,6 @@ where
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
@@ -137,7 +135,6 @@ where
                 child_node,
                 cursor,
                 renderer,
-                clipboard,
                 shell,
                 viewport,
             );
@@ -147,13 +144,13 @@ where
         }
 
         let state = tree.state.downcast_mut::<State>();
-        let pointer = match event {
-            Event::Mouse(mouse::Event::CursorMoved { position }) => *position,
+        let position = match event {
+            Event::Pointer(pointer::Event::PointerMoved { position, .. }) => *position,
             _ => match cursor.land().position() {
                 Some(position) => position,
                 None if matches!(
                     event,
-                    Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+                    Event::Pointer(pointer::Event::PointerReleased { .. })
                 ) && state.action != Action::Idle =>
                 {
                     state.pointer
@@ -161,34 +158,34 @@ where
                 None => return,
             },
         };
-        state.pointer = pointer;
+        state.pointer = position;
 
         match event {
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
+            Event::Pointer(event) if event.is_primary_click() => {
                 let Some(index) = layout
                     .children()
                     .enumerate()
-                    .find(|(_, child)| child.bounds().contains(pointer))
+                    .find(|(_, child)| child.bounds().contains(position))
                     .map(|(index, _)| index)
                 else {
                     return;
                 };
                 if let Some(on_press) = self.on_press.as_ref()
-                    && let Some(info) = make_info(&layout, pointer, index)
+                    && let Some(info) = make_info(&layout, position, index)
                 {
                     shell.publish(on_press(info));
                 }
                 state.index = index;
-                state.action = Action::Pressing { origin: pointer };
+                state.action = Action::Pressing { origin: position };
                 shell.capture_event();
             }
-            Event::Mouse(mouse::Event::CursorMoved { .. }) => match state.action {
-                Action::Pressing { origin } if pointer.distance(origin) > DRAG_DEADBAND => {
+            Event::Pointer(pointer::Event::PointerMoved { .. }) => match state.action {
+                Action::Pressing { origin } if position.distance(origin) > DRAG_DEADBAND => {
                     state.action = Action::Dragging;
                     shell.capture_event();
                     shell.request_redraw();
                     if let Some(on_drag) = self.on_drag.as_ref()
-                        && let Some(info) = make_info(&layout, pointer, state.index)
+                        && let Some(info) = make_info(&layout, position, state.index)
                     {
                         shell.publish(on_drag(info));
                     }
@@ -197,20 +194,22 @@ where
                     shell.capture_event();
                     shell.request_redraw();
                     if let Some(on_drag) = self.on_drag.as_ref()
-                        && let Some(info) = make_info(&layout, pointer, state.index)
+                        && let Some(info) = make_info(&layout, position, state.index)
                     {
                         shell.publish(on_drag(info));
                     }
                 }
                 _ => {}
             },
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
+            Event::Pointer(e @ pointer::Event::PointerReleased { .. })
+                if e.is_primary_release() =>
+            {
                 match state.action {
                     Action::Dragging => {
                         shell.capture_event();
                         shell.request_redraw();
                         if let Some(on_drop) = self.on_drop.as_ref()
-                            && let Some(info) = make_info(&layout, pointer, state.index)
+                            && let Some(info) = make_info(&layout, position, state.index)
                         {
                             shell.publish(on_drop(info));
                         }

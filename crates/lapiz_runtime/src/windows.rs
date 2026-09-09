@@ -29,7 +29,7 @@ pub trait WindowView: 'static + Sized {
         &'a self,
         window: window::Id,
         services: &'a Services,
-    ) -> impl Into<Element<'a, Self::Message, Theme, iced_wgpu::Renderer>>;
+    ) -> impl Into<Element<'a, Self::Message, Theme, crate::Renderer>>;
     fn update(
         &mut self,
         message: Self::Message,
@@ -51,7 +51,7 @@ pub trait ErasedWindowView: 'static {
         &'a self,
         window: window::Id,
         services: &'a Services,
-    ) -> Element<'a, Box<dyn Any + Send>, Theme, iced_wgpu::Renderer>;
+    ) -> Element<'a, Box<dyn Any + Send>, Theme, crate::Renderer>;
     fn update(
         &mut self,
         message: Box<dyn Any + Send>,
@@ -75,7 +75,7 @@ where
         &'a self,
         window: window::Id,
         services: &'a Services,
-    ) -> Element<'a, Box<dyn Any + Send>, Theme, iced_wgpu::Renderer> {
+    ) -> Element<'a, Box<dyn Any + Send>, Theme, crate::Renderer> {
         <T as WindowView>::view(self, window, services)
             .into()
             .map(|msg| Box::new(msg) as Box<dyn Any + Send>)
@@ -189,7 +189,7 @@ where
         &'a self,
         id: window::Id,
         services: &'a Services,
-    ) -> Option<Element<'a, WindowViewManagerMessage, Theme, iced_wgpu::Renderer>> {
+    ) -> Option<Element<'a, WindowViewManagerMessage, Theme, crate::Renderer>> {
         let Some(window) = self.window_to_view.get(&id).cloned() else {
             log::error!(
                 "Unable to view a window that doesn't have corresponding view: {}",

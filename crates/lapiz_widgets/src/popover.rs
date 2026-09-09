@@ -2,10 +2,10 @@ use iced_core::{
     Clipboard, Element, Event, Layout, Length, Point, Rectangle, Shell, Size, Theme, Vector,
     Widget,
     layout::{Limits, Node},
-    mouse, overlay, renderer,
+    overlay, pointer::mouse, renderer,
     widget::{Operation, Tree},
 };
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 pub enum Anchor {
     TopLeft,
@@ -45,20 +45,12 @@ impl<'a, Message> Popover<'a, Message> {
 }
 
 impl<Message> Widget<Message, Theme, Renderer> for Popover<'_, Message> {
-    fn children(&self) -> Vec<Tree> {
-        let mut children = vec![Tree::new(&self.trigger)];
-        if let Some(content) = &self.content {
-            children.push(Tree::new(content));
-        }
-        children
-    }
-
-    fn diff(&self, tree: &mut Tree) {
-        let mut children = vec![&self.trigger];
-        if let Some(content) = &self.content {
+    fn diff(&mut self, tree: &mut Tree) {
+        let mut children = vec![&mut self.trigger];
+        if let Some(content) = &mut self.content {
             children.push(content);
         }
-        tree.diff_children(&children);
+        tree.diff_children(&mut children);
     }
 
     fn size(&self) -> Size<Length> {
@@ -90,7 +82,6 @@ impl<Message> Widget<Message, Theme, Renderer> for Popover<'_, Message> {
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
@@ -100,7 +91,6 @@ impl<Message> Widget<Message, Theme, Renderer> for Popover<'_, Message> {
             layout,
             cursor,
             renderer,
-            clipboard,
             shell,
             viewport,
         );
@@ -223,12 +213,11 @@ impl<'a, 'b, Message> overlay::Overlay<Message, Theme, Renderer> for Overlay<'a,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
     ) {
         let viewport = layout.bounds();
         self.content.as_widget_mut().update(
-            self.tree, event, layout, cursor, renderer, clipboard, shell, &viewport,
+            self.tree, event, layout, cursor, renderer, shell, &viewport,
         );
     }
 

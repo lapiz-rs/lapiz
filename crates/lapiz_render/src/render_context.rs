@@ -1,5 +1,5 @@
 use lapiz_runtime::Services;
-pub use lapiz_runtime::service::RenderContext;
+use lapiz_runtime::renderer::RenderContext;
 use wgpu::{Device, Queue};
 
 pub trait RenderContextAppExt {

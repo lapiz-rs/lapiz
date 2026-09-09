@@ -308,8 +308,8 @@ impl CanvasRenderPipeline {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("canvas pipeline layout"),
-            bind_group_layouts: &[&main_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&main_layout)],
+            immediate_size: 0,
         });
         let shader = include_str!("shaders/canvas_render.wesl")
             .replace("//CODEGEN_FLAG_CALIBRATE_COLOR", &icc_transform.function);
@@ -442,8 +442,8 @@ impl CanvasPresentPipeline {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("canvas present pipeline layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("canvas present pipeline"),
@@ -462,7 +462,7 @@ impl CanvasPresentPipeline {
             primitive: Default::default(),
             depth_stencil: None,
             multisample: Default::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         let sampler = device.create_sampler(&SamplerDescriptor {

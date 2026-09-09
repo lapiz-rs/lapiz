@@ -1,5 +1,5 @@
 use iced_core::{Background, Border, Element, Length, Pixels, Theme, text};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 pub use iced_widget::checkbox::{Catalog, Icon, Status, Style, StyleFn};
 
@@ -105,7 +105,7 @@ impl<'a, Message: 'a> From<Checkbox<'a, Message>> for Element<'a, Message, Theme
 }
 
 pub fn default(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let (checked, hovered, disabled) = match status {
         Status::Active { is_checked } => (is_checked, false, false),
         Status::Hovered { is_checked } => (is_checked, true, false),

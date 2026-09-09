@@ -4,9 +4,11 @@ use bevy_math::IRect;
 use encase::ShaderType;
 use glam::{IVec2, Mat3, Vec2};
 use iced_core::{
-    Element, Length, Rectangle, Size, Widget, keyboard::Modifiers, layout, mouse, renderer, widget,
+    Element, Length, Rectangle, Size, Widget, keyboard::Modifiers, layout, pointer::mouse,
+    renderer, widget,
 };
-use iced_wgpu::{Primitive, Renderer, graphics::Viewport};
+use iced_wgpu::{Primitive, graphics::Viewport};
+use lapiz_runtime::Renderer;
 use iced_widget::shader::Pipeline;
 use indexmap::IndexSet;
 use lapiz_anti_aliasing::fxaa::{FxaaParams, FxaaPipeline};
@@ -155,8 +157,8 @@ impl SelectionPipeline {
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("selection_render_pipeline_layout"),
-            bind_group_layouts: &[&render_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&render_layout)],
+            immediate_size: 0,
         });
 
         let render_shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -197,7 +199,7 @@ impl SelectionPipeline {
             primitive: Default::default(),
             depth_stencil: None,
             multisample: Default::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -230,8 +232,8 @@ impl SelectionPipeline {
 
         let composite_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("selection_composite_pipeline_layout"),
-            bind_group_layouts: &[&composite_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&composite_layout)],
+            immediate_size: 0,
         });
 
         let composite_pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
@@ -409,6 +411,7 @@ impl SelectionPipeline {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
             pass.set_pipeline(&self.render_pipeline);
             pass.set_bind_group(0, &render_bind_group, &[index_buffer_offset as u32]);
@@ -609,8 +612,8 @@ impl Pipeline for SelectionPreviewPipeline {
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("selection_preview_pipeline_layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
@@ -641,7 +644,7 @@ impl Pipeline for SelectionPreviewPipeline {
             primitive: Default::default(),
             depth_stencil: None,
             multisample: Default::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -726,6 +729,7 @@ impl SelectionPreviewPipeline {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             pass.set_pipeline(&self.pipeline);

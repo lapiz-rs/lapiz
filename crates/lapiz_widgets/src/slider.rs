@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 
 use iced_core::{Background, Border, Element, Length, Pixels, Theme};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use num_traits::FromPrimitive;
 
 pub use iced_widget::slider::{Catalog, Handle, HandleShape, Rail, Status, Style, StyleFn};
@@ -35,12 +35,12 @@ where
         self
     }
 
-    pub fn step(mut self, step: impl Into<T>) -> Self {
+    pub fn step(mut self, step: impl num_traits::AsPrimitive<f64>) -> Self {
         self.inner = self.inner.step(step);
         self
     }
 
-    pub fn shift_step(mut self, step: impl Into<T>) -> Self {
+    pub fn shift_step(mut self, step: impl num_traits::AsPrimitive<f64>) -> Self {
         self.inner = self.inner.shift_step(step);
         self
     }
@@ -58,7 +58,13 @@ where
 
 impl<'a, T, Message> From<Slider<'a, T, Message>> for Element<'a, Message, Theme, Renderer>
 where
-    T: Copy + From<u8> + PartialOrd + Into<f64> + FromPrimitive + 'a,
+    T: Copy
+        + From<u8>
+        + PartialOrd
+        + Into<f64>
+        + FromPrimitive
+        + num_traits::AsPrimitive<f64>
+        + 'a,
     Message: Clone + 'a,
 {
     fn from(value: Slider<'a, T, Message>) -> Self {
@@ -67,7 +73,7 @@ where
 }
 
 pub fn default(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let active = status == Status::Dragged;
     Style {
         rail: Rail {

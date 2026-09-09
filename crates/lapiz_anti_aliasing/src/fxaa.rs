@@ -93,7 +93,7 @@ impl FxaaPipeline {
 
         let fxaa_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("fxaa_pipeline_layout"),
-            bind_group_layouts: &[&fxaa_layout],
+            bind_group_layouts: &[Some(&fxaa_layout)],
             ..Default::default()
         });
         let fxaa_shader = device.create_shader_module(ShaderModuleDescriptor {

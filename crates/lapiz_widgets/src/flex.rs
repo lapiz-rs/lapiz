@@ -1,11 +1,13 @@
 use iced_core::Renderer as _;
 use iced_core::{
     Background, Border, Clipboard, Color, Element, Event, Layout, Length, Padding, Pixels, Point,
-    Rectangle, Shell, Size, Theme, Vector, Widget, keyboard, layout, mouse, overlay, renderer,
+    Rectangle, Shell, Size, Theme, Vector, Widget, keyboard, layout, overlay, pointer,
+    pointer::mouse,
+    renderer,
     widget::{Operation, Tree},
 };
-use iced_wgpu::Renderer;
 use iced_widget::container;
+use lapiz_runtime::Renderer;
 use taffy::prelude::{
     AlignItems, AvailableSpace, Dimension, Display, FlexDirection, FlexWrap, JustifyContent,
     LengthPercentage, TaffyAuto, TaffyTree,
@@ -190,12 +192,8 @@ impl<Message> Default for Flex<'_, Message> {
 }
 
 impl<Message> Widget<Message, Theme, Renderer> for Flex<'_, Message> {
-    fn children(&self) -> Vec<Tree> {
-        self.children.iter().map(Tree::new).collect()
-    }
-
-    fn diff(&self, tree: &mut Tree) {
-        tree.diff_children(&self.children);
+    fn diff(&mut self, tree: &mut Tree) {
+        tree.diff_children(&mut self.children);
     }
 
     fn size(&self) -> Size<Length> {
@@ -269,7 +267,6 @@ impl<Message> Widget<Message, Theme, Renderer> for Flex<'_, Message> {
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
-        clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
@@ -279,18 +276,18 @@ impl<Message> Widget<Message, Theme, Renderer> for Flex<'_, Message> {
             .zip(&mut tree.children)
             .zip(layout.children())
         {
-            child.as_widget_mut().update(
-                state, event, layout, cursor, renderer, clipboard, shell, viewport,
-            );
+            child
+                .as_widget_mut()
+                .update(state, event, layout, cursor, renderer, shell, viewport);
         }
         if shell.is_event_captured() || !cursor.is_over(layout.bounds()) {
             return;
         }
         let message = match event {
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
-                publish(&mut self.press)
-            }
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)) => {
+            Event::Pointer(event) if event.is_primary_click() => publish(&mut self.press),
+            Event::Pointer(e @ pointer::Event::PointerReleased { .. })
+                if e.is_primary_release() =>
+            {
                 publish(&mut self.release)
             }
             Event::Keyboard(event) => publish_with(&mut self.key_event, event.clone()),
@@ -568,7 +565,7 @@ pub fn transparent(_theme: &Theme, _status: Status) -> Style {
 }
 
 pub fn panel(theme: &Theme, _status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     Style::default()
         .background(p.background.base.color)
         .color(p.background.base.text)
@@ -580,7 +577,7 @@ pub fn panel(theme: &Theme, _status: Status) -> Style {
 }
 
 pub fn surface(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     Style::default()
         .background(if status == Status::Hovered {
             p.background.weak.color

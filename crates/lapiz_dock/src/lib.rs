@@ -9,7 +9,7 @@ use group::DockGroupData;
 use iced_core::{Element, Point, Size, Theme, Vector, window};
 use iced_futures::Subscription;
 use iced_runtime::Task;
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::pane_grid;
 use lapiz_runtime::Services;
 use lapiz_widgets::window_decorations::WindowDecorations;
@@ -275,7 +275,7 @@ impl DockManager {
 
     pub fn on_window_event(&mut self, id: window::Id, event: window::Event) -> Task<()> {
         match event {
-            window::Event::Opened { position, size } => {
+            window::Event::Opened { position, size, .. } => {
                 if id == self.main_window.id {
                     self.main_window.position = position.unwrap_or(Point::ORIGIN);
                     self.main_window.size = size;

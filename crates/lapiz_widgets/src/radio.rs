@@ -1,5 +1,5 @@
 use iced_core::{Background, Color, Element, Length, Pixels, Theme};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 use iced_widget::svg;
 
 use crate::button::{self, Button};
@@ -149,7 +149,7 @@ impl Catalog for Theme {
 }
 
 pub fn default(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let (selected, hovered) = match status {
         Status::Active { is_selected } => (is_selected, false),
         Status::Hovered { is_selected } => (is_selected, true),
@@ -173,7 +173,7 @@ pub fn default(theme: &Theme, status: Status) -> Style {
 
 fn button_style(theme: &Theme, _status: button::Status) -> button::Style {
     button::Style {
-        text_color: theme.extended_palette().background.base.text,
+        text_color: theme.palette().background.base.text,
         ..button::Style::default()
     }
 }

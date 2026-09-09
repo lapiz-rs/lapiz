@@ -1,5 +1,5 @@
 use iced_core::{Background, Color, Element, Length, Pixels, Theme, text};
-use iced_wgpu::Renderer;
+use lapiz_runtime::Renderer;
 
 pub use iced_widget::toggler::{Catalog, Status, Style, StyleFn};
 
@@ -66,7 +66,7 @@ impl<'a, Message: 'a> From<Switch<'a, Message>> for Element<'a, Message, Theme, 
 }
 
 pub fn default(theme: &Theme, status: Status) -> Style {
-    let p = theme.extended_palette();
+    let p = theme.palette();
     let (checked, hovered, disabled) = match status {
         Status::Active { is_toggled } => (is_toggled, false, false),
         Status::Hovered { is_toggled } => (is_toggled, true, false),
