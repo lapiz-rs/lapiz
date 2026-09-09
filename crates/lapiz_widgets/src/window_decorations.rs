@@ -5,6 +5,7 @@ use iced_wgpu::Renderer;
 
 #[derive(Clone, Debug, Default)]
 pub struct WindowDecorations {
+    #[cfg(target_os = "windows")]
     inner: imp::Inner,
 }
 
