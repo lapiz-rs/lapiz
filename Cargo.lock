@@ -3312,6 +3312,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "lapiz_config"
+version = "0.1.0"
+
+[[package]]
 name = "lapiz_dock"
 version = "0.1.0"
 dependencies = [
