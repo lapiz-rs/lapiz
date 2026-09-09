@@ -367,7 +367,7 @@ where
                     bounds: bounds.size(),
                     align_y: alignment::Vertical::Center,
                     align_x: text::Alignment::Center,
-                    ..text_spec(&renderer, state.labels[index].clone(), LABEL_SIZE)
+                    ..text_spec(renderer, state.labels[index].clone(), LABEL_SIZE)
                 },
                 bounds.center(),
                 if open {
@@ -766,7 +766,7 @@ fn draw_entry(
         text::Text {
             bounds: Size::new(row.width - ITEM_PADDING_X * 2.0 - ICON_SLOT, row.height),
             align_y: alignment::Vertical::Center,
-            ..text_spec(&renderer, label.to_owned(), LABEL_SIZE)
+            ..text_spec(renderer, label.to_owned(), LABEL_SIZE)
         },
         Point::new(row.x + ITEM_PADDING_X + ICON_SLOT, row.y + row.height / 2.0),
         text_color,
@@ -778,7 +778,7 @@ fn draw_entry(
                 bounds: Size::new(row.width - ITEM_PADDING_X * 2.0 - ICON_SLOT, row.height),
                 align_x: text::Alignment::Right,
                 align_y: alignment::Vertical::Center,
-                ..text_spec(&renderer, shortcut.to_owned(), SHORTCUT_SIZE)
+                ..text_spec(renderer, shortcut.to_owned(), SHORTCUT_SIZE)
             },
             Point::new(row.x + row.width - ITEM_PADDING_X, row.y + row.height / 2.0),
             if hovered {
