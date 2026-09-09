@@ -36,7 +36,7 @@ mod render;
 pub struct ColorSelectorPlugin;
 
 impl Plugin for ColorSelectorPlugin {
-    fn build(&self, app: &mut Application) {
+    fn build(&self, _app: &mut Application) {
         i18n::init();
     }
 }
