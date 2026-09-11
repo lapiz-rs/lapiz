@@ -75,6 +75,7 @@ pub enum ColorSelectorDockMessage {
     SettingsWindowClosed,
     ForegroundColorChanged(ForegroundColorChanged),
     BackgroundColorChanged(BackgroundColorChanged),
+    ConfigChanged,
 }
 
 pub static COLOR_SELECTOR_DOCK_ID: LazyLock<DockId> =
@@ -227,9 +228,7 @@ impl Dock for ColorSelectorDock {
                     .update(|old| *old = configs.clone())
                     .log_err();
 
-                self.selector
-                    .set_configs(configs.configs.clone(), services)
-                    .map(ColorSelectorDockMessage::ColorSelector)
+                Task::none()
             }
             ColorSelectorDockMessage::ConfigEditor(m) => {
                 self.config_editor.update(m);
@@ -255,6 +254,12 @@ impl Dock for ColorSelectorDock {
                 self.last_color = event.new;
                 self.selector
                     .set_color(event.new, services)
+                    .map(ColorSelectorDockMessage::ColorSelector)
+            }
+            ColorSelectorDockMessage::ConfigChanged => {
+                let new_config = self.cached_config.get();
+                self.selector
+                    .set_configs(new_config.configs.clone(), services)
                     .map(ColorSelectorDockMessage::ColorSelector)
             }
         }
@@ -293,11 +298,17 @@ impl Dock for ColorSelectorDock {
         let background_color_changed = BackgroundColorChanged::listen_to()
             .map(ColorSelectorDockMessage::BackgroundColorChanged);
 
+        let config_changed = self
+            .cached_config
+            .listen_to()
+            .map(|_| ColorSelectorDockMessage::ConfigChanged);
+
         Subscription::batch([
             window_moved,
             settings_window_closed,
             foreground_color_changed,
             background_color_changed,
+            config_changed,
         ])
     }
 
