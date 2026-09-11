@@ -77,8 +77,9 @@ impl EyeDropperTarget for StoredLayerTarget {
         };
         let min = pixel - IVec2::splat(radius);
         let max = pixel + IVec2::splat(radius) + IVec2::ONE;
-        let min_tile = min / GpuTileStorage::TILE_SIZE as i32;
-        let max_tile = (max - IVec2::ONE) / GpuTileStorage::TILE_SIZE as i32;
+        let tile_size = IVec2::splat(GpuTileStorage::TILE_SIZE as i32);
+        let min_tile = min.div_euclid(tile_size);
+        let max_tile = (max - IVec2::ONE).div_euclid(tile_size);
         let requested_tiles = (min_tile.y..=max_tile.y)
             .flat_map(|y| (min_tile.x..=max_tile.x).map(move |x| IVec2::new(x, y)));
 
@@ -94,9 +95,9 @@ impl EyeDropperTarget for StoredLayerTarget {
         for y in min.y..max.y {
             for x in min.x..max.x {
                 let position = IVec2::new(x, y);
-                let tile = position / GpuTileStorage::TILE_SIZE as i32;
+                let tile = position.div_euclid(tile_size);
                 if let Some(buffer) = buffers.get(&tile) {
-                    let local = position - tile * GpuTileStorage::TILE_SIZE as i32;
+                    let local = position - tile * tile_size;
                     let pixel_index =
                         (local.y as u32 * GpuTileStorage::TILE_SIZE + local.x as u32) as usize;
                     match texel_type.format {
@@ -139,11 +140,19 @@ impl Plugin for EyeDropperPlugin {
     }
 }
 
+#[derive(Clone, Copy)]
+struct SampleRequest {
+    layer_id: LayerId,
+    pixel: IVec2,
+    mode: EyeDropperSampleMode,
+}
+
 pub struct EyeDropperTool {
     sample_mode: EyeDropperSampleMode,
     target_mode: EyeDropperTargetMode,
     sampled_color: Option<Color>,
-    latest_request: u64,
+    sample_in_flight: bool,
+    pending_sample: Option<SampleRequest>,
 }
 
 impl Default for EyeDropperTool {
@@ -152,7 +161,8 @@ impl Default for EyeDropperTool {
             sample_mode: EyeDropperSampleMode::Single,
             target_mode: EyeDropperTargetMode::Merged,
             sampled_color: None,
-            latest_request: 0,
+            sample_in_flight: false,
+            pending_sample: None,
         }
     }
 }
@@ -162,10 +172,7 @@ pub enum EyeDropperToolMessage {
     SampleModeChanged(EyeDropperSampleMode),
     RadiusChanged(u32),
     TargetModeChanged(EyeDropperTargetMode),
-    Sampled {
-        request: u64,
-        result: std::result::Result<Color, String>,
-    },
+    Sampled(std::result::Result<Color, String>),
 }
 
 impl EyeDropperTool {
@@ -175,8 +182,7 @@ impl EyeDropperTool {
         mouse: &PressedMouseState,
         services: &Services,
     ) -> Task<EyeDropperToolMessage> {
-        self.latest_request += 1;
-        let request = self.latest_request;
+        self.pending_sample = None;
 
         let Some(canvas) = services.current_canvas() else {
             return Task::none();
@@ -207,21 +213,37 @@ impl EyeDropperTool {
             return Task::none();
         };
 
-        let target = StoredLayerTarget::new(layer_id);
-        let pixel = position.as_ivec2();
-        let sample_mode = self.sample_mode;
+        let request = SampleRequest {
+            layer_id,
+            pixel: position.as_ivec2(),
+            mode: self.sample_mode,
+        };
+        if self.sample_in_flight {
+            self.pending_sample = Some(request);
+            Task::none()
+        } else {
+            self.start_sample(request, services)
+        }
+    }
+
+    fn start_sample(
+        &mut self,
+        request: SampleRequest,
+        services: &Services,
+    ) -> Task<EyeDropperToolMessage> {
+        self.sample_in_flight = true;
+        let target = StoredLayerTarget::new(request.layer_id);
         let tiles = services.tile_storage().clone();
         let device = services.render_device().clone();
         let queue = services.render_queue().clone();
 
         Task::future(async move {
-            EyeDropperToolMessage::Sampled {
-                request,
-                result: target
-                    .sample(pixel, sample_mode, &tiles, &device, &queue)
+            EyeDropperToolMessage::Sampled(
+                target
+                    .sample(request.pixel, request.mode, &tiles, &device, &queue)
                     .await
                     .map_err(|error| error.to_string()),
-            }
+            )
         })
     }
 }
@@ -266,17 +288,18 @@ impl ToolFunction for EyeDropperTool {
                 self.sample_mode = EyeDropperSampleMode::Average { radius };
             }
             EyeDropperToolMessage::TargetModeChanged(mode) => self.target_mode = mode,
-            EyeDropperToolMessage::Sampled { request, result } => {
-                if request != self.latest_request {
-                    return Task::none();
+            EyeDropperToolMessage::Sampled(result) => {
+                self.sample_in_flight = false;
+                if let Ok(color) = result.logged_err() {
+                    let old = services.foreground_color().get();
+                    services.foreground_color_mut().set(color);
+                    ForegroundColorChanged::broadcast(ForegroundColorChanged::new(old, color));
+                    self.sampled_color = Some(color);
                 }
-                let Ok(color) = result.logged_err() else {
-                    return Task::none();
-                };
-                let old = services.foreground_color().get();
-                services.foreground_color_mut().set(color);
-                ForegroundColorChanged::broadcast(ForegroundColorChanged::new(old, color));
-                self.sampled_color = Some(color);
+
+                if let Some(pending) = self.pending_sample.take() {
+                    return self.start_sample(pending, services);
+                }
             }
         }
 
