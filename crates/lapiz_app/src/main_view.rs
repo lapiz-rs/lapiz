@@ -25,7 +25,7 @@ use lapiz_dock::{
     dock::{Dock, DockId},
     group::DockGroupId,
 };
-use lapiz_i18n::t;
+use lapiz_i18n::{config::LanguageConfig, t};
 use lapiz_input::key::KeyboardState;
 use lapiz_runtime::{
     ApplicationTheme, Renderer, Services,
@@ -560,6 +560,9 @@ impl WindowView for MainView {
             }
             MainViewMessage::MenuBar(MenuBarMessage::SetLanguage(id)) => {
                 lapiz_i18n::set_language(&id);
+                LanguageConfig::read_or_init_or_fallback()
+                    .update(|c| c.lang = Some(id))
+                    .log_err();
                 Task::none()
             }
             MainViewMessage::MenuBar(MenuBarMessage::TriggerAction(action_id)) => {

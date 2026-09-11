@@ -3434,9 +3434,11 @@ dependencies = [
  "fluent-bundle",
  "fluent-syntax",
  "i18n-embed",
+ "lapiz_config",
  "log",
  "parking_lot",
  "rust-embed",
+ "serde",
  "unic-langid",
 ]
 

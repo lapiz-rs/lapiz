@@ -9,6 +9,11 @@ use parking_lot::RwLock;
 pub use rust_embed::RustEmbed;
 use unic_langid::LanguageIdentifier;
 
+use crate::config::LanguageConfig;
+
+pub mod config;
+
+// TODO: Add follow system
 pub const AVAILABLE: &[(&str, &str)] = &[("en", "English"), ("zh-CN", "简体中文")];
 pub const FALLBACK: &str = "en";
 
@@ -69,7 +74,12 @@ pub fn register(
 }
 
 pub fn init() {
-    select_all(&DesktopLanguageRequester::requested_languages());
+    let lang = LanguageConfig::read_or_init_or_fallback().get();
+    if let Some(lang) = lang.lang.as_ref() {
+        set_language(lang);
+    } else {
+        select_all(&DesktopLanguageRequester::requested_languages());
+    }
 }
 
 pub fn set_language(id: &LanguageIdentifier) {
