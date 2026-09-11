@@ -1,5 +1,5 @@
 use lapiz_color_selector::config::ColorSelectorConfigGroup;
-use lapiz_config::ConfigType;
+use lapiz_config::Configuration;
 
 fn main() {
     let source = std::fs::read_to_string("target/configs/color_selector.toml").unwrap();

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use lapiz_config::{Config, ConfigType};
+use lapiz_config::{Config, Configuration};
 use lapiz_input::key::KeySequence;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +14,7 @@ pub struct MenuBarManifest {
     pub categories: Vec<MenuBarCategory>,
 }
 
-impl ConfigType for MenuBarManifest {
+impl Configuration for MenuBarManifest {
     const NAME: &'static str = "menu_bar_manifest.toml";
 
     const DEFAULT: &'static str = include_str!("../../../default_config/menu_bar_manifest.toml");
@@ -113,7 +113,7 @@ pub struct ActionBindingManifest {
     pub actions: Vec<ActionBinding>,
 }
 
-impl ConfigType for ActionBindingManifest {
+impl Configuration for ActionBindingManifest {
     const NAME: &'static str = "action_bindings.json";
 
     const DEFAULT: &'static str = include_str!("../../../default_config/action_bindings.json");

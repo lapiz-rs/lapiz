@@ -1,6 +1,6 @@
 use anyhow::Result;
 use lapiz_assets::{asset::Asset, loader::AssetSerializer};
-use lapiz_config::{Config, ConfigType};
+use lapiz_config::{Config, Configuration};
 use lapiz_input::key::KeySequence;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +27,7 @@ pub struct ToolBindingManifest {
     pub bindings: Vec<ToolBinding>,
 }
 
-impl ConfigType for ToolBindingManifest {
+impl Configuration for ToolBindingManifest {
     const NAME: &'static str = "tool_bindings.json";
 
     const DEFAULT: &'static str = include_str!("../../../default_config/tool_bindings.json");
@@ -54,7 +54,7 @@ pub struct ToolBarGroup {
     pub tools: Vec<ToolId>,
 }
 
-impl ConfigType for ToolBoxManifest {
+impl Configuration for ToolBoxManifest {
     const NAME: &'static str = "tool_box_manifest.toml";
 
     const DEFAULT: &'static str = include_str!("../../../default_config/tool_box_manifest.toml");

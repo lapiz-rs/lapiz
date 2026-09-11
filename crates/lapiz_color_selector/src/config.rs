@@ -1,7 +1,7 @@
 use std::f32::consts::TAU;
 
 use iced_core::{Alignment, Color, Length, Theme, text::IntoFragment};
-use lapiz_config::{Config, ConfigType};
+use lapiz_config::{Config, Configuration};
 use lapiz_runtime::Renderer;
 
 // TODO: Re-add the color picker once it is ported or vendored into `lapiz_widgets`.
@@ -21,7 +21,7 @@ pub struct ColorSelectorConfigGroup {
     pub configs: Vec<ColorSelectorConfig>,
 }
 
-impl ConfigType for ColorSelectorConfigGroup {
+impl Configuration for ColorSelectorConfigGroup {
     const NAME: &'static str = "color_selector.toml";
 
     const DEFAULT: &'static str = include_str!("../../../default_config/color_selector.toml");

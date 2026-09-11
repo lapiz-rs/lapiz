@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use lapiz_config::{Config, ConfigType};
+use lapiz_config::{Config, Configuration};
 use serde::{Deserialize, Serialize};
 use unic_langid::LanguageIdentifier;
 
@@ -11,7 +11,7 @@ pub struct Language {
     pub lang: Option<LanguageIdentifier>,
 }
 
-impl ConfigType for Language {
+impl Configuration for Language {
     const NAME: &'static str = "language.toml";
 
     const DEFAULT: &'static str = include_str!("../../../default_config/language.toml");

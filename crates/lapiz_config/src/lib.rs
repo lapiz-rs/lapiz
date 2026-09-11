@@ -36,7 +36,7 @@ pub fn resolve_config_dir(name: &str) -> PathBuf {
     config_base.join(name)
 }
 
-pub trait ConfigType: Serialize + DeserializeOwned + Clone + Send + Sync + 'static {
+pub trait Configuration: Serialize + DeserializeOwned + Clone + Send + Sync + 'static {
     const NAME: &'static str;
 
     const DEFAULT: &'static str;
@@ -55,14 +55,14 @@ type ErasedShared = Arc<dyn Any + Send + Sync>;
 static REGISTRY: LazyLock<Mutex<HashMap<TypeId, ErasedShared>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-struct Shared<T: ConfigType> {
+struct Shared<T: Configuration> {
     value: ArcSwap<T>,
     writer: Mutex<()>,
     sender: Sender<()>,
     receiver: InactiveReceiver<()>,
 }
 
-impl<T: ConfigType> Shared<T> {
+impl<T: Configuration> Shared<T> {
     fn new(value: T) -> Self {
         let (mut sender, receiver) = async_broadcast::broadcast(1);
         sender.set_overflow(true);
@@ -78,11 +78,11 @@ impl<T: ConfigType> Shared<T> {
 }
 
 #[derive(Clone)]
-pub struct Config<T: ConfigType> {
+pub struct Config<T: Configuration> {
     shared: Arc<Shared<T>>,
 }
 
-impl<T: ConfigType> Config<T> {
+impl<T: Configuration> Config<T> {
     fn persist(value: &T) -> Result<()> {
         let path = resolve_config_dir(T::NAME);
         let parent = path
