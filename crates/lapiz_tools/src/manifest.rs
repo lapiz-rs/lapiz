@@ -1,5 +1,4 @@
 use anyhow::Result;
-use lapiz_assets::{asset::Asset, loader::AssetSerializer};
 use lapiz_config::{Config, Configuration};
 use lapiz_input::key::KeySequence;
 use serde::{Deserialize, Serialize};

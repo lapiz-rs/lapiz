@@ -1,13 +1,12 @@
 use std::f32::consts::TAU;
 
 use iced_core::{Alignment, Color, Length, Theme, text::IntoFragment};
-use lapiz_config::{Config, Configuration};
-use lapiz_runtime::Renderer;
-
 // TODO: Re-add the color picker once it is ported or vendored into `lapiz_widgets`.
 use iced_widget::{Space, column, row, text};
 use lapiz_color::model::rgb::Rgb;
+use lapiz_config::Configuration;
 use lapiz_i18n::{Translated, t};
+use lapiz_runtime::Renderer;
 use lapiz_widgets::{
     button::Button, checkbox::Checkbox, combo_box::ComboBox, label::Label, panel::Panel,
     radio::Radio, scrollable::Scrollable, spin_slider::SpinSlider, text_input::TextInput,

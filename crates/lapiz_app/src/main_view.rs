@@ -8,12 +8,10 @@ use iced::{
     pointer, window,
 };
 use iced_widget::pane_grid;
-use lapiz_actions::manifest::{ActionBindingManifestConfig, MenuBarManifestConfig};
 use lapiz_actions::{
     ActionFunctionRegistry, ActionId,
-    manifest::{ActionBindingManifest, ActionCollection, MenuBarItem, MenuBarManifest},
+    manifest::{ActionBindingManifestConfig, ActionCollection, MenuBarItem, MenuBarManifestConfig},
 };
-use lapiz_assets::AssetAppExt;
 use lapiz_brush::tool::CurrentBrushPresetHandle;
 use lapiz_canvas::{
     CanvasAppExt, CanvasToolProxyAppExt,

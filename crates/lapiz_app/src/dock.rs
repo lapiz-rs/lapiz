@@ -27,10 +27,9 @@ use lapiz_color::{
     model::rgb::Rgb,
 };
 use lapiz_color_selector::{
-    ColorModel, ColorSelector, ColorSelectorMessage, ColorSelectorState, GradientPlaneShape,
+    ColorSelector, ColorSelectorMessage, ColorSelectorState,
     config::{
-        ColorSelectorConfig, ColorSelectorConfigEditorState, ColorSelectorConfigGroup,
-        ColorSelectorConfigMessage, GradientBarConfig, GradientPlaneConfig, GradientPlaneFlipAxis,
+        ColorSelectorConfigEditorState, ColorSelectorConfigGroup, ColorSelectorConfigMessage,
     },
 };
 use lapiz_config::Config;
@@ -51,8 +50,7 @@ use lapiz_input::{
 use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::{Renderer, Services, event::Event};
 use lapiz_tools::{
-    ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId,
-    manifest::{ToolBoxManifest, ToolBoxManifestConfig},
+    ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId, manifest::ToolBoxManifestConfig,
 };
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{

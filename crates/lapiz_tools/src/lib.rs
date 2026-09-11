@@ -3,19 +3,18 @@ use std::{any::Any, collections::HashMap, rc::Rc, sync::Arc};
 use iced_core::{Element, Theme};
 use iced_runtime::{Task, futures::Subscription};
 use iced_widget::{Stack, space};
-use lapiz_assets::AssetAppExt;
 use lapiz_input::{
     key::{KeySequence, KeyboardState},
     mouse::{HoverMouseState, PressedMouseState},
 };
 use lapiz_runtime::{Application, Renderer, Services, plugin::Plugin, service::Service};
-use lapiz_utils::{Deref, DerefMut, log_err::LogErr, wrapper};
+use lapiz_utils::{Deref, DerefMut, wrapper};
 use lapiz_widgets::icon::Icon;
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::manifest::{ToolBinding, ToolBindingManifest, ToolBindingManifestConfig};
+use crate::manifest::{ToolBinding, ToolBindingManifestConfig};
 
 pub mod manifest;
 

@@ -6,8 +6,9 @@ use iced_futures::Subscription;
 
 #[doc(hidden)]
 pub mod __private {
-    pub use async_broadcast::{InactiveReceiver, Sender};
     pub use std::sync::LazyLock;
+
+    pub use async_broadcast::{InactiveReceiver, Sender};
 
     pub fn event_channel<T>() -> (Sender<T>, InactiveReceiver<T>) {
         let (sender, receiver) = async_broadcast::broadcast(64);
