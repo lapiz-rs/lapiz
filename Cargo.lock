@@ -3386,6 +3386,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "lapiz_eye_dropper"
+version = "0.1.0"
+
+[[package]]
 name = "lapiz_filter"
 version = "0.1.0"
 dependencies = [
