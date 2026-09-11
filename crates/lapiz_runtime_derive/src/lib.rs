@@ -12,15 +12,15 @@ pub fn derive_event(input: TokenStream) -> TokenStream {
     quote! {
         static #static_name: ::lapiz_runtime::__private::LazyLock<(
             ::lapiz_runtime::__private::Sender<#name>,
-            ::lapiz_runtime::__private::Receiver<#name>,
+            ::lapiz_runtime::__private::InactiveReceiver<#name>,
         )> = ::lapiz_runtime::__private::LazyLock::new(
-            ::lapiz_runtime::__private::unbounded::<#name>,
+            ::lapiz_runtime::__private::event_channel::<#name>,
         );
 
         impl ::lapiz_runtime::event::Event for #name {
             fn channel() -> &'static ::lapiz_runtime::__private::LazyLock<(
                 ::lapiz_runtime::__private::Sender<#name>,
-                ::lapiz_runtime::__private::Receiver<#name>,
+                ::lapiz_runtime::__private::InactiveReceiver<#name>,
             )> {
                 &#static_name
             }

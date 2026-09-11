@@ -3552,6 +3552,7 @@ dependencies = [
 name = "lapiz_runtime"
 version = "0.1.0"
 dependencies = [
+ "async-broadcast",
  "downcast-rs 2.0.2",
  "futures",
  "iced_core",

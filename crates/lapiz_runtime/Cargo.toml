@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 lapiz_runtime_derive.workspace = true
+async-broadcast.workspace = true
 downcast-rs.workspace = true
 winit.workspace = true
 iced_runtime.workspace = true
