@@ -1,15 +1,19 @@
 use std::future::Future;
 
-use anyhow::{Context, Result, anyhow};
-use glam::{IVec2, UVec2, Vec2};
+use anyhow::{Result, anyhow};
+use glam::{IVec2, Vec2};
 use iced_core::{Background, Element, Length, Theme, keyboard::Modifiers};
 use iced_runtime::Task;
 use iced_widget::{Space, container, row};
-use lapiz_canvas::{CCanvas, CanvasAppExt};
-use lapiz_color::{Color, ForegroundBackgroundColorExt, ForegroundColorChanged, model::rgb::Rgb};
+use lapiz_canvas::CanvasAppExt;
+use lapiz_color::{
+    Color, ForegroundBackgroundColorExt, ForegroundColorChanged,
+    model::{gray::Gray, rgb::Rgb},
+};
 use lapiz_i18n::t;
 use lapiz_image::{
     layer::{LayerId, properties::LayerTexelTypePropertyExt},
+    texel::TexelFormat,
     tile::{GpuTileStorage, TileStorageAppExt},
 };
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
@@ -18,7 +22,7 @@ use lapiz_runtime::{Application, Renderer, Services, event::Event, plugin::Plugi
 use lapiz_tools::{ToolFunction, ToolId, ToolsAppExt};
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
-    button::Button, fluent_builder::When, form::Form, icon, label::Label, panel::Panel,
+    fluent_builder::When, form::Form, icon, label::Label, panel::Panel,
     segmented_control::SegmentedControl, spin_slider::SpinSlider,
 };
 use wgpu::{Device, Queue};
@@ -45,7 +49,7 @@ pub trait EyeDropperTarget: Send + 'static {
         tiles: &GpuTileStorage,
         device: &Device,
         queue: &Queue,
-    ) -> impl Future<Output = Result<Rgb>> + Send;
+    ) -> impl Future<Output = Result<Color>> + Send;
 }
 
 struct StoredLayerTarget {
@@ -66,7 +70,7 @@ impl EyeDropperTarget for StoredLayerTarget {
         tiles: &GpuTileStorage,
         device: &Device,
         queue: &Queue,
-    ) -> Result<Rgb> {
+    ) -> Result<Color> {
         let radius = match mode {
             EyeDropperSampleMode::Single => 0,
             EyeDropperSampleMode::Average { radius } => radius as i32,
@@ -81,6 +85,7 @@ impl EyeDropperTarget for StoredLayerTarget {
         let layer = tiles
             .get_layer(self.layer_id)
             .ok_or_else(|| anyhow!("Eye dropper target layer {} is unavailable", self.layer_id))?;
+        let texel_type = layer.layer_info().texel_type;
         let buffers = layer.readback(device, queue, requested_tiles).await?;
         drop(layer);
 
@@ -92,18 +97,34 @@ impl EyeDropperTarget for StoredLayerTarget {
                 let tile = position / GpuTileStorage::TILE_SIZE as i32;
                 if let Some(buffer) = buffers.get(&tile) {
                     let local = position - tile * GpuTileStorage::TILE_SIZE as i32;
-                    let offset = ((local.y as u32 * GpuTileStorage::TILE_SIZE + local.x as u32) * 4)
-                        as usize;
-                    sum[0] += buffer[offset] as f32 / 255.0;
-                    sum[1] += buffer[offset + 1] as f32 / 255.0;
-                    sum[2] += buffer[offset + 2] as f32 / 255.0;
+                    let pixel_index =
+                        (local.y as u32 * GpuTileStorage::TILE_SIZE + local.x as u32) as usize;
+                    match texel_type.format {
+                        TexelFormat::Alpha => {
+                            sum[0] += texel_type.get_channel_as_f32(buffer, pixel_index, 0);
+                        }
+                        TexelFormat::Rgba => {
+                            for (channel, value) in sum.iter_mut().enumerate() {
+                                *value += texel_type.get_channel_as_f32(
+                                    buffer,
+                                    pixel_index,
+                                    channel as u32,
+                                );
+                            }
+                        }
+                    }
                 }
                 count += 1;
             }
         }
 
         let scale = 1.0 / count as f32;
-        Ok(Rgb::new(sum[0] * scale, sum[1] * scale, sum[2] * scale))
+        Ok(match texel_type.format {
+            TexelFormat::Alpha => Color::Gray(Gray::new(sum[0] * scale)),
+            TexelFormat::Rgba => {
+                Color::Rgb(Rgb::new(sum[0] * scale, sum[1] * scale, sum[2] * scale))
+            }
+        })
     }
 }
 
@@ -121,7 +142,7 @@ impl Plugin for EyeDropperPlugin {
 pub struct EyeDropperTool {
     sample_mode: EyeDropperSampleMode,
     target_mode: EyeDropperTargetMode,
-    sampled_color: Option<Rgb>,
+    sampled_color: Option<Color>,
     latest_request: u64,
 }
 
@@ -143,7 +164,7 @@ pub enum EyeDropperToolMessage {
     TargetModeChanged(EyeDropperTargetMode),
     Sampled {
         request: u64,
-        result: std::result::Result<Rgb, String>,
+        result: std::result::Result<Color, String>,
     },
 }
 
@@ -253,9 +274,8 @@ impl ToolFunction for EyeDropperTool {
                     return Task::none();
                 };
                 let old = services.foreground_color().get();
-                let new = Color::Rgb(color);
-                services.foreground_color_mut().set(new);
-                ForegroundColorChanged::broadcast(ForegroundColorChanged::new(old, new));
+                services.foreground_color_mut().set(color);
+                ForegroundColorChanged::broadcast(ForegroundColorChanged::new(old, color));
                 self.sampled_color = Some(color);
             }
         }
@@ -265,15 +285,23 @@ impl ToolFunction for EyeDropperTool {
 
     fn tool_option_widget<'a>(
         &'a self,
-        _: &'a Services,
+        services: &'a Services,
     ) -> Option<Element<'a, Self::Message, Theme, Renderer>> {
         let radius = match self.sample_mode {
             EyeDropperSampleMode::Single => 1,
             EyeDropperSampleMode::Average { radius } => radius,
         };
-        let color = self.sampled_color.unwrap_or(Rgb::new(0.0, 0.0, 0.0));
+        let sampled_rgb = self.sampled_color.map(|color| {
+            let profile = services
+                .current_canvas()
+                .expect("Tool options should only be shown for the current canvas")
+                .image
+                .profile();
+            color.into_rgb(profile.rgb_to_xyz_matrix().to_f32().inverse())
+        });
+        let color = sampled_rgb.unwrap_or(Rgb::new(0.0, 0.0, 0.0));
         let preview_color = iced_core::Color::from_rgb(color.r, color.g, color.b);
-        let color_text = self.sampled_color.map_or_else(
+        let color_text = sampled_rgb.map_or_else(
             || "—".to_owned(),
             |color| {
                 format!(

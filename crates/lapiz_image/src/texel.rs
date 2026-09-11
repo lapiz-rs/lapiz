@@ -30,6 +30,20 @@ pub enum TexelDepth {
     Bit8 = 0,
 }
 
+impl TexelDepth {
+    pub fn max_value(&self) -> Option<f32> {
+        match self {
+            TexelDepth::Bit8 => Some(255.0),
+        }
+    }
+
+    pub fn get_value_as_f32(&self, tile_bytes: &[u8], index: usize) -> f32 {
+        match self {
+            TexelDepth::Bit8 => tile_bytes[index] as f32,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TexelType {
     pub format: TexelFormat,
@@ -94,6 +108,20 @@ impl TexelType {
         }
     }
 
+    pub fn get_channel_as_f32(&self, tile_bytes: &[u8], pixel_index: usize, channel: u32) -> f32 {
+        let channel_count = match self.format {
+            TexelFormat::Alpha => 1,
+            TexelFormat::Rgba => 4,
+        };
+        assert!(channel < channel_count, "Texel channel should exist");
+
+        let index = pixel_index * channel_count as usize + channel as usize;
+        let value = self.depth.get_value_as_f32(tile_bytes, index);
+        self.depth
+            .max_value()
+            .map_or(value, |max_value| value / max_value)
+    }
+
     pub fn encode(&self) -> u8 {
         let format = self.format as u8;
         let depth = self.depth as u8;
@@ -124,5 +152,34 @@ impl<'de> Deserialize<'de> for TexelType {
     {
         let value = u8::deserialize(deserializer)?;
         Self::decode(value).map_err(|e| <D::Error as serde::de::Error>::custom(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TexelType;
+
+    #[test]
+    fn reads_normalized_rgba_channels() {
+        let pixels = [0, 64, 128, 255, 255, 128, 64, 0];
+
+        assert_eq!(TexelType::RGBA8.get_channel_as_f32(&pixels, 0, 0), 0.0);
+        assert_eq!(TexelType::RGBA8.get_channel_as_f32(&pixels, 0, 3), 1.0);
+        assert_eq!(
+            TexelType::RGBA8.get_channel_as_f32(&pixels, 1, 2),
+            64.0 / 255.0
+        );
+    }
+
+    #[test]
+    fn reads_normalized_alpha_channels() {
+        let pixels = [0, 128, 255];
+
+        assert_eq!(TexelType::A8.get_channel_as_f32(&pixels, 0, 0), 0.0);
+        assert_eq!(
+            TexelType::A8.get_channel_as_f32(&pixels, 1, 0),
+            128.0 / 255.0
+        );
+        assert_eq!(TexelType::A8.get_channel_as_f32(&pixels, 2, 0), 1.0);
     }
 }
