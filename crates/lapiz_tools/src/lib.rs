@@ -29,11 +29,10 @@ impl Plugin for ToolsPlugin {
     }
 
     fn finish(&self, app: &mut Application) {
-        let tool_bindings = ToolBindingManifestConfig::read_or_init()
-            .logged_err()
-            .unwrap_or_default();
+        let tool_bindings = ToolBindingManifestConfig::read_or_init_or_fallback();
 
         let bindings = tool_bindings
+            .get()
             .bindings
             .iter()
             .cloned()

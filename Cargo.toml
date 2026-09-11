@@ -86,6 +86,7 @@ lapiz_widgets = { version = "0.1.0", path = "crates/lapiz_widgets" }
 
 anyhow = "1"
 arc-swap = "1"
+async-broadcast = "0.7"
 atomicow = "1"
 bevy_color = "0.18"
 bevy_math = { version = "0.18", git = "https://github.com/443eb9/bevy.git", branch = "release-0.18.1", features = [
@@ -165,6 +166,7 @@ smol = "2"
 taffy = { version = "0.10", default-features = false, features = ["std", "taffy_tree", "flexbox"] }
 syn = "2"
 thiserror = "2"
+tempfile = "3"
 toml = "1"
 tracing = "0.1"
 unic-langid = "0.9"

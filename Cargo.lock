@@ -3349,9 +3349,14 @@ name = "lapiz_config"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
+ "async-broadcast",
  "directories",
- "lapiz_utils",
+ "futures",
+ "iced_futures",
+ "parking_lot",
  "serde",
+ "tempfile",
  "toml 1.1.5+spec-1.1.0",
 ]
 

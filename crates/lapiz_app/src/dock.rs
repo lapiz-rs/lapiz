@@ -903,9 +903,7 @@ pub enum ToolBoxDockMessage {
 
 impl ToolBoxDock {
     pub fn new() -> Self {
-        let manifest = ToolBoxManifestConfig::read_or_init()
-            .logged_err()
-            .unwrap_or_default();
+        let manifest = ToolBoxManifestConfig::read_or_init_or_fallback();
         Self { manifest }
     }
 }
@@ -925,7 +923,7 @@ impl Dock for ToolBoxDock {
         let active_tool = services
             .current_tool_proxy()
             .and_then(|proxy| proxy.current_tool());
-        let tool_button = |tool: &'a ToolId| {
+        let tool_button = |tool: &ToolId| {
             let selected = active_tool == Some(tool);
             let glyph = services
                 .service::<ToolFunctionRegistry>()
@@ -984,7 +982,8 @@ impl Dock for ToolBoxDock {
                 .into()
         };
         let mut items = Vec::new();
-        for group in &self.manifest.groups {
+        let manifest = self.manifest.get();
+        for group in &manifest.groups {
             if !items.is_empty() {
                 items.push(separator());
             }

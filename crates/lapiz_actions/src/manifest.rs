@@ -9,7 +9,7 @@ use crate::ActionId;
 
 pub type MenuBarManifestConfig = Config<MenuBarManifest>;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MenuBarManifest {
     pub categories: Vec<MenuBarCategory>,
 }
@@ -20,7 +20,7 @@ impl ConfigType for MenuBarManifest {
     const DEFAULT: &'static str = include_str!("../../../default_config/menu_bar_manifest.toml");
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MenuBarCategory {
     pub title: String,
     pub items: Vec<MenuBarItem>,

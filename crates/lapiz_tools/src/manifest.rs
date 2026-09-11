@@ -28,7 +28,7 @@ pub struct ToolBindingManifest {
 }
 
 impl ConfigType for ToolBindingManifest {
-    const NAME: &'static str = "tool_bindings.toml";
+    const NAME: &'static str = "tool_bindings.json";
 
     const DEFAULT: &'static str = include_str!("../../../default_config/tool_bindings.json");
 
@@ -43,12 +43,12 @@ impl ConfigType for ToolBindingManifest {
 
 pub type ToolBoxManifestConfig = Config<ToolBoxManifest>;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ToolBoxManifest {
     pub groups: Vec<ToolBarGroup>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ToolBarGroup {
     pub name: String,
     pub tools: Vec<ToolId>,

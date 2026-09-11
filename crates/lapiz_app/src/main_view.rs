@@ -123,7 +123,8 @@ impl MainView {
         }
 
         let mut menu_bar = MenuBar::new();
-        for category in &self.menu_manifest.categories {
+        let menu_manifest = self.menu_manifest.get();
+        for category in &menu_manifest.categories {
             menu_bar = menu_bar.menu(
                 t!(&category.title),
                 build_menu(&category.items, &self.action_collection),
@@ -209,9 +210,7 @@ impl WindowView for MainView {
     }
 
     fn boot(services: &mut Services) -> (Self, Task<Self::Message>) {
-        let action_bindings = ActionBindingManifestConfig::read_or_init()
-            .logged_err()
-            .unwrap_or_default();
+        let action_bindings = ActionBindingManifestConfig::read_or_init_or_fallback().get();
         log::info!(
             "Loading {} key bindings from manifest {}",
             action_bindings.actions.len(),
@@ -219,9 +218,7 @@ impl WindowView for MainView {
         );
         let action_collection = ActionCollection::new(&action_bindings);
 
-        let menu_manifest = MenuBarManifestConfig::read_or_init()
-            .logged_err()
-            .unwrap_or_default();
+        let menu_manifest = MenuBarManifestConfig::read_or_init_or_fallback();
 
         let (main_window, task) = window::open(window::Settings {
             decorations: false,
