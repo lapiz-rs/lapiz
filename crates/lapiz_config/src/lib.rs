@@ -27,12 +27,10 @@ pub fn resolve_config_dir(name: &str) -> PathBuf {
         PathBuf::from(dir)
     } else if let Some(dir) = BASE_DIRS.as_ref() {
         dir.config_local_dir().to_path_buf()
+    } else if let Ok(dir) = std::env::current_exe() {
+        dir.parent().unwrap().to_path_buf()
     } else {
-        std::env::current_exe()
-            .ok()
-            .and_then(|path| path.parent().map(ToOwned::to_owned))
-            .or_else(|| std::env::current_dir().ok())
-            .unwrap_or_else(|| PathBuf::from("."))
+        PathBuf::from(".")
     };
 
     config_base.join(name)
