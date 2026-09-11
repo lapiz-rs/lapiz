@@ -7,6 +7,7 @@ name = "painting"
 tools = [
     "brush_tool",
     "bucket_tool",
+    "eye_dropper_tool",
     "rectangular_selection_tool",
     "elliptical_selection_tool",
     "freehand_selection_tool",

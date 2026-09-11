@@ -5,7 +5,24 @@ publish.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
-[dependencies]
-
 [lints]
 workspace = true
+
+[dependencies]
+anyhow.workspace = true
+glam.workspace = true
+iced_core.workspace = true
+iced_runtime.workspace = true
+iced_widget.workspace = true
+lapiz_canvas.workspace = true
+lapiz_color.workspace = true
+lapiz_i18n.workspace = true
+lapiz_image.workspace = true
+lapiz_input.workspace = true
+lapiz_render.workspace = true
+lapiz_runtime.workspace = true
+lapiz_tools.workspace = true
+lapiz_utils.workspace = true
+lapiz_widgets.workspace = true
+rust-embed.workspace = true
+wgpu.workspace = true

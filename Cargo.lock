@@ -3143,6 +3143,7 @@ dependencies = [
  "lapiz_color_selector",
  "lapiz_config",
  "lapiz_dock",
+ "lapiz_eye_dropper",
  "lapiz_filter",
  "lapiz_i18n",
  "lapiz_image",
@@ -3388,6 +3389,25 @@ dependencies = [
 [[package]]
 name = "lapiz_eye_dropper"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "glam 0.30.10",
+ "iced_core",
+ "iced_runtime",
+ "iced_widget",
+ "lapiz_canvas",
+ "lapiz_color",
+ "lapiz_i18n",
+ "lapiz_image",
+ "lapiz_input",
+ "lapiz_render",
+ "lapiz_runtime",
+ "lapiz_tools",
+ "lapiz_utils",
+ "lapiz_widgets",
+ "rust-embed",
+ "wgpu",
+]
 
 [[package]]
 name = "lapiz_filter"

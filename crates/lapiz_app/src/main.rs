@@ -17,6 +17,7 @@ use lapiz_bucket_tool::BucketPlugin;
 use lapiz_canvas::CanvasPlugin;
 use lapiz_color::ColorPlugin;
 use lapiz_color_selector::ColorSelectorPlugin;
+use lapiz_eye_dropper::EyeDropperPlugin;
 use lapiz_filter::{FilterPlugin, editor::FilterEditor, panel::FilterPanel};
 use lapiz_image::ImagePlugin;
 use lapiz_input::InputPlugin;
@@ -99,6 +100,7 @@ fn main() {
         .add_plugin(BrushPlugin)
         .add_plugin(FilterPlugin)
         .add_plugin(BucketPlugin)
+        .add_plugin(EyeDropperPlugin)
         .add_plugin(SelectionPlugin)
         .add_plugin(FreeTransformPlugin)
         .add_plugin(ColorPlugin)

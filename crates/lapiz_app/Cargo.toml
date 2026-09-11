@@ -21,6 +21,7 @@ lapiz_color_selector.workspace = true
 lapiz_config.workspace = true
 lapiz_canvas.workspace = true
 lapiz_dock.workspace = true
+lapiz_eye_dropper.workspace = true
 lapiz_filter.workspace = true
 lapiz_i18n.workspace = true
 lapiz_image.workspace = true

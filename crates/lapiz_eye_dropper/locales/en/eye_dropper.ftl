@@ -1,0 +1,9 @@
+eye_dropper_tool = Eye Dropper
+sample_mode = Sample Mode
+single = Single Pixel
+average = Average
+radius = Radius
+sample_target = Sample Target
+current_layer = Current Layer
+all_layers = All Layers
+sampled_color = Sampled Color

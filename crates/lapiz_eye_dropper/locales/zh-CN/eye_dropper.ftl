@@ -1,0 +1,9 @@
+eye_dropper_tool = 滴管
+sample_mode = 采样模式
+single = 单像素
+average = 平均
+radius = 半径
+sample_target = 采样目标
+current_layer = 当前图层
+all_layers = 全部图层
+sampled_color = 已采样颜色

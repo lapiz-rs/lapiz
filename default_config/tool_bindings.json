@@ -37,6 +37,20 @@
       "tool": "bucket_tool"
     },
     {
+      "shortcut": "i",
+      "tool": "eye_dropper_tool"
+    },
+    {
+      "shortcut": "alt",
+      "tool": "eye_dropper_tool",
+      "is_temporary": true
+    },
+    {
+      "shortcut": "ctrl-alt",
+      "tool": "eye_dropper_tool",
+      "is_temporary": true
+    },
+    {
       "shortcut": "m",
       "tool": "rectangular_selection_tool"
     },
