@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::model::{oklab::OkLab, xyz::Xyz};
 
 /// OKLCh — cylindrical form of [`OkLab`].
@@ -13,7 +15,7 @@ use crate::model::{oklab::OkLab, xyz::Xyz};
 /// Like OKLab, the white point is D65 internally; chromatic adaptation
 /// from/to PCS D50 is handled transparently by the `from_xyz` / `into_xyz`
 /// methods.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct OkLch {
     /// Oklab lightness in `[0.0, 1.0]`.
     pub l: f32,

@@ -3141,6 +3141,7 @@ dependencies = [
  "lapiz_canvas",
  "lapiz_color",
  "lapiz_color_selector",
+ "lapiz_config",
  "lapiz_dock",
  "lapiz_filter",
  "lapiz_i18n",
@@ -3315,6 +3316,7 @@ dependencies = [
  "lapiz_utils",
  "moxcms",
  "parse-display",
+ "serde",
  "wesl",
  "windows",
 ]
@@ -3333,6 +3335,7 @@ dependencies = [
  "iced_wgpu",
  "iced_widget",
  "lapiz_color",
+ "lapiz_config",
  "lapiz_i18n",
  "lapiz_render",
  "lapiz_runtime",
@@ -3340,6 +3343,7 @@ dependencies = [
  "moxcms",
  "parse-display",
  "rust-embed",
+ "serde",
  "wesl",
  "wgpu",
 ]

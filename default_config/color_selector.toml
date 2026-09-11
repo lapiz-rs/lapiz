@@ -1,0 +1,175 @@
+[[configs]]
+name = "HSV"
+max_plane_size = 256
+max_planes_per_row = 1
+use_out_of_gamut_color = false
+clip_to_gamut = false
+
+[[configs.planes]]
+model = "Hsv"
+shape = "Triangle"
+variable_channels = 6
+flip_axis = ""
+rotation = 0.0
+show_primary_channel_ring = true
+primary_channel_ring_width = 24.0
+ring_bar_saturated_hue_channel = true
+ring_rotation = 3.1420002
+reversed_ring = true
+
+[[configs.bars]]
+model = "Hsv"
+channel = 0
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "Hsv"
+channel = 1
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "Hsv"
+channel = 2
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[configs.out_of_gamut_color]
+r = 0.5
+g = 0.5
+b = 0.5
+
+[[configs]]
+name = "OkLab"
+max_plane_size = 256
+max_planes_per_row = 1
+use_out_of_gamut_color = true
+clip_to_gamut = true
+
+[[configs.planes]]
+model = "OkLab"
+shape = "Square"
+variable_channels = 6
+flip_axis = ""
+rotation = 0.0
+show_primary_channel_ring = false
+primary_channel_ring_width = 24.0
+ring_bar_saturated_hue_channel = false
+ring_rotation = 0.0
+reversed_ring = false
+
+[[configs.bars]]
+model = "OkLab"
+channel = 0
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[configs.out_of_gamut_color]
+r = 0.5
+g = 0.5
+b = 0.5
+
+[[configs]]
+name = "OkHSV"
+max_plane_size = 256
+max_planes_per_row = 1
+use_out_of_gamut_color = false
+clip_to_gamut = false
+
+[[configs.planes]]
+model = "OkHsv"
+shape = "Triangle"
+variable_channels = 6
+flip_axis = ""
+rotation = 0.0
+show_primary_channel_ring = true
+primary_channel_ring_width = 24.0
+ring_bar_saturated_hue_channel = true
+ring_rotation = 3.1420002
+reversed_ring = true
+
+[[configs.bars]]
+model = "OkHsv"
+channel = 0
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "OkHsv"
+channel = 1
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "OkHsv"
+channel = 2
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "OkLch"
+channel = 0
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "OkLch"
+channel = 1
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "OkLch"
+channel = 2
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "OkHsl"
+channel = 0
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "OkHsl"
+channel = 1
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[[configs.bars]]
+model = "OkHsl"
+channel = 2
+bar_height = 20.0
+show_channel_label = true
+show_precise_spin_box = true
+show_primary_channel_lock = false
+
+[configs.out_of_gamut_color]
+r = 0.5
+g = 0.5
+b = 0.5

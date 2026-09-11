@@ -12,6 +12,7 @@ bytemuck.workspace = true
 lapiz_i18n.workspace = true
 rust-embed.workspace = true
 lapiz_color.workspace = true
+lapiz_config.workspace = true
 lapiz_render.workspace = true
 lapiz_runtime.workspace = true
 lapiz_widgets.workspace = true
@@ -23,6 +24,7 @@ iced_wgpu.workspace = true
 iced_widget.workspace = true
 moxcms.workspace = true
 parse-display.workspace = true
+serde.workspace = true
 wesl.workspace = true
 wgpu.workspace = true
 

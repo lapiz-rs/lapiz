@@ -95,7 +95,7 @@ bevy_math = { version = "0.18", git = "https://github.com/443eb9/bevy.git", bran
     "curve",
     "encase",
 ] }
-bitflags = "2"
+bitflags = { version = "2", features = ["serde"] }
 bytemuck = { version = "1", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }

@@ -1,19 +1,33 @@
 use std::f32::consts::TAU;
 
 use iced_core::{Alignment, Color, Length, Theme, text::IntoFragment};
+use lapiz_config::{Config, ConfigType};
+use lapiz_runtime::Renderer;
+
 // TODO: Re-add the color picker once it is ported or vendored into `lapiz_widgets`.
 use iced_widget::{Space, column, row, text};
 use lapiz_color::model::rgb::Rgb;
 use lapiz_i18n::{Translated, t};
-use lapiz_runtime::Renderer;
 use lapiz_widgets::{
     button::Button, checkbox::Checkbox, combo_box::ComboBox, label::Label, panel::Panel,
     radio::Radio, scrollable::Scrollable, spin_slider::SpinSlider, text_input::TextInput,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{ColorModel, GradientPlaneShape};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ColorSelectorConfigGroup {
+    pub configs: Vec<ColorSelectorConfig>,
+}
+
+impl ConfigType for ColorSelectorConfigGroup {
+    const NAME: &'static str = "color_selector.toml";
+
+    const DEFAULT: &'static str = include_str!("../../../default_config/color_selector.toml");
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColorSelectorConfig {
     pub name: String,
     pub max_plane_size: u32,
@@ -25,7 +39,7 @@ pub struct ColorSelectorConfig {
     pub clip_to_gamut: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GradientPlaneConfig {
     pub model: ColorModel,
     pub shape: GradientPlaneShape,
@@ -40,14 +54,15 @@ pub struct GradientPlaneConfig {
 }
 
 bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+    #[serde(transparent)]
     pub struct GradientPlaneFlipAxis : u8 {
         const X = 0b01;
         const Y = 0b10;
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GradientBarConfig {
     pub model: ColorModel,
     pub channel: u8,

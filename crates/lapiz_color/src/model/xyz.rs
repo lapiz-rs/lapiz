@@ -1,4 +1,5 @@
 use glam::{Mat3, Vec3};
+use serde::{Deserialize, Serialize};
 
 /// CIE 1931 XYZ tristimulus values under the D50 illuminant (ICC PCS).
 ///
@@ -11,7 +12,7 @@ use glam::{Mat3, Vec3};
 ///
 /// Chromatic adaptation between illuminants is provided via [`Xyz::cat`],
 /// which applies a Bradford transform.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Xyz {
     /// CIE X tristimulus value (relative, D50). May exceed `1.0`.
     pub x: f32,

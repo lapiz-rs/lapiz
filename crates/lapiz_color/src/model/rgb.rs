@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use moxcms::{ColorProfile, Matrix3f};
+use serde::{Deserialize, Serialize};
 
 use crate::model::xyz::Xyz;
 
@@ -16,7 +17,7 @@ use crate::model::xyz::Xyz;
 /// - **r** — linear red, `[0.0, 1.0]` for display-referenced, unbounded for scene
 /// - **g** — linear green, same range
 /// - **b** — linear blue, same range
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Rgb {
     /// Linear red component in `[0.0, 1.0]`.
     pub r: f32,

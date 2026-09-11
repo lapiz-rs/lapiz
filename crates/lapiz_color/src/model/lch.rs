@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::model::{lab::Lab, xyz::Xyz};
 
 /// CIE L\*C\*h (CIELCH) — cylindrical form of [`Lab`] under the D50 illuminant.
@@ -11,7 +13,7 @@ use crate::model::{lab::Lab, xyz::Xyz};
 ///
 /// This is a pure coordinate transform of [`Lab`]; no additional parameters
 /// are introduced. `C = √(a² + b²)`, `h = atan2(b, a)`.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Lch {
     /// CIE L* lightness in `[0.0, 100.0]`.
     pub l: f32,

@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::model::rgb::Rgb;
 
 /// HSL (hue, saturation, lightness) cylindrical representation of [`Rgb`].
@@ -8,7 +10,7 @@ use crate::model::rgb::Rgb;
 /// - **h** — hue angle in degrees `[0.0, 360.0)`
 /// - **s** — saturation in `[0.0, 1.0]`
 /// - **l** — lightness in `[0.0, 1.0]`
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Hsl {
     /// Hue angle in `[0.0, 360.0)`.
     pub h: f32,

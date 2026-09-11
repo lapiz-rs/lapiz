@@ -1,4 +1,6 @@
 #![allow(clippy::excessive_precision)]
+use serde::{Deserialize, Serialize};
+
 use crate::model::xyz::Xyz;
 
 /// OKLab perceptual color space (Björn Ottosson, 2020).
@@ -17,7 +19,7 @@ use crate::model::xyz::Xyz;
 /// - **L** — lightness, `[0.0, 1.0]`
 /// - **a** — green–red opponent axis (negative ≈ green, positive ≈ red)
 /// - **b** — blue–yellow opponent axis (negative ≈ blue, positive ≈ yellow)
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct OkLab {
     /// Oklab lightness in `[0.0, 1.0]`.
     pub l: f32,

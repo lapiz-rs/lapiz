@@ -13,6 +13,7 @@ lapiz_utils.workspace = true
 glam.workspace = true
 moxcms.workspace = true
 parse-display.workspace = true
+serde.workspace = true
 wesl.workspace = true
 
 [target.'cfg(windows)'.dependencies]

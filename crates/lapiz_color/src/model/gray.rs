@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::model::xyz::Xyz;
 
 /// A single-channel grayscale value.
@@ -7,7 +9,7 @@ use crate::model::xyz::Xyz;
 ///
 /// Gray can be interpreted as the Y channel of [`Xyz`] (luminance) for
 /// any white point, since neutral colors have X = Y = Z in relative XYZ.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Gray {
     /// Gray value in `[0.0, 1.0]`.
     pub v: f32,

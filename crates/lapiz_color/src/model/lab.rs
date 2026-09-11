@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::model::xyz::Xyz;
 
 /// CIE 1976 L\*a\*b\* (CIELAB) perceptual color space under the D50 illuminant.
@@ -12,7 +14,7 @@ use crate::model::xyz::Xyz;
 /// The conversion from XYZ normalizes by a reference white before applying
 /// the nonlinear cube-root compression. By default this is D50 ([`Xyz::D50_WHITE`]);
 /// use [`Lab::from_xyz_with`] / [`Lab::into_xyz_with`] for other illuminants.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Lab {
     /// CIE L* lightness in `[0.0, 100.0]`.
     pub l: f32,

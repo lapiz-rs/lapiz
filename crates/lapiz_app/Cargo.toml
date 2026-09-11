@@ -18,6 +18,7 @@ lapiz_brush.workspace = true
 lapiz_bucket_tool.workspace = true
 lapiz_color.workspace = true
 lapiz_color_selector.workspace = true
+lapiz_config.workspace = true
 lapiz_canvas.workspace = true
 lapiz_dock.workspace = true
 lapiz_filter.workspace = true

@@ -17,6 +17,7 @@ use lapiz_runtime::{Application, Renderer, Services, plugin::Plugin};
 use lapiz_widgets::{fluent_builder::When, radio::Radio, spin_slider::SpinSlider};
 use moxcms::ColorProfile;
 use parse_display::Display;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     config::{ColorSelectorConfig, GradientBarConfig, GradientPlaneConfig},
@@ -42,7 +43,7 @@ impl Plugin for ColorSelectorPlugin {
 
 const GRADIENT_RING_GAP: f32 = 5.0;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[display(style = "snake_case")]
 #[repr(u32)]
 pub enum GradientPlaneShape {
@@ -50,7 +51,7 @@ pub enum GradientPlaneShape {
     Triangle,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[repr(u32)]
 pub enum ColorModel {
     #[display("Gray")]

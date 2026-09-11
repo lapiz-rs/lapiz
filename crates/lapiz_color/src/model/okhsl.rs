@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::model::{
     okcolor::{ChromaValues, toe, toe_inv},
     oklab::OkLab,
@@ -18,7 +20,7 @@ use crate::model::{
 ///
 /// Like OKLab, the white point is D65 internally; chromatic adaptation
 /// from/to PCS D50 is handled transparently via [`OkLab`].
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct OkHsl {
     /// Hue angle in `[0.0, 360.0)`.
     pub h: f32,
