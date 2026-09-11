@@ -3391,6 +3391,7 @@ name = "lapiz_eye_dropper"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "glam 0.30.10",
  "iced_core",
  "iced_runtime",

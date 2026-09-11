@@ -1,24 +1,24 @@
-use std::future::Future;
+use std::{collections::HashMap, sync::Arc};
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
+use async_trait::async_trait;
 use glam::{IVec2, Vec2};
 use iced_core::{Background, Element, Length, Theme, keyboard::Modifiers};
 use iced_runtime::Task;
 use iced_widget::{Space, container, row};
-use lapiz_canvas::CanvasAppExt;
-use lapiz_color::{
-    Color, ForegroundBackgroundColorExt, ForegroundColorChanged,
-    model::{gray::Gray, rgb::Rgb},
-};
+use lapiz_canvas::{CanvasAppExt, CanvasId};
+use lapiz_color::{Color, ForegroundBackgroundColorExt, ForegroundColorChanged, model::rgb::Rgb};
 use lapiz_i18n::t;
 use lapiz_image::{
-    layer::{LayerId, properties::LayerTexelTypePropertyExt},
-    texel::TexelFormat,
+    CImage,
+    layer::{Layer, LayerId, pixel_layer::PixelLayer, properties::LayerTexelTypePropertyExt},
     tile::{GpuTileStorage, TileStorageAppExt},
 };
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
 use lapiz_render::render_context::RenderContextAppExt;
-use lapiz_runtime::{Application, Renderer, Services, event::Event, plugin::Plugin};
+use lapiz_runtime::{
+    Application, Renderer, Services, event::Event, plugin::Plugin, service::Service,
+};
 use lapiz_tools::{ToolFunction, ToolId, ToolsAppExt};
 use lapiz_utils::log_err::LogErr;
 use lapiz_widgets::{
@@ -27,7 +27,57 @@ use lapiz_widgets::{
 };
 use wgpu::{Device, Queue};
 
+use crate::builtin::PixelLayerEyeDropperTarget;
+
+pub mod builtin;
+
 lapiz_i18n::define_i18n!("eye_dropper");
+
+pub struct EyeDropperPlugin;
+
+impl Plugin for EyeDropperPlugin {
+    fn build(&self, app: &mut Application) {
+        i18n::init();
+        app.runtime_mut()
+            .services_mut()
+            .add_tool_function::<EyeDropperTool>();
+
+        let mut registry = EyeDropperTargetRegistry::default();
+        registry.register::<PixelLayer, PixelLayerEyeDropperTarget>();
+        app.runtime_mut().services_mut().insert_service(registry);
+    }
+}
+
+#[async_trait]
+pub trait EyeDropperTarget: Send + Sync + 'static {
+    async fn sample(
+        &self,
+        layer_id: LayerId,
+        pixel: IVec2,
+        mode: EyeDropperSampleMode,
+        tiles: &GpuTileStorage,
+        device: &Device,
+        queue: &Queue,
+    ) -> Result<Color>;
+}
+
+#[derive(Default)]
+pub struct EyeDropperTargetRegistry {
+    inner: HashMap<u32, Arc<dyn EyeDropperTarget>>,
+}
+
+impl Service for EyeDropperTargetRegistry {}
+
+impl EyeDropperTargetRegistry {
+    pub fn register<L: Layer + Default, T: EyeDropperTarget + Default>(&mut self) {
+        self.inner
+            .insert(L::default().layer_type(), Arc::new(T::default()));
+    }
+
+    pub fn get(&self, layer: &dyn Layer) -> Option<Arc<dyn EyeDropperTarget>> {
+        self.inner.get(&layer.layer_type()).cloned()
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EyeDropperSampleMode {
@@ -41,107 +91,9 @@ pub enum EyeDropperTargetMode {
     Merged,
 }
 
-pub trait EyeDropperTarget: Send + 'static {
-    fn sample(
-        &self,
-        pixel: IVec2,
-        mode: EyeDropperSampleMode,
-        tiles: &GpuTileStorage,
-        device: &Device,
-        queue: &Queue,
-    ) -> impl Future<Output = Result<Color>> + Send;
-}
-
-struct StoredLayerTarget {
-    layer_id: LayerId,
-}
-
-impl StoredLayerTarget {
-    fn new(layer_id: LayerId) -> Self {
-        Self { layer_id }
-    }
-}
-
-impl EyeDropperTarget for StoredLayerTarget {
-    async fn sample(
-        &self,
-        pixel: IVec2,
-        mode: EyeDropperSampleMode,
-        tiles: &GpuTileStorage,
-        device: &Device,
-        queue: &Queue,
-    ) -> Result<Color> {
-        let radius = match mode {
-            EyeDropperSampleMode::Single => 0,
-            EyeDropperSampleMode::Average { radius } => radius as i32,
-        };
-        let min = pixel - IVec2::splat(radius);
-        let max = pixel + IVec2::splat(radius) + IVec2::ONE;
-        let tile_size = IVec2::splat(GpuTileStorage::TILE_SIZE as i32);
-        let min_tile = min.div_euclid(tile_size);
-        let max_tile = (max - IVec2::ONE).div_euclid(tile_size);
-        let requested_tiles = (min_tile.y..=max_tile.y)
-            .flat_map(|y| (min_tile.x..=max_tile.x).map(move |x| IVec2::new(x, y)));
-
-        let layer = tiles
-            .get_layer(self.layer_id)
-            .ok_or_else(|| anyhow!("Eye dropper target layer {} is unavailable", self.layer_id))?;
-        let texel_type = layer.layer_info().texel_type;
-        let buffers = layer.readback(device, queue, requested_tiles).await?;
-        drop(layer);
-
-        let mut sum = [0.0; 3];
-        let mut count = 0;
-        for y in min.y..max.y {
-            for x in min.x..max.x {
-                let position = IVec2::new(x, y);
-                let tile = position.div_euclid(tile_size);
-                if let Some(buffer) = buffers.get(&tile) {
-                    let local = position - tile * tile_size;
-                    let pixel_index =
-                        (local.y as u32 * GpuTileStorage::TILE_SIZE + local.x as u32) as usize;
-                    match texel_type.format {
-                        TexelFormat::Alpha => {
-                            sum[0] += texel_type.get_channel_as_f32(buffer, pixel_index, 0);
-                        }
-                        TexelFormat::Rgba => {
-                            for (channel, value) in sum.iter_mut().enumerate() {
-                                *value += texel_type.get_channel_as_f32(
-                                    buffer,
-                                    pixel_index,
-                                    channel as u32,
-                                );
-                            }
-                        }
-                    }
-                }
-                count += 1;
-            }
-        }
-
-        let scale = 1.0 / count as f32;
-        Ok(match texel_type.format {
-            TexelFormat::Alpha => Color::Gray(Gray::new(sum[0] * scale)),
-            TexelFormat::Rgba => {
-                Color::Rgb(Rgb::new(sum[0] * scale, sum[1] * scale, sum[2] * scale))
-            }
-        })
-    }
-}
-
-pub struct EyeDropperPlugin;
-
-impl Plugin for EyeDropperPlugin {
-    fn build(&self, app: &mut Application) {
-        i18n::init();
-        app.runtime_mut()
-            .services_mut()
-            .add_tool_function::<EyeDropperTool>();
-    }
-}
-
 #[derive(Clone, Copy)]
 struct SampleRequest {
+    canvas_id: CanvasId,
     layer_id: LayerId,
     pixel: IVec2,
     mode: EyeDropperSampleMode,
@@ -214,6 +166,7 @@ impl EyeDropperTool {
         };
 
         let request = SampleRequest {
+            canvas_id: canvas.id(),
             layer_id,
             pixel: position.as_ivec2(),
             mode: self.sample_mode,
@@ -222,25 +175,41 @@ impl EyeDropperTool {
             self.pending_sample = Some(request);
             Task::none()
         } else {
-            self.start_sample(request, services)
+            self.start_sample(request, &canvas.image, services)
         }
     }
 
     fn start_sample(
         &mut self,
         request: SampleRequest,
+        image: &CImage,
         services: &Services,
     ) -> Task<EyeDropperToolMessage> {
-        self.sample_in_flight = true;
-        let target = StoredLayerTarget::new(request.layer_id);
+        let registry = services.service::<EyeDropperTargetRegistry>();
+        let layer = image.layer_stack().get_layer(&request.layer_id).unwrap();
+        let Some(target) = registry.get(layer.instance()) else {
+            dbg!();
+            return Task::none();
+        };
+
+        dbg!();
         let tiles = services.tile_storage().clone();
         let device = services.render_device().clone();
         let queue = services.render_queue().clone();
 
+        self.sample_in_flight = true;
+
         Task::future(async move {
             EyeDropperToolMessage::Sampled(
                 target
-                    .sample(request.pixel, request.mode, &tiles, &device, &queue)
+                    .sample(
+                        request.layer_id,
+                        request.pixel,
+                        request.mode,
+                        &tiles,
+                        &device,
+                        &queue,
+                    )
                     .await
                     .map_err(|error| error.to_string()),
             )
@@ -297,8 +266,10 @@ impl ToolFunction for EyeDropperTool {
                     self.sampled_color = Some(color);
                 }
 
-                if let Some(pending) = self.pending_sample.take() {
-                    return self.start_sample(pending, services);
+                if let Some(pending) = self.pending_sample.take()
+                    && let Some(canvas) = services.canvas(&pending.canvas_id)
+                {
+                    return self.start_sample(pending, &canvas.image, services);
                 }
             }
         }

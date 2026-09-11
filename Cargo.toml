@@ -87,6 +87,7 @@ lapiz_utils_derive = { version = "0.1.0", path = "crates/lapiz_utils_derive" }
 lapiz_widgets = { version = "0.1.0", path = "crates/lapiz_widgets" }
 
 anyhow = "1"
+async-trait = "0.1"
 arc-swap = "1"
 async-broadcast = "0.7"
 atomicow = "1"
