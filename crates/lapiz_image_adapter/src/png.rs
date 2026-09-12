@@ -148,6 +148,7 @@ impl ImageFormatAdapter for PngAdapter {
         Task::none()
     }
 
+    #[tracing::instrument(skip_all)]
     async fn export(&self, services: &Services, path: &Path) -> Result<()> {
         let rgba = pixels::readback_root_layer(services).await?;
         let file = std::fs::File::create(path)?;

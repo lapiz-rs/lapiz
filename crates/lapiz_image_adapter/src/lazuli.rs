@@ -36,6 +36,7 @@ impl ImageFormatAdapter for LazuliAdapter {
         Task::none()
     }
 
+    #[tracing::instrument(skip_all)]
     async fn export(&self, services: &Services, path: &Path) -> Result<()> {
         let canvas = services
             .current_canvas()

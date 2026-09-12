@@ -29,4 +29,5 @@ log.workspace = true
 parse-display.workspace = true
 serde.workspace = true
 toml.workspace = true
+tracing.workspace = true
 rust-embed.workspace = true
