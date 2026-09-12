@@ -1,6 +1,6 @@
 use std::{any::Any, collections::HashMap, rc::Rc, sync::Arc};
 
-use iced_core::{Element, Theme};
+use iced_core::{Element, Length, Theme};
 use iced_runtime::{Task, futures::Subscription};
 use iced_widget::{Stack, space};
 use lapiz_input::{
@@ -553,7 +553,7 @@ impl ToolProxy {
             );
         }
 
-        overlays.into()
+        overlays.width(Length::Fill).height(Length::Fill).into()
     }
 
     pub fn subscription(&self) -> Option<Subscription<ErasedToolFunctionMessage>> {
