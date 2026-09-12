@@ -403,7 +403,20 @@ impl WindowView for MainView {
                 .update(m, services)
                 .map(MainViewMessage::Dock),
             MainViewMessage::WindowEvent(id, event) => {
-                self.dock_manager.on_window_event(id, event).discard()
+                let unfocused = matches!(event, window::Event::Unfocused);
+                let window_task = self.dock_manager.on_window_event(id, event).discard();
+                if !unfocused {
+                    return window_task;
+                }
+
+                services.service_mut::<KeyboardState>().clear();
+                let tool_task = services
+                    .update_current_tool_proxy(|tool_proxy, services| {
+                        tool_proxy.switch_override_tool(None, services)
+                    })
+                    .unwrap_or_else(Task::none)
+                    .map(MainViewMessage::ToolFunctionMessage);
+                Task::batch([window_task, tool_task])
             }
 
             MainViewMessage::KeyboardEvent(_window, event) => {

@@ -20,6 +20,11 @@ impl KeyboardState {
         self.pressed.retain(|&mut c| c != key);
     }
 
+    pub fn clear(&mut self) {
+        self.pressed.clear();
+        self.modifiers = Modifiers::empty();
+    }
+
     pub fn set_modifiers(&mut self, modifiers: Modifiers) {
         self.modifiers = modifiers;
     }
@@ -314,6 +319,29 @@ fn parse_key_name(name: &str) -> Option<key::Code> {
         "f12" => key::Code::F12,
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{KeySequence, KeyboardState};
+    use iced_core::keyboard::{Modifiers, key};
+
+    #[test]
+    fn clearing_removes_pressed_keys_and_modifiers() {
+        let mut state = KeyboardState::default();
+        state.press(key::Code::KeyO);
+        state.set_modifiers(Modifiers::ALT);
+
+        state.clear();
+
+        assert_eq!(
+            state.get_sequence(),
+            KeySequence {
+                key: None,
+                modifiers: Modifiers::empty(),
+            }
+        );
+    }
 }
 
 fn key_name(code: key::Code) -> &'static str {
