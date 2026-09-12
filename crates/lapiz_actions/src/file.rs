@@ -1,13 +1,22 @@
-use std::path::PathBuf;
+use std::{ffi::OsStr, path::PathBuf};
 
 use iced_runtime::Task;
 use lapiz_canvas::{CCanvas, CanvasAppExt, event::CanvasCreated};
+use lapiz_config::Config;
 use lapiz_image::{
     CImage,
     texel::TexelType,
     tile::{GpuLayerInfo, TileStorageAppExt},
 };
-use lapiz_runtime::{Services, event::Event};
+use lapiz_image_adapter::{
+    EXPORT_DIALOG_VIEW_ID, ImageAdapterConfig, ImageFormatAdapterRegistry, PendingExport,
+    SilentSaveCanvases,
+};
+use lapiz_runtime::{
+    Services,
+    event::Event,
+    windows::{OpenWindowViewCommand, WindowCommandBuffer, WindowViewId},
+};
 use lapiz_tools::{ToolFunctionRegistry, ToolProxies, ToolProxy};
 use lapiz_undo::{UndoStack, UndoStacks};
 use lapiz_utils::log_err::LogErr;
@@ -79,7 +88,7 @@ impl ActionFunction for OpenFileAction {
         tiles.declare_layer(
             canvas.image.selection_layer(),
             GpuLayerInfo {
-                // TODO This should change when image depth is not 8 bit
+                // TODO This will change when image depth is not 8 bit
                 texel_type: TexelType::A8,
             },
         );
@@ -105,20 +114,120 @@ impl ActionFunction for SaveFileAction {
         let Some(canvas_id) = services.current_canvas_id() else {
             return Task::none();
         };
-        services.update_canvas(&canvas_id, |canvas, services| {
-            if canvas.archive.path().is_none()
-                && canvas
-                    .set_file_path(canvas.file_path().with_extension("lazuli"))
-                    .logged_err()
-                    .is_err()
-            {
-                return;
-            }
+        let Some(path) = services
+            .canvas(&canvas_id)
+            .map(|canvas| canvas.file_path().clone())
+        else {
+            return Task::none();
+        };
 
-            // TODO nonononono use async
-            futures::executor::block_on(canvas.image.write_archive(&canvas.archive, services))
-                .log_err()
-        });
+        // TODO incremental saving for lazuli file. Saving should happen at every canvas command.
+
+        start_export(services, true, path);
         Task::none()
+    }
+}
+
+#[derive(Default)]
+pub struct ExportFileAction;
+
+pub enum ExportFileMessage {
+    PathChosen(Option<PathBuf>),
+}
+
+impl ActionFunction for ExportFileAction {
+    type Message = ExportFileMessage;
+
+    fn id(&self) -> ActionId {
+        ActionId::new("export_file_action".into())
+    }
+
+    fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
+        let Some(canvas) = services.current_canvas() else {
+            return Task::none();
+        };
+        let file_name = canvas
+            .file_path()
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned());
+
+        let mut dialog = AsyncFileDialog::new();
+        for format in services
+            .service::<ImageFormatAdapterRegistry>()
+            .iter_formats()
+        {
+            let mut extensions = vec![format.extension];
+            extensions.extend(format.aliases);
+            dialog = dialog.add_filter(&format.description, &extensions);
+        }
+        if let Some(file_name) = file_name {
+            dialog = dialog.set_file_name(file_name);
+        }
+
+        Task::future(async move {
+            ExportFileMessage::PathChosen(
+                dialog
+                    .save_file()
+                    .await
+                    .map(|file| file.path().to_path_buf()),
+            )
+        })
+    }
+
+    fn handle_message(
+        &self,
+        message: Self::Message,
+        services: &mut Services,
+    ) -> Task<Self::Message> {
+        let ExportFileMessage::PathChosen(Some(path)) = message else {
+            return Task::none();
+        };
+        start_export(services, false, path);
+        Task::none()
+    }
+}
+
+fn start_export(services: &mut Services, allow_silent_export: bool, path: PathBuf) {
+    let Some(canvas) = services.current_canvas() else {
+        return;
+    };
+    let Some(path_extension) = path.extension().and_then(OsStr::to_str) else {
+        return;
+    };
+
+    let adapters = services.service::<ImageFormatAdapterRegistry>();
+    let Some(extension) = adapters.find_extension(path_extension) else {
+        log::warn!(
+            "No image format adapter matches {}, cannot export",
+            path.display()
+        );
+        return;
+    };
+
+    let config = Config::<ImageAdapterConfig>::read_or_init_or_fallback();
+    let Some(adapter) = adapters.create_with_saved_settings(extension, &config.get()) else {
+        return;
+    };
+
+    let can_silent_export = services
+        .service::<SilentSaveCanvases>()
+        .contains(canvas.id());
+    if adapter.has_export_options() && !(allow_silent_export && can_silent_export) {
+        // This is consumed by the export dialog view.
+        // TODO: use more reliable param passing
+        services.insert_service(PendingExport {
+            path,
+            allow_silent_export,
+            canvas_id: canvas.id(),
+        });
+
+        services
+            .service_mut::<WindowCommandBuffer>()
+            .push(OpenWindowViewCommand::new(WindowViewId::new(
+                EXPORT_DIALOG_VIEW_ID,
+            )));
+    } else {
+        // TODO nonononono use async
+        futures::executor::block_on(adapter.export(services, &path)).log_err();
     }
 }

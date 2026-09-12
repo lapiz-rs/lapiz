@@ -25,6 +25,7 @@ lapiz_eye_dropper.workspace = true
 lapiz_filter.workspace = true
 lapiz_i18n.workspace = true
 lapiz_image.workspace = true
+lapiz_image_adapter.workspace = true
 lapiz_input.workspace = true
 lapiz_render.workspace = true
 lapiz_runtime.workspace = true

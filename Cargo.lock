@@ -3092,7 +3092,9 @@ dependencies = [
  "lapiz_config",
  "lapiz_i18n",
  "lapiz_image",
+ "lapiz_image_adapter",
  "lapiz_input",
+ "lapiz_lazuli",
  "lapiz_render",
  "lapiz_runtime",
  "lapiz_tools",
@@ -3147,6 +3149,7 @@ dependencies = [
  "lapiz_filter",
  "lapiz_i18n",
  "lapiz_image",
+ "lapiz_image_adapter",
  "lapiz_input",
  "lapiz_render",
  "lapiz_runtime",
@@ -3510,6 +3513,33 @@ dependencies = [
  "uuid",
  "wesl",
  "wgpu",
+]
+
+[[package]]
+name = "lapiz_image_adapter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "iced_core",
+ "iced_futures",
+ "iced_runtime",
+ "iced_widget",
+ "image",
+ "lapiz_canvas",
+ "lapiz_config",
+ "lapiz_i18n",
+ "lapiz_image",
+ "lapiz_lazuli",
+ "lapiz_render",
+ "lapiz_runtime",
+ "lapiz_utils",
+ "lapiz_widgets",
+ "log",
+ "parse-display",
+ "rust-embed",
+ "serde",
+ "toml 1.1.5+spec-1.1.0",
 ]
 
 [[package]]

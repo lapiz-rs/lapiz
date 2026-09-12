@@ -7,6 +7,7 @@ menu_window = Window
 
 open_file_action = Open
 save_file_action = Save
+export_file_action = Export
 undo_action = Undo
 redo_action = Redo
 paste_into_new_layer_action = Paste as New Layer

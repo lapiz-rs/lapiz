@@ -20,6 +20,7 @@ use lapiz_color_selector::ColorSelectorPlugin;
 use lapiz_eye_dropper::EyeDropperPlugin;
 use lapiz_filter::{FilterPlugin, editor::FilterEditor, panel::FilterPanel};
 use lapiz_image::ImagePlugin;
+use lapiz_image_adapter::{ExportDialogView, ImageAdapterPlugin};
 use lapiz_input::InputPlugin;
 use lapiz_render::RenderPlugin;
 use lapiz_runtime::{Application, windows::WindowCommandBuffer};
@@ -105,7 +106,8 @@ fn main() {
         .add_plugin(FreeTransformPlugin)
         .add_plugin(ColorPlugin)
         .add_plugin(ActionPlugin)
-        .add_plugin(ColorSelectorPlugin);
+        .add_plugin(ColorSelectorPlugin)
+        .add_plugin(ImageAdapterPlugin);
     app.build_plugins();
 
     {
@@ -116,6 +118,7 @@ fn main() {
         rt.window_manager_mut().register_view::<BrushEditor>();
         rt.window_manager_mut().register_view::<FilterPanel>();
         rt.window_manager_mut().register_view::<FilterEditor>();
+        rt.window_manager_mut().register_view::<ExportDialogView>();
     }
 
     lapiz_i18n::init();

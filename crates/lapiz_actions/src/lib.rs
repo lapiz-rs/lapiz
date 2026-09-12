@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     edit::{PasteIntoNewLayerAction, RedoAction, UndoAction},
-    file::{OpenFileAction, SaveFileAction},
+    file::{ExportFileAction, OpenFileAction, SaveFileAction},
     layer::{
         CreateNewLayerAction, DeleteSelectedLayersAction, GroupSelectedLayersAction,
         MoveLayerDownAction, MoveLayerUpAction, SelectNextLayerAction, SelectPreviousLayerAction,
@@ -40,6 +40,7 @@ impl Plugin for ActionPlugin {
             .add_action_function::<DeleteSelectionAction>()
             .add_action_function::<OpenFileAction>()
             .add_action_function::<SaveFileAction>()
+            .add_action_function::<ExportFileAction>()
             .add_action_function::<CreateNewLayerAction>()
             .add_action_function::<MoveLayerUpAction>()
             .add_action_function::<MoveLayerDownAction>()

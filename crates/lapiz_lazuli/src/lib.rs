@@ -16,6 +16,7 @@ pub use image_props::ImageProperties;
 pub use layer_tree::LayerNode;
 pub use metadata::Metadata;
 
+pub const EXTENSION: &str = "lazuli";
 pub const VERSION: u32 = 0;
 
 struct Inner {

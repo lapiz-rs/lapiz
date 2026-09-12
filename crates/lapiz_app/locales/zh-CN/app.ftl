@@ -7,6 +7,7 @@ menu_window = 窗口
 
 open_file_action = 打开
 save_file_action = 保存
+export_file_action = 导出
 undo_action = 撤销
 redo_action = 重做
 paste_into_new_layer_action = 粘贴为新图层

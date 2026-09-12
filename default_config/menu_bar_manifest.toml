@@ -4,6 +4,7 @@ items = [
     "open_file_action",
     "Separator",
     "save_file_action",
+    "export_file_action",
 ]
 
 [[categories]]

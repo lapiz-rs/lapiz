@@ -73,6 +73,11 @@
       "shortcut": "ctrl-s",
       "action_name": "save_file_action",
       "context": "main_view"
+    },
+    {
+      "shortcut": "ctrl-shift-e",
+      "action_name": "export_file_action",
+      "context": "main_view"
     }
   ]
 }
