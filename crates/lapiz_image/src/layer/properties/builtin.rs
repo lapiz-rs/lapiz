@@ -1,5 +1,6 @@
 use anyhow::Result;
 use lapiz_utils::wrapper;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     blend_modes::BlendMode,
@@ -322,11 +323,25 @@ impl LockedChannelsProp {
     }
 }
 
-wrapper! {
-    #[derive(Debug, Clone, Copy)]
-    pub LayerTexelTypeProp : TexelType
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TexelSource {
+    Generated,
+    DirectlyDefined,
 }
-impl LayerProperty for LayerTexelTypeProp {
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct LayerTexelProp {
+    pub ty: TexelType,
+    pub source: TexelSource,
+}
+
+impl LayerTexelProp {
+    pub fn new(ty: TexelType, source: TexelSource) -> Self {
+        Self { ty, source }
+    }
+}
+
+impl LayerProperty for LayerTexelProp {
     fn ident() -> &'static str
     where
         Self: Sized,
@@ -334,20 +349,28 @@ impl LayerProperty for LayerTexelTypeProp {
         "texel_type"
     }
     fn encode(&self) -> Result<Vec<u8>> {
-        Ok(rmp_serde::to_vec(&self.0)?)
+        Ok(rmp_serde::to_vec(self)?)
     }
     fn decode(data: &[u8]) -> Result<Self>
     where
         Self: Sized,
     {
-        Ok(Self(rmp_serde::from_slice(data)?))
+        Ok(rmp_serde::from_slice(data)?)
     }
 }
 pub trait LayerTexelTypePropertyExt {
+    fn get_texel_prop(&self) -> Option<LayerTexelProp>;
     fn get_texel_type(&self) -> Option<TexelType>;
+    fn get_texel_source(&self) -> Option<TexelSource>;
 }
 impl LayerTexelTypePropertyExt for LayerProperties {
+    fn get_texel_prop(&self) -> Option<LayerTexelProp> {
+        self.get::<LayerTexelProp>().cloned()
+    }
     fn get_texel_type(&self) -> Option<TexelType> {
-        self.get::<LayerTexelTypeProp>().map(|prop| prop.0)
+        self.get_texel_prop().map(|prop| prop.ty)
+    }
+    fn get_texel_source(&self) -> Option<TexelSource> {
+        self.get_texel_prop().map(|prop| prop.source)
     }
 }

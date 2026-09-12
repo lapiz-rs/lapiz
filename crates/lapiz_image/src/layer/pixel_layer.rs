@@ -30,9 +30,9 @@ use crate::{
         properties::{
             BlendFunctionProp, BlendFunctionPropertyExt, DisabledChannelsProp,
             DisabledChannelsPropertyExt, EncodedLayerProperties, HasLayerProperties,
-            LayerProperties, LayerPropertiesDeclaration, LayerTexelTypeProp, LockedChannelsProp,
-            LockedProp, NameProp, NamePropertyExt, OpacityProp, OpacityPropertyExt, VisibleProp,
-            VisiblePropertyExt,
+            LayerProperties, LayerPropertiesDeclaration, LayerTexelProp, LockedChannelsProp,
+            LockedProp, NameProp, NamePropertyExt, OpacityProp, OpacityPropertyExt, TexelSource,
+            VisibleProp, VisiblePropertyExt,
         },
     },
     texel::TexelType,
@@ -367,7 +367,10 @@ impl HasLayerProperties for PixelLayer {
         decl.create_default::<LockedProp>();
         decl.create_default::<LockedChannelsProp>();
         decl.create_default::<DisabledChannelsProp>();
-        decl.create(LayerTexelTypeProp(TexelType::RGBA8));
+        decl.create(LayerTexelProp::new(
+            TexelType::RGBA8,
+            TexelSource::DirectlyDefined,
+        ));
         decl
     }
 
@@ -380,7 +383,7 @@ impl HasLayerProperties for PixelLayer {
         data.decode::<LockedProp>(&mut decl)?;
         data.decode::<LockedChannelsProp>(&mut decl)?;
         data.decode::<DisabledChannelsProp>(&mut decl)?;
-        data.decode::<LayerTexelTypeProp>(&mut decl)?;
+        data.decode::<LayerTexelProp>(&mut decl)?;
         Ok(decl)
     }
 }

@@ -28,10 +28,11 @@ use crate::{
         properties::{
             BlendFunctionProp, BlendFunctionPropertyExt, DisabledChannelsProp,
             DisabledChannelsPropertyExt, EncodedLayerProperties, HasLayerProperties,
-            LayerPropertiesDeclaration, LockedProp, NameProp, OpacityProp, OpacityPropertyExt,
-            VisibleProp, VisiblePropertyExt,
+            LayerPropertiesDeclaration, LayerTexelProp, LockedProp, NameProp, OpacityProp,
+            OpacityPropertyExt, TexelSource, VisibleProp, VisiblePropertyExt,
         },
     },
+    texel::TexelType,
     tile::{GpuTileInfo, GpuTileStorage, LayerBinding},
 };
 
@@ -314,6 +315,10 @@ impl HasLayerProperties for GroupLayer {
         decl.create_default::<OpacityProp>();
         decl.create_default::<LockedProp>();
         decl.create_default::<DisabledChannelsProp>();
+        decl.create(LayerTexelProp::new(
+            TexelType::RGBA8,
+            TexelSource::Generated,
+        ));
         decl
     }
 

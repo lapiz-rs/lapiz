@@ -12,7 +12,10 @@ use lapiz_canvas::{CanvasAppExt, CanvasId};
 use lapiz_color::ForegroundBackgroundColorExt;
 use lapiz_image::{
     composite::PixelPreviewOverrider,
-    layer::{LayerId, properties::LayerTexelTypeProp},
+    layer::{
+        LayerId,
+        properties::{LayerTexelProp, LayerTexelTypePropertyExt, TexelSource},
+    },
     scan_pixels::ScanPixelsPipeline,
     texel::TexelType,
     tile::{DynamicLayerStorage, GpuLayerInfo, GpuTileStorage, LayerBinding, TileStorageAppExt},
@@ -128,7 +131,8 @@ impl CanvasBrushPresetOperator {
         if !canvas
             .active_layer_node()
             .properties()
-            .contains::<LayerTexelTypeProp>()
+            .get_texel_prop()
+            .is_some_and(|p| p.source == TexelSource::DirectlyDefined)
         {
             log::warn!("Unable to paint to the active layer which cannot contain pixels.");
             return Task::none();
