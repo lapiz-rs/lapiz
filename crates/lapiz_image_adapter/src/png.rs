@@ -7,9 +7,12 @@ use image::{
     ExtendedColorType, ImageEncoder,
     codecs::png::{CompressionType, FilterType, PngEncoder},
 };
+use lapiz_canvas::CCanvas;
 use lapiz_i18n::{Translated, t};
+use lapiz_image::tile::TileStorageAppExt;
+use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::{Renderer, Services};
-use lapiz_widgets::{combo_box::ComboBox, form::Form};
+use lapiz_widgets::{checkbox::Checkbox, combo_box::ComboBox, form::Form};
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +38,8 @@ const FILTERS: [PngFilter; 6] = [
 pub struct PngAdapter {
     compression: PngCompression,
     filter: PngFilter,
+    #[serde(default = "crate::default_embed_profile")]
+    embed_profile: bool,
 }
 
 impl Default for PngAdapter {
@@ -42,6 +47,7 @@ impl Default for PngAdapter {
         Self {
             compression: PngCompression::Default,
             filter: PngFilter::Adaptive,
+            embed_profile: true,
         }
     }
 }
@@ -102,6 +108,7 @@ impl From<PngFilter> for FilterType {
 pub enum PngExportMessage {
     CompressionChanged(PngCompression),
     FilterChanged(PngFilter),
+    EmbedProfileToggled(bool),
 }
 
 impl ImageFormatAdapter for PngAdapter {
@@ -133,6 +140,10 @@ impl ImageFormatAdapter for PngAdapter {
                     |option| PngExportMessage::FilterChanged(option.into_inner()),
                 ),
             )
+            .push(
+                t!("embed_icc_profile"),
+                Checkbox::new(self.embed_profile).on_toggle(PngExportMessage::EmbedProfileToggled),
+            )
             .into()
     }
 
@@ -144,21 +155,32 @@ impl ImageFormatAdapter for PngAdapter {
         match message {
             PngExportMessage::CompressionChanged(compression) => self.compression = compression,
             PngExportMessage::FilterChanged(filter) => self.filter = filter,
+            PngExportMessage::EmbedProfileToggled(checked) => self.embed_profile = checked,
         }
         Task::none()
     }
 
     #[tracing::instrument(skip_all)]
-    async fn export(&self, services: &Services, path: &Path) -> Result<()> {
-        let rgba = pixels::readback_root_layer(services).await?;
+    async fn export(&self, services: &Services, canvas: &CCanvas, path: &Path) -> Result<()> {
+        let rgba = pixels::readback_root_layer(
+            canvas,
+            services.tile_storage(),
+            services.render_device(),
+            services.render_queue(),
+        )
+        .await?;
         let file = std::fs::File::create(path)?;
-        PngEncoder::new_with_quality(file, self.compression.into(), self.filter.into())
-            .write_image(
-                rgba.as_raw(),
-                rgba.width(),
-                rgba.height(),
-                ExtendedColorType::Rgba8,
-            )?;
+        let mut encoder =
+            PngEncoder::new_with_quality(file, self.compression.into(), self.filter.into());
+        if self.embed_profile {
+            encoder.set_icc_profile(canvas.image.profile().encode()?)?;
+        }
+        encoder.write_image(
+            rgba.as_raw(),
+            rgba.width(),
+            rgba.height(),
+            ExtendedColorType::Rgba8,
+        )?;
         Ok(())
     }
 

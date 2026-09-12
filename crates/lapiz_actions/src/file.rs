@@ -12,6 +12,7 @@ use lapiz_image_adapter::{
     EXPORT_DIALOG_VIEW_ID, ImageAdapterConfig, ImageFormatAdapterRegistry, PendingExport,
     SilentSaveCanvases,
 };
+use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::{
     Services,
     event::Event,
@@ -228,6 +229,6 @@ fn start_export(services: &mut Services, allow_silent_export: bool, path: PathBu
             )));
     } else {
         // TODO nonononono use async
-        futures::executor::block_on(adapter.export(services, &path)).log_err();
+        futures::executor::block_on(adapter.export(services, canvas, &path)).log_err();
     }
 }

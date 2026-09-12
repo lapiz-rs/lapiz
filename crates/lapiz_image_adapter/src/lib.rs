@@ -9,7 +9,7 @@ use std::{
 use anyhow::Result;
 use iced_core::Element;
 use iced_runtime::Task;
-use lapiz_canvas::CanvasId;
+use lapiz_canvas::{CCanvas, CanvasId};
 use lapiz_runtime::{Renderer, Services, Theme, plugin::Plugin, service::Service};
 
 lapiz_i18n::define_i18n!("image_adapter");
@@ -46,6 +46,10 @@ impl Plugin for ImageAdapterPlugin {
 
 pub type ErasedExportDialogMessage = Box<dyn Any + Send>;
 
+pub(crate) fn default_embed_profile() -> bool {
+    true
+}
+
 pub trait ImageFormatAdapter: 'static {
     type ExportDialogMessage: Send + 'static;
 
@@ -73,7 +77,7 @@ pub trait ImageFormatAdapter: 'static {
     ) -> Task<Self::ExportDialogMessage>;
 
     #[allow(async_fn_in_trait)]
-    async fn export(&self, services: &Services, path: &Path) -> Result<()>;
+    async fn export(&self, services: &Services, canvas: &CCanvas, path: &Path) -> Result<()>;
 
     fn to_toml(&self) -> Result<toml::Value>;
 
@@ -102,6 +106,7 @@ pub trait ErasedImageFormatAdapter: Send + Sync + 'static {
     fn export<'a>(
         &'a self,
         services: &'a Services,
+        canvas: &'a CCanvas,
         path: &'a Path,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>>;
 
@@ -150,9 +155,10 @@ where
     fn export<'a>(
         &'a self,
         services: &'a Services,
+        canvas: &'a CCanvas,
         path: &'a Path,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
-        Box::pin(ImageFormatAdapter::export(self, services, path))
+        Box::pin(ImageFormatAdapter::export(self, services, canvas, path))
     }
 
     fn to_toml(&self) -> Result<toml::Value> {

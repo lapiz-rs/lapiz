@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{Result, anyhow};
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
-use lapiz_canvas::CanvasAppExt;
+use lapiz_canvas::{CCanvas, CanvasAppExt};
 use lapiz_i18n::t;
 use lapiz_lazuli::LazuliArchive;
 use lapiz_runtime::{Renderer, Services};
@@ -37,10 +37,7 @@ impl ImageFormatAdapter for LazuliAdapter {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn export(&self, services: &Services, path: &Path) -> Result<()> {
-        let canvas = services
-            .current_canvas()
-            .ok_or_else(|| anyhow!("No canvas to export"))?;
+    async fn export(&self, services: &Services, canvas: &CCanvas, path: &Path) -> Result<()> {
         let archive = LazuliArchive::new(path)?;
         canvas.image.write_archive(&archive, services).await
     }

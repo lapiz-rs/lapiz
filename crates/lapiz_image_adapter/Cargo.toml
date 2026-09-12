@@ -31,3 +31,4 @@ serde.workspace = true
 toml.workspace = true
 tracing.workspace = true
 rust-embed.workspace = true
+wgpu.workspace = true

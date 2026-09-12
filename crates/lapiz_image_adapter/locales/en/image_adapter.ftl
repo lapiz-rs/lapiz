@@ -5,6 +5,7 @@ jpg_image_description = JPEG image
 png_image_description = PNG image
 lazuli_image_description = Lazuli image
 quality = Quality
+embed_icc_profile = Embed ICC profile
 compression = Compression
 filter = Filter
 png_compression_default = Default

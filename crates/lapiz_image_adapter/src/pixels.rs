@@ -1,22 +1,22 @@
 use anyhow::{Result, anyhow};
-use lapiz_canvas::CanvasAppExt;
+use lapiz_canvas::{CCanvas, CanvasAppExt};
 use lapiz_image::{
     texel::TexelType,
     tile::{GpuTileStorage, TileStorageAppExt},
 };
 use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::Services;
+use wgpu::{Device, Queue};
 
-// The canvas view composites every frame into the root layer's tile storage,
-// so reading the root layer back yields the flattened image
-pub(crate) async fn readback_root_layer(services: &Services) -> Result<image::RgbaImage> {
-    let canvas = services
-        .current_canvas()
-        .ok_or_else(|| anyhow!("No canvas to export"))?;
+pub(crate) async fn readback_root_layer(
+    canvas: &CCanvas,
+    tile_storage: &GpuTileStorage,
+    device: &Device,
+    queue: &Queue,
+) -> Result<image::RgbaImage> {
     let image = &canvas.image;
     let root_layer = *image.layer_stack().root_id();
-    let layer = services
-        .tile_storage()
+    let layer = tile_storage
         .get_layer(root_layer)
         .ok_or_else(|| anyhow!("Root layer is missing from tile storage"))?;
 
@@ -25,8 +25,6 @@ pub(crate) async fn readback_root_layer(services: &Services) -> Result<image::Rg
     }
 
     let size = image.size();
-    let device = services.render_device();
-    let queue = services.render_queue();
     let tile_data = layer
         .readback(device, queue, layer.iter_tile_indices().collect::<Vec<_>>())
         .await?;

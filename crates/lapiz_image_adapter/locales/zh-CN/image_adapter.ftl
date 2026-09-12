@@ -5,6 +5,7 @@ jpg_image_description = JPEG 图像
 png_image_description = PNG 图像
 lazuli_image_description = Lazuli 图像
 quality = 质量
+embed_icc_profile = 嵌入 ICC 色彩配置
 compression = 压缩级别
 filter = 滤波类型
 png_compression_default = 默认

@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use iced_core::{Alignment, Element, Length, Size, Theme, window};
 use iced_runtime::Task;
 use iced_widget::{Space, column, row};
-use lapiz_canvas::CanvasId;
+use lapiz_canvas::{CanvasAppExt, CanvasId};
 use lapiz_config::Config;
 use lapiz_i18n::t;
 use lapiz_runtime::{
@@ -147,8 +147,13 @@ impl WindowView for ExportDialogView {
                 Task::none()
             }
             ExportDialogMessage::Confirm => {
+                let Some(canvas) = services.canvas(&self.canvas_id) else {
+                    return Task::done(ExportDialogMessage::Cancel);
+                };
+
                 // TODO use async
-                futures::executor::block_on(self.adapter.export(services, &self.path)).log_err();
+                futures::executor::block_on(self.adapter.export(services, canvas, &self.path))
+                    .log_err();
                 let silent_saves = services.service_mut::<SilentSaveCanvases>();
                 if self.dont_ask_again {
                     silent_saves.insert(self.canvas_id);

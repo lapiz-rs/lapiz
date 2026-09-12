@@ -1,12 +1,15 @@
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
 use image::{ExtendedColorType, ImageEncoder, codecs::jpeg::JpegEncoder};
+use lapiz_canvas::{CCanvas, CanvasAppExt};
 use lapiz_i18n::t;
+use lapiz_image::tile::TileStorageAppExt;
+use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::{Renderer, Services};
-use lapiz_widgets::{form::Form, spin_slider::SpinSlider};
+use lapiz_widgets::{checkbox::Checkbox, form::Form, spin_slider::SpinSlider};
 use serde::{Deserialize, Serialize};
 
 use crate::{ImageFormatAdapter, pixels};
@@ -14,17 +17,23 @@ use crate::{ImageFormatAdapter, pixels};
 #[derive(Serialize, Deserialize)]
 pub struct JpgAdapter {
     quality: u8,
+    #[serde(default = "crate::default_embed_profile")]
+    embed_profile: bool,
 }
 
 impl Default for JpgAdapter {
     fn default() -> Self {
-        Self { quality: 90 }
+        Self {
+            quality: 90,
+            embed_profile: true,
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum JpgExportMessage {
     QualityChanged(u8),
+    EmbedProfileToggled(bool),
 }
 
 impl ImageFormatAdapter for JpgAdapter {
@@ -50,6 +59,10 @@ impl ImageFormatAdapter for JpgAdapter {
                     .precision(0)
                     .on_confirm(JpgExportMessage::QualityChanged),
             )
+            .push(
+                t!("embed_icc_profile"),
+                Checkbox::new(self.embed_profile).on_toggle(JpgExportMessage::EmbedProfileToggled),
+            )
             .into()
     }
 
@@ -60,16 +73,27 @@ impl ImageFormatAdapter for JpgAdapter {
     ) -> Task<JpgExportMessage> {
         match message {
             JpgExportMessage::QualityChanged(quality) => self.quality = quality,
+            JpgExportMessage::EmbedProfileToggled(checked) => self.embed_profile = checked,
         }
         Task::none()
     }
 
     #[tracing::instrument(skip_all)]
-    async fn export(&self, services: &Services, path: &Path) -> Result<()> {
-        let rgba = pixels::readback_root_layer(services).await?;
+    async fn export(&self, services: &Services, canvas: &CCanvas, path: &Path) -> Result<()> {
+        let rgba = pixels::readback_root_layer(
+            canvas,
+            services.tile_storage(),
+            services.render_device(),
+            services.render_queue(),
+        )
+        .await?;
         let rgb = flatten_onto_white(&rgba);
         let file = std::fs::File::create(path)?;
-        JpegEncoder::new_with_quality(file, self.quality).write_image(
+        let mut encoder = JpegEncoder::new_with_quality(file, self.quality);
+        if self.embed_profile {
+            encoder.set_icc_profile(canvas.image.profile().encode()?)?;
+        }
+        encoder.write_image(
             rgb.as_raw(),
             rgb.width(),
             rgb.height(),
