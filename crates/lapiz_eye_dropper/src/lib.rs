@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::Result;
 use async_trait::async_trait;
 use glam::{IVec2, Vec2};
-use iced_core::{Background, Element, Length, Theme, keyboard::Modifiers};
+use iced_core::{Background, Element, Length, Padding, Point, Theme, keyboard::Modifiers};
 use iced_runtime::Task;
 use iced_widget::{Space, container, row};
 use lapiz_canvas::{CanvasAppExt, CanvasId};
@@ -17,7 +17,10 @@ use lapiz_image::{
     },
     tile::{GpuTileStorage, TileStorageAppExt},
 };
-use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
+use lapiz_input::{
+    key::KeyboardState,
+    mouse::{HoverMouseState, PressedMouseState},
+};
 use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::{
     Application, Renderer, Services, event::Event, plugin::Plugin, service::Service,
@@ -107,6 +110,7 @@ pub struct EyeDropperTool {
     sample_mode: EyeDropperSampleMode,
     target_mode: EyeDropperTargetMode,
     sampled_color: Option<Color>,
+    cursor_position: Option<Point>,
     sample_in_flight: bool,
     pending_sample: Option<SampleRequest>,
 }
@@ -117,6 +121,7 @@ impl Default for EyeDropperTool {
             sample_mode: EyeDropperSampleMode::Single,
             target_mode: EyeDropperTargetMode::Merged,
             sampled_color: None,
+            cursor_position: None,
             sample_in_flight: false,
             pending_sample: None,
         }
@@ -139,6 +144,7 @@ impl EyeDropperTool {
         services: &Services,
     ) -> Task<EyeDropperToolMessage> {
         self.pending_sample = None;
+        self.cursor_position = Some(mouse.position);
 
         let Some(canvas) = services.current_canvas() else {
             return Task::none();
@@ -181,6 +187,12 @@ impl EyeDropperTool {
         } else {
             self.start_sample(request, &canvas.image, services)
         }
+    }
+
+    fn sampled_rgb(&self, services: &Services) -> Option<Rgb> {
+        let color = self.sampled_color?;
+        let profile = services.current_canvas()?.image.profile();
+        Some(color.into_rgb(profile.rgb_to_xyz_matrix().to_f32().inverse()))
     }
 
     fn start_sample(
@@ -230,6 +242,16 @@ impl ToolFunction for EyeDropperTool {
         icon::eyedropper()
     }
 
+    fn hover(
+        &mut self,
+        _: &KeyboardState,
+        mouse: &HoverMouseState,
+        _: &mut Services,
+    ) -> Task<Self::Message> {
+        self.cursor_position = Some(mouse.position);
+        Task::none()
+    }
+
     fn begin(
         &mut self,
         keyboard: &KeyboardState,
@@ -246,6 +268,21 @@ impl ToolFunction for EyeDropperTool {
         services: &mut Services,
     ) -> Task<Self::Message> {
         self.sample(keyboard, mouse, services)
+    }
+
+    fn end(
+        &mut self,
+        _: &KeyboardState,
+        mouse: &PressedMouseState,
+        _: &mut Services,
+    ) -> Task<Self::Message> {
+        self.cursor_position = Some(mouse.position);
+        Task::none()
+    }
+
+    fn deactivate(&mut self, _: &mut Services) -> Task<Self::Message> {
+        self.cursor_position = None;
+        Task::none()
     }
 
     fn handle_message(
@@ -287,16 +324,13 @@ impl ToolFunction for EyeDropperTool {
             EyeDropperSampleMode::Single => 1,
             EyeDropperSampleMode::Average { radius } => radius,
         };
-        let sampled_rgb = self.sampled_color.map(|color| {
-            let profile = services
-                .current_canvas()
-                .expect("Tool options should only be shown for the current canvas")
-                .image
-                .profile();
-            color.into_rgb(profile.rgb_to_xyz_matrix().to_f32().inverse())
-        });
+        let sampled_rgb = self.sampled_rgb(services);
         let color = sampled_rgb.unwrap_or(Rgb::new(0.0, 0.0, 0.0));
-        let preview_color = iced_core::Color::from_rgb(color.r, color.g, color.b);
+        let preview_color = iced_core::Color::from_rgb(
+            color.r.clamp(0.0, 1.0),
+            color.g.clamp(0.0, 1.0),
+            color.b.clamp(0.0, 1.0),
+        );
         let color_text = sampled_rgb.map_or_else(
             || "—".to_owned(),
             |color| {
@@ -364,5 +398,50 @@ impl ToolFunction for EyeDropperTool {
             .push(t!("sampled_color"), preview);
 
         Some(Panel::new(fields).padding(8).width(Length::Fill).into())
+    }
+
+    fn canvas_overlay<'a>(
+        &'a self,
+        services: &'a Services,
+    ) -> Element<'a, Self::Message, Theme, Renderer> {
+        const SWATCH_SIZE: f32 = 60.0;
+
+        let (Some(cursor), Some(color), Some(canvas)) = (
+            self.cursor_position,
+            self.sampled_rgb(services),
+            services.current_canvas(),
+        ) else {
+            return Space::new().into();
+        };
+        let Some(position) = canvas
+            .transform
+            .window_to_in_widget(Vec2::new(cursor.x, cursor.y))
+        else {
+            return Space::new().into();
+        };
+
+        let preview_color = iced_core::Color::from_rgb(
+            color.r.clamp(0.0, 1.0),
+            color.g.clamp(0.0, 1.0),
+            color.b.clamp(0.0, 1.0),
+        );
+        let swatch = container(Space::new().width(SWATCH_SIZE).height(SWATCH_SIZE))
+            .width(SWATCH_SIZE)
+            .height(SWATCH_SIZE)
+            .style(move |_| container::Style {
+                background: Some(Background::Color(preview_color)),
+                ..Default::default()
+            });
+
+        container(swatch)
+            .padding(Padding {
+                top: position.y - SWATCH_SIZE - 40.0,
+                right: 0.0,
+                bottom: 0.0,
+                left: position.x - SWATCH_SIZE * 0.5,
+            })
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
     }
 }
