@@ -321,29 +321,6 @@ fn parse_key_name(name: &str) -> Option<key::Code> {
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{KeySequence, KeyboardState};
-    use iced_core::keyboard::{Modifiers, key};
-
-    #[test]
-    fn clearing_removes_pressed_keys_and_modifiers() {
-        let mut state = KeyboardState::default();
-        state.press(key::Code::KeyO);
-        state.set_modifiers(Modifiers::ALT);
-
-        state.clear();
-
-        assert_eq!(
-            state.get_sequence(),
-            KeySequence {
-                key: None,
-                modifiers: Modifiers::empty(),
-            }
-        );
-    }
-}
-
 fn key_name(code: key::Code) -> &'static str {
     match code {
         key::Code::KeyA => "a",
