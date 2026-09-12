@@ -398,6 +398,12 @@ impl UndoCommand for GroupLayerCommand {
     }
 
     fn redo(&mut self, services: &mut Services) -> anyhow::Result<()> {
+        if let Some(texel_type) = self.group.properties().get_texel_type() {
+            services
+                .tile_storage()
+                .declare_layer(*self.group.id(), GpuLayerInfo { texel_type });
+        }
+
         services
             .update_canvas(&self.canvas, |canvas, _| {
                 canvas.image.layer_stack_mut().add_layer(

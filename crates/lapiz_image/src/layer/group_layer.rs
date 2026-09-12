@@ -162,7 +162,8 @@ impl Layer for GroupLayer {
             pipeline,
             dispatch: None,
             copy_pipeline,
-            copy_prepared: None,
+            generated_copy_prepared: None,
+            output_copy_prepared: None,
         };
         compositor.insert_blend_cache(layer_id, cache);
     }
@@ -184,25 +185,11 @@ impl Layer for GroupLayer {
             return;
         };
 
-        let node = image.layer_stack().get_layer(&layer_id).unwrap();
-        let props = node.properties();
-
-        if !props.visible() {
-            cache.copy_prepared = Some(cache.copy_pipeline.prepare(device, dst_layer, output));
-            return;
-        }
-
-        cache.params_buffer.clear();
-        cache.params_buffer.push(&BlendLayerParams {
-            src_opacity: props.opacity(),
-            src_disabled_channels: props.disabled_channels().0,
-            _pad: Default::default(),
-        });
-        cache.params_buffer.write_buffer(device, queue);
-
+        cache.dispatch = None;
+        cache.generated_copy_prepared = None;
+        cache.output_copy_prepared = None;
         cache.intermediate.clear(device, queue);
 
-        let mut next_output = 1;
         let bindings = [
             LayerBinding {
                 texture: cache.intermediate.textures()[0].clone(),
@@ -213,12 +200,21 @@ impl Layer for GroupLayer {
                 tile_info_buffer: cache.intermediate.tile_info_buffer().clone(),
             },
         ];
+
+        let generated = {
+            let mut storage = tiles.get_layer_mut(layer_id).unwrap();
+            storage.allocate_pixels(IRect {
+                min: IVec2::ZERO,
+                max: image.size().as_ivec2(),
+            });
+            storage.binding().unwrap()
+        };
+
         let node = image.layer_stack().get_layer(&layer_id).unwrap();
-
-        for child_node in node.iter_children_composite_order() {
-            let child_layer = image.layer_stack().get_layer(child_node).unwrap();
-
-            child_layer.prepare_blend_cache(
+        let mut next_output = 1;
+        for child_id in node.iter_children_composite_order() {
+            let child = image.layer_stack().get_layer(child_id).unwrap();
+            child.prepare_blend_cache(
                 compositor,
                 overriders,
                 image,
@@ -234,14 +230,38 @@ impl Layer for GroupLayer {
         let cache = compositor
             .get_blend_cache_mut::<GroupBlendCache>(&layer_id)
             .unwrap();
+        cache.generated_copy_prepared = Some(cache.copy_pipeline.prepare(
+            device,
+            &bindings[1 - next_output],
+            &generated,
+        ));
+
+        if node.parent().is_none() {
+            return;
+        }
+
+        let props = node.properties();
+        if !props.visible() {
+            cache.output_copy_prepared =
+                Some(cache.copy_pipeline.prepare(device, dst_layer, output));
+            return;
+        }
+
+        cache.params_buffer.clear();
+        cache.params_buffer.push(&BlendLayerParams {
+            src_opacity: props.opacity(),
+            src_disabled_channels: props.disabled_channels().0,
+            _pad: Default::default(),
+        });
+        cache.params_buffer.write_buffer(device, queue);
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: "layer blend bind group".into(),
             layout: &cache.layout,
             entries: BindGroupEntries::sequential((
                 cache.params_buffer.binding().unwrap(),
-                &cache.intermediate.textures()[1 - next_output],
-                cache.intermediate.tile_info_buffer().as_entire_binding(),
+                &generated.texture,
+                generated.tile_info_buffer.as_entire_binding(),
                 &dst_layer.texture,
                 dst_layer.tile_info_buffer.as_entire_binding(),
                 &output.texture,
@@ -252,7 +272,6 @@ impl Layer for GroupLayer {
 
         let workgroup_count =
             UVec3::new(image.size().x.div_ceil(16), image.size().y.div_ceil(16), 1);
-
         cache.dispatch = Some((bind_group, workgroup_count));
     }
 
@@ -270,18 +289,26 @@ impl Layer for GroupLayer {
         };
 
         let node = image.layer_stack().get_layer(&layer_id).unwrap();
-        let props = node.properties();
+        for child_id in node.iter_children_composite_order() {
+            let child = image.layer_stack().get_layer(child_id).unwrap();
+            child.dispatch_blend(compositor, pass, image, tiles);
+        }
 
-        if !props.visible() {
-            if let Some(prepared) = &cache.copy_prepared {
-                cache.copy_pipeline.dispatch(pass, prepared);
-            }
+        let Some(generated_copy) = &cache.generated_copy_prepared else {
+            log::error!("Group layer generated copy is not prepared");
+            return;
+        };
+        cache.copy_pipeline.dispatch(pass, generated_copy);
+
+        if node.parent().is_none() {
             return;
         }
 
-        for child_node in node.iter_children_composite_order() {
-            let child_layer = image.layer_stack().get_layer(child_node).unwrap();
-            child_layer.dispatch_blend(compositor, pass, image, tiles);
+        if !node.properties().visible() {
+            if let Some(output_copy) = &cache.output_copy_prepared {
+                cache.copy_pipeline.dispatch(pass, output_copy);
+            }
+            return;
         }
 
         let Some((bind_group, workgroup_count)) = &cache.dispatch else {
@@ -303,7 +330,8 @@ pub struct GroupBlendCache {
     pipeline: ComputePipeline,
     dispatch: Option<(BindGroup, UVec3)>,
     copy_pipeline: CopyLayerPipeline,
-    copy_prepared: Option<PreparedCopyLayerPipeline>,
+    generated_copy_prepared: Option<PreparedCopyLayerPipeline>,
+    output_copy_prepared: Option<PreparedCopyLayerPipeline>,
 }
 
 impl HasLayerProperties for GroupLayer {
@@ -330,6 +358,7 @@ impl HasLayerProperties for GroupLayer {
         data.decode::<OpacityProp>(&mut decl)?;
         data.decode::<LockedProp>(&mut decl)?;
         data.decode::<DisabledChannelsProp>(&mut decl)?;
+        data.decode::<LayerTexelProp>(&mut decl)?;
         Ok(decl)
     }
 }

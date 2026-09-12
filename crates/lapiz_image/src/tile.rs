@@ -635,22 +635,25 @@ impl DynamicLayerStorage {
     }
 
     pub fn clear(&mut self) {
+        let allocated_layers = self.len() as u32;
         self.tiles.clear();
         self.tile_info_buffer.clear();
         self.tile_info_buffer
             .write_buffer(&self.device, &self.queue);
 
-        if let Some(tex) = self.texture.as_ref() {
+        if allocated_layers > 0
+            && let Some(tex) = self.texture.as_ref()
+        {
             let mut ec = self.device.create_command_encoder(&Default::default());
             ec.clear_texture(
                 tex.texture(),
                 &ImageSubresourceRange {
-                    array_layer_count: Some(self.len() as u32),
+                    array_layer_count: Some(allocated_layers),
                     ..Default::default()
                 },
             );
             self.queue.submit([ec.finish()]);
-        };
+        }
     }
 
     pub fn iter_tile_indices(&self) -> impl Iterator<Item = IVec2> {

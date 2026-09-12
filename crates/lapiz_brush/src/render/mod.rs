@@ -14,7 +14,7 @@ use lapiz_image::{
     composite::PixelPreviewOverrider,
     layer::{
         LayerId,
-        properties::{LayerTexelProp, LayerTexelTypePropertyExt, TexelSource},
+        properties::{LayerTexelTypePropertyExt, TexelSource},
     },
     scan_pixels::ScanPixelsPipeline,
     texel::TexelType,

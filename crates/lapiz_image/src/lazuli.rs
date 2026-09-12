@@ -19,8 +19,7 @@ use crate::{
     layer::{
         Layer, LayerId, LayerStack, LayerStackNode, LayerTypeRegistry, SpecialLayers,
         properties::{
-            EncodedLayerProperties, LayerProperties, LayerTexelProp, LayerTexelTypePropertyExt,
-            TexelSource,
+            EncodedLayerProperties, LayerProperties, LayerTexelTypePropertyExt, TexelSource,
         },
     },
     texel::TexelType,

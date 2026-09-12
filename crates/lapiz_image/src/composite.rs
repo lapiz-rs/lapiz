@@ -127,6 +127,7 @@ impl ImageCompositor {
             max: image.size.as_ivec2(),
         });
         let root_layer_binding = root_layer_tiles.binding().unwrap();
+        drop(root_layer_tiles);
 
         let empty_layer_binding = GpuTileStorage::get_empty_layer_binding(image.texel_type());
         let root_node = image
