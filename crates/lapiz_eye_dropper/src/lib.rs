@@ -11,7 +11,10 @@ use lapiz_color::{Color, ForegroundBackgroundColorExt, ForegroundColorChanged, m
 use lapiz_i18n::t;
 use lapiz_image::{
     CImage,
-    layer::{Layer, LayerId, pixel_layer::PixelLayer, properties::LayerTexelTypePropertyExt},
+    layer::{
+        Layer, LayerId, group_layer::GroupLayer, pixel_layer::PixelLayer,
+        properties::LayerTexelTypePropertyExt,
+    },
     tile::{GpuTileStorage, TileStorageAppExt},
 };
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
@@ -27,7 +30,7 @@ use lapiz_widgets::{
 };
 use wgpu::{Device, Queue};
 
-use crate::builtin::PixelLayerEyeDropperTarget;
+use crate::builtin::{GroupLayerEyeDropperTarget, PixelLayerEyeDropperTarget};
 
 pub mod builtin;
 
@@ -44,6 +47,7 @@ impl Plugin for EyeDropperPlugin {
 
         let mut registry = EyeDropperTargetRegistry::default();
         registry.register::<PixelLayer, PixelLayerEyeDropperTarget>();
+        registry.register::<GroupLayer, GroupLayerEyeDropperTarget>();
         app.runtime_mut().services_mut().insert_service(registry);
     }
 }
@@ -188,11 +192,9 @@ impl EyeDropperTool {
         let registry = services.service::<EyeDropperTargetRegistry>();
         let layer = image.layer_stack().get_layer(&request.layer_id).unwrap();
         let Some(target) = registry.get(layer.instance()) else {
-            dbg!();
             return Task::none();
         };
 
-        dbg!();
         let tiles = services.tile_storage().clone();
         let device = services.render_device().clone();
         let queue = services.render_queue().clone();

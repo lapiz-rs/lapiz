@@ -28,6 +28,24 @@ impl EyeDropperTarget for PixelLayerEyeDropperTarget {
     }
 }
 
+#[derive(Default)]
+pub struct GroupLayerEyeDropperTarget;
+
+#[async_trait]
+impl EyeDropperTarget for GroupLayerEyeDropperTarget {
+    async fn sample(
+        &self,
+        layer_id: LayerId,
+        pixel: IVec2,
+        mode: EyeDropperSampleMode,
+        tiles: &GpuTileStorage,
+        device: &Device,
+        queue: &Queue,
+    ) -> Result<Color> {
+        sample_pixel_storage(layer_id, pixel, mode, tiles, device, queue).await
+    }
+}
+
 pub async fn sample_pixel_storage(
     layer_id: LayerId,
     pixel: IVec2,
