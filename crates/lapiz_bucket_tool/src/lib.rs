@@ -12,6 +12,7 @@ use lapiz_i18n::{Translated, t};
 use lapiz_image::{
     blend_modes::BlendMode,
     composite::{BlendFunction, BlendFunctionId, BlendFunctionRegistry},
+    layer::properties::{LayerTexelTypePropertyExt, TexelSource},
     tile::TileStorageAppExt,
 };
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
@@ -128,6 +129,14 @@ impl ToolFunction for BucketTool {
         let ref_layer = tiles.get_layer_binding_or_empty(ref_layer_id).unwrap();
 
         let output_layer_id = canvas.active_layer_id();
+        if !canvas
+            .active_layer_node()
+            .properties()
+            .get_texel_prop()
+            .is_some_and(|p| p.source == TexelSource::DirectlyDefined)
+        {
+            return Task::none();
+        }
         let output_layer_info = tiles.get_layer_info(output_layer_id).unwrap();
         let output_layer = tiles.get_layer_binding_or_empty(output_layer_id).unwrap();
 
