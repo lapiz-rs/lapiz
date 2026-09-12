@@ -634,7 +634,7 @@ impl Dock for CanvasDock {
             monitor_name,
         };
 
-        stack!(canvas, canvas_overlay).into()
+        stack!(canvas, canvas_overlay).clip(true).into()
     }
 
     fn update(&mut self, message: Self::Message, services: &mut Services) -> Task<Self::Message> {
