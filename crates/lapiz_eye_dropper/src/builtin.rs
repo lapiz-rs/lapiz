@@ -79,24 +79,35 @@ pub async fn sample_pixel_storage(
         for x in min.x..max.x {
             let position = IVec2::new(x, y);
             let tile = position.div_euclid(tile_size);
-            if let Some(buffer) = buffers.get(&tile) {
-                let local = position - tile * tile_size;
-                let pixel_index =
-                    (local.y as u32 * GpuTileStorage::TILE_SIZE + local.x as u32) as usize;
-                match texel_type.format {
-                    TexelFormat::Alpha => {
-                        sum[0] += texel_type.get_channel_as_f32(buffer, pixel_index, 0);
+            let Some(buffer) = buffers.get(&tile) else {
+                continue;
+            };
+
+            let local = position - tile * tile_size;
+            let pixel_index =
+                (local.y as u32 * GpuTileStorage::TILE_SIZE + local.x as u32) as usize;
+
+            match texel_type.format {
+                TexelFormat::Alpha => {
+                    sum[0] += texel_type.get_channel_as_f32(buffer, pixel_index, 0);
+                }
+                TexelFormat::Rgba => {
+                    let alpha = texel_type.get_channel_as_f32(buffer, pixel_index, 3);
+                    if alpha == 0.0 {
+                        continue;
                     }
-                    TexelFormat::Rgba => {
-                        for (channel, value) in sum.iter_mut().enumerate() {
-                            *value +=
-                                texel_type.get_channel_as_f32(buffer, pixel_index, channel as u32);
-                        }
+                    for (channel, value) in sum.iter_mut().enumerate() {
+                        *value +=
+                            texel_type.get_channel_as_f32(buffer, pixel_index, channel as u32);
                     }
                 }
             }
+
             count += 1;
         }
+    }
+    if count == 0 {
+        return Err(anyhow::anyhow!("No pixels sampled"));
     }
 
     let scale = 1.0 / count as f32;
