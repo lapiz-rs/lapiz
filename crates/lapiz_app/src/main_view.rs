@@ -1,5 +1,6 @@
 use std::{any::Any, sync::Arc};
 
+use anyhow::Result;
 use iced::{
     Element, Length, Subscription, Task, Theme,
     keyboard::{
@@ -212,7 +213,7 @@ impl WindowView for MainView {
     fn boot(
         _params: Option<Self::BootParams>,
         services: &mut Services,
-    ) -> (Self, Task<Self::Message>) {
+    ) -> Result<(Self, Task<Self::Message>)> {
         let action_bindings = ActionBindingManifestConfig::read_or_init_or_fallback().get();
         log::info!(
             "Loading {} key bindings from manifest {}",
@@ -292,7 +293,7 @@ impl WindowView for MainView {
         ])
         .map(MainViewMessage::Dock);
 
-        (
+        Ok((
             Self {
                 dock_manager,
                 action_collection,
@@ -304,7 +305,7 @@ impl WindowView for MainView {
                 dock_manager_task.map(MainViewMessage::Dock),
                 dock_tasks,
             ]),
-        )
+        ))
     }
 
     fn view<'a>(

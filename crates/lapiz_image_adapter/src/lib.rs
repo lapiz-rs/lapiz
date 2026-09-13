@@ -261,8 +261,6 @@ pub struct PendingExport {
     pub canvas_id: CanvasId,
 }
 
-impl Service for PendingExport {}
-
 #[derive(Default)]
 pub struct SilentSaveCanvases {
     canvases: HashSet<CanvasId>,

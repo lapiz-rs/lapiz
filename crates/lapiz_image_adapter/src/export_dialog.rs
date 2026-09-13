@@ -1,5 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
+use anyhow::Result;
 use iced_core::{Alignment, Element, Length, Size, Theme, window};
 use iced_runtime::Task;
 use iced_widget::{Space, column, row};
@@ -43,18 +44,17 @@ pub enum ExportDialogMessage {
 impl WindowView for ExportDialogView {
     type Message = ExportDialogMessage;
 
-    type BootParams = ();
+    type BootParams = PendingExport;
 
     fn id() -> WindowViewId {
         WindowViewId::new(EXPORT_DIALOG_VIEW_ID)
     }
 
     fn boot(
-        _params: Option<Self::BootParams>,
+        params: Option<Self::BootParams>,
         services: &mut Services,
-    ) -> (Self, Task<Self::Message>) {
-        // TODO don't panic
-        let pending = services.remove_service::<PendingExport>();
+    ) -> Result<(Self, Task<Self::Message>)> {
+        let pending = params.ok_or(anyhow::anyhow!("No pending export"))?;
         let registry = services.service::<ImageFormatAdapterRegistry>();
         let extension = pending
             .path
@@ -77,7 +77,7 @@ impl WindowView for ExportDialogView {
             },
             ..Default::default()
         });
-        (
+        Ok((
             Self {
                 window,
                 windows: Arc::from([window]),
@@ -89,7 +89,7 @@ impl WindowView for ExportDialogView {
                 dont_ask_again,
             },
             open.discard(),
-        )
+        ))
     }
 
     fn view<'a>(

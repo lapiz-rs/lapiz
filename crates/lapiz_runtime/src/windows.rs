@@ -29,7 +29,7 @@ pub trait WindowView: 'static + Sized {
     fn boot(
         params: Option<Self::BootParams>,
         services: &mut Services,
-    ) -> (Self, Task<Self::Message>);
+    ) -> Result<(Self, Task<Self::Message>)>;
     fn view<'a>(
         &'a self,
         window: window::Id,
@@ -168,12 +168,18 @@ where
             T::id(),
             Box::new(|params, services| {
                 let (view, task) = if let Some(params) = params {
-                    let Ok(params) = params.downcast() else {
-                        anyhow::bail!("Invalid params for view");
-                    };
-                    T::boot(Some(*params), services)
+                    match params.downcast() {
+                        Ok(params) => T::boot(Some(*params), services)?,
+                        Err(params) => {
+                            anyhow::bail!(
+                                "Invalid params for view: Expected {}, found {}",
+                                std::any::type_name::<T::BootParams>(),
+                                std::any::type_name_of_val(params.as_ref())
+                            );
+                        }
+                    }
                 } else {
-                    T::boot(None, services)
+                    T::boot(None, services)?
                 };
 
                 Ok((
@@ -407,10 +413,17 @@ impl WindowCommand for OpenWindowViewCommand {
 }
 
 impl OpenWindowViewCommand {
-    pub fn new(view_id: WindowViewId, open_params: Option<Box<dyn Any>>) -> Self {
+    pub fn new(view_id: WindowViewId) -> Self {
         Self {
             view_id,
-            open_params,
+            open_params: None,
+        }
+    }
+
+    pub fn new_with_params<T: 'static>(view_id: WindowViewId, open_params: T) -> Self {
+        Self {
+            view_id,
+            open_params: Some(Box::new(open_params) as _),
         }
     }
 }
@@ -455,10 +468,17 @@ impl WindowCommand for ToggleWindowViewCommand {
 }
 
 impl ToggleWindowViewCommand {
-    pub fn new(view_id: WindowViewId, open_params: Option<Box<dyn Any>>) -> Self {
+    pub fn new(view_id: WindowViewId) -> Self {
         Self {
             view_id,
-            open_params,
+            open_params: None,
+        }
+    }
+
+    pub fn new_with_params<T: 'static>(view_id: WindowViewId, open_params: T) -> Self {
+        Self {
+            view_id,
+            open_params: Some(Box::new(open_params) as _),
         }
     }
 }

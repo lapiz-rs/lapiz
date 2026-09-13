@@ -214,19 +214,16 @@ fn start_export(services: &mut Services, allow_silent_export: bool, path: PathBu
         .service::<SilentSaveCanvases>()
         .contains(canvas.id());
     if adapter.has_export_options() && !(allow_silent_export && can_silent_export) {
-        // This is consumed by the export dialog view.
-        // TODO: use more reliable param passing
-        services.insert_service(PendingExport {
+        let params = PendingExport {
             path,
             allow_silent_export,
             canvas_id: canvas.id(),
-        });
-
+        };
         services
             .service_mut::<WindowCommandBuffer>()
-            .push(OpenWindowViewCommand::new(
+            .push(OpenWindowViewCommand::new_with_params(
                 WindowViewId::new(EXPORT_DIALOG_VIEW_ID),
-                None,
+                params,
             ));
     } else {
         // TODO nonononono use async

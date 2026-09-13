@@ -93,7 +93,7 @@ impl WindowView for FilterPanel {
     fn boot(
         _params: Option<Self::BootParams>,
         services: &mut Services,
-    ) -> (Self, Task<Self::Message>) {
+    ) -> Result<(Self, Task<Self::Message>)> {
         let mut filters = services
             .assets()
             .all_handles_of::<FilterPreset>()
@@ -110,7 +110,7 @@ impl WindowView for FilterPanel {
             },
             ..Default::default()
         });
-        (
+        Ok((
             Self {
                 windows: [main_window].into(),
                 main_window,
@@ -125,7 +125,7 @@ impl WindowView for FilterPanel {
                 canvas_id: None,
             },
             open.discard(),
-        )
+        ))
     }
 
     fn view<'a>(&'a self, _: window::Id, _: &'a Services) -> impl Into<Element<'a>> {
@@ -230,10 +230,9 @@ impl WindowView for FilterPanel {
             FilterPanelMessage::NewFilter | FilterPanelMessage::EditFilter => {
                 services
                     .service_mut::<WindowCommandBuffer>()
-                    .push(OpenWindowViewCommand::new(
-                        WindowViewId::new("filter_editor"),
-                        None,
-                    ));
+                    .push(OpenWindowViewCommand::new(WindowViewId::new(
+                        "filter_editor",
+                    )));
                 Task::none()
             }
             FilterPanelMessage::Confirm => self.confirm(services),

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Result;
 use iced_core::{Element, Length, keyboard, window};
 use iced_futures::Subscription;
 use iced_runtime::Task;
@@ -111,7 +112,7 @@ impl WindowView for BrushEditor {
     fn boot(
         params: Option<Self::BootParams>,
         services: &mut Services,
-    ) -> (Self, Task<Self::Message>) {
+    ) -> Result<(Self, Task<Self::Message>)> {
         let brushes = BrushPresetListDelegate::new(
             services
                 .assets()
@@ -121,7 +122,7 @@ impl WindowView for BrushEditor {
         let functions_storage = ASSET_GRAPH_FUNCTION_STORAGE.load();
         let functions = BrushFunctionListDelegate::new(functions_storage.all().values());
         let (main_window, open) = iced_runtime::window::open(window::Settings::default());
-        (
+        Ok((
             Self {
                 windows: [main_window].into(),
                 main_window,
@@ -135,7 +136,7 @@ impl WindowView for BrushEditor {
                 graph_editor_state: GraphEditorState::default(),
             },
             open.discard(),
-        )
+        ))
     }
 
     fn view<'a>(
