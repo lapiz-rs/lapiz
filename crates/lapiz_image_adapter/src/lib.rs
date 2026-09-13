@@ -19,7 +19,6 @@ use crate::{
         WebPAdapter,
     },
     config::ImageAdapterConfig,
-    export_dialog::{EXPORT_DIALOG_VIEW_ID, ExportDialogView},
 };
 
 lapiz_i18n::define_i18n!("image_adapter");
