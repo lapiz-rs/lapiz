@@ -9,8 +9,8 @@ use lapiz_image::{
     tile::{GpuLayerInfo, TileStorageAppExt},
 };
 use lapiz_image_adapter::{
-    EXPORT_DIALOG_VIEW_ID, ImageAdapterConfig, ImageFormatAdapterRegistry, PendingExport,
-    SilentSaveCanvases,
+    ImageFormatAdapterRegistry, PendingExport, SilentSaveCanvases, config::ImageAdapterConfig,
+    export_dialog::EXPORT_DIALOG_VIEW_ID,
 };
 use lapiz_runtime::{
     Services,

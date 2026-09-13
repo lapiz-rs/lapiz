@@ -16,7 +16,8 @@ use lapiz_widgets::{checkbox::Checkbox, combo_box::ComboBox, form::Form};
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
 
-use crate::{ImageFormatAdapter, pixels};
+use super::pixels;
+use crate::ImageFormatAdapter;
 
 const COMPRESSIONS: [PngCompression; 4] = [
     PngCompression::Default,

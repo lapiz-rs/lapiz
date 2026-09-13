@@ -20,7 +20,7 @@ use lapiz_color_selector::ColorSelectorPlugin;
 use lapiz_eye_dropper::EyeDropperPlugin;
 use lapiz_filter::{FilterPlugin, editor::FilterEditor, panel::FilterPanel};
 use lapiz_image::ImagePlugin;
-use lapiz_image_adapter::{ExportDialogView, ImageAdapterPlugin};
+use lapiz_image_adapter::{ImageAdapterPlugin, export_dialog::ExportDialogView};
 use lapiz_input::InputPlugin;
 use lapiz_render::RenderPlugin;
 use lapiz_runtime::{Application, windows::WindowCommandBuffer};

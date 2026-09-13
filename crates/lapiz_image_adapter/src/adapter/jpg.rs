@@ -12,7 +12,8 @@ use lapiz_runtime::{Renderer, Services};
 use lapiz_widgets::{checkbox::Checkbox, form::Form, spin_slider::SpinSlider};
 use serde::{Deserialize, Serialize};
 
-use crate::{ImageFormatAdapter, pixels};
+use super::pixels;
+use crate::ImageFormatAdapter;
 
 #[derive(Serialize, Deserialize)]
 pub struct JpgAdapter {
@@ -113,6 +114,7 @@ impl ImageFormatAdapter for JpgAdapter {
 }
 
 // jpeg has no alpha, composite the flattened image over white
+// TODO: make background color configurable
 fn flatten_onto_white(rgba: &image::RgbaImage) -> image::RgbImage {
     image::ImageBuffer::from_fn(rgba.width(), rgba.height(), |x, y| {
         let pixel = rgba.get_pixel(x, y);

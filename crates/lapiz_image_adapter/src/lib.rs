@@ -12,25 +12,28 @@ use iced_runtime::Task;
 use lapiz_canvas::{CCanvas, CanvasId};
 use lapiz_runtime::{Renderer, Services, Theme, plugin::Plugin, service::Service};
 
+use crate::{
+    adapter::{
+        AvifAdapter, BmpAdapter, FarbfeldAdapter, GifAdapter, HdrAdapter, IcoAdapter, JpgAdapter,
+        LazuliAdapter, OpenExrAdapter, PngAdapter, PnmAdapter, QoiAdapter, TgaAdapter, TiffAdapter,
+        WebPAdapter,
+    },
+    config::ImageAdapterConfig,
+    export_dialog::{EXPORT_DIALOG_VIEW_ID, ExportDialogView},
+};
+
 lapiz_i18n::define_i18n!("image_adapter");
 
+pub mod adapter;
 pub mod config;
 pub mod export_dialog;
-mod jpg;
-mod lazuli;
-mod pixels;
-mod png;
-
-pub use config::ImageAdapterConfig;
-pub use export_dialog::{EXPORT_DIALOG_VIEW_ID, ExportDialogView};
-pub use jpg::JpgAdapter;
-pub use lazuli::LazuliAdapter;
-pub use png::PngAdapter;
 
 pub struct ImageAdapterPlugin;
 
 impl Plugin for ImageAdapterPlugin {
     fn build(&self, app: &mut lapiz_runtime::Application) {
+        i18n::init();
+
         let mut runtime = app.runtime_mut();
         runtime.add_service::<ImageFormatAdapterRegistry>();
         runtime.add_service::<SilentSaveCanvases>();
@@ -39,8 +42,19 @@ impl Plugin for ImageAdapterPlugin {
             .service_mut::<ImageFormatAdapterRegistry>()
             .register::<PngAdapter>()
             .register::<JpgAdapter>()
-            .register::<LazuliAdapter>();
-        i18n::init();
+            .register::<WebPAdapter>()
+            .register::<AvifAdapter>()
+            .register::<LazuliAdapter>()
+            .register::<GifAdapter>()
+            .register::<BmpAdapter>()
+            .register::<TiffAdapter>()
+            .register::<TgaAdapter>()
+            .register::<QoiAdapter>()
+            .register::<FarbfeldAdapter>()
+            .register::<IcoAdapter>()
+            .register::<HdrAdapter>()
+            .register::<OpenExrAdapter>()
+            .register::<PnmAdapter>();
     }
 }
 
@@ -179,7 +193,7 @@ pub struct ImageFormatInfo {
 struct AdapterEntry {
     extension: &'static str,
     aliases: &'static [&'static str],
-    description: String,
+    description: fn() -> String,
     construct: fn() -> Box<dyn ErasedImageFormatAdapter>,
 }
 
@@ -196,7 +210,7 @@ impl ImageFormatAdapterRegistry {
         let entry = AdapterEntry {
             extension: A::extension(),
             aliases: A::aliases(),
-            description: A::description(),
+            description: A::description,
             construct: || Box::new(A::default()) as Box<dyn ErasedImageFormatAdapter>,
         };
         let index = self.entries.len();
@@ -250,7 +264,7 @@ impl ImageFormatAdapterRegistry {
         self.entries.iter().map(|entry| ImageFormatInfo {
             extension: entry.extension,
             aliases: entry.aliases,
-            description: entry.description.clone(),
+            description: (entry.description)(),
         })
     }
 }
