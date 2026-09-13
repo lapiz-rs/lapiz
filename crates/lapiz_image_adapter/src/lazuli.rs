@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
-use lapiz_canvas::{CCanvas, CanvasAppExt};
+use lapiz_canvas::CCanvas;
 use lapiz_i18n::t;
 use lapiz_lazuli::LazuliArchive;
 use lapiz_runtime::{Renderer, Services};

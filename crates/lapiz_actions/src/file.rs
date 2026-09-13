@@ -12,7 +12,6 @@ use lapiz_image_adapter::{
     EXPORT_DIALOG_VIEW_ID, ImageAdapterConfig, ImageFormatAdapterRegistry, PendingExport,
     SilentSaveCanvases,
 };
-use lapiz_render::render_context::RenderContextAppExt;
 use lapiz_runtime::{
     Services,
     event::Event,

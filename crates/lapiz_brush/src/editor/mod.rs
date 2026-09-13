@@ -110,7 +110,7 @@ impl WindowView for BrushEditor {
     }
 
     fn boot(
-        params: Option<Self::BootParams>,
+        _params: Option<Self::BootParams>,
         services: &mut Services,
     ) -> Result<(Self, Task<Self::Message>)> {
         let brushes = BrushPresetListDelegate::new(

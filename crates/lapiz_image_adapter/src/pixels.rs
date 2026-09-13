@@ -1,11 +1,6 @@
 use anyhow::{Result, anyhow};
-use lapiz_canvas::{CCanvas, CanvasAppExt};
-use lapiz_image::{
-    texel::TexelType,
-    tile::{GpuTileStorage, TileStorageAppExt},
-};
-use lapiz_render::render_context::RenderContextAppExt;
-use lapiz_runtime::Services;
+use lapiz_canvas::CCanvas;
+use lapiz_image::{texel::TexelType, tile::GpuTileStorage};
 use wgpu::{Device, Queue};
 
 pub(crate) async fn readback_root_layer(
