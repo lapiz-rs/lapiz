@@ -147,7 +147,7 @@ indexmap = { version = "2", features = ["serde"] }
 log = "0.4"
 lyon = "1"
 md5 = "0.8"
-moxcms = "0.8"
+moxcms = "0.9"
 num-traits = "0.2"
 num_enum = "0.7"
 palette = "0.7"
