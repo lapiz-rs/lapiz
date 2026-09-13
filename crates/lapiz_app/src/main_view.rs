@@ -203,11 +203,16 @@ impl MainView {
 impl WindowView for MainView {
     type Message = MainViewMessage;
 
+    type BootParams = ();
+
     fn id() -> WindowViewId {
         WindowViewId::new("main_view")
     }
 
-    fn boot(services: &mut Services) -> (Self, Task<Self::Message>) {
+    fn boot(
+        _params: Option<Self::BootParams>,
+        services: &mut Services,
+    ) -> (Self, Task<Self::Message>) {
         let action_bindings = ActionBindingManifestConfig::read_or_init_or_fallback().get();
         log::info!(
             "Loading {} key bindings from manifest {}",

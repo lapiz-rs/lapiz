@@ -84,11 +84,16 @@ type Element<'a> = iced_core::Element<'a, FilterPanelMessage, Theme, lapiz_runti
 impl WindowView for FilterPanel {
     type Message = FilterPanelMessage;
 
+    type BootParams = ();
+
     fn id() -> WindowViewId {
         WindowViewId::new("filter_panel")
     }
 
-    fn boot(services: &mut Services) -> (Self, Task<Self::Message>) {
+    fn boot(
+        _params: Option<Self::BootParams>,
+        services: &mut Services,
+    ) -> (Self, Task<Self::Message>) {
         let mut filters = services
             .assets()
             .all_handles_of::<FilterPreset>()
@@ -225,9 +230,10 @@ impl WindowView for FilterPanel {
             FilterPanelMessage::NewFilter | FilterPanelMessage::EditFilter => {
                 services
                     .service_mut::<WindowCommandBuffer>()
-                    .push(OpenWindowViewCommand::new(WindowViewId::new(
-                        "filter_editor",
-                    )));
+                    .push(OpenWindowViewCommand::new(
+                        WindowViewId::new("filter_editor"),
+                        None,
+                    ));
                 Task::none()
             }
             FilterPanelMessage::Confirm => self.confirm(services),

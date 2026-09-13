@@ -80,11 +80,16 @@ pub enum FilterEditorMessage {
 impl WindowView for FilterEditor {
     type Message = FilterEditorMessage;
 
+    type BootParams = ();
+
     fn id() -> WindowViewId {
         WindowViewId::new("filter_editor")
     }
 
-    fn boot(services: &mut Services) -> (Self, Task<Self::Message>) {
+    fn boot(
+        _params: Option<Self::BootParams>,
+        services: &mut Services,
+    ) -> (Self, Task<Self::Message>) {
         let filters = FilterPresetListDelegate::new(
             services
                 .assets()

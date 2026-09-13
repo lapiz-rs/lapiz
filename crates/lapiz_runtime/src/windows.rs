@@ -5,9 +5,10 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::{Result, bail};
 use iced_core::{Element, Theme, window};
 use iced_runtime::{Task, futures::Subscription};
-use lapiz_utils::wrapper;
+use lapiz_utils::{log_err::LogErr, wrapper};
 use parse_display::Display;
 
 use crate::{Services, service::Service};
@@ -22,9 +23,13 @@ pub struct Window;
 
 pub trait WindowView: 'static + Sized {
     type Message: Send + 'static;
+    type BootParams;
 
     fn id() -> WindowViewId;
-    fn boot(services: &mut Services) -> (Self, Task<Self::Message>);
+    fn boot(
+        params: Option<Self::BootParams>,
+        services: &mut Services,
+    ) -> (Self, Task<Self::Message>);
     fn view<'a>(
         &'a self,
         window: window::Id,
@@ -123,9 +128,10 @@ pub enum WindowViewManagerMessage {
 }
 
 type WindowViewBootFn = Box<
-    dyn Fn(&mut Services) -> (Box<dyn ErasedWindowView>, Task<ErasedWindowViewMessage>)
-        + Send
-        + Sync
+    dyn Fn(
+            Option<Box<dyn Any>>,
+            &mut Services,
+        ) -> Result<(Box<dyn ErasedWindowView>, Task<ErasedWindowViewMessage>)>
         + 'static,
 >;
 
@@ -160,15 +166,23 @@ where
     pub fn register_view<T: WindowView>(&mut self) {
         self.registered_views.insert(
             T::id(),
-            Box::new(|runtime| {
-                let (view, task) = T::boot(runtime);
-                (
+            Box::new(|params, services| {
+                let (view, task) = if let Some(params) = params {
+                    let Ok(params) = params.downcast() else {
+                        anyhow::bail!("Invalid params for view");
+                    };
+                    T::boot(Some(*params), services)
+                } else {
+                    T::boot(None, services)
+                };
+
+                Ok((
                     Box::new(view),
                     task.map(|o| ErasedWindowViewMessage {
                         view: T::id(),
                         message: Box::new(o) as Box<dyn Any + Send>,
                     }),
-                )
+                ))
             }),
         );
     }
@@ -181,8 +195,17 @@ where
         self.root_view
     }
 
-    pub fn boot(&mut self, services: &mut Services) -> Task<WindowViewManagerMessage> {
-        self.open_window_view(self.root_view.expect("No root view specified."), services)
+    pub fn boot(
+        &mut self,
+        params: Option<Box<dyn Any>>,
+        services: &mut Services,
+    ) -> Task<WindowViewManagerMessage> {
+        self.open_window_view(
+            self.root_view.expect("No root view specified."),
+            params,
+            services,
+        )
+        .unwrap()
     }
 
     pub fn view<'a>(
@@ -257,27 +280,26 @@ where
     pub fn open_window_view(
         &mut self,
         view_id: WindowViewId,
+        params: Option<Box<dyn Any>>,
         services: &mut Services,
-    ) -> Task<WindowViewManagerMessage> {
+    ) -> Result<Task<WindowViewManagerMessage>> {
         if self.opened_views.contains_key(&view_id) {
-            log::warn!("Window view already opened: {}", view_id.0);
-            return Task::none();
+            bail!("Window view already opened: {}", view_id.0);
         }
 
         let Some(boot) = self.registered_views.get(&view_id) else {
-            log::error!(
+            bail!(
                 "Unable to open a window view that is not registered: {}",
                 view_id.0
             );
-            return Task::none();
         };
 
-        let (view_state, task) = boot(services);
+        let (view_state, task) = boot(params, services)?;
         let mut view = OpenedView::new(view_state);
         update_view_windows(view_id, &mut view, &mut self.window_to_view);
         self.opened_views.insert(view_id, view);
 
-        task.map(WindowViewManagerMessage::ViewUpdate)
+        Ok(task.map(WindowViewManagerMessage::ViewUpdate))
     }
 
     pub fn close_window_view(
@@ -334,12 +356,12 @@ fn update_view_windows(
     }
 }
 
-pub trait WindowCommand: Send + Sync + 'static {
+pub trait WindowCommand: 'static {
     fn execute(
         self: Box<Self>,
         wm: &mut WindowViewManager,
         services: &mut Services,
-    ) -> Option<Task<WindowViewManagerMessage>>;
+    ) -> Result<Task<WindowViewManagerMessage>>;
 }
 
 #[derive(Default)]
@@ -361,7 +383,7 @@ impl WindowCommandBuffer {
     ) -> Task<WindowViewManagerMessage> {
         let mut tasks = Vec::new();
         for command in self.commands.drain(..) {
-            if let Some(task) = command.execute(wm, services) {
+            if let Ok(task) = command.execute(wm, services).logged_err() {
                 tasks.push(task);
             }
         }
@@ -371,6 +393,7 @@ impl WindowCommandBuffer {
 
 pub struct OpenWindowViewCommand {
     view_id: WindowViewId,
+    open_params: Option<Box<dyn Any>>,
 }
 
 impl WindowCommand for OpenWindowViewCommand {
@@ -378,14 +401,17 @@ impl WindowCommand for OpenWindowViewCommand {
         self: Box<Self>,
         wm: &mut WindowViewManager,
         services: &mut Services,
-    ) -> Option<Task<WindowViewManagerMessage>> {
-        Some(wm.open_window_view(self.view_id, services))
+    ) -> Result<Task<WindowViewManagerMessage>> {
+        wm.open_window_view(self.view_id, self.open_params, services)
     }
 }
 
 impl OpenWindowViewCommand {
-    pub fn new(view_id: WindowViewId) -> Self {
-        Self { view_id }
+    pub fn new(view_id: WindowViewId, open_params: Option<Box<dyn Any>>) -> Self {
+        Self {
+            view_id,
+            open_params,
+        }
     }
 }
 
@@ -398,8 +424,8 @@ impl WindowCommand for CloseWindowViewCommand {
         self: Box<Self>,
         wm: &mut WindowViewManager,
         services: &mut Services,
-    ) -> Option<Task<WindowViewManagerMessage>> {
-        Some(wm.close_window_view(self.view_id, services).discard())
+    ) -> Result<Task<WindowViewManagerMessage>> {
+        Ok(wm.close_window_view(self.view_id, services).discard())
     }
 }
 
@@ -411,6 +437,7 @@ impl CloseWindowViewCommand {
 
 pub struct ToggleWindowViewCommand {
     view_id: WindowViewId,
+    open_params: Option<Box<dyn Any>>,
 }
 
 impl WindowCommand for ToggleWindowViewCommand {
@@ -418,18 +445,21 @@ impl WindowCommand for ToggleWindowViewCommand {
         self: Box<Self>,
         wm: &mut WindowViewManager,
         services: &mut Services,
-    ) -> Option<Task<WindowViewManagerMessage>> {
+    ) -> Result<Task<WindowViewManagerMessage>> {
         if wm.opened_views.contains_key(&self.view_id) {
-            Some(wm.close_window_view(self.view_id, services).discard())
+            Ok(wm.close_window_view(self.view_id, services).discard())
         } else {
-            Some(wm.open_window_view(self.view_id, services))
+            wm.open_window_view(self.view_id, self.open_params, services)
         }
     }
 }
 
 impl ToggleWindowViewCommand {
-    pub fn new(view_id: WindowViewId) -> Self {
-        Self { view_id }
+    pub fn new(view_id: WindowViewId, open_params: Option<Box<dyn Any>>) -> Self {
+        Self {
+            view_id,
+            open_params,
+        }
     }
 }
 
@@ -449,8 +479,8 @@ impl WindowCommand for SubWindowOpenedCommand {
         self: Box<Self>,
         wm: &mut WindowViewManager,
         _services: &mut Services,
-    ) -> Option<Task<WindowViewManagerMessage>> {
+    ) -> Result<Task<WindowViewManagerMessage>> {
         wm.window_to_view.insert(self.window, self.view_id);
-        None
+        Ok(Task::none())
     }
 }

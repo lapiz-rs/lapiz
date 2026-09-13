@@ -3615,6 +3615,7 @@ dependencies = [
 name = "lapiz_runtime"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-broadcast",
  "downcast-rs 2.0.2",
  "futures",
@@ -3631,7 +3632,9 @@ dependencies = [
  "parse-display",
  "raw-window-handle",
  "rustc-hash 1.1.0",
+ "serde",
  "smol",
+ "toml 1.1.5+spec-1.1.0",
  "wgpu",
  "windows",
  "winit",

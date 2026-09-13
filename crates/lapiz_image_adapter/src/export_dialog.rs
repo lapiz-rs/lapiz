@@ -43,11 +43,16 @@ pub enum ExportDialogMessage {
 impl WindowView for ExportDialogView {
     type Message = ExportDialogMessage;
 
+    type BootParams = ();
+
     fn id() -> WindowViewId {
         WindowViewId::new(EXPORT_DIALOG_VIEW_ID)
     }
 
-    fn boot(services: &mut Services) -> (Self, Task<Self::Message>) {
+    fn boot(
+        _params: Option<Self::BootParams>,
+        services: &mut Services,
+    ) -> (Self, Task<Self::Message>) {
         // TODO don't panic
         let pending = services.remove_service::<PendingExport>();
         let registry = services.service::<ImageFormatAdapterRegistry>();

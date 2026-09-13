@@ -102,11 +102,16 @@ pub enum BrushEditorMessage {
 impl WindowView for BrushEditor {
     type Message = BrushEditorMessage;
 
+    type BootParams = ();
+
     fn id() -> WindowViewId {
         WindowViewId::new("brush_editor")
     }
 
-    fn boot(services: &mut Services) -> (Self, Task<Self::Message>) {
+    fn boot(
+        params: Option<Self::BootParams>,
+        services: &mut Services,
+    ) -> (Self, Task<Self::Message>) {
         let brushes = BrushPresetListDelegate::new(
             services
                 .assets()

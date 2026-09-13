@@ -19,9 +19,10 @@ impl ActionFunction for OpenBrushEditorAction {
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
         services
             .service_mut::<WindowCommandBuffer>()
-            .push(OpenWindowViewCommand::new(WindowViewId::new(
-                "brush_editor",
-            )));
+            .push(OpenWindowViewCommand::new(
+                WindowViewId::new("brush_editor"),
+                None,
+            ));
         Task::none()
     }
 }
@@ -39,9 +40,10 @@ impl ActionFunction for ToggleFilterPanelAction {
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
         services
             .service_mut::<WindowCommandBuffer>()
-            .push(ToggleWindowViewCommand::new(WindowViewId::new(
-                "filter_panel",
-            )));
+            .push(ToggleWindowViewCommand::new(
+                WindowViewId::new("filter_panel"),
+                None,
+            ));
         Task::none()
     }
 }

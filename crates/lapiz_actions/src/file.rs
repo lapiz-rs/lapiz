@@ -224,9 +224,10 @@ fn start_export(services: &mut Services, allow_silent_export: bool, path: PathBu
 
         services
             .service_mut::<WindowCommandBuffer>()
-            .push(OpenWindowViewCommand::new(WindowViewId::new(
-                EXPORT_DIALOG_VIEW_ID,
-            )));
+            .push(OpenWindowViewCommand::new(
+                WindowViewId::new(EXPORT_DIALOG_VIEW_ID),
+                None,
+            ));
     } else {
         // TODO nonononono use async
         futures::executor::block_on(adapter.export(services, canvas, &path)).log_err();

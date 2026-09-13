@@ -133,7 +133,10 @@ impl Program for Application {
     fn boot(&self) -> (Self::State, Task<Self::Message>) {
         let mut rt = std::mem::take::<Runtime>(&mut self.runtime.borrow_mut());
 
-        let window_task = rt.wm.boot(&mut rt.services).map(ApplicationMessage::Window);
+        let window_task = rt
+            .wm
+            .boot(None, &mut rt.services)
+            .map(ApplicationMessage::Window);
         let deadlock_detect_task = Task::future(async {
             loop {
                 smol::Timer::after(std::time::Duration::from_secs(5)).await;
