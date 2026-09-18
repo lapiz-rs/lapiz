@@ -1,13 +1,10 @@
 [package]
 name = "lapiz_report"
 version = "0.1.0"
-license.workspace = true
 edition.workspace = true
-publish.workspace = true
 rust-version.workspace = true
-
-[lints]
-workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
@@ -20,3 +17,6 @@ log.workspace = true
 rand.workspace = true
 sysinfo.workspace = true
 wgpu.workspace = true
+
+[lints]
+workspace = true

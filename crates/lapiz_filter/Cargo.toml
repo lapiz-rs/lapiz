@@ -1,13 +1,10 @@
 [package]
 name = "lapiz_filter"
 version = "0.1.0"
-license.workspace = true
 edition.workspace = true
-publish.workspace = true
 rust-version.workspace = true
-
-[lints]
-workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
@@ -27,7 +24,6 @@ lapiz_assets.workspace = true
 lapiz_canvas.workspace = true
 lapiz_color.workspace = true
 lapiz_i18n.workspace = true
-rust-embed.workspace = true
 lapiz_image.workspace = true
 lapiz_input.workspace = true
 lapiz_math.workspace = true
@@ -42,6 +38,7 @@ log.workspace = true
 parking_lot.workspace = true
 parse-display.workspace = true
 ringbuffer.workspace = true
+rust-embed.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 toml.workspace = true
@@ -50,3 +47,6 @@ uuid.workspace = true
 wesl.workspace = true
 wgpu.workspace = true
 zip.workspace = true
+
+[lints]
+workspace = true

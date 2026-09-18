@@ -1,4 +1,5 @@
 [workspace]
+resolver = "3"
 members = [
     "crates/lapiz_abr",
     "crates/lapiz_abr_bridge",
@@ -30,88 +31,79 @@ members = [
     "crates/lapiz_runtime",
     "crates/lapiz_runtime_derive",
     "crates/lapiz_selection_tool",
-    "crates/lapiz_transform_tool",
     "crates/lapiz_shader_graph",
     "crates/lapiz_shader_graph_derive",
     "crates/lapiz_tools",
+    "crates/lapiz_transform_tool",
     "crates/lapiz_undo",
     "crates/lapiz_utils",
     "crates/lapiz_utils_derive",
     "crates/lapiz_widgets",
 ]
-resolver = "3"
 default-members = ["crates/lapiz_app"]
 
-[profile.dev]
-opt-level = 1
-
-[profile.dev.package."*"]
-opt-level = 3
-
-[profile.release]
-debug = "full"
-
 [workspace.package]
-publish = false
 edition = "2024"
 rust-version = "1.96.0"
 license = "GPL-3.0-or-later"
-
-[workspace.lints.clippy]
-type_complexity = "allow"
-too_many_arguments = "allow"
+publish = false
 
 [workspace.dependencies]
-lapiz_abr = { version = "0.1.0", path = "crates/lapiz_abr" }
-lapiz_abr_bridge = { version = "0.1.0", path = "crates/lapiz_abr_bridge" }
-lapiz_abr_derive = { version = "0.1.0", path = "crates/lapiz_abr_derive" }
-lapiz_actions = { version = "0.1.0", path = "crates/lapiz_actions" }
-lapiz_anti_aliasing = { version = "0.1.0", path = "crates/lapiz_anti_aliasing" }
-lapiz_assets = { version = "0.1.0", path = "crates/lapiz_assets" }
-lapiz_brush = { version = "0.1.0", path = "crates/lapiz_brush" }
-lapiz_bucket_tool = { version = "0.1.0", path = "crates/lapiz_bucket_tool" }
-lapiz_builtin_docks = { version = "0.1.0", path = "crates/lapiz_builtin_docks" }
-lapiz_canvas = { version = "0.1.0", path = "crates/lapiz_canvas" }
-lapiz_color = { version = "0.1.0", path = "crates/lapiz_color" }
-lapiz_color_selector = { version = "0.1.0", path = "crates/lapiz_color_selector" }
-lapiz_config = { version = "0.1.0", path = "crates/lapiz_config" }
-lapiz_dirs = { version = "0.1.0", path = "crates/lapiz_dirs" }
-lapiz_dock = { version = "0.1.0", path = "crates/lapiz_dock" }
-lapiz_eye_dropper = { version = "0.1.0", path = "crates/lapiz_eye_dropper" }
-lapiz_filter = { version = "0.1.0", path = "crates/lapiz_filter" }
-lapiz_i18n = { version = "0.1.0", path = "crates/lapiz_i18n" }
-lapiz_image = { version = "0.1.0", path = "crates/lapiz_image" }
-lapiz_image_exporter = { version = "0.1.0", path = "crates/lapiz_image_exporter" }
-lapiz_image_importer = { version = "0.1.0", path = "crates/lapiz_image_importer" }
-lapiz_input = { version = "0.1.0", path = "crates/lapiz_input" }
-lapiz_lazuli = { version = "0.1.0", path = "crates/lapiz_lazuli" }
-lapiz_math = { version = "0.1.0", path = "crates/lapiz_math" }
-lapiz_render = { version = "0.1.0", path = "crates/lapiz_render" }
-lapiz_report = { version = "0.1.0", path = "crates/lapiz_report" }
-lapiz_runtime = { version = "0.1.0", path = "crates/lapiz_runtime" }
-lapiz_runtime_derive = { version = "0.1.0", path = "crates/lapiz_runtime_derive" }
-lapiz_shader_graph = { version = "0.1.0", path = "crates/lapiz_shader_graph" }
-lapiz_shader_graph_derive = { version = "0.1.0", path = "crates/lapiz_shader_graph_derive" }
-lapiz_selection_tool = { version = "0.1.0", path = "crates/lapiz_selection_tool" }
-lapiz_transform_tool = { version = "0.1.0", path = "crates/lapiz_transform_tool" }
-lapiz_tools = { version = "0.1.0", path = "crates/lapiz_tools" }
-lapiz_undo = { version = "0.1.0", path = "crates/lapiz_undo" }
-lapiz_utils = { version = "0.1.0", path = "crates/lapiz_utils" }
-lapiz_utils_derive = { version = "0.1.0", path = "crates/lapiz_utils_derive" }
-lapiz_widgets = { version = "0.1.0", path = "crates/lapiz_widgets" }
+lapiz_abr = { path = "crates/lapiz_abr", version = "0.1.0" }
+lapiz_abr_bridge = { path = "crates/lapiz_abr_bridge", version = "0.1.0" }
+lapiz_abr_derive = { path = "crates/lapiz_abr_derive", version = "0.1.0" }
+lapiz_actions = { path = "crates/lapiz_actions", version = "0.1.0" }
+lapiz_anti_aliasing = { path = "crates/lapiz_anti_aliasing", version = "0.1.0" }
+lapiz_assets = { path = "crates/lapiz_assets", version = "0.1.0" }
+lapiz_brush = { path = "crates/lapiz_brush", version = "0.1.0" }
+lapiz_bucket_tool = { path = "crates/lapiz_bucket_tool", version = "0.1.0" }
+lapiz_builtin_docks = { path = "crates/lapiz_builtin_docks", version = "0.1.0" }
+lapiz_canvas = { path = "crates/lapiz_canvas", version = "0.1.0" }
+lapiz_color = { path = "crates/lapiz_color", version = "0.1.0" }
+lapiz_color_selector = { path = "crates/lapiz_color_selector", version = "0.1.0" }
+lapiz_config = { path = "crates/lapiz_config", version = "0.1.0" }
+lapiz_dirs = { path = "crates/lapiz_dirs", version = "0.1.0" }
+lapiz_dock = { path = "crates/lapiz_dock", version = "0.1.0" }
+lapiz_eye_dropper = { path = "crates/lapiz_eye_dropper", version = "0.1.0" }
+lapiz_filter = { path = "crates/lapiz_filter", version = "0.1.0" }
+lapiz_i18n = { path = "crates/lapiz_i18n", version = "0.1.0" }
+lapiz_image = { path = "crates/lapiz_image", version = "0.1.0" }
+lapiz_image_exporter = { path = "crates/lapiz_image_exporter", version = "0.1.0" }
+lapiz_image_importer = { path = "crates/lapiz_image_importer", version = "0.1.0" }
+lapiz_input = { path = "crates/lapiz_input", version = "0.1.0" }
+lapiz_lazuli = { path = "crates/lapiz_lazuli", version = "0.1.0" }
+lapiz_math = { path = "crates/lapiz_math", version = "0.1.0" }
+lapiz_render = { path = "crates/lapiz_render", version = "0.1.0" }
+lapiz_report = { path = "crates/lapiz_report", version = "0.1.0" }
+lapiz_runtime = { path = "crates/lapiz_runtime", version = "0.1.0" }
+lapiz_runtime_derive = { path = "crates/lapiz_runtime_derive", version = "0.1.0" }
+lapiz_selection_tool = { path = "crates/lapiz_selection_tool", version = "0.1.0" }
+lapiz_shader_graph = { path = "crates/lapiz_shader_graph", version = "0.1.0" }
+lapiz_shader_graph_derive = { path = "crates/lapiz_shader_graph_derive", version = "0.1.0" }
+lapiz_tools = { path = "crates/lapiz_tools", version = "0.1.0" }
+lapiz_transform_tool = { path = "crates/lapiz_transform_tool", version = "0.1.0" }
+lapiz_undo = { path = "crates/lapiz_undo", version = "0.1.0" }
+lapiz_utils = { path = "crates/lapiz_utils", version = "0.1.0" }
+lapiz_utils_derive = { path = "crates/lapiz_utils_derive", version = "0.1.0" }
+lapiz_widgets = { path = "crates/lapiz_widgets", version = "0.1.0" }
 
 anyhow = "1"
-async-trait = "0.1"
 arc-swap = "1"
 async-broadcast = "0.7"
+async-trait = "0.1"
 atomicow = "1"
 bevy_color = "0.18"
-bevy_math = { version = "0.18", git = "https://github.com/443eb9/bevy.git", branch = "release-0.18.1", features = [
-    "serialize",
-    "std",
-    "curve",
-    "encase",
-] }
+bevy_math = {
+    git = "https://github.com/443eb9/bevy.git",
+    branch = "release-0.18.1",
+    version = "0.18",
+    features = [
+        "curve",
+        "encase",
+        "serialize",
+        "std",
+    ]
+}
 bitflags = { version = "2", features = ["serde"] }
 bytemuck = { version = "1", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
@@ -128,28 +120,32 @@ fluent-syntax = "0.12"
 fs_extra = "1"
 futures = "0.3"
 gfxinfo = "0.1"
-glam = { version = "0.30", features = ["encase", "serde", "bytemuck"] }
+glam = { version = "0.30", features = ["bytemuck", "encase", "serde"] }
 half = "2"
-i18n-embed = { version = "0.16", features = ["fluent-system", "desktop-requester"] }
-iced = { version = "0.15.0-dev", default-features = false, features = [
-    "wgpu",
-    "crisp",
-    "web-colors",
-    "thread-pool",
-    "linux-theme-detection",
-    "x11",
-    "wayland",
-    "debug",
-    "canvas",
-    "selector",
-    "smol",
-] }
+i18n-embed = { version = "0.16", features = ["desktop-requester", "fluent-system"] }
+iced = {
+    version = "0.15.0-dev",
+    default-features = false,
+    features = [
+        "canvas",
+        "crisp",
+        "debug",
+        "linux-theme-detection",
+        "selector",
+        "smol",
+        "thread-pool",
+        "wayland",
+        "web-colors",
+        "wgpu",
+        "x11",
+    ]
+}
 iced_core = "0.15.0-dev"
 iced_futures = { version = "0.15.0-dev", features = ["smol"] }
 iced_graphics = { version = "0.15.0-dev", features = ["geometry"] }
 iced_runtime = "0.15.0-dev"
 iced_wgpu = { version = "0.15.0-dev", features = ["geometry", "svg"] }
-iced_widget = { version = "0.15.0-dev", features = ["wgpu", "canvas", "svg", "advanced", "image"] }
+iced_widget = { version = "0.15.0-dev", features = ["advanced", "canvas", "image", "svg", "wgpu"] }
 iced_winit = "0.15.0-dev"
 image = "0.25"
 indexmap = { version = "2", features = ["serde"] }
@@ -157,23 +153,23 @@ log = "0.4"
 lyon = "1"
 md5 = "0.8"
 moxcms = "0.9"
-num-traits = "0.2"
 num_enum = "0.7"
+num-traits = "0.2"
 palette = "0.7"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
-paste = { package = "pastey", version = "0.2" }
 parse-display = "0.11"
+paste = { package = "pastey", version = "0.2" }
 path-clean = "1"
-proc-macro2 = "1"
 proc-macro-crate = "3.5"
+proc-macro2 = "1"
 quote = "1"
-raw-window-handle = { version = "0.6", features = ["std"] }
 rand = "0.10"
+raw-window-handle = { version = "0.6", features = ["std"] }
 rayon = "1"
 rfd = "0.17"
+ringbuffer = "0.16"
 rmp = "0.8"
 rmp-serde = "1"
-ringbuffer = "0.16"
 rusqlite = { version = "0.40", features = ["bundled-full"] }
 rust-embed = "8"
 rustc-hash = "2"
@@ -182,24 +178,28 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = "1"
 smol = "2"
-sysinfo = "0.39"
-taffy = { version = "0.10", default-features = false, features = ["std", "taffy_tree", "flexbox"] }
 syn = "2"
-thiserror = "2"
+sysinfo = "0.39"
+taffy = { version = "0.10", default-features = false, features = ["flexbox", "std", "taffy_tree"] }
 tempfile = "3"
+thiserror = "2"
 toml = "1"
 tracing = "0.1"
-unic-langid = "0.9"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-uuid = { version = "1", features = ["v4", "v5", "serde"] }
+unic-langid = "0.9"
+uuid = { version = "1", features = ["serde", "v4", "v5"] }
 variadics_please = "2"
-wesl = { version = "0.4", features = ["package", "naga-ext"] }
+wesl = { version = "0.4", features = ["naga-ext", "package"] }
 wesl-quote = "0.4"
 wgpu = "29"
 windows = "0.62"
 winit = "0.31.0-beta.3"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zip = "8"
+
+[workspace.lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
 
 [patch.crates-io]
 iced = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
@@ -216,3 +216,12 @@ iced_selector = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc11
 iced_wgpu = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
 iced_widget = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
 iced_winit = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+debug = "full"

@@ -98,6 +98,7 @@ setup-for-fmt: setup-format
 
 fmt:
     cargo +{{ nightly }} fmt --all
+    tombi format
 
 setup-for-test: setup-rust setup-node setup-linux
 
@@ -118,6 +119,7 @@ check: check-fmt check-clippy check-deny check-reuse
 
 check-fmt:
     cargo +{{ nightly }} fmt --all -- --check
+    tombi lint
 
 check-clippy:
     cargo clippy --workspace --all-targets --locked -- -D warnings

@@ -5,33 +5,34 @@ version = 1
 
 [[annotations]]
 path = [
-  ".cargo/**",
-  ".github/**",
-  "assets/**",
-  "crates/**",
-  "default_config/**",
-  "docs/**",
+    ".cargo/**",
+    ".github/**",
+    "assets/**",
+    "crates/**",
+    "default_config/**",
+    "docs/**",
 
-  ".gitignore",
-  ".node-version",
-  "about.hbs",
-  "about.toml",
-  "Cargo.lock",
-  "Cargo.toml",
-  "deny.toml",
-  "justfile",
-  "README.md",
-  "rust-toolchain.toml",
-  "rustfmt.toml",
+    ".gitignore",
+    ".node-version",
+    "about.hbs",
+    "about.toml",
+    "Cargo.lock",
+    "Cargo.toml",
+    "deny.toml",
+    "justfile",
+    "README.md",
+    "rust-toolchain.toml",
+    "rustfmt.toml",
+    "tombi.toml",
 ]
 SPDX-FileCopyrightText = "Contributors to Lapiz"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
 path = [
-  "crates/lapiz_abr/**",
-  "crates/lapiz_abr_derive/**",
-  "crates/lapiz_lazuli/**",
+    "crates/lapiz_abr/**",
+    "crates/lapiz_abr_derive/**",
+    "crates/lapiz_lazuli/**",
 ]
 SPDX-FileCopyrightText = "Contributors to Lapiz"
 SPDX-License-Identifier = "MIT"
@@ -39,23 +40,23 @@ SPDX-License-Identifier = "MIT"
 [[annotations]]
 path = "crates/lapiz_render/src/shaders/hash.wesl"
 SPDX-FileCopyrightText = [
-  "2014 David Hoskins",
-  "Contributors to Lapiz",
+    "2014 David Hoskins",
+    "Contributors to Lapiz",
 ]
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]
 path = "crates/lapiz_render/src/shaders/math.wesl"
 SPDX-FileCopyrightText = [
-  "2015 Inigo Quilez",
-  "Contributors to Lapiz",
+    "2015 Inigo Quilez",
+    "Contributors to Lapiz",
 ]
 SPDX-License-Identifier = "GPL-3.0-or-later AND MIT"
 
 [[annotations]]
 path = "docs/readme/main.png"
 SPDX-FileCopyrightText = [
-  "Contributors to Lapiz",
-  "Dariusz Duchiewicz",
+    "Contributors to Lapiz",
+    "Dariusz Duchiewicz",
 ]
 SPDX-License-Identifier = "GPL-3.0-or-later AND LicenseRef-Pexels"

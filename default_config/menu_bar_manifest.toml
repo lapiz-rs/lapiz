@@ -48,12 +48,18 @@ items = [
     "open_brush_editor_action",
     "toggle_filter_panel_action",
     "Separator",
-    { title = "menu_theme_submenu", items = [
-        # Injected in runtime
-    ] },
-    { title = "menu_language_submenu", items = [
-        # Injected in runtime
-    ] }
+    {
+        title = "menu_theme_submenu",
+        items = [
+            # Injected in runtime
+        ]
+    },
+    {
+        title = "menu_language_submenu",
+        items = [
+            # Injected in runtime
+        ]
+    }
 ]
 
 [[categories]]

@@ -1,17 +1,22 @@
 [package]
 name = "lapiz_bucket_tool"
 version = "0.1.0"
-license.workspace = true
 edition.workspace = true
-publish.workspace = true
 rust-version.workspace = true
-
-[lints]
-workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
 bevy_math.workspace = true
 bytemuck.workspace = true
+encase.workspace = true
+glam.workspace = true
+iced_core.workspace = true
+iced_futures.workspace = true
+iced_runtime.workspace = true
+iced_wgpu.workspace = true
+iced_widget.workspace = true
+indexmap.workspace = true
 lapiz_anti_aliasing.workspace = true
 lapiz_canvas.workspace = true
 lapiz_color.workspace = true
@@ -23,14 +28,6 @@ lapiz_runtime.workspace = true
 lapiz_tools.workspace = true
 lapiz_utils.workspace = true
 lapiz_widgets.workspace = true
-encase.workspace = true
-glam.workspace = true
-iced_core.workspace = true
-iced_runtime.workspace = true
-iced_futures.workspace = true
-iced_wgpu.workspace = true
-iced_widget.workspace = true
-indexmap.workspace = true
 tracing.workspace = true
 wesl.workspace = true
 wgpu.workspace = true
@@ -41,3 +38,6 @@ rust-embed.workspace = true
 lapiz_image.workspace = true
 lapiz_render.workspace = true
 wesl.workspace = true
+
+[lints]
+workspace = true

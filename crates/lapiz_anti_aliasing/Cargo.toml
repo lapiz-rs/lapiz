@@ -1,15 +1,15 @@
 [package]
 name = "lapiz_anti_aliasing"
 version = "0.1.0"
-license.workspace = true
-publish.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
+encase.workspace = true
 lapiz_image.workspace = true
 lapiz_render.workspace = true
-encase.workspace = true
 wesl.workspace = true
 wgpu.workspace = true
 

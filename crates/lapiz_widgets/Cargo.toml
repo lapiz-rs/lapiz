@@ -1,35 +1,38 @@
 [package]
 name = "lapiz_widgets"
 version = "0.1.0"
-license.workspace = true
 edition.workspace = true
-publish.workspace = true
 rust-version.workspace = true
-
-[lints]
-workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
-lapiz_i18n.workspace = true
-lapiz_math.workspace = true
-lapiz_runtime.workspace = true
 glam.workspace = true
 iced_core.workspace = true
 iced_graphics.workspace = true
-iced_widget.workspace = true
 iced_wgpu.workspace = true
+iced_widget.workspace = true
+lapiz_i18n.workspace = true
+lapiz_math.workspace = true
+lapiz_runtime.workspace = true
 num-traits.workspace = true
 paste.workspace = true
 taffy.workspace = true
 
-[target.'cfg(target_os = "windows")'.dependencies]
-windows = { workspace = true, features = [
-    "Win32_Foundation",
-    "Win32_Graphics_Gdi",
-    "Win32_UI_HiDpi",
-    "Win32_UI_Shell",
-    "Win32_UI_WindowsAndMessaging",
-] }
-
 [dev-dependencies]
 iced.workspace = true
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = {
+    workspace = true,
+    features = [
+        "Win32_Foundation",
+        "Win32_Graphics_Gdi",
+        "Win32_UI_HiDpi",
+        "Win32_UI_Shell",
+        "Win32_UI_WindowsAndMessaging",
+    ]
+}
+
+[lints]
+workspace = true

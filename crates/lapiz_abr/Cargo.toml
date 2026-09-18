@@ -1,19 +1,19 @@
 [package]
 name = "lapiz_abr"
 version = "0.1.0"
-license = "MIT"
 edition.workspace = true
-publish.workspace = true
 rust-version.workspace = true
-
-[lints]
-workspace = true
+license = "MIT"
+publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-lapiz_abr_derive.workspace = true
 image.workspace = true
+lapiz_abr_derive.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
 clap.workspace = true
+
+[lints]
+workspace = true

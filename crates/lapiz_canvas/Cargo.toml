@@ -1,23 +1,27 @@
 [package]
 name = "lapiz_canvas"
 version = "0.1.0"
-license.workspace = true
 edition.workspace = true
-publish.workspace = true
 rust-version.workspace = true
-
-[lints]
-workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
 bevy_math.workspace = true
 bytemuck.workspace = true
+encase.workspace = true
+glam.workspace = true
+iced_core.workspace = true
+iced_runtime.workspace = true
+iced_wgpu.workspace = true
+iced_widget.workspace = true
+indexmap.workspace = true
 lapiz_color.workspace = true
 lapiz_config.workspace = true
 lapiz_dirs.workspace = true
-lapiz_image.workspace = true
 lapiz_i18n.workspace = true
+lapiz_image.workspace = true
 lapiz_input.workspace = true
 lapiz_lazuli.workspace = true
 lapiz_math.workspace = true
@@ -27,17 +31,10 @@ lapiz_tools.workspace = true
 lapiz_undo.workspace = true
 lapiz_utils.workspace = true
 lapiz_widgets.workspace = true
-encase.workspace = true
-glam.workspace = true
-iced_core.workspace = true
-iced_runtime.workspace = true
-iced_wgpu.workspace = true
-iced_widget.workspace = true
-indexmap.workspace = true
 log.workspace = true
 moxcms.workspace = true
-parse-display.workspace = true
 parking_lot.workspace = true
+parse-display.workspace = true
 serde.workspace = true
 tracing.workspace = true
 uuid.workspace = true
@@ -49,3 +46,6 @@ xxhash-rust.workspace = true
 lapiz_image.workspace = true
 lapiz_render.workspace = true
 wesl.workspace = true
+
+[lints]
+workspace = true

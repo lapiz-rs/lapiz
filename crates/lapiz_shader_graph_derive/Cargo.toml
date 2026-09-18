@@ -1,13 +1,10 @@
 [package]
 name = "lapiz_shader_graph_derive"
 version = "0.1.0"
-license.workspace = true
 edition.workspace = true
-publish.workspace = true
 rust-version.workspace = true
-
-[lints]
-workspace = true
+license.workspace = true
+publish.workspace = true
 
 [lib]
 proc-macro = true
@@ -16,3 +13,6 @@ proc-macro = true
 proc-macro2.workspace = true
 quote.workspace = true
 syn = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true

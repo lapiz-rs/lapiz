@@ -1,29 +1,29 @@
 [package]
 name = "lapiz_tools"
 version = "0.1.0"
-license.workspace = true
 edition.workspace = true
-publish.workspace = true
 rust-version.workspace = true
-
-[lints]
-workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+iced_core.workspace = true
+iced_runtime.workspace = true
+iced_wgpu.workspace = true
+iced_widget.workspace = true
 lapiz_assets.workspace = true
 lapiz_config.workspace = true
 lapiz_input.workspace = true
 lapiz_runtime.workspace = true
-lapiz_widgets.workspace = true
 lapiz_utils.workspace = true
-iced_core.workspace = true
-iced_wgpu.workspace = true
-iced_widget.workspace = true
-iced_runtime.workspace = true
+lapiz_widgets.workspace = true
 log.workspace = true
 parse-display.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 wgpu.workspace = true
+
+[lints]
+workspace = true

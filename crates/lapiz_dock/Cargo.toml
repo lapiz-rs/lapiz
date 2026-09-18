@@ -1,8 +1,8 @@
 [package]
 name = "lapiz_dock"
 version = "0.1.0"
-license.workspace = true
 edition = "2024"
+license.workspace = true
 
 [dependencies]
 iced_core.workspace = true
@@ -10,13 +10,13 @@ iced_futures.workspace = true
 iced_runtime.workspace = true
 iced_wgpu.workspace = true
 iced_widget.workspace = true
-lapiz_i18n.workspace = true
-lapiz_utils.workspace = true
-parse-display.workspace = true
-uuid.workspace = true
 indexmap.workspace = true
+lapiz_i18n.workspace = true
+lapiz_runtime.workspace = true
+lapiz_utils.workspace = true
+lapiz_widgets.workspace = true
+log.workspace = true
+parse-display.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-log.workspace = true
-lapiz_widgets.workspace = true
-lapiz_runtime.workspace = true
+uuid.workspace = true
