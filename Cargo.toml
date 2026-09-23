@@ -180,7 +180,7 @@ smallvec = "1"
 smol = "2"
 syn = "2"
 sysinfo = "0.39"
-taffy = { version = "0.10", default-features = false, features = ["flexbox", "std", "taffy_tree"] }
+taffy = { version = "0.14", default-features = false, features = ["flexbox", "std", "taffy_tree"] }
 tempfile = "3"
 thiserror = "2"
 toml = "1"
