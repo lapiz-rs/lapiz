@@ -179,7 +179,7 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 smallvec = "1"
 smol = "2"
-syn = "2"
+syn = "3"
 sysinfo = "0.39"
 taffy = { version = "0.10", default-features = false, features = ["flexbox", "std", "taffy_tree"] }
 tempfile = "3"
