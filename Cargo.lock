@@ -3296,7 +3296,7 @@ dependencies = [
  "lapiz_utils",
  "lapiz_widgets",
  "log",
- "moxcms 0.9.0",
+ "moxcms 0.9.1",
  "parking_lot",
  "rust-embed",
  "toml 1.1.5+spec-1.1.0",
@@ -3438,7 +3438,7 @@ dependencies = [
  "lapiz_utils",
  "lapiz_widgets",
  "log",
- "moxcms 0.9.0",
+ "moxcms 0.9.1",
  "rust-embed",
  "serde",
  "wgpu",
@@ -3473,7 +3473,7 @@ dependencies = [
  "lapiz_utils",
  "lapiz_widgets",
  "log",
- "moxcms 0.9.0",
+ "moxcms 0.9.1",
  "parking_lot",
  "parse-display",
  "serde",
@@ -3493,7 +3493,7 @@ dependencies = [
  "lapiz_math",
  "lapiz_runtime",
  "lapiz_utils",
- "moxcms 0.9.0",
+ "moxcms 0.9.1",
  "parse-display",
  "serde",
  "wesl",
@@ -3519,7 +3519,7 @@ dependencies = [
  "lapiz_render",
  "lapiz_runtime",
  "lapiz_widgets",
- "moxcms 0.9.0",
+ "moxcms 0.9.1",
  "parse-display",
  "rust-embed",
  "serde",
@@ -3683,7 +3683,7 @@ dependencies = [
  "lapiz_utils",
  "lapiz_widgets",
  "log",
- "moxcms 0.9.0",
+ "moxcms 0.9.1",
  "num_enum",
  "palette",
  "parking_lot",
@@ -3791,7 +3791,7 @@ dependencies = [
  "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
  "glam 0.30.10",
  "iced_core",
- "moxcms 0.9.0",
+ "moxcms 0.9.1",
 ]
 
 [[package]]
@@ -4490,9 +4490,9 @@ dependencies = [
 
 [[package]]
 name = "moxcms"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aee701c0ffba6cc991c0fefda5ff5fca1bd2f2f4a928ffba9f825b9afceedbc3"
+checksum = "396077b717181ce3f9a6b66739b269b82d756be5ec0f76be0bc40a7c51775830"
 dependencies = [
  "num-traits",
  "pxfm",
