@@ -1,9 +1,10 @@
-use std::{ffi::OsStr, iter, path::PathBuf};
+use std::{ffi::OsStr, iter, sync::Arc};
 
 use futures::executor::block_on;
 use iced_runtime::Task;
 use lapiz_canvas::CanvasAppExt as _;
 use lapiz_config::Config;
+use lapiz_file_dialog::{FileDialog, LocalFile};
 use lapiz_i18n::t;
 use lapiz_image_exporter::{
     ImageFormatAdapterRegistry, PendingExport, SilentSaveCanvases, config::ImageExporterConfig,
@@ -15,7 +16,6 @@ use lapiz_runtime::{
     windows::{OpenWindowViewCommand, WindowCommandBuffer, WindowViewId},
 };
 use lapiz_utils::log_err::LogErr as _;
-use rfd::AsyncFileDialog;
 
 use crate::{ActionFunction, ActionId};
 
@@ -23,7 +23,7 @@ use crate::{ActionFunction, ActionId};
 pub struct OpenFileAction;
 
 pub enum OpenFileMessage {
-    Opened(PathBuf),
+    Opened(LocalFile),
     Canceled,
 }
 
@@ -35,7 +35,7 @@ impl ActionFunction for OpenFileAction {
     }
 
     fn trigger(&self, services: &mut Services) -> Task<Self::Message> {
-        let mut dialog = AsyncFileDialog::new();
+        let mut dialog = FileDialog::new_maybe_from_service(services);
         let formats = services
             .service::<ImageImporterRegistry>()
             .iter_formats()
@@ -48,14 +48,17 @@ impl ActionFunction for OpenFileAction {
         for format in formats {
             let mut extensions = vec![format.extension];
             extensions.extend(format.aliases);
-            dialog = dialog.add_filter(&format.description, &extensions);
+            dialog = dialog.add_filter(format.description, &extensions);
         }
-        Task::future(async {
-            let Some(file) = dialog.pick_file().await else {
-                log::error!("Unable to get selected file path.");
-                return OpenFileMessage::Canceled;
-            };
-            OpenFileMessage::Opened(file.path().to_path_buf())
+        Task::future(async move {
+            match dialog.pick_file().await {
+                Ok(Some(file)) => OpenFileMessage::Opened(file),
+                Ok(None) => OpenFileMessage::Canceled,
+                Err(error) => {
+                    log::error!("Unable to open document: {error}");
+                    OpenFileMessage::Canceled
+                }
+            }
         })
     }
 
@@ -64,11 +67,11 @@ impl ActionFunction for OpenFileAction {
         message: Self::Message,
         services: &mut Services,
     ) -> Task<Self::Message> {
-        let OpenFileMessage::Opened(path) = message else {
+        let OpenFileMessage::Opened(local_file) = message else {
             return Task::none();
         };
 
-        start_import(services, path);
+        start_import(services, local_file);
 
         Task::none()
     }
@@ -88,16 +91,13 @@ impl ActionFunction for SaveFileAction {
         let Some(canvas_id) = services.current_canvas_id() else {
             return Task::none();
         };
-        let Some(path) = services
-            .canvas(&canvas_id)
-            .map(|canvas| canvas.file_path().clone())
-        else {
+        let Some(canvas) = services.canvas(&canvas_id) else {
             return Task::none();
         };
 
         // TODO incremental saving for lazuli file. Saving should happen at every canvas command.
+        start_export(services, true, canvas.local_file().clone());
 
-        start_export(services, true, path);
         Task::none()
     }
 }
@@ -106,7 +106,7 @@ impl ActionFunction for SaveFileAction {
 pub struct ExportFileAction;
 
 pub enum ExportFileMessage {
-    PathChosen(Option<PathBuf>),
+    PathChosen(Option<LocalFile>),
 }
 
 impl ActionFunction for ExportFileAction {
@@ -120,31 +120,33 @@ impl ActionFunction for ExportFileAction {
         let Some(canvas) = services.current_canvas() else {
             return Task::none();
         };
-        let file_name = canvas
-            .file_path()
-            .file_stem()
-            .map(|stem| stem.to_string_lossy().into_owned());
-
-        let mut dialog = AsyncFileDialog::new();
+        let mut dialog = FileDialog::new_maybe_from_service(services);
+        let name = canvas.local_file().name();
+        if !name.is_empty() {
+            dialog = dialog.set_file_name(name);
+        } else {
+            #[cfg(target_os = "android")]
+            {
+                dialog = dialog.set_file_name("Untitled.png");
+            }
+        }
         for format in services
             .service::<ImageFormatAdapterRegistry>()
             .iter_formats()
         {
             let mut extensions = vec![format.extension];
             extensions.extend(format.aliases);
-            dialog = dialog.add_filter(&format.description, &extensions);
-        }
-        if let Some(file_name) = file_name {
-            dialog = dialog.set_file_name(file_name);
+            dialog = dialog.add_filter(format.description, &extensions);
         }
 
         Task::future(async move {
-            ExportFileMessage::PathChosen(
-                dialog
-                    .save_file()
-                    .await
-                    .map(|file| file.path().to_path_buf()),
-            )
+            match dialog.save_file().await {
+                Ok(file) => ExportFileMessage::PathChosen(file),
+                Err(error) => {
+                    log::error!("Unable to create document: {error}");
+                    ExportFileMessage::PathChosen(None)
+                }
+            }
         })
     }
 
@@ -153,18 +155,19 @@ impl ActionFunction for ExportFileAction {
         message: Self::Message,
         services: &mut Services,
     ) -> Task<Self::Message> {
-        let ExportFileMessage::PathChosen(Some(path)) = message else {
+        let ExportFileMessage::PathChosen(Some(local_file)) = message else {
             return Task::none();
         };
-        start_export(services, false, path);
+        start_export(services, false, local_file.into());
         Task::none()
     }
 }
 
-fn start_export(services: &mut Services, allow_silent_export: bool, path: PathBuf) {
+fn start_export(services: &mut Services, allow_silent_export: bool, local_file: Arc<LocalFile>) {
     let Some(canvas) = services.current_canvas() else {
         return;
     };
+    let path = local_file.path();
     let Some(path_extension) = path.extension().and_then(OsStr::to_str) else {
         return;
     };
@@ -188,7 +191,7 @@ fn start_export(services: &mut Services, allow_silent_export: bool, path: PathBu
         .contains(canvas.id());
     if adapter.has_options() && !(allow_silent_export && can_silent_export) {
         let params = PendingExport {
-            path,
+            local_file,
             allow_silent_export,
             canvas_id: canvas.id(),
         };
@@ -200,6 +203,8 @@ fn start_export(services: &mut Services, allow_silent_export: bool, path: PathBu
             ));
     } else {
         // TODO nonononono use async
-        block_on(adapter.export(services, canvas, &path)).log_err();
+        block_on(adapter.export(services, canvas, local_file.path()))
+            .and_then(|_| local_file.commit())
+            .log_err();
     }
 }

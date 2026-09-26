@@ -65,7 +65,7 @@ impl CanvasDock {
 
         let root_id = *canvas.image.layer_stack().root_id();
         let tiles = services.tile_storage().clone();
-        let file_path = canvas.file_path().clone();
+        let source = canvas.local_file().source();
         let image_rect = canvas.image.image_pixel_rect();
         let canvas_id = self.canvas;
         let color_profile = canvas.image.profile().clone();
@@ -80,7 +80,7 @@ impl CanvasDock {
                 return;
             };
 
-            let path = recent_file_thumbnail_path(file_path.as_path());
+            let path = recent_file_thumbnail_path(&source);
             if let Some(parent) = path.parent()
                 && fs::create_dir_all(parent).logged_err().is_err()
             {

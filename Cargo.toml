@@ -19,6 +19,7 @@ members = [
     "crates/lapiz_dock",
     "crates/lapiz_effect",
     "crates/lapiz_eye_dropper",
+    "crates/lapiz_file_dialog/",
     "crates/lapiz_filter",
     "crates/lapiz_i18n",
     "crates/lapiz_image",
@@ -40,6 +41,8 @@ members = [
     "crates/lapiz_utils",
     "crates/lapiz_utils_derive",
     "crates/lapiz_widgets",
+    "vendor/arboard",
+    "vendor/iced_winit",
     "xtask",
 ]
 default-members = ["crates/lapiz_app"]
@@ -68,6 +71,7 @@ lapiz_dirs = { path = "crates/lapiz_dirs", version = "0.1.0" }
 lapiz_dock = { path = "crates/lapiz_dock", version = "0.1.0" }
 lapiz_effect = { path = "crates/lapiz_effect", version = "0.1.0" }
 lapiz_eye_dropper = { path = "crates/lapiz_eye_dropper", version = "0.1.0" }
+lapiz_file_dialog = { path = "crates/lapiz_file_dialog", version = "0.1.0" }
 lapiz_filter = { path = "crates/lapiz_filter", version = "0.1.0" }
 lapiz_i18n = { path = "crates/lapiz_i18n", version = "0.1.0" }
 lapiz_image = { path = "crates/lapiz_image", version = "0.1.0" }
@@ -91,6 +95,7 @@ lapiz_utils_derive = { path = "crates/lapiz_utils_derive", version = "0.1.0" }
 lapiz_widgets = { path = "crates/lapiz_widgets", version = "0.1.0" }
 
 anyhow = "1"
+arboard = { version = "3.6", default-features = false }
 arc-swap = "1"
 async-broadcast = "0.7"
 async-trait = "0.1"
@@ -144,18 +149,22 @@ iced = {
     ]
 }
 iced_core = "0.15.0-dev"
+iced_debug = "0.15.0-dev"
 iced_futures = { version = "0.15.0-dev", features = ["smol"] }
 iced_graphics = { version = "0.15.0-dev", features = ["geometry"] }
+iced_program = "0.15.0-dev"
 iced_runtime = "0.15.0-dev"
 iced_wgpu = { version = "0.15.0-dev", features = ["geometry", "image", "svg"] }
 iced_widget = { version = "0.15.0-dev", features = ["advanced", "canvas", "image", "svg", "wgpu"] }
 iced_winit = "0.15.0-dev"
 image = "0.25"
 indexmap = { version = "2", features = ["serde"] }
+jni = "0.21"
 log = "0.4"
 lyon = "1"
 md5 = "0.8"
 moxcms = "0.9"
+mundy = { version = "0.2", default-features = false }
 num_enum = "0.7"
 num-traits = "0.2"
 palette = "0.7"
@@ -174,7 +183,7 @@ ringbuffer = "0.16"
 rmp = "0.8"
 rmp-serde = "1"
 rusqlite = { version = "0.40", features = ["bundled-full"] }
-rust-embed = "8"
+rust-embed = { version = "8", features = ["debug-embed"] }
 rustc-hash = "2"
 schemars = { version = "1", features = ["uuid1"] }
 serde = { version = "1", features = ["derive", "rc"] }
@@ -192,6 +201,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 unic-langid = "0.9"
 uuid = { version = "1", features = ["serde", "v4", "v5"] }
 variadics_please = "2"
+wasm-bindgen-futures = "0.4"
+web-sys = "=0.3.85"
 wesl = { version = "0.4", features = ["naga-ext", "package"] }
 wesl-quote = "0.4"
 wgpu = "29"
@@ -213,6 +224,7 @@ unused_trait_names = "warn"
 wildcard_imports = "warn"
 
 [patch.crates-io]
+arboard = { path = "vendor/arboard" }
 iced = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
 iced_beacon = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
 iced_core = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
@@ -226,7 +238,10 @@ iced_runtime = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc114
 iced_selector = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
 iced_wgpu = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
 iced_widget = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
-iced_winit = { git = "https://github.com/443eb9/iced.git", rev = "c014126fc1148e9020fa60d3a528e5731cc6df17" }
+iced_winit = { path = "vendor/iced_winit" }
+
+[patch."https://github.com/443eb9/iced.git"]
+iced_winit = { path = "vendor/iced_winit" }
 
 [profile.dev]
 opt-level = 1

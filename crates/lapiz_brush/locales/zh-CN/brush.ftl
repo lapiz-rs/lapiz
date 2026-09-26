@@ -75,3 +75,4 @@ save = 保存
 save_dirty = 保存 *
 postprocess = 后处理 { $index }
 new_variable_name = 新变量名
+brush_editor_title = 笔刷编辑器

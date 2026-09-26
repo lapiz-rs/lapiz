@@ -33,7 +33,6 @@ pub mod tag;
 pub mod text_input;
 pub mod title_bar;
 pub mod tooltip;
-pub mod window_decorations;
 
 pub mod __private {
     #![expect(

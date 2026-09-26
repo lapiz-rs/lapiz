@@ -7,6 +7,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+clap.workspace = true
 ra_ap_syntax = "0.0.281"
 
 [lints]

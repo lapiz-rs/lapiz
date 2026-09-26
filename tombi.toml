@@ -1,4 +1,7 @@
 toml-version = "v1.1.0"
 
+[files]
+exclude = ["vendor/**/*.toml"]
+
 [format.rules]
 indent-width = 4

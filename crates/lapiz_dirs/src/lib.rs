@@ -1,20 +1,45 @@
-#[cfg(not(feature = "dev_local"))]
+#[cfg(all(not(target_os = "android"), not(feature = "dev_local")))]
 use std::env;
+#[cfg(target_os = "android")]
+use std::sync::OnceLock;
 use std::{
     fs,
     path::{Path, PathBuf},
     sync::LazyLock,
 };
 
+#[cfg(all(not(target_os = "android"), not(feature = "dev_local")))]
 use directories::BaseDirs;
 
+#[cfg(all(not(target_os = "android"), not(feature = "dev_local")))]
 static BASE_DIRS: LazyLock<Option<BaseDirs>> = LazyLock::new(BaseDirs::new);
 
+#[cfg(target_os = "android")]
+static ANDROID_DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+#[cfg(target_os = "android")]
+pub fn set_android_data_dir(path: PathBuf) {
+    ANDROID_DATA_DIR
+        .set(path)
+        .expect("Android data directory already set");
+}
+
+#[cfg(target_os = "android")]
+fn android_dir(name: &str) -> PathBuf {
+    ANDROID_DATA_DIR
+        .get()
+        .expect("Android data directory not set")
+        .join(name)
+}
+
 static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    #[cfg(feature = "dev_local")]
+    #[cfg(target_os = "android")]
+    let path = android_dir("configs");
+
+    #[cfg(all(not(target_os = "android"), feature = "dev_local"))]
     let path = PathBuf::new().join("target").join("configs");
 
-    #[cfg(not(feature = "dev_local"))]
+    #[cfg(all(not(target_os = "android"), not(feature = "dev_local")))]
     let path = if let Ok(dir) = env::var("CONFIG_DIR") {
         PathBuf::from(dir)
     } else if let Some(dir) = BASE_DIRS.as_ref() {
@@ -34,10 +59,13 @@ pub fn config_dir() -> &'static Path {
 }
 
 static CACHE_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    #[cfg(feature = "dev_local")]
+    #[cfg(target_os = "android")]
+    let path = android_dir("cache");
+
+    #[cfg(all(not(target_os = "android"), feature = "dev_local"))]
     let path = PathBuf::new().join("target").join("cache");
 
-    #[cfg(not(feature = "dev_local"))]
+    #[cfg(all(not(target_os = "android"), not(feature = "dev_local")))]
     let path = if let Ok(dir) = env::var("CACHE_DIR") {
         PathBuf::from(dir)
     } else if let Some(dir) = BASE_DIRS.as_ref() {
@@ -57,10 +85,13 @@ pub fn cache_dir() -> &'static Path {
 }
 
 static PANIC_REPORTS_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    #[cfg(feature = "dev_local")]
+    #[cfg(target_os = "android")]
+    let path = android_dir("panic_reports");
+
+    #[cfg(all(not(target_os = "android"), feature = "dev_local"))]
     let path = PathBuf::new().join("target").join("panic_reports");
 
-    #[cfg(not(feature = "dev_local"))]
+    #[cfg(all(not(target_os = "android"), not(feature = "dev_local")))]
     let path = if let Ok(dir) = env::var("PANIC_REPORTS_DIR") {
         PathBuf::from(dir)
     } else if let Some(dir) = BASE_DIRS.as_ref() {
@@ -80,10 +111,13 @@ pub fn panic_reports_dir() -> &'static Path {
 }
 
 static REPORTS_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    #[cfg(feature = "dev_local")]
+    #[cfg(target_os = "android")]
+    let path = android_dir("reports");
+
+    #[cfg(all(not(target_os = "android"), feature = "dev_local"))]
     let path = PathBuf::new().join("target").join("reports");
 
-    #[cfg(not(feature = "dev_local"))]
+    #[cfg(all(not(target_os = "android"), not(feature = "dev_local")))]
     let path = if let Ok(dir) = env::var("REPORTS_DIR") {
         PathBuf::from(dir)
     } else if let Some(dir) = BASE_DIRS.as_ref() {
@@ -103,10 +137,13 @@ pub fn reports_dir() -> &'static Path {
 }
 
 static ASSETS_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    #[cfg(feature = "dev_local")]
+    #[cfg(target_os = "android")]
+    let path = android_dir("assets");
+
+    #[cfg(all(not(target_os = "android"), feature = "dev_local"))]
     let path = PathBuf::from("assets");
 
-    #[cfg(not(feature = "dev_local"))]
+    #[cfg(all(not(target_os = "android"), not(feature = "dev_local")))]
     let path = if let Ok(dir) = env::var("ASSETS_DIR") {
         PathBuf::from(dir)
     } else if let Some(dir) = BASE_DIRS.as_ref() {

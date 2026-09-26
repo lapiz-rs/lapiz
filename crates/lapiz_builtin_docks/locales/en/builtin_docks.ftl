@@ -17,6 +17,7 @@ tool_box_dock = Tool Box
 tool_options_dock = Tool Options
 layer_dock = Layers
 color_selector_dock = Color
+color_selector_settings_title = Color Selector Settings
 brush_presets_dock = Brush Presets
 settings = Settings
 no_tool_options = No options for this tool

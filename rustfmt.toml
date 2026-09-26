@@ -2,3 +2,4 @@ unstable_features = true
 imports_granularity = "Crate"
 group_imports = "StdExternalCrate"
 reorder_imports = true
+ignore = ["vendor/iced_winit"]

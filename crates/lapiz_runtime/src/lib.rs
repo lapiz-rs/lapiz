@@ -10,8 +10,8 @@ use std::{
 };
 
 use iced_core::{Element, Length, Widget, window};
-use iced_futures::{Subscription, backend::native};
-use iced_runtime::{Task, window::close_events};
+use iced_futures::{Subscription, backend::native, event::listen_with};
+use iced_runtime::{Task, window::raw_id};
 use iced_winit::program::Program;
 
 use crate::{
@@ -23,6 +23,8 @@ use crate::{
 pub mod event;
 #[doc(hidden)]
 pub use event::__private;
+#[cfg(target_os = "android")]
+pub mod android;
 pub mod platform;
 pub mod plugin;
 pub mod renderer;
@@ -91,11 +93,29 @@ impl Application {
         self.state = ApplicationState::Finished;
     }
 
-    pub fn run(self) -> Result<(), iced_winit::Error> {
+    pub fn run(
+        self,
+        #[cfg(target_os = "android")] android_app: winit::platform::android::activity::AndroidApp,
+    ) -> Result<(), iced_winit::Error> {
         if !matches!(self.state, ApplicationState::Finished) {
             panic!("Plugins must be built before running the application");
         }
 
+        #[cfg(target_os = "android")]
+        {
+            let mut font_system = iced_graphics::text::font_system()
+                .write()
+                .expect("Font system");
+            let db = font_system.raw().db_mut();
+            db.load_fonts_dir("/system/fonts");
+            db.set_sans_serif_family("Roboto");
+            log::info!("Loaded {} Android font faces", db.len());
+            drop(font_system);
+
+            iced_winit::run_android(self, android_app)
+        }
+
+        #[cfg(not(target_os = "android"))]
         iced_winit::run(self)
     }
 }
@@ -172,6 +192,13 @@ impl Program for Application {
                 .wm
                 .update(m, &mut state.services)
                 .map(ApplicationMessage::Window),
+            ApplicationMessage::WindowOpened(id) => {
+                raw_id::<()>(id).map(move |raw_id| ApplicationMessage::WindowRawId(id, raw_id))
+            }
+            ApplicationMessage::WindowRawId(_, raw_id) => {
+                platform::attach_resize_handle(raw_id);
+                Task::none()
+            }
             ApplicationMessage::WindowClosed(id) => {
                 state.wm.on_window_closed(id, &mut state.services).discard()
             }
@@ -228,9 +255,16 @@ impl Program for Application {
             .wm
             .subscription(&state.services)
             .map(ApplicationMessage::Window);
-        let window_closed = close_events().map(ApplicationMessage::WindowClosed);
+        let external = listen_with(|event, _, window_id| match event {
+            iced_core::Event::Window(event) => match event {
+                window::Event::Opened { .. } => Some(ApplicationMessage::WindowOpened(window_id)),
+                window::Event::Closed => Some(ApplicationMessage::WindowClosed(window_id)),
+                _ => None,
+            },
+            _ => None,
+        });
 
-        Subscription::batch([windows, window_closed])
+        Subscription::batch([windows, external])
     }
 }
 
@@ -273,6 +307,8 @@ impl Runtime {
 
 pub enum ApplicationMessage {
     Window(WindowViewManagerMessage),
+    WindowOpened(window::Id),
+    WindowRawId(window::Id, u64),
     WindowClosed(window::Id),
 }
 

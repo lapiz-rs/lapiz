@@ -1,0 +1,18 @@
+[package]
+name = "arboard"
+version = "3.6.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+arboard_upstream = { package = "arboard", git = "https://github.com/1Password/arboard.git", tag = "v3.6.1", version = "3.6.1", default-features = false }
+
+[features]
+default = ["image-data"]
+image-data = ["arboard_upstream/image-data"]
+wayland-data-control = ["arboard_upstream/wayland-data-control"]
+
+[lints]
+workspace = true

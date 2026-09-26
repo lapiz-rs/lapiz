@@ -22,6 +22,7 @@ lapiz_color.workspace = true
 lapiz_color_selector.workspace = true
 lapiz_config.workspace = true
 lapiz_dock.workspace = true
+lapiz_file_dialog.workspace = true
 lapiz_i18n.workspace = true
 lapiz_image.workspace = true
 lapiz_image_importer.workspace = true

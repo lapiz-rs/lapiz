@@ -18,6 +18,7 @@ use lapiz_runtime::{Renderer, Services, event::Event as _};
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{
     button::Button, flex::Flex, label::Label, panel::Panel, scrollable::Scrollable,
+    title_bar::TitleBar,
 };
 use moxcms::ColorProfile;
 
@@ -29,6 +30,7 @@ pub enum ColorSelectorDockMessage {
     ConfigEditor(ColorSelectorConfigMessage),
     OpenSettings,
     SettingsWindowClosed,
+    SettingsWindowDrag,
     ForegroundColorChanged(ForegroundColorChanged),
     BackgroundColorChanged(BackgroundColorChanged),
     ConfigChanged,
@@ -84,10 +86,20 @@ impl Dock for ColorSelectorDock {
         _services: &'a Services,
     ) -> Element<'a, Self::Message, Theme, Renderer> {
         self.window_id.replace(window_id);
-        let content = if self.settings_window_id == Some(window_id) {
-            self.config_editor
-                .view()
-                .map(ColorSelectorDockMessage::ConfigEditor)
+
+        if self.settings_window_id == Some(window_id) {
+            let titlebar =
+                TitleBar::new(Label::new(t!("color_selector_settings_title")).window_title())
+                    .on_close(ColorSelectorDockMessage::ConfigEditor(
+                        ColorSelectorConfigMessage::Cancelled,
+                    ))
+                    .on_drag(ColorSelectorDockMessage::SettingsWindowDrag);
+            Element::from(Panel::new(Flex::column([
+                titlebar.into(),
+                self.config_editor
+                    .view()
+                    .map(ColorSelectorDockMessage::ConfigEditor),
+            ])))
         } else {
             Flex::column([
                 Scrollable::new(ColorSelector::new(
@@ -105,13 +117,7 @@ impl Dock for ColorSelectorDock {
             .gap(4)
             .height(Length::Fill)
             .into()
-        };
-
-        Panel::new(content)
-            .padding(4)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
+        }
     }
 
     fn update(&mut self, message: Self::Message, services: &mut Services) -> Task<Self::Message> {
@@ -150,9 +156,16 @@ impl Dock for ColorSelectorDock {
                     window::gain_focus(id)
                 } else {
                     let (id, task) = window::open(window::Settings {
+                        decorations: false,
                         size: Size {
                             width: 700.0,
                             height: 900.0,
+                        },
+                        #[cfg(target_os = "windows")]
+                        platform_specific: window::settings::PlatformSpecific {
+                            corner_preference:
+                                window::settings::platform::CornerPreference::DoNotRound,
+                            ..Default::default()
                         },
                         ..Default::default()
                     });
@@ -167,6 +180,13 @@ impl Dock for ColorSelectorDock {
             ColorSelectorDockMessage::SettingsWindowClosed => {
                 self.settings_window_id = None;
                 Task::none()
+            }
+            ColorSelectorDockMessage::SettingsWindowDrag => {
+                if let Some(id) = self.settings_window_id {
+                    window::drag(id)
+                } else {
+                    Task::none()
+                }
             }
             ColorSelectorDockMessage::ConfigEditor(ColorSelectorConfigMessage::Cancelled) => {
                 if let Some(id) = self.settings_window_id {

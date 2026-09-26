@@ -67,10 +67,15 @@ impl RenderContext {
         log::info!("Adapter limits: {:#?}", adapter.limits());
         log::info!("Adapter features: {:#?}", adapter.features());
 
+        #[cfg(target_os = "android")]
+        let shader_f16 = adapter.features() & wgpu::Features::SHADER_F16;
+        #[cfg(not(target_os = "android"))]
+        let shader_f16 = wgpu::Features::SHADER_F16;
+
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("lapiz render device descriptor"),
-                required_features: wgpu::Features::SHADER_F16
+                required_features: shader_f16
                     | wgpu::Features::CLEAR_TEXTURE
                     | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
                     | (adapter.features() & wgpu::Features::TIMESTAMP_QUERY),

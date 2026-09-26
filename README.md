@@ -1,6 +1,6 @@
 # Lapiz
 
-*Project logo under construction*
+_Project logo under construction_
 
 > [!WARNING]
 > This project is still at pre-pre-pre-alpha stage, and is absolutely not intended for production use. It has tons of bugs and incomplete code!
@@ -15,17 +15,29 @@ The name "Lapiz" means pencil in Spanish. It looks like the English word "Lapis"
 
 ## Development
 
-This project uses [just](https://just.systems/) as the build system.
+Lapiz uses [just](https://just.systems/) for everything.
 
 ```bash
-just setup # setup all required tools
+just test  # unit, documentation, and WGSL tests
+just check # formatting, Clippy, and repository lints
+just fmt   # format code
+```
 
-just build dev # or: just build release
-just run dev # or: just run release/dev-local
-just package dev # or: just package release
+### Desktop
 
-just fmt # format the code
-just check # run fmt check, clippy, and custom lint xtasks
+```bash
+just build desktop dev
+just run dev
+just run dev-local
+just package desktop dev
+```
+
+### Android
+
+```bash
+just check android aarch64
+just build android dev aarch64
+just package android release aarch64
 ```
 
 ## LLM Assisted Contributions

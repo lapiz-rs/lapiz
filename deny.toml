@@ -37,8 +37,4 @@ wildcards = "deny"
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = [
-    "https://github.com/443eb9/bevy",
-    "https://github.com/443eb9/iced",
-    "https://github.com/iced-rs/cryoglyph",
-]
+allow-git = ["https://github.com/443eb9/bevy", "https://github.com/443eb9/iced", "https://github.com/iced-rs/cryoglyph", "https://github.com/1Password/arboard.git"]

@@ -1,0 +1,72 @@
+[package]
+name = "iced_winit"
+description = "A runtime for iced on top of winit"
+version = "0.15.0-dev"
+edition.workspace = true
+authors = ["Héctor Ramón Jiménez <hector@hecrj.dev>"]
+license = "MIT"
+repository = "https://github.com/iced-rs/iced"
+homepage = "https://iced.rs"
+categories = ["gui"]
+keywords = ["gui", "ui", "graphics", "interface", "widgets"]
+
+[lints.rust]
+rust_2018_idioms = { level = "deny", priority = -1 }
+missing_docs = "deny"
+unsafe_code = "deny"
+unused_results = "deny"
+
+[lints.clippy]
+type-complexity = "allow"
+map-entry = "allow"
+large-enum-variant = "allow"
+result_large_err = "allow"
+manual_filter = "allow"
+semicolon_if_nothing_returned = "deny"
+trivially-copy-pass-by-ref = "deny"
+default_trait_access = "deny"
+match-wildcard-for-single-variants = "deny"
+redundant-closure-for-method-calls = "deny"
+filter_map_next = "deny"
+manual_let_else = "deny"
+unused_async = "deny"
+from_over_into = "deny"
+needless_borrow = "deny"
+new_without_default = "deny"
+useless_conversion = "deny"
+
+[features]
+default = ["x11", "wayland"]
+debug = ["iced_debug/enable"]
+sysinfo = ["dep:sysinfo"]
+unconditional-rendering = []
+linux-theme-detection = ["dep:mundy", "mundy/async-io", "mundy/color-scheme"]
+image = ["iced_runtime/image", "arboard/image-data"]
+x11 = ["winit/x11"]
+wayland = ["winit/wayland", "winit/wayland-dlopen", "winit/wayland-csd-adwaita", "arboard/wayland-data-control"]
+
+[dependencies]
+iced_debug.workspace = true
+iced_program.workspace = true
+iced_runtime.workspace = true
+
+log.workspace = true
+rustc-hash.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+winit.workspace = true
+
+sysinfo.workspace = true
+sysinfo.optional = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+arboard.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys.workspace = true
+web-sys.features = ["Document", "Window", "HtmlCanvasElement"]
+wasm-bindgen-futures.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+mundy.workspace = true
+mundy.optional = true

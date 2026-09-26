@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  desktop:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
@@ -48,7 +48,7 @@ jobs:
 
       - run: just test
 
-      - run: just package dev
+      - run: just package desktop dev
 
       - uses: actions/upload-artifact@v7
         with:
@@ -61,3 +61,49 @@ jobs:
             target/package/*.sha256
             target/package/*.debug
             target/package/*.pdb
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install Android CLI
+        shell: bash
+        run: curl -fsSL https://dl.google.com/android/cli/latest/linux_x86_64/install.sh | bash
+
+      - run: just setup-android
+
+      - run: just setup-for-check
+
+      - uses: tombi-toml/setup-tombi@v1.5.5
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace-deps-android
+          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - run: just check android aarch64
+
+      - run: just package android dev aarch64
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build-android-aarch64
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            target/package/*.apk
+            target/package/*.so
+            target/package/*.sha256

@@ -9,7 +9,6 @@ publish.workspace = true
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
-gfxinfo.workspace = true
 lapiz_dirs.workspace = true
 lapiz_runtime.workspace = true
 lapiz_utils.workspace = true
@@ -17,6 +16,9 @@ log.workspace = true
 rand.workspace = true
 sysinfo.workspace = true
 wgpu.workspace = true
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+gfxinfo.workspace = true
 
 [lints]
 workspace = true

@@ -20,6 +20,7 @@ indexmap.workspace = true
 lapiz_color.workspace = true
 lapiz_config.workspace = true
 lapiz_dirs.workspace = true
+lapiz_file_dialog.workspace = true
 lapiz_i18n.workspace = true
 lapiz_image.workspace = true
 lapiz_input.workspace = true

@@ -3,14 +3,16 @@ use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
     future::Future,
     iter,
-    path::{Path, PathBuf},
+    path::Path,
     pin::Pin,
+    sync::Arc,
 };
 
 use anyhow::Result;
 use iced_core::Element;
 use iced_runtime::Task;
 use lapiz_canvas::{CCanvas, CanvasId};
+use lapiz_file_dialog::LocalFile;
 use lapiz_runtime::{Application, Renderer, Services, Theme, plugin::Plugin, service::Service};
 
 use crate::{
@@ -289,7 +291,7 @@ impl ImageFormatAdapterRegistry {
 }
 
 pub struct PendingExport {
-    pub path: PathBuf,
+    pub local_file: Arc<LocalFile>,
     pub allow_silent_export: bool,
     pub canvas_id: CanvasId,
 }

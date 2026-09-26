@@ -19,6 +19,7 @@ enum TabAction {
     Idle,
     Pressing {
         index: usize,
+        origin: Point,
     },
     Dragging {
         index: usize,
@@ -47,6 +48,7 @@ fn hit_test(bounds: &[Rectangle], cursor_rel: Point) -> Option<usize> {
 }
 
 const DETACH_DEADBAND_FACTOR: f32 = 0.5;
+const TAB_DRAG_DEADBAND: f32 = 5.0;
 
 fn drag_target_index(bounds: Rectangle, tab_bounds: &[Rectangle], cursor: Point) -> Option<usize> {
     let detach_min = Point {
@@ -339,7 +341,7 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
         tree: &mut Tree,
         event: &Event,
         layout: Layout<'_>,
-        cursor: mouse::Cursor,
+        _cursor: mouse::Cursor,
         _renderer: &Renderer,
         shell: &mut Shell<'_, Message>,
         _viewport: &Rectangle,
@@ -350,14 +352,18 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
         match event {
             Event::Pointer(pointer::Event::PointerMoved { position, .. }) => {
                 // Update hover
-                state.hovered = cursor
-                    .position_in(bounds)
+                state.hovered = bounds
+                    .contains(*position)
+                    .then(|| Point::new(position.x - bounds.x, position.y - bounds.y))
                     .and_then(|pos| hit_test(&state.bounds, pos));
 
                 match state.action {
                     TabAction::Idle => {}
-                    TabAction::Pressing { index } => {
-                        state.action = TabAction::Dragging { index };
+                    TabAction::Pressing { index, origin } => {
+                        if position.distance(origin) >= TAB_DRAG_DEADBAND {
+                            state.action = TabAction::Dragging { index };
+                            shell.request_redraw();
+                        }
                         shell.capture_event();
                     }
                     TabAction::Dragging { index } => {
@@ -371,9 +377,7 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
                         }
                     }
                     TabAction::TitleDragging { origin } => {
-                        if let Some(pos) = cursor.position()
-                            && pos.distance(origin) > self.title_drag_deadband
-                        {
+                        if position.distance(origin) > self.title_drag_deadband {
                             shell.publish((self.on_action)(TabEvent::TitleBarDrag));
                             state.action = TabAction::Idle;
                         }
@@ -383,30 +387,36 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
                 }
             }
 
-            Event::Pointer(event) if event.is_primary_press() => {
-                if !cursor.is_over(layout.bounds()) {
+            Event::Pointer(event @ pointer::Event::PointerPressed { position, .. })
+                if event.is_primary_press() =>
+            {
+                if !bounds.contains(*position) {
                     return;
                 }
 
-                match hit_test(&state.bounds, cursor.position_in(layout.bounds()).unwrap()) {
+                match hit_test(
+                    &state.bounds,
+                    Point::new(position.x - bounds.x, position.y - bounds.y),
+                ) {
                     Some(i) => {
-                        state.action = TabAction::Pressing { index: i };
+                        state.action = TabAction::Pressing {
+                            index: i,
+                            origin: *position,
+                        };
                         shell.capture_event();
                     }
                     None => {
-                        state.action = TabAction::TitleDragging {
-                            origin: cursor.position().unwrap(),
-                        };
+                        state.action = TabAction::TitleDragging { origin: *position };
                         shell.capture_event();
                     }
                 }
             }
 
-            Event::Pointer(e @ pointer::Event::PointerReleased { .. })
+            Event::Pointer(e @ pointer::Event::PointerReleased { position, .. })
                 if e.is_primary_release() =>
             {
                 match state.action {
-                    TabAction::Pressing { index: i } => {
+                    TabAction::Pressing { index: i, .. } => {
                         if let Some(dock_id) = self.group_data.iter().nth(i) {
                             shell.publish((self.on_action)(TabEvent::Select(dock_id.clone())));
                         }
@@ -414,9 +424,7 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabRowWidget<'_, M
                         shell.capture_event();
                     }
                     TabAction::Dragging { index: from } => {
-                        if let Some(pos) = cursor.position()
-                            && let Some(to) = drag_target_index(bounds, &state.bounds, pos)
-                        {
+                        if let Some(to) = drag_target_index(bounds, &state.bounds, *position) {
                             let to = if to > from { to - 1 } else { to };
                             if to != from {
                                 shell.publish((self.on_action)(TabEvent::Reorder { from, to }));
