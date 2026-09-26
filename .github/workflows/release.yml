@@ -58,7 +58,7 @@ jobs:
 
       - run: just test
 
-      - run: just package release
+      - run: just package desktop release
 
       - uses: actions/upload-artifact@v7
         with:

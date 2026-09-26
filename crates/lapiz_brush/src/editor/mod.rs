@@ -5,7 +5,7 @@ use iced_core::{Element, Length, Size, Theme, alignment::Vertical, window};
 use iced_futures::Subscription;
 use iced_runtime::{
     Task,
-    window::{close, open},
+    window::{close, drag, minimize, open, toggle_maximize},
 };
 use iced_widget::{Column, column, component::component, row};
 use lapiz_assets::{AssetAppExt as _, asset::AssetHandle, store::AssetRegistry};
@@ -28,8 +28,8 @@ use lapiz_shader_graph::{
     wgsl_std::types::{handle::LayerType, primitive::F32Type},
 };
 use lapiz_widgets::{
-    button::Button, label::Label, panel::Panel, scrollable::Scrollable, tabs::TabBar,
-    text_input::TextInput,
+    button::Button, flex::Flex, label::Label, panel::Panel, scrollable::Scrollable, tabs::TabBar,
+    text_input::TextInput, title_bar::TitleBar,
 };
 use uuid::Uuid;
 
@@ -123,6 +123,11 @@ pub enum BrushEditorMessage {
     SelectEffectSlot(BrushEffectSlot),
     Effect(EffectEditorMessage),
     Parameters(ParametersEditorMessage),
+
+    Close,
+    Maximize,
+    Minimize,
+    Drag,
 }
 
 impl WindowView for BrushEditor {
@@ -143,9 +148,15 @@ impl WindowView for BrushEditor {
             .all_handles_of::<BrushPreset>()
             .expect("Failed to list brush presets");
         let (main_window, open) = open(window::Settings {
+            decorations: false,
             size: Size {
                 width: 1280.0,
                 height: 800.0,
+            },
+            #[cfg(target_os = "windows")]
+            platform_specific: window::settings::PlatformSpecific {
+                corner_preference: window::settings::platform::CornerPreference::DoNotRound,
+                ..Default::default()
             },
             ..Default::default()
         });
@@ -170,6 +181,12 @@ impl WindowView for BrushEditor {
         _: window::Id,
         _: &'a Services,
     ) -> impl Into<Element<'a, Self::Message, Theme, lapiz_runtime::Renderer>> {
+        let titlebar = TitleBar::new(Label::new(t!("brush_editor_title")).window_title())
+            .on_close(BrushEditorMessage::Close)
+            .on_maximize(BrushEditorMessage::Maximize)
+            .on_minimize(BrushEditorMessage::Minimize)
+            .on_drag(BrushEditorMessage::Drag);
+
         let brush_list = self
             .brushes
             .iter()
@@ -207,10 +224,13 @@ impl WindowView for BrushEditor {
             None => (Label::new(t!("select_a_brush")).muted().into(), empty()),
         };
 
-        row![sidebar, center, parameters]
-            .spacing(8)
-            .height(Length::Fill)
-            .padding(8)
+        Panel::new(Flex::column([
+            titlebar.into(),
+            row![sidebar, center, parameters]
+                .spacing(8)
+                .height(Length::Fill)
+                .into(),
+        ]))
     }
 
     fn update(
@@ -251,6 +271,10 @@ impl WindowView for BrushEditor {
                 }
                 Task::none()
             }
+            BrushEditorMessage::Close => close(self.main_window),
+            BrushEditorMessage::Maximize => toggle_maximize(self.main_window),
+            BrushEditorMessage::Minimize => minimize(self.main_window, true),
+            BrushEditorMessage::Drag => drag(self.main_window),
         }
     }
 

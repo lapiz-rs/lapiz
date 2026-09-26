@@ -1,3 +1,5 @@
+filter_editor_title = Filter Editor
+filter_panel_title = Filter Panel
 filters = Filters
 new_filter = New Filter
 edit_filter = Edit Filter

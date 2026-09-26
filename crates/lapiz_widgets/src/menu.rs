@@ -303,21 +303,24 @@ where
         tree: &mut Tree,
         event: &Event,
         layout: Layout<'_>,
-        cursor: mouse::Cursor,
+        _cursor: mouse::Cursor,
         _renderer: &Renderer,
         shell: &mut Shell<'_, Message>,
         _viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_mut::<MenuBarState>();
         match event {
-            Event::Pointer(event) if event.is_primary_press() && state.open.is_empty() => {
-                let Some(position) = cursor.position() else {
+            Event::Pointer(event @ pointer::Event::PointerPressed { position, .. })
+                if event.is_primary_press() =>
+            {
+                let Some(index) = root_at(layout, *position) else {
                     return;
                 };
-                let Some(index) = root_at(layout, position) else {
-                    return;
-                };
-                state.open = vec![index];
+                if state.open.first() == Some(&index) {
+                    state.open.clear();
+                } else {
+                    state.open = vec![index];
+                }
                 shell.capture_event();
                 shell.invalidate_layout();
                 shell.request_redraw();
@@ -352,7 +355,7 @@ where
         for (index, root_layout) in layout.children().enumerate() {
             let bounds = root_layout.bounds();
             let open = state.open.first() == Some(&index);
-            let hovered = !open && cursor.is_over(bounds);
+            let hovered = state.open.is_empty() && cursor.is_over(bounds);
             if open || hovered {
                 renderer.fill_quad(
                     renderer::Quad {
@@ -390,17 +393,16 @@ where
 
     fn mouse_interaction(
         &self,
-        tree: &Tree,
+        _tree: &Tree,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         _viewport: &Rectangle,
         _renderer: &Renderer,
     ) -> mouse::Interaction {
-        let state = tree.state.downcast_ref::<MenuBarState>();
         let Some(position) = cursor.position() else {
             return mouse::Interaction::None;
         };
-        if state.open.is_empty() && root_at(layout, position).is_some() {
+        if root_at(layout, position).is_some() {
             mouse::Interaction::Pointer
         } else {
             mouse::Interaction::None
@@ -423,6 +425,10 @@ where
         let bounds = root_layout.bounds();
         Some(overlay::Element::new(Box::new(MenuOverlay {
             roots: &self.menus,
+            bar_bounds: Some(Rectangle::new(
+                layout.bounds().position() + translation,
+                layout.bounds().size(),
+            )),
             open: &mut state.open,
             origin: bounds.position() + translation,
             root_height: bounds.height,
@@ -446,6 +452,7 @@ struct Panel {
 
 struct MenuOverlay<'a, Message> {
     roots: &'a [Menu<Message>],
+    bar_bounds: Option<Rectangle>,
     open: &'a mut Vec<usize>,
     origin: Point,
     root_height: f32,
@@ -553,7 +560,7 @@ where
         &mut self,
         event: &Event,
         _layout: Layout<'_>,
-        cursor: mouse::Cursor,
+        _cursor: mouse::Cursor,
         _renderer: &Renderer,
         shell: &mut Shell<'_, Message>,
     ) {
@@ -583,19 +590,30 @@ where
                     }
                 }
             }
-            Event::Pointer(event) if event.is_primary_press() => {
+            Event::Pointer(event @ pointer::Event::PointerPressed { position, .. })
+                if event.is_primary_press() =>
+            {
+                if self
+                    .bar_bounds
+                    .is_some_and(|bounds| bounds.contains(*position))
+                {
+                    return;
+                }
+
                 let panels = self.panels();
-                let hit = cursor
-                    .position()
-                    .and_then(|position| Self::hit_test(&panels, position));
+                let hit = Self::hit_test(&panels, *position);
                 match hit {
-                    Some((level, index)) => {
-                        if let Some(Item::Action { message, .. }) = self.resolve_item(level, index)
-                        {
+                    Some((level, index)) => match self.resolve_item(level, index) {
+                        Some(Item::Action { message, .. }) => {
                             shell.publish(message.clone());
                             self.open.clear();
                         }
-                    }
+                        Some(Item::Submenu { .. }) => {
+                            self.open.truncate(level + 1);
+                            self.open.push(index);
+                        }
+                        _ => {}
+                    },
                     None => {
                         self.open.clear();
                     }
@@ -992,6 +1010,7 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
         let origin = state.cursor_position;
         Some(overlay::Element::new(Box::new(MenuOverlay {
             roots: slice::from_ref(&self.menu),
+            bar_bounds: None,
             open: &mut state.open,
             origin: origin + translation,
             root_height: 0.0,

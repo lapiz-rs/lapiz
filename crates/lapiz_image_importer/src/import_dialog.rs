@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
 use futures::executor::block_on;
@@ -10,6 +10,7 @@ use iced_runtime::{
 use iced_widget::{Space, column, row};
 use lapiz_canvas::{CCanvas, CanvasAppExt as _};
 use lapiz_config::Config;
+use lapiz_file_dialog::LocalFile;
 use lapiz_i18n::t;
 use lapiz_image::CImage;
 use lapiz_runtime::{
@@ -30,7 +31,7 @@ pub struct ImportDialogView {
     windows: Arc<[window::Id]>,
     importer: Box<dyn crate::ErasedImageFormatImporter>,
     extension: &'static str,
-    path: PathBuf,
+    local_file: Option<LocalFile>,
 }
 
 pub enum ImportDialogMessage {
@@ -54,7 +55,8 @@ impl WindowView for ImportDialogView {
         let pending = params.ok_or(anyhow::anyhow!("No pending import"))?;
         let registry = services.service::<ImageImporterRegistry>();
         let extension = pending
-            .path
+            .local_file
+            .path()
             .extension()
             .and_then(|extension| extension.to_str())
             .and_then(|extension| registry.find_extension(extension))
@@ -77,7 +79,7 @@ impl WindowView for ImportDialogView {
                 windows: Arc::from([window]),
                 importer,
                 extension,
-                path: pending.path,
+                local_file: Some(pending.local_file),
             },
             open.discard(),
         ))
@@ -104,7 +106,19 @@ impl WindowView for ImportDialogView {
 
         column![
             Panel::new(
-                column![Label::new(self.path.display().to_string()).muted(), options].spacing(10),
+                column![
+                    Label::new(
+                        self.local_file
+                            .as_ref()
+                            .expect("import is active")
+                            .path()
+                            .display()
+                            .to_string()
+                    )
+                    .muted(),
+                    options
+                ]
+                .spacing(10),
             )
             .width(Length::Fill)
             .height(Length::Fill)
@@ -128,11 +142,19 @@ impl WindowView for ImportDialogView {
                 .dialog_update(message, services)
                 .map(ImportDialogMessage::Importer),
             ImportDialogMessage::Confirm => {
-                let archive = block_on(self.importer.import(services, &self.path)).logged_err();
+                let Some(local_file) = self.local_file.as_ref() else {
+                    return close(self.window);
+                };
+                let archive =
+                    block_on(self.importer.import(services, local_file.path())).logged_err();
                 if let Ok(archive) = archive
                     && let Ok(image) = CImage::from_lazuli(&archive, services).logged_err()
                 {
-                    services.add_canvas(CCanvas::new(self.path.clone(), image, archive));
+                    services.add_canvas(CCanvas::new(
+                        self.local_file.take().unwrap(),
+                        image,
+                        archive,
+                    ));
                 }
 
                 Config::<ImageImporterConfig>::read_or_init_or_fallback()

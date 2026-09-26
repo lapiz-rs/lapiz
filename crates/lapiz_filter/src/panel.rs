@@ -5,7 +5,7 @@ use iced_core::{Alignment, Event, Length, Size, Theme, keyboard, window};
 use iced_futures::{Subscription, subscription};
 use iced_runtime::{
     Task,
-    window::{close, open},
+    window::{close, drag, open},
 };
 use iced_widget::{Space, column, row};
 use indexmap::IndexMap;
@@ -33,7 +33,10 @@ use lapiz_runtime::{
 };
 use lapiz_shader_graph::graph::slot::{ErasedGraphLiteralUpdateMessage, GraphInputSlotId};
 use lapiz_undo::BatchedUndoCommand;
-use lapiz_widgets::{button::Button, label::Label, panel::Panel, scrollable::Scrollable};
+use lapiz_widgets::{
+    button::Button, flex::Flex, label::Label, panel::Panel, scrollable::Scrollable,
+    title_bar::TitleBar,
+};
 
 use crate::{
     asset::FilterPreset,
@@ -64,6 +67,9 @@ pub enum FilterPanelMessage {
     Cancel,
     RenderFinished(u64, Result<HashMap<LayerId, DynamicLayerStorage>>),
     WindowClosed,
+
+    Close,
+    Drag,
 }
 
 impl Clone for FilterPanelMessage {
@@ -82,6 +88,8 @@ impl Clone for FilterPanelMessage {
                 unreachable!("FilterPanel RenderFinished is never cloned")
             }
             FilterPanelMessage::WindowClosed => FilterPanelMessage::WindowClosed,
+            FilterPanelMessage::Close => FilterPanelMessage::Close,
+            FilterPanelMessage::Drag => FilterPanelMessage::Drag,
         }
     }
 }
@@ -111,9 +119,15 @@ impl WindowView for FilterPanel {
             a_name.cmp(&b_name)
         });
         let (main_window, open) = open(window::Settings {
+            decorations: false,
             size: Size {
                 width: 720.0,
                 height: 480.0,
+            },
+            #[cfg(target_os = "windows")]
+            platform_specific: window::settings::PlatformSpecific {
+                corner_preference: window::settings::platform::CornerPreference::DoNotRound,
+                ..Default::default()
             },
             ..Default::default()
         });
@@ -136,6 +150,10 @@ impl WindowView for FilterPanel {
     }
 
     fn view<'a>(&'a self, _: window::Id, services: &'a Services) -> impl Into<Element<'a>> {
+        let title_bar = TitleBar::new(Label::new(t!("filter_panel_title")).window_title())
+            .on_drag(FilterPanelMessage::Drag)
+            .on_close(FilterPanelMessage::Close);
+
         let filter_list = self
             .filters
             .iter()
@@ -223,12 +241,17 @@ impl WindowView for FilterPanel {
         .spacing(10)
         .padding(16);
 
-        column![
-            row![sidebar, Panel::new(params).padding(8).width(Length::Fill)].height(Length::Fill),
-            footer,
-        ]
-        .width(Length::Fill)
-        .height(Length::Fill)
+        Panel::new(Flex::column([
+            title_bar.into(),
+            column![
+                row![sidebar, Panel::new(params).padding(8).width(Length::Fill)]
+                    .height(Length::Fill),
+                footer,
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into(),
+        ]))
     }
 
     fn update(
@@ -255,6 +278,8 @@ impl WindowView for FilterPanel {
                 self.render_finished(generation, result, services)
             }
             FilterPanelMessage::WindowClosed => self.window_closed(services),
+            FilterPanelMessage::Close => close(self.main_window),
+            FilterPanelMessage::Drag => drag(self.main_window),
         }
     }
 

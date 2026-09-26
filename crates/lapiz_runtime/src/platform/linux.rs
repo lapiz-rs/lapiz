@@ -9,3 +9,7 @@ pub fn set_window_parent(_parent: u64, _child: u64) {
 }
 
 pub fn disable_window_snap(_raw_window_id: u64) {}
+
+pub fn attach_resize_handle(_raw_window_id: u64) -> bool {
+    false
+}

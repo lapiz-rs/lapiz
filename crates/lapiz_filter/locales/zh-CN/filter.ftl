@@ -1,3 +1,5 @@
+filter_editor_title = 滤镜编辑器
+filter_panel_title = 滤镜面板
 filters = 滤镜
 new_filter = 新建滤镜
 edit_filter = 编辑滤镜

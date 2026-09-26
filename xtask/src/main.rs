@@ -2,32 +2,47 @@ mod import_alias;
 mod let_type_annotation;
 
 use std::{
-    env, fs,
-    path::Path,
+    ffi::OsStr,
+    fs,
+    path::{Component, Path},
     process::{self, Command},
     str,
 };
 
+use clap::{Args, Parser, Subcommand};
+
+#[derive(Parser)]
+struct Cli {
+    #[command(subcommand)]
+    check: Check,
+}
+
+#[derive(Subcommand)]
+enum Check {
+    ImportAliasCheck(CheckArgs),
+    LetTypeAnnotationCheck(CheckArgs),
+}
+
+#[derive(Args)]
+struct CheckArgs {
+    #[arg(long)]
+    exclude: Vec<String>,
+}
+
 fn main() {
-    let result = match env::args().nth(1).as_deref() {
-        Some(import_alias::NAME) => run_check(
+    let result = match Cli::parse().check {
+        Check::ImportAliasCheck(args) => run_check(
             import_alias::NAME,
             import_alias::FOUND,
             import_alias::messages,
+            &args.exclude,
         ),
-        Some(let_type_annotation::NAME) => run_check(
+        Check::LetTypeAnnotationCheck(args) => run_check(
             let_type_annotation::NAME,
             let_type_annotation::FOUND,
             let_type_annotation::messages,
+            &args.exclude,
         ),
-        _ => {
-            eprintln!(
-                "usage: cargo run -p xtask -- <{}|{}>",
-                import_alias::NAME,
-                let_type_annotation::NAME
-            );
-            process::exit(2);
-        }
     };
     if let Err(error) = result {
         eprintln!("{error}");
@@ -35,11 +50,16 @@ fn main() {
     }
 }
 
-fn run_check(name: &str, found: &str, diagnose: fn(&str) -> Vec<String>) -> Result<(), String> {
+fn run_check(
+    name: &str,
+    found: &str,
+    diagnose: fn(&str) -> Vec<String>,
+    excludes: &[String],
+) -> Result<(), String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("xtask lives at the workspace root");
-    let violations = collect_violations(root, diagnose)?;
+    let violations = collect_violations(root, diagnose, excludes)?;
     if violations.is_empty() {
         println!("{name}: ok");
         return Ok(());
@@ -53,6 +73,7 @@ fn run_check(name: &str, found: &str, diagnose: fn(&str) -> Vec<String>) -> Resu
 fn collect_violations(
     root: &Path,
     diagnose: fn(&str) -> Vec<String>,
+    excludes: &[String],
 ) -> Result<Vec<String>, String> {
     let output = Command::new("git")
         .current_dir(root)
@@ -81,6 +102,14 @@ fn collect_violations(
     {
         let relative = str::from_utf8(relative)
             .map_err(|error| format!("invalid UTF-8 Rust file path: {error}"))?;
+        // This is... maybe inaccurate
+        if excludes.iter().any(|name| {
+            Path::new(relative)
+                .components()
+                .any(|c| c == Component::Normal(OsStr::new(name)))
+        }) {
+            continue;
+        }
         let text = fs::read_to_string(root.join(relative))
             .map_err(|error| format!("cannot read {relative}: {error}"))?;
         for message in diagnose(&text) {
@@ -99,7 +128,9 @@ mod tests {
         time::SystemTime,
     };
 
-    use super::collect_violations;
+    use clap::Parser as _;
+
+    use super::{Check, Cli, collect_violations};
 
     struct TestRepo(PathBuf);
 
@@ -121,7 +152,7 @@ mod tests {
         ));
         fs::create_dir(&root).unwrap();
         let repo = TestRepo(root);
-        assert!(collect_violations(&repo.0, super::import_alias::messages).is_err());
+        assert!(collect_violations(&repo.0, super::import_alias::messages, &[]).is_err());
         assert!(
             Command::new("git")
                 .current_dir(&repo.0)
@@ -143,7 +174,7 @@ mod tests {
                 .success()
         );
 
-        let violations = collect_violations(&repo.0, super::import_alias::messages).unwrap();
+        let violations = collect_violations(&repo.0, super::import_alias::messages, &[]).unwrap();
         assert_eq!(violations.len(), 2, "{violations:?}");
         assert!(
             violations
@@ -158,9 +189,66 @@ mod tests {
 
         fs::remove_file(repo.0.join("tracked.rs")).unwrap();
         assert!(
-            collect_violations(&repo.0, super::import_alias::messages)
+            collect_violations(&repo.0, super::import_alias::messages, &[])
                 .unwrap_err()
                 .contains("cannot read tracked.rs")
         );
+    }
+
+    #[test]
+    fn parses_repeated_exclusions() {
+        let cli = Cli::try_parse_from([
+            "xtask",
+            "import-alias-check",
+            "--exclude",
+            "iced_winit",
+            "--exclude",
+            "lapiz_app",
+        ])
+        .unwrap();
+        let Check::ImportAliasCheck(args) = cli.check else {
+            panic!("expected import-alias-check");
+        };
+        assert_eq!(args.exclude, ["iced_winit", "lapiz_app"]);
+        assert!(Cli::try_parse_from(["xtask", "let-type-annotation-check", "--exclude"]).is_err());
+    }
+
+    #[test]
+    fn excludes_only_the_named_crate() {
+        let root = env::temp_dir().join(format!(
+            "lapiz-xtask-exclude-{}-{}",
+            process::id(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&root).unwrap();
+        let repo = TestRepo(root);
+        assert!(
+            Command::new("git")
+                .current_dir(&repo.0)
+                .args(["init", "-q"])
+                .status()
+                .unwrap()
+                .success()
+        );
+        for path in [
+            "vendor/iced_winit/src/lib.rs",
+            "crates/iced_winit/src/lib.rs",
+            "vendor/iced_winit_extra/src/lib.rs",
+        ] {
+            let path = repo.0.join(path);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, "use foo::Original as Alias;").unwrap();
+        }
+        let violations = collect_violations(
+            &repo.0,
+            super::import_alias::messages,
+            &["iced_winit".to_owned()],
+        )
+        .unwrap();
+        assert_eq!(violations.len(), 1, "{violations:?}");
+        assert!(violations[0].starts_with("vendor/iced_winit_extra/src/lib.rs:"));
     }
 }

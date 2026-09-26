@@ -70,6 +70,8 @@ pub struct MainView {
 
 pub enum MainViewMessage {
     Dock(DockMessage),
+    #[cfg(not(target_os = "android"))]
+    MainWindowDrag,
     WindowEvent(window::Id, window::Event),
     KeyboardEvent(window::Id, keyboard::Event),
     PointerEvent(window::Id, pointer::Event),
@@ -78,8 +80,11 @@ pub enum MainViewMessage {
     TriggerAction(ActionId),
     ActionMessage(ActionId, Box<dyn Any + Send + Sync>),
     ToolFunctionMessage(ErasedToolFunctionMessage),
+    #[cfg(not(target_os = "android"))]
     MinimizeWindow(window::Id),
+    #[cfg(not(target_os = "android"))]
     MaximizeWindow(window::Id),
+    #[cfg(not(target_os = "android"))]
     CloseWindow(window::Id),
     MenuBar(MenuBarMessage),
 }
@@ -335,25 +340,25 @@ impl WindowView for MainView {
             return Some(dock);
         }
 
-        let window_decorations = &self.dock_manager.main_window().window_decorations;
         let title_content = Flex::row([
-            Label::new("LAPIZ").size(13).strong().into(),
+            Label::new("LAPIZ").window_title().into(),
             Element::new(
                 self.menu_bar(&services.service::<ApplicationTheme>().0)
                     .height(Length::Fill),
             )
             .map(MainViewMessage::MenuBar),
-            window_decorations.caption_region(),
         ])
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .gap(12)
-        .padding([0, 10]);
+        .gap(12);
 
+        #[cfg(not(target_os = "android"))]
         let title = TitleBar::new(title_content)
             .on_minimize(MainViewMessage::MinimizeWindow(window))
             .on_maximize(MainViewMessage::MaximizeWindow(window))
-            .on_close(MainViewMessage::CloseWindow(window));
+            .on_close(MainViewMessage::CloseWindow(window))
+            .on_drag(MainViewMessage::MainWindowDrag);
+
+        #[cfg(target_os = "android")]
+        let title = TitleBar::new(title_content);
 
         let preset_name = services
             .get_service::<CurrentBrushPresetHandle>()
@@ -420,6 +425,8 @@ impl WindowView for MainView {
                 .dock_manager
                 .update(m, services)
                 .map(MainViewMessage::Dock),
+            #[cfg(not(target_os = "android"))]
+            MainViewMessage::MainWindowDrag => window::drag(self.dock_manager.main_window().id),
             MainViewMessage::WindowEvent(id, event) => {
                 let unfocused = matches!(event, window::Event::Unfocused);
                 let window_task = self.dock_manager.on_window_event(id, event).discard();
@@ -536,7 +543,10 @@ impl WindowView for MainView {
 
                 Config::<RecentFiles>::read_or_init_or_fallback()
                     .update(|c| {
-                        c.update(canvas.file_path());
+                        c.update(
+                            canvas.local_file().source(),
+                            canvas.local_file().name().to_owned(),
+                        );
                     })
                     .log_err();
 
@@ -606,8 +616,11 @@ impl WindowView for MainView {
                 })
                 .unwrap_or_else(Task::none)
                 .map(MainViewMessage::ToolFunctionMessage),
+            #[cfg(not(target_os = "android"))]
             MainViewMessage::MinimizeWindow(id) => window::minimize(id, true),
+            #[cfg(not(target_os = "android"))]
             MainViewMessage::MaximizeWindow(id) => window::toggle_maximize(id),
+            #[cfg(not(target_os = "android"))]
             MainViewMessage::CloseWindow(id) => window::close(id),
             MainViewMessage::MenuBar(MenuBarMessage::SetTheme(theme)) => {
                 services.service_mut::<ApplicationTheme>().0 = theme;

@@ -1,3 +1,6 @@
+#[cfg(target_os = "android")]
+#[path = "android.rs"]
+mod imp;
 #[cfg(target_os = "linux")]
 #[path = "linux.rs"]
 mod imp;
@@ -18,4 +21,8 @@ pub fn set_window_parent(parent: u64, child: u64) {
 
 pub fn disable_window_snap(window: u64) {
     imp::disable_window_snap(window);
+}
+
+pub fn attach_resize_handle(window: u64) -> bool {
+    imp::attach_resize_handle(window)
 }

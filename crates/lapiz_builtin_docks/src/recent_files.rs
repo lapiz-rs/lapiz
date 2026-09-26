@@ -1,4 +1,7 @@
-use std::sync::{Arc, LazyLock};
+use std::{
+    path::Path,
+    sync::{Arc, LazyLock},
+};
 
 use iced_core::{Element, Length, image::Handle, text::Ellipsis, window};
 use iced_futures::Subscription;
@@ -7,7 +10,10 @@ use iced_widget::{Image, container, scrollable};
 use lapiz_canvas::recent::{RecentFiles, recent_file_thumbnail_path};
 use lapiz_config::Config;
 use lapiz_dock::dock::{Dock, DockId};
+use lapiz_file_dialog::LocalFile;
 use lapiz_image_importer::start_import;
+#[cfg(target_os = "android")]
+use lapiz_runtime::android::AndroidAppExt as _;
 use lapiz_runtime::{Renderer, Services, Theme};
 use lapiz_widgets::{button::Button, flex::Flex, label::Label};
 
@@ -32,6 +38,8 @@ impl LandingDock {
 
 pub enum LandingDockMessage {
     OpenFile(usize),
+    #[cfg(target_os = "android")]
+    Opened(anyhow::Result<LocalFile>),
     RecentFilesChanged,
 }
 
@@ -53,11 +61,20 @@ impl Dock for LandingDock {
         scrollable(
             container(
                 Flex::row(self.files.files.iter().enumerate().map(|(i, f)| {
-                    let file_name = f.path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                    let file_name = if f.name.is_empty() {
+                        Path::new(&f.path_or_uri)
+                            .file_stem()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("")
+                    } else {
+                        &f.name
+                    };
                     Button::new(
                         Flex::column([
-                            Image::new(Handle::from_path(recent_file_thumbnail_path(&f.path)))
-                                .into(),
+                            Image::new(Handle::from_path(recent_file_thumbnail_path(
+                                &f.path_or_uri,
+                            )))
+                            .into(),
                             // FIXME Ellipsis not working
                             Label::new(file_name)
                                 .width(Length::Fill)
@@ -90,8 +107,28 @@ impl Dock for LandingDock {
                     return Task::none();
                 };
 
-                start_import(services, file.path.clone());
+                #[cfg(target_os = "android")]
+                {
+                    let app = services.android_app().clone();
+                    let uri = file.path_or_uri.clone();
+                    let name = file.name.clone();
+                    Task::future(async move {
+                        LandingDockMessage::Opened(LocalFile::open_android(app, uri, name))
+                    })
+                }
 
+                #[cfg(not(target_os = "android"))]
+                {
+                    start_import(services, LocalFile::native(file.path_or_uri.clone().into()));
+                    Task::none()
+                }
+            }
+            #[cfg(target_os = "android")]
+            LandingDockMessage::Opened(result) => {
+                match result {
+                    Ok(file) => start_import(services, file),
+                    Err(error) => log::error!("Unable to reopen document: {error}"),
+                }
                 Task::none()
             }
             LandingDockMessage::RecentFilesChanged => {

@@ -5,7 +5,7 @@ use iced_core::{Element, Length, Size, Theme, alignment::Vertical, window};
 use iced_futures::Subscription;
 use iced_runtime::{
     Task,
-    window::{close, open},
+    window::{close, drag, minimize, open, toggle_maximize},
 };
 use iced_widget::{Column, column, component::component, row};
 use lapiz_assets::{AssetAppExt as _, asset::AssetHandle};
@@ -27,7 +27,8 @@ use lapiz_shader_graph::{
     wgsl_std::types::handle::LayerType,
 };
 use lapiz_widgets::{
-    button::Button, label::Label, panel::Panel, scrollable::Scrollable, text_input::TextInput,
+    button::Button, flex::Flex, label::Label, panel::Panel, scrollable::Scrollable,
+    text_input::TextInput, title_bar::TitleBar,
 };
 use uuid::Uuid;
 
@@ -62,6 +63,11 @@ pub enum FilterEditorMessage {
     Save,
     Effect(EffectEditorMessage),
     Parameters(ParametersEditorMessage),
+
+    Close,
+    Maximize,
+    Minimize,
+    Drag,
 }
 
 impl WindowView for FilterEditor {
@@ -82,9 +88,15 @@ impl WindowView for FilterEditor {
             .all_handles_of::<FilterPreset>()
             .expect("Failed to list filter presets");
         let (main_window, open) = open(window::Settings {
+            decorations: false,
             size: Size {
                 width: 1280.0,
                 height: 800.0,
+            },
+            #[cfg(target_os = "windows")]
+            platform_specific: window::settings::PlatformSpecific {
+                corner_preference: window::settings::platform::CornerPreference::DoNotRound,
+                ..Default::default()
             },
             ..Default::default()
         });
@@ -111,6 +123,12 @@ impl WindowView for FilterEditor {
         _: window::Id,
         _: &'a Services,
     ) -> impl Into<Element<'a, Self::Message, Theme, lapiz_runtime::Renderer>> {
+        let titlebar = TitleBar::new(Label::new(t!("filter_editor_title")).window_title())
+            .on_close(FilterEditorMessage::Close)
+            .on_maximize(FilterEditorMessage::Maximize)
+            .on_minimize(FilterEditorMessage::Minimize)
+            .on_drag(FilterEditorMessage::Drag);
+
         let filter_list = self
             .filters
             .iter()
@@ -157,10 +175,11 @@ impl WindowView for FilterEditor {
             .spacing(6)
             .height(Length::Fill);
 
-        row![sidebar, center, parameters]
-            .spacing(8)
-            .height(Length::Fill)
-            .padding(8)
+        Panel::new(Flex::column([
+            titlebar.into(),
+            row![sidebar, center, parameters].spacing(8).into(),
+        ]))
+        .height(Length::Fill)
     }
 
     fn update(
@@ -197,6 +216,10 @@ impl WindowView for FilterEditor {
                 }
                 Task::none()
             }
+            FilterEditorMessage::Close => close(self.main_window),
+            FilterEditorMessage::Maximize => toggle_maximize(self.main_window),
+            FilterEditorMessage::Minimize => minimize(self.main_window, true),
+            FilterEditorMessage::Drag => drag(self.main_window),
         }
     }
 

@@ -75,3 +75,4 @@ save = Save
 save_dirty = Save *
 postprocess = Postprocess { $index }
 new_variable_name = New variable name
+brush_editor_title = Brush Editor

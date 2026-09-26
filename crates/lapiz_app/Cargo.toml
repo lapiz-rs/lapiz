@@ -6,6 +6,9 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
 anyhow.workspace = true
 bevy_math.workspace = true
@@ -31,6 +34,7 @@ lapiz_config.workspace = true
 lapiz_dirs.workspace = true
 lapiz_dock.workspace = true
 lapiz_eye_dropper.workspace = true
+lapiz_file_dialog.workspace = true
 lapiz_filter.workspace = true
 lapiz_i18n.workspace = true
 lapiz_image.workspace = true
@@ -58,6 +62,9 @@ wgpu.workspace = true
 
 [build-dependencies]
 fs_extra.workspace = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+winit = { workspace = true, features = ["android-native-activity"] }
 
 [lints]
 workspace = true

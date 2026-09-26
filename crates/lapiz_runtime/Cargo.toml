@@ -28,5 +28,8 @@ toml.workspace = true
 wgpu.workspace = true
 winit.workspace = true
 
+[target.'cfg(target_os = "android")'.dependencies]
+winit = { workspace = true, features = ["android-native-activity"] }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { workspace = true, features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }

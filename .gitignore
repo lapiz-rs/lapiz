@@ -1,9 +1,17 @@
 /target
+/android/.gradle/
+/android/app/build/
+/android/build/
+/android/local.properties
+/android/gradle.properties
+/android/app/bin/
 *.sqlite3
 *.modified
+__pycache__/
 .vscode
 .zed
 .claude
+.idea
 
 # We may not include any external abr bundles for copyright reasons.
 *.abr

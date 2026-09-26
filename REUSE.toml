@@ -8,10 +8,17 @@ path = [
     ".cargo/**",
     ".github/**",
     "assets/**",
+    "android/app/**",
+    "android/build.gradle.kts",
+    "android/settings.gradle.kts",
+    "android/toolchain.properties",
+    "android/gradle/gradle-daemon-jvm.properties",
+    "scripts/**",
     "crates/**",
     "xtask/**",
     "default_config/**",
     "docs/**",
+    "vendor/arboard/**",
 
     ".gitignore",
     ".node-version",
@@ -37,6 +44,16 @@ path = [
     "crates/lapiz_lazuli/**",
 ]
 SPDX-FileCopyrightText = "Contributors to Lapiz"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "android/gradle/wrapper/**"
+SPDX-FileCopyrightText = "Gradle, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "vendor/iced_winit/**"
+SPDX-FileCopyrightText = ["Contributors to iced", "Contributors to Lapiz"]
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]

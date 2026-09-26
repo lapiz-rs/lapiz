@@ -6,16 +6,34 @@ cargo-about-version := "0.9.2"
 reuse-version := "6.2.0"
 
 version := `cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "lapiz_app") | .version'`
-sha := `git rev-parse HEAD | cut -c1-7`
-target := `rustc -vV | sed -n 's/^host: //p'`
 os-name := os()
+python := if os-name == "windows" { "python" } else { "python3" }
 
 default:
     @just --list
 
-setup: setup-rust setup-node setup-format setup-package setup-deny setup-reuse setup-linux
+setup: setup-base setup-android
 
-setup-ci: setup setup-ci-vulkan
+setup-base: setup-rust setup-node setup-format setup-package setup-deny setup-reuse setup-linux
+
+setup-ci: setup-base setup-ci-vulkan
+
+setup-android:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source android/toolchain.properties
+    cli="android"
+    if [ "{{ os-name }}" = "windows" ]; then cli="android.exe"; fi
+    if ! command -v "$cli" >/dev/null; then
+        echo "Install Android CLI and add it to PATH" >&2
+        exit 1
+    fi
+    # Android is not exiting with 0 even on success
+    "$cli" --no-metrics sdk install "platforms/android-$ANDROID_PLATFORM" "build-tools/$ANDROID_BUILD_TOOLS" "ndk/$ANDROID_NDK" || true
+    rustup target add aarch64-linux-android x86_64-linux-android
+    if [ "$(cargo ndk --version 2>/dev/null || true)" != "cargo-ndk $ANDROID_CARGO_NDK" ]; then
+        RUSTFLAGS="" cargo install cargo-ndk --locked --version "$ANDROID_CARGO_NDK"
+    fi
 
 setup-rust:
     cargo --version
@@ -115,22 +133,41 @@ test-wgsl:
 
 setup-for-check: setup-rust setup-format setup-deny setup-reuse setup-linux
 
-check: check-fmt check-clippy check-import-alias check-let-type-annotation check-deny check-reuse
+check platform="desktop" arch="": check-fmt (check-clippy platform arch) check-import-alias check-let-type-annotation check-deny check-reuse
 
 check-fmt:
     cargo +{{ nightly }} fmt --all -- --check
     tombi lint
 
-check-clippy:
-    cargo clippy --workspace --all-targets --locked -- -D warnings
+check-clippy platform="desktop" arch="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ platform }}" in
+        desktop)
+            if [ -n "{{ arch }}" ]; then
+                echo "desktop does not accept an architecture" >&2
+                exit 2
+            fi
+            cargo clippy --workspace --exclude iced_winit --no-deps --all-targets --locked -- -D warnings
+            ;;
+        android)
+            case "{{ arch }}" in
+                aarch64) abi=arm64-v8a ;;
+                x86_64) abi=x86_64 ;;
+                *) echo "Android architecture must be aarch64 or x86_64" >&2; exit 2 ;;
+            esac
+            cargo ndk -P 28 -t "$abi" clippy --workspace --exclude iced_winit --exclude xtask --lib --no-deps --locked -- -D warnings
+            ;;
+        *) echo "check-clippy platform must be desktop or android" >&2; exit 2 ;;
+    esac
 
 # TODO: Remove this when clippy supports.
 check-import-alias:
-    cargo run --locked --quiet -p xtask -- import-alias-check
+    cargo run --locked --quiet -p xtask -- import-alias-check --exclude iced_winit
 
 # TODO: Remove this when clippy supports;
 check-let-type-annotation:
-    cargo run --locked --quiet -p xtask -- let-type-annotation-check
+    cargo run --locked --quiet -p xtask -- let-type-annotation-check --exclude iced_winit
 
 check-deny:
     cargo deny check advisories bans licenses sources
@@ -140,14 +177,8 @@ check-reuse:
 
 setup-for-build: setup-rust setup-linux
 
-build profile:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    case "{{ profile }}" in
-        dev) cargo build --locked ;;
-        release) cargo build --release --locked ;;
-        *) echo "profile must be dev or release" >&2; exit 2 ;;
-    esac
+build platform profile arch="":
+    {{ python }} -m scripts.build "{{ platform }}" "{{ profile }}" "{{ arch }}"
 
 run profile:
     #!/usr/bin/env bash
@@ -156,8 +187,27 @@ run profile:
         dev) cargo run --locked ;;
         dev-local) cargo run --locked --features lapiz_dirs/dev_local ;;
         release) cargo run --release --locked ;;
-        *) echo "profile must be dev, dev-local or release" >&2; exit 2 ;;
+        *) echo "run profile must be dev, dev-local, or release" >&2; exit 2 ;;
     esac
+
+setup-for-package: setup-for-build setup-package
+
+package platform profile arch="":
+    {{ python }} -m scripts.package "{{ platform }}" "{{ profile }}" "{{ arch }}"
+
+sync-iced-winit ref="HEAD":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    upstream="https://github.com/443eb9/iced.git"
+    base="$(tr -d '[:space:]' < vendor/iced_winit/.upstream-rev)"
+    git fetch --no-tags "$upstream" "{{ ref }}"
+    next="$(git rev-parse 'FETCH_HEAD^{commit}')"
+    if [ "$base" = "$next" ]; then exit 0; fi
+    if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+        git fetch --no-tags "$upstream" "$base"
+    fi
+    git diff --binary "$base" "$next" -- winit | git apply --3way -p2 --directory=vendor/iced_winit
+    printf '%s\n' "$next" > vendor/iced_winit/.upstream-rev
 
 verify-release-tag tag:
     #!/usr/bin/env bash
@@ -167,121 +217,3 @@ verify-release-tag tag:
         echo "tag {{ tag }} does not match lapiz_app version $expected" >&2
         exit 1
     fi
-
-setup-for-package: setup-for-build setup-package
-
-package profile: (build profile)
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    case "{{ profile }}" in
-        dev)
-            bindir=target/debug
-            ver="{{ version }}-dev"
-            ;;
-        release)
-            bindir=target/release
-            ver="{{ version }}"
-            ;;
-        *)
-            echo "profile must be dev or release" >&2
-            exit 2
-            ;;
-    esac
-
-    host_target="{{ target }}"
-    case "$host_target" in
-        x86_64-*) arch=x86_64 ;;
-        aarch64-*) arch=arm64 ;;
-        *) arch="${host_target%%-*}" ;;
-    esac
-
-    if [ "{{ os-name }}" = "windows" ]; then
-        binary=lapiz_app.exe
-        ext=zip
-    else
-        binary=lapiz_app
-        ext=tar.gz
-    fi
-
-    name="lapiz-$ver-{{ sha }}-{{ os-name }}-$arch"
-    staging="target/package/$name"
-    archive="target/package/$name.$ext"
-    checksum="target/package/$name.sha256"
-    third_party="$staging/THIRD_PARTY_LICENSES.html"
-
-    case "$staging" in
-        target/package/lapiz-*) ;;
-        *) echo "unsafe staging path: $staging" >&2; exit 1 ;;
-    esac
-
-    mkdir -p target/package
-    if [ -e "$staging" ]; then
-        find "$staging" -depth -delete
-    fi
-    mkdir -p "$staging"
-
-    cp "$bindir/$binary" "$staging/"
-    cp README.md LICENSE "$staging/"
-    cp LICENSES/MIT.txt "$staging/MIT.txt"
-
-    case "{{ os-name }}" in
-        linux)
-            debug_symbols="target/package/$name.debug"
-            objcopy --only-keep-debug "$staging/$binary" "$debug_symbols"
-            strip --strip-debug "$staging/$binary"
-            objcopy --add-gnu-debuglink="$debug_symbols" "$staging/$binary"
-            ;;
-        macos)
-            dsym="target/package/$name.dSYM"
-            debug_symbols="$dsym.tar.gz"
-            rm -rf "$dsym" "$debug_symbols"
-            dsymutil "$staging/$binary" -o "$dsym"
-            strip -S "$staging/$binary"
-            tar -C target/package -czf "$debug_symbols" "$name.dSYM"
-            rm -rf "$dsym"
-            ;;
-        windows)
-            debug_symbols="target/package/$name.pdb"
-            if [ ! -f "$bindir/lapiz_app.pdb" ]; then
-                echo "missing debug symbols: $bindir/lapiz_app.pdb" >&2
-                exit 1
-            fi
-            cp "$bindir/lapiz_app.pdb" "$debug_symbols"
-            ;;
-        *)
-            echo "unsupported packaging platform: {{ os-name }}" >&2
-            exit 1
-            ;;
-    esac
-
-    cargo about generate about.hbs --output-file "$third_party"
-
-    # Include only tracked assets that are not matched by .gitignore.
-    # During local development, we may introduce some external assets for testing
-    # like bundles created by someone else. They should not be included in the
-    # packaged output.
-    while IFS= read -r -d '' source; do
-        if git check-ignore --no-index -q -- "$source"; then
-            echo "Excluded ignored asset: $source"
-            continue
-        fi
-        destination="$staging/$source"
-        mkdir -p "$(dirname "$destination")"
-        cp "$source" "$destination"
-    done < <(git ls-files -z -- assets)
-
-    rm -f "$archive" "$checksum"
-    if [ "$ext" = zip ]; then
-        /c/Windows/System32/tar.exe -C target/package -caf "$archive" "$name"
-    else
-        tar -C target/package -czf "$archive" "$name"
-    fi
-
-    if command -v sha256sum >/dev/null; then
-        (cd target/package && sha256sum "$name.$ext" > "$name.sha256")
-    else
-        (cd target/package && shasum -a 256 "$name.$ext" > "$name.sha256")
-    fi
-
-    echo "Packaged: $archive + $checksum + $debug_symbols"

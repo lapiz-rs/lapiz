@@ -11,7 +11,6 @@ use iced_futures::Subscription;
 use iced_runtime::Task;
 use iced_widget::pane_grid;
 use lapiz_runtime::{Renderer, Services, service::Service};
-use lapiz_widgets::window_decorations::WindowDecorations;
 use state::DockState;
 
 use crate::{
@@ -66,7 +65,6 @@ impl DockManager {
             main_window: GroupWindowInfo {
                 id: main_window,
                 raw_id: None,
-                window_decorations: WindowDecorations::default(),
                 position: Point::ORIGIN,
                 size: Size::ZERO,
                 group: DockGroupData::empty(),
@@ -499,7 +497,6 @@ impl DockManager {
             GroupWindowInfo {
                 id: window_id,
                 raw_id: None,
-                window_decorations: WindowDecorations::default(),
                 group,
                 position: self.screen_cursor_pos()?,
                 size: window_size,
@@ -751,17 +748,6 @@ impl DockManager {
                 }
             }
             DockMessage::RawWindowGet(id, raw_id) => {
-                let window_decorations = if id == self.main_window.id {
-                    &self.main_window.window_decorations
-                } else if let Some(info) = self.detached.get(&id) {
-                    &info.window_decorations
-                } else {
-                    return Task::none();
-                };
-                if !window_decorations.attach(raw_id) {
-                    log::error!("Failed to attach native window decorations for {id:?}");
-                }
-
                 if id == self.main_window.id {
                     self.main_window.raw_id = Some(raw_id);
                     Task::none()
@@ -888,7 +874,6 @@ impl std::fmt::Debug for DockMessage {
 pub struct GroupWindowInfo {
     pub id: window::Id,
     pub raw_id: Option<u64>,
-    pub window_decorations: WindowDecorations,
     pub position: Point,
     pub size: Size,
     pub group: DockGroupData,

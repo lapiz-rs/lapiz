@@ -1,6 +1,6 @@
 use std::{env, sync::Arc};
 
-use crate::main_view::MainView;
+use self::main_view::MainView;
 
 mod main_view;
 lapiz_i18n::define_i18n!("app");
@@ -25,14 +25,43 @@ use lapiz_image_exporter::ImageExporterPlugin;
 use lapiz_image_importer::ImageImporterPlugin;
 use lapiz_input::InputPlugin;
 use lapiz_render::RenderPlugin;
+#[cfg(target_os = "android")]
+use lapiz_runtime::android;
 use lapiz_runtime::{Application, renderer::global_render_context, windows::WindowCommandBuffer};
 use lapiz_selection_tool::SelectionPlugin;
 use lapiz_shader_graph::ShaderGraphPlugin;
 use lapiz_tools::ToolsPlugin;
 use lapiz_transform_tool::FreeTransformPlugin;
 use lapiz_undo::UndoPlugin;
+#[cfg(target_os = "android")]
+use winit::platform::android::activity::AndroidApp;
 
+#[cfg(not(target_os = "android"))]
 fn main() {
+    run();
+}
+
+pub(crate) fn run(#[cfg(target_os = "android")] android_app: AndroidApp) {
+    #[cfg(target_os = "android")]
+    {
+        use std::{ffi::CString, fs, io};
+
+        lapiz_dirs::set_android_data_dir(
+            android_app.external_data_path().expect("Android data path"),
+        );
+        let destination = assets_dir().join("builtin_assets");
+        fs::create_dir_all(&destination).unwrap();
+        let manager = android_app.asset_manager();
+        let entries = manager.open_dir(c"builtin_assets").expect("Builtin assets");
+        for entry in entries {
+            let name = entry.to_str().unwrap();
+            let source = CString::new(format!("builtin_assets/{name}")).unwrap();
+            let mut asset = manager.open(&source).expect("Builtin asset");
+            let mut output = fs::File::create(destination.join(name)).unwrap();
+            io::copy(&mut asset, &mut output).unwrap();
+        }
+    }
+
     lapiz_report::setup_panic_hook();
 
     tracing_subscriber::fmt()
@@ -44,6 +73,9 @@ fn main() {
     log::info!("Running at {}", env::current_dir().unwrap().display());
 
     let mut app = Application::default();
+    #[cfg(target_os = "android")]
+    app.runtime_mut()
+        .add_service_instance(android::AndroidApp::new(android_app.clone()));
     let mut asset_bundles = Vec::<Arc<dyn ErasedAssetBundle>>::new();
     asset_bundles.push(Arc::new(
         AssetDirectory::new(assets_dir().join("builtin_assets")).unwrap(),
@@ -125,5 +157,9 @@ fn main() {
 
     lapiz_i18n::init();
 
-    app.run().unwrap();
+    app.run(
+        #[cfg(target_os = "android")]
+        android_app,
+    )
+    .unwrap();
 }

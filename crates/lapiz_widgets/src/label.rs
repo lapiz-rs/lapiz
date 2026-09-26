@@ -82,6 +82,10 @@ impl<'a> Label<'a> {
     pub fn accent(self) -> Self {
         self.style(accent)
     }
+
+    pub fn window_title(self) -> Self {
+        self.strong().size(13)
+    }
 }
 
 impl<'a, Message: 'a> From<Label<'a>> for Element<'a, Message, Theme, Renderer> {
