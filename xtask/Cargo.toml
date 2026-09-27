@@ -8,7 +8,7 @@ publish.workspace = true
 
 [dependencies]
 clap.workspace = true
-ra_ap_syntax = "0.0.281"
+ra_ap_syntax = "0.0.349"
 
 [lints]
 workspace = true
