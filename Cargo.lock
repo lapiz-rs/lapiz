@@ -2242,6 +2242,11 @@ name = "glam"
 version = "0.33.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e762b9b188634fc508d4ec54b62ea3d352c43fd431d18d05d46f559f217f4725"
+dependencies = [
+ "bytemuck",
+ "encase",
+ "serde_core",
+]
 
 [[package]]
 name = "glob"
@@ -3415,7 +3420,7 @@ dependencies = [
  "dyn-clone",
  "encase",
  "futures",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced_core",
  "iced_futures",
  "iced_runtime",
@@ -3462,7 +3467,7 @@ dependencies = [
  "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
  "bytemuck",
  "encase",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced_core",
  "iced_futures",
  "iced_runtime",
@@ -3528,7 +3533,7 @@ dependencies = [
  "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
  "bytemuck",
  "encase",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced_core",
  "iced_runtime",
  "iced_wgpu",
@@ -3565,7 +3570,7 @@ name = "lapiz_color"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "glam 0.30.10",
+ "glam 0.33.7",
  "lapiz_math",
  "lapiz_runtime",
  "lapiz_utils",
@@ -3584,7 +3589,7 @@ dependencies = [
  "bitflags 2.13.1",
  "bytemuck",
  "encase",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced_core",
  "iced_runtime",
  "iced_wgpu",
@@ -3656,7 +3661,7 @@ dependencies = [
  "dyn-clone",
  "encase",
  "futures",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced",
  "iced_core",
  "iced_runtime",
@@ -3689,7 +3694,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced_core",
  "iced_runtime",
  "lapiz_canvas",
@@ -3785,7 +3790,7 @@ dependencies = [
  "encase",
  "flate2",
  "futures",
- "glam 0.30.10",
+ "glam 0.33.7",
  "half",
  "image",
  "indexmap",
@@ -3873,7 +3878,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.13.1",
  "futures",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced_core",
  "indexmap",
  "lapiz_assets",
@@ -3892,7 +3897,7 @@ name = "lapiz_lazuli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "glam 0.30.10",
+ "glam 0.33.7",
  "parking_lot",
  "rusqlite",
  "uuid",
@@ -3903,7 +3908,7 @@ name = "lapiz_math"
 version = "0.1.0"
 dependencies = [
  "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced_core",
  "moxcms 0.9.1",
 ]
@@ -3995,7 +4000,7 @@ dependencies = [
  "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
  "bytemuck",
  "encase",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced_core",
  "iced_runtime",
  "iced_wgpu",
@@ -4031,7 +4036,7 @@ dependencies = [
  "dyn-clone",
  "encase",
  "futures",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced",
  "iced_core",
  "iced_graphics",
@@ -4099,7 +4104,7 @@ dependencies = [
  "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
  "bitflags 2.13.1",
  "encase",
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced_core",
  "iced_graphics",
  "iced_runtime",
@@ -4159,7 +4164,7 @@ dependencies = [
 name = "lapiz_widgets"
 version = "0.1.0"
 dependencies = [
- "glam 0.30.10",
+ "glam 0.33.7",
  "iced",
  "iced_core",
  "iced_graphics",
