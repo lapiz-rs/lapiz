@@ -210,7 +210,7 @@ web-sys = "=0.3.85"
 wesl = { version = "0.4", features = ["naga-ext", "package"] }
 wesl-quote = "0.4"
 wgpu = "29"
-wgpu-profiler = "0.27"
+wgpu-profiler = "0.28"
 windows = "0.62"
 winit = "0.31.0-beta.3"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
