@@ -209,7 +209,7 @@ wasm-bindgen-futures = "0.4"
 web-sys = "=0.3.85"
 wesl = { version = "0.4", features = ["naga-ext", "package"] }
 wesl-quote = "0.4"
-wgpu = "29"
+wgpu = "30"
 wgpu-profiler = "0.27"
 windows = "0.62"
 winit = "0.31.0-beta.3"
