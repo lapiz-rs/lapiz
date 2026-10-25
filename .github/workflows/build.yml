@@ -42,7 +42,7 @@ jobs:
 
       - run: just setup-ci
 
-      - uses: tombi-toml/setup-tombi@v1.5.5
+      - uses: tombi-toml/setup-tombi@v1.9.0
 
       - run: just check
 
@@ -96,7 +96,7 @@ jobs:
 
       - run: just setup-ci
 
-      - uses: tombi-toml/setup-tombi@v1.5.5
+      - uses: tombi-toml/setup-tombi@v1.9.0
 
       - run: just setup-android
 
