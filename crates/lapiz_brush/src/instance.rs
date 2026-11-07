@@ -10,7 +10,10 @@ use lapiz_assets::{
     store::AssetRegistry,
 };
 use lapiz_effect::{
-    asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassInputSlotId, EffectPassOutputSlotId},
+    asset::{
+        EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassInputSlotId,
+        EffectPassOutputSlotId,
+    },
     instance::{EffectInputs, EffectInstance},
     nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
     render::{EffectRenderer, pass_input_ident, pass_output_ident},
@@ -87,6 +90,9 @@ impl BrushPresetInstance {
         )?;
         let main_effect =
             EffectInstance::from_asset(&preset.main_effect, main_effect_resources(assets.clone()))?;
+        validate_spacing_effect(&spacing_effect)?;
+        validate_main_effect(&main_effect)?;
+
         let postprocess_effect = EffectInstance::from_asset(
             &preset.postprocess_effect,
             postprocess_effect_resources(assets.clone()),
@@ -248,6 +254,9 @@ impl BrushPresetInstance {
         device: &Device,
         queue: &Queue,
     ) -> Result<CompiledBrushPreset> {
+        validate_spacing_effect(&self.spacing_effect)?;
+        validate_main_effect(&self.main_effect)?;
+
         let main_dab_output = named_output(&self.main_effect, MAIN_DAB_BUFFER)?;
 
         let spacing_builtin_types =
@@ -321,9 +330,6 @@ impl BrushPresetInstance {
         &self,
         builtin_types: &BTreeMap<String, Arc<dyn ErasedGraphValueType>>,
     ) -> Result<(String, Vec<BindGroupLayoutEntry>, Vec<GraphLiteral>)> {
-        if self.spacing_effect.passes.len() != 1 {
-            bail!("Brush spacing effect must have exactly one pass");
-        }
         let graph = &self.spacing_effect.passes.first().unwrap().1.graph;
         let spacing_port = pass_output_port_of(
             &self.spacing_effect,
@@ -413,6 +419,34 @@ impl BrushPresetInstance {
 
         Ok((shader, layouts, parameters))
     }
+}
+
+fn validate_spacing_effect(effect: &EffectInstance) -> Result<()> {
+    let pass = effect
+        .single_pass()
+        .context("Brush spacing effect must have exactly one pass")?;
+    if pass.dispatch_strategy != EffectPassDispatchStrategy::Once {
+        bail!("Brush spacing effect dispatch strategy must be Once");
+    }
+
+    Ok(())
+}
+
+fn validate_main_effect(effect: &EffectInstance) -> Result<()> {
+    let pass = effect
+        .single_pass()
+        .context("Brush main effect must have exactly one pass")?;
+    let EffectPassDispatchStrategy::EveryOutputLayerPixel(port) = pass.dispatch_strategy else {
+        bail!("Brush main effect dispatch strategy must be EveryOutputLayerPixel");
+    };
+
+    let output = named_output(effect, MAIN_DAB_BUFFER)?;
+    let expected_port = pass_output_port_of(effect, output)?;
+    if port != expected_port {
+        bail!("Brush main effect dispatch target must be the '{MAIN_DAB_BUFFER}' output port");
+    }
+
+    Ok(())
 }
 
 fn named_output(effect: &EffectInstance, name: &str) -> Result<EffectOutputSlotId> {
