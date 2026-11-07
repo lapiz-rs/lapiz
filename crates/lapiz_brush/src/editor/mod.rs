@@ -412,40 +412,20 @@ impl BrushEditor {
 
     fn new_brush(&mut self, globals: &mut Globals) -> Task<BrushEditorMessage> {
         let assets = globals.assets().clone();
-        let f32_ty = Arc::new(F32Type) as Arc<dyn ErasedGraphValueType>;
-        let layer_ty = Arc::new(LayerType {
-            texel_type: TexelType::RGBA8,
-        });
-
-        let mut spacing = conventional_effect("Spacing", [(SPACING_OUTPUT, f32_ty)]);
-        // The spacing effect executes inside input sampling and must stay a
-        // single pass, so new brushes start with that pass.
-        spacing.passes.insert(
-            EffectPassId::new(Uuid::new_v4()),
-            EffectPass {
-                name: "Spacing".into(),
-                graph: Graph::new(spacing_effect_resources(assets.clone())),
-                dispatch_strategy: EffectPassDispatchStrategy::Once,
-            },
-        );
-
         let preset = BrushPreset {
             metadata: BrushPresetMetadata {
                 name: "[Unnamed Brush]".into(),
             },
-            spacing_effect: spacing
+            spacing_effect: new_spacing_effect(assets.clone())
                 .as_asset()
                 .expect("freshly built effects always serialize"),
             main_effect: new_main_effect(assets.clone())
                 .expect("freshly built main effects satisfy brush structure")
                 .as_asset()
                 .expect("freshly built effects always serialize"),
-            postprocess_effect: conventional_effect(
-                "Postprocess",
-                [(STROKE_RESULT, layer_ty as _)],
-            )
-            .as_asset()
-            .expect("freshly built effects always serialize"),
+            postprocess_effect: new_postprocess_effect()
+                .as_asset()
+                .expect("freshly built effects always serialize"),
             parameters: Default::default(),
         };
         let Some(bundle) = globals
@@ -581,28 +561,28 @@ fn effect_mut(instance: &mut BrushPresetInstance, slot: BrushEffectSlot) -> &mut
     }
 }
 
-fn conventional_effect(
-    name: &str,
-    outputs: impl IntoIterator<Item = (impl Into<String>, Arc<dyn ErasedGraphValueType>)>,
-) -> EffectInstance {
+fn new_spacing_effect(assets: AssetRegistry) -> EffectInstance {
+    let output_id = EffectOutputSlotId::new(Uuid::new_v4());
+
     EffectInstance {
-        name: name.into(),
-        passes: Default::default(),
+        name: "Spacing".into(),
+        passes: IndexMap::from_iter([(
+            EffectPassId::new(Uuid::new_v4()),
+            EffectPass {
+                name: "Spacing".into(),
+                graph: Graph::new(spacing_effect_resources(assets)),
+                dispatch_strategy: EffectPassDispatchStrategy::Once,
+            },
+        )]),
         inputs: Default::default(),
-        outputs: outputs
-            .into_iter()
-            .map(|(name, ty)| {
-                let id = EffectOutputSlotId::new(Uuid::new_v4());
-                (
-                    id,
-                    EffectOutputSlot {
-                        name: name.into(),
-                        id,
-                        ty,
-                    },
-                )
-            })
-            .collect(),
+        outputs: IndexMap::from_iter([(
+            output_id,
+            EffectOutputSlot {
+                name: SPACING_OUTPUT.into(),
+                id: output_id,
+                ty: Arc::new(F32Type),
+            },
+        )]),
     }
 }
 
@@ -644,4 +624,24 @@ fn new_main_effect(assets: AssetRegistry) -> Result<EffectInstance> {
     };
     effect.sync_pass_graph_effect_properties()?;
     Ok(effect)
+}
+
+fn new_postprocess_effect() -> EffectInstance {
+    let output_id = EffectOutputSlotId::new(Uuid::new_v4());
+
+    EffectInstance {
+        name: "Postprocess".into(),
+        passes: Default::default(),
+        inputs: Default::default(),
+        outputs: IndexMap::from_iter([(
+            output_id,
+            EffectOutputSlot {
+                name: STROKE_RESULT.into(),
+                id: output_id,
+                ty: Arc::new(LayerType {
+                    texel_type: TexelType::RGBA8,
+                }),
+            },
+        )]),
+    }
 }
