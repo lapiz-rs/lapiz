@@ -262,7 +262,6 @@ impl WindowView for BrushEditor {
                         effect_mut(&mut selected.instance, self.active_slot),
                         message,
                     );
-                    self.dirty = true;
                 }
                 Task::none()
             }
@@ -319,9 +318,9 @@ impl BrushEditor {
         .height(Length::Shrink);
 
         let effect_editor = match self.active_slot {
-            BrushEffectSlot::Spacing => {
-                let state = &self.editor_states.spacing;
-                let instance = selected.instance.spacing_effect();
+            BrushEffectSlot::Spacing | BrushEffectSlot::Main => {
+                let state = self.editor_states.get(self.active_slot);
+                let instance = effect(&selected.instance, self.active_slot);
                 let (pass_id, pass) = (
                     instance.single_pass_id().unwrap(),
                     instance.single_pass().unwrap(),
@@ -333,13 +332,11 @@ impl BrushEditor {
                 ))
                 .map(|message| BrushEditorMessage::Effect(EffectEditorMessage::Graph(message)))
             }
-            BrushEffectSlot::Main | BrushEffectSlot::Postprocess => {
-                GraphElement::from(EffectEditorView::new(
-                    effect(&selected.instance, self.active_slot),
-                    self.editor_states.get(self.active_slot),
-                ))
-                .map(BrushEditorMessage::Effect)
-            }
+            BrushEffectSlot::Postprocess => GraphElement::from(EffectEditorView::new(
+                effect(&selected.instance, self.active_slot),
+                self.editor_states.get(self.active_slot),
+            ))
+            .map(BrushEditorMessage::Effect),
         };
 
         let selected_slot = BrushEffectSlot::ALL
@@ -394,11 +391,14 @@ impl BrushEditor {
 
         let mut editor_states = BrushEffectEditorStates::new(globals.assets());
 
-        if let Some(spacing_pass) = instance.spacing_effect().single_pass_id() {
-            editor_states.spacing.update(
-                instance.spacing_effect_mut(),
-                EffectEditorMessage::OpenPass(spacing_pass),
-            );
+        for slot in [BrushEffectSlot::Spacing, BrushEffectSlot::Main] {
+            let effect = effect_mut(&mut instance, slot);
+            let pass_id = effect
+                .single_pass_id()
+                .expect("loaded brush spacing and main effects each have one pass");
+            editor_states
+                .get_mut(slot)
+                .update(effect, EffectEditorMessage::OpenPass(pass_id));
         }
 
         self.selected_index = Some(index);
