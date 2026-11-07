@@ -248,6 +248,8 @@ impl BrushPresetInstance {
         device: &Device,
         queue: &Queue,
     ) -> Result<CompiledBrushPreset> {
+        let main_dab_output = named_output(&self.main_effect, MAIN_DAB_BUFFER)?;
+
         let spacing_builtin_types =
             brush_builtin_types(target_layer_format, selection_layer_format);
         let (spacing, spacing_resource_layouts, spacing_parameters) =
@@ -285,7 +287,7 @@ impl BrushPresetInstance {
                 device,
                 queue,
             )?,
-            main_dab_output: named_output(&self.main_effect, MAIN_DAB_BUFFER)?,
+            main_dab_output,
             postprocess_output: named_output(&self.postprocess_effect, STROKE_RESULT)?,
         })
     }

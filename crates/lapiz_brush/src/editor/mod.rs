@@ -1,18 +1,19 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use iced_core::{Element, Length, Size, Theme, window};
+use iced_core::{Element, Length, Point, Size, Theme, window};
 use iced_futures::Subscription;
 use iced_runtime::{
     Task,
     window::{close, drag, minimize, open, toggle_maximize},
 };
+use indexmap::IndexMap;
 use lapiz_assets::{AssetAppExt as _, asset::AssetHandle, store::AssetRegistry};
 use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassId},
     editor::{EffectEditorMessage, EffectEditorState, EffectEditorView},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
-    nodes::{PassInput, PassInputNode},
+    nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
 };
 use lapiz_i18n::t;
 use lapiz_image::texel::TexelType;
@@ -435,7 +436,8 @@ impl BrushEditor {
             spacing_effect: spacing
                 .as_asset()
                 .expect("freshly built effects always serialize"),
-            main_effect: conventional_effect("Main", [(MAIN_DAB_BUFFER, layer_ty.clone() as _)])
+            main_effect: new_main_effect(assets.clone())
+                .expect("freshly built main effects satisfy brush structure")
                 .as_asset()
                 .expect("freshly built effects always serialize"),
             postprocess_effect: conventional_effect(
@@ -602,4 +604,44 @@ fn conventional_effect(
             })
             .collect(),
     }
+}
+
+fn new_main_effect(assets: AssetRegistry) -> Result<EffectInstance> {
+    let output_id = EffectOutputSlotId::new(Uuid::new_v4());
+    let mut graph = Graph::new(main_effect_resources(assets));
+    let node = graph.add_node(Point::ORIGIN, PassOutputNode);
+    graph.update_node_state::<PassOutputNode>(node, |state| {
+        state.output = Some(PassOutput::Effect(output_id));
+    });
+    let port = graph
+        .get_node(&node)
+        .unwrap()
+        .data
+        .state::<PassOutputNode>()
+        .unwrap()
+        .id;
+    let mut effect = EffectInstance {
+        name: "Main".into(),
+        passes: IndexMap::from_iter([(
+            EffectPassId::new(Uuid::new_v4()),
+            EffectPass {
+                name: "Main".into(),
+                graph,
+                dispatch_strategy: EffectPassDispatchStrategy::EveryOutputLayerPixel(port),
+            },
+        )]),
+        inputs: Default::default(),
+        outputs: IndexMap::from_iter([(
+            output_id,
+            EffectOutputSlot {
+                name: MAIN_DAB_BUFFER.into(),
+                id: output_id,
+                ty: Arc::new(LayerType {
+                    texel_type: TexelType::RGBA8,
+                }),
+            },
+        )]),
+    };
+    effect.sync_pass_graph_effect_properties()?;
+    Ok(effect)
 }

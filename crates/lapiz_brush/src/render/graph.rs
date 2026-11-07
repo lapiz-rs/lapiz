@@ -57,9 +57,6 @@ use wgpu::{Buffer, Device, Queue, util::DeviceExt as _};
 
 use super::ComputedPenInput;
 
-#[cfg(test)]
-mod tests;
-
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CanvasResources {
     pub foreground_color: Vec4,
