@@ -22,8 +22,6 @@ lapiz_runtime.workspace = true
 lapiz_shader_graph.workspace = true
 lapiz_utils.workspace = true
 lapiz_widgets.workspace = true
-log.workspace = true
-parking_lot.workspace = true
 rust-embed.workspace = true
 serde.workspace = true
 thiserror.workspace = true
@@ -32,7 +30,6 @@ uuid.workspace = true
 wesl.workspace = true
 wesl-quote.workspace = true
 wgpu.workspace = true
-wgpu-profiler.workspace = true
 
 [dev-dependencies]
 bytemuck.workspace = true

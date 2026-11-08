@@ -1,18 +1,19 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use iced_core::{Element, Length, Size, Theme, window};
+use iced_core::{Element, Length, Point, Size, Theme, window};
 use iced_futures::Subscription;
 use iced_runtime::{
     Task,
     window::{close, drag, minimize, open, toggle_maximize},
 };
+use indexmap::IndexMap;
 use lapiz_assets::{AssetAppExt as _, asset::AssetHandle, store::AssetRegistry};
 use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassId},
     editor::{EffectEditorMessage, EffectEditorState, EffectEditorView},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
-    nodes::{PassInput, PassInputNode},
+    nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
 };
 use lapiz_i18n::t;
 use lapiz_image::texel::TexelType;
@@ -261,7 +262,6 @@ impl WindowView for BrushEditor {
                         effect_mut(&mut selected.instance, self.active_slot),
                         message,
                     );
-                    self.dirty = true;
                 }
                 Task::none()
             }
@@ -318,9 +318,9 @@ impl BrushEditor {
         .height(Length::Shrink);
 
         let effect_editor = match self.active_slot {
-            BrushEffectSlot::Spacing => {
-                let state = &self.editor_states.spacing;
-                let instance = selected.instance.spacing_effect();
+            BrushEffectSlot::Spacing | BrushEffectSlot::Main => {
+                let state = self.editor_states.get(self.active_slot);
+                let instance = effect(&selected.instance, self.active_slot);
                 let (pass_id, pass) = (
                     instance.single_pass_id().unwrap(),
                     instance.single_pass().unwrap(),
@@ -332,13 +332,11 @@ impl BrushEditor {
                 ))
                 .map(|message| BrushEditorMessage::Effect(EffectEditorMessage::Graph(message)))
             }
-            BrushEffectSlot::Main | BrushEffectSlot::Postprocess => {
-                GraphElement::from(EffectEditorView::new(
-                    effect(&selected.instance, self.active_slot),
-                    self.editor_states.get(self.active_slot),
-                ))
-                .map(BrushEditorMessage::Effect)
-            }
+            BrushEffectSlot::Postprocess => GraphElement::from(EffectEditorView::new(
+                effect(&selected.instance, self.active_slot),
+                self.editor_states.get(self.active_slot),
+            ))
+            .map(BrushEditorMessage::Effect),
         };
 
         let selected_slot = BrushEffectSlot::ALL
@@ -393,11 +391,14 @@ impl BrushEditor {
 
         let mut editor_states = BrushEffectEditorStates::new(globals.assets());
 
-        if let Some(spacing_pass) = instance.spacing_effect().single_pass_id() {
-            editor_states.spacing.update(
-                instance.spacing_effect_mut(),
-                EffectEditorMessage::OpenPass(spacing_pass),
-            );
+        for slot in [BrushEffectSlot::Spacing, BrushEffectSlot::Main] {
+            let effect = effect_mut(&mut instance, slot);
+            let pass_id = effect
+                .single_pass_id()
+                .expect("loaded brush spacing and main effects each have one pass");
+            editor_states
+                .get_mut(slot)
+                .update(effect, EffectEditorMessage::OpenPass(pass_id));
         }
 
         self.selected_index = Some(index);
@@ -411,39 +412,20 @@ impl BrushEditor {
 
     fn new_brush(&mut self, globals: &mut Globals) -> Task<BrushEditorMessage> {
         let assets = globals.assets().clone();
-        let f32_ty = Arc::new(F32Type) as Arc<dyn ErasedGraphValueType>;
-        let layer_ty = Arc::new(LayerType {
-            texel_type: TexelType::RGBA8,
-        });
-
-        let mut spacing = conventional_effect("Spacing", [(SPACING_OUTPUT, f32_ty)]);
-        // The spacing effect executes inside input sampling and must stay a
-        // single pass, so new brushes start with that pass.
-        spacing.passes.insert(
-            EffectPassId::new(Uuid::new_v4()),
-            EffectPass {
-                name: "Spacing".into(),
-                graph: Graph::new(spacing_effect_resources(assets.clone())),
-                dispatch_strategy: EffectPassDispatchStrategy::Once,
-            },
-        );
-
         let preset = BrushPreset {
             metadata: BrushPresetMetadata {
                 name: "[Unnamed Brush]".into(),
             },
-            spacing_effect: spacing
+            spacing_effect: new_spacing_effect(assets.clone())
                 .as_asset()
                 .expect("freshly built effects always serialize"),
-            main_effect: conventional_effect("Main", [(MAIN_DAB_BUFFER, layer_ty.clone() as _)])
+            main_effect: new_main_effect(assets.clone())
+                .expect("freshly built main effects satisfy brush structure")
                 .as_asset()
                 .expect("freshly built effects always serialize"),
-            postprocess_effect: conventional_effect(
-                "Postprocess",
-                [(STROKE_RESULT, layer_ty as _)],
-            )
-            .as_asset()
-            .expect("freshly built effects always serialize"),
+            postprocess_effect: new_postprocess_effect()
+                .as_asset()
+                .expect("freshly built effects always serialize"),
             parameters: Default::default(),
         };
         let Some(bundle) = globals
@@ -579,27 +561,87 @@ fn effect_mut(instance: &mut BrushPresetInstance, slot: BrushEffectSlot) -> &mut
     }
 }
 
-fn conventional_effect(
-    name: &str,
-    outputs: impl IntoIterator<Item = (impl Into<String>, Arc<dyn ErasedGraphValueType>)>,
-) -> EffectInstance {
+fn new_spacing_effect(assets: AssetRegistry) -> EffectInstance {
+    let output_id = EffectOutputSlotId::new(Uuid::new_v4());
+
     EffectInstance {
-        name: name.into(),
+        name: "Spacing".into(),
+        passes: IndexMap::from_iter([(
+            EffectPassId::new(Uuid::new_v4()),
+            EffectPass {
+                name: "Spacing".into(),
+                graph: Graph::new(spacing_effect_resources(assets)),
+                dispatch_strategy: EffectPassDispatchStrategy::Once,
+            },
+        )]),
+        inputs: Default::default(),
+        outputs: IndexMap::from_iter([(
+            output_id,
+            EffectOutputSlot {
+                name: SPACING_OUTPUT.into(),
+                id: output_id,
+                ty: Arc::new(F32Type),
+            },
+        )]),
+    }
+}
+
+fn new_main_effect(assets: AssetRegistry) -> Result<EffectInstance> {
+    let output_id = EffectOutputSlotId::new(Uuid::new_v4());
+    let mut graph = Graph::new(main_effect_resources(assets));
+    let node = graph.add_node(Point::ORIGIN, PassOutputNode);
+    graph.update_node_state::<PassOutputNode>(node, |state| {
+        state.output = Some(PassOutput::Effect(output_id));
+    });
+    let port = graph
+        .get_node(&node)
+        .unwrap()
+        .data
+        .state::<PassOutputNode>()
+        .unwrap()
+        .id;
+    let mut effect = EffectInstance {
+        name: "Main".into(),
+        passes: IndexMap::from_iter([(
+            EffectPassId::new(Uuid::new_v4()),
+            EffectPass {
+                name: "Main".into(),
+                graph,
+                dispatch_strategy: EffectPassDispatchStrategy::EveryOutputLayerPixel(port),
+            },
+        )]),
+        inputs: Default::default(),
+        outputs: IndexMap::from_iter([(
+            output_id,
+            EffectOutputSlot {
+                name: MAIN_DAB_BUFFER.into(),
+                id: output_id,
+                ty: Arc::new(LayerType {
+                    texel_type: TexelType::RGBA8,
+                }),
+            },
+        )]),
+    };
+    effect.sync_pass_graph_effect_properties()?;
+    Ok(effect)
+}
+
+fn new_postprocess_effect() -> EffectInstance {
+    let output_id = EffectOutputSlotId::new(Uuid::new_v4());
+
+    EffectInstance {
+        name: "Postprocess".into(),
         passes: Default::default(),
         inputs: Default::default(),
-        outputs: outputs
-            .into_iter()
-            .map(|(name, ty)| {
-                let id = EffectOutputSlotId::new(Uuid::new_v4());
-                (
-                    id,
-                    EffectOutputSlot {
-                        name: name.into(),
-                        id,
-                        ty,
-                    },
-                )
-            })
-            .collect(),
+        outputs: IndexMap::from_iter([(
+            output_id,
+            EffectOutputSlot {
+                name: STROKE_RESULT.into(),
+                id: output_id,
+                ty: Arc::new(LayerType {
+                    texel_type: TexelType::RGBA8,
+                }),
+            },
+        )]),
     }
 }

@@ -294,7 +294,6 @@ pub fn create_stroke_preview_on_target_with(
         target_layer.binding_or_empty(),
         selection_layer.binding_or_empty(),
     );
-    renderer.record_raw_inputs(samples.len());
 
     for sample in samples.iter().take(samples.len() - 1) {
         if let Some(pen_input) = input_processor.push(*sample) {

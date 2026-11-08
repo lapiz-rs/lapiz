@@ -13,7 +13,7 @@ fn main() {
     );
 
     PkgBuilder::new("brush")
-        .scan_root("src/render")
+        .scan_root("shaders")
         .unwrap()
         .validate()
         .inspect_err(|e| panic!("{}", e))

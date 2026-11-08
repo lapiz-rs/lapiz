@@ -10,7 +10,10 @@ use lapiz_assets::{
     store::AssetRegistry,
 };
 use lapiz_effect::{
-    asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassInputSlotId, EffectPassOutputSlotId},
+    asset::{
+        EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassInputSlotId,
+        EffectPassOutputSlotId,
+    },
     instance::{EffectInputs, EffectInstance},
     nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
     render::{EffectRenderer, pass_input_ident, pass_output_ident},
@@ -26,16 +29,20 @@ use lapiz_shader_graph::{
         variable::{GraphLiteral, GraphShaderLiteral},
     },
     save::SerializableGraphLiteral,
+    wgsl_std::types::handle::LayerType,
 };
 use wgpu::{BindGroupLayoutEntry, Device, Queue, ShaderStages};
 
 use crate::{
     asset::{BrushPreset, BrushPresetMetadata, SerializableBrushParameter},
     brush,
-    render::graph::{
-        BRUSH_GRAPH_TYPES, MAIN_DAB_BUFFER, SPACING_OUTPUT, STROKE_RESULT, brush_builtin_types,
-        brush_graph_resources, main_builtin_types, main_graph_nodes, postprocess_builtin_types,
-        postprocess_graph_nodes, spacing_graph_nodes,
+    render::{
+        graph::{
+            BRUSH_GRAPH_TYPES, MAIN_DAB_BUFFER, SPACING_OUTPUT, STROKE_RESULT, brush_builtin_types,
+            brush_graph_resources, main_builtin_types, main_graph_nodes, postprocess_builtin_types,
+            postprocess_graph_nodes, spacing_graph_nodes,
+        },
+        pipeline::BrushMainPipeline,
     },
 };
 
@@ -52,11 +59,9 @@ pub struct CompiledBrushPreset {
     pub spacing_resource_layouts: Vec<BindGroupLayoutEntry>,
     pub spacing_builtin_types: BTreeMap<String, Arc<dyn ErasedGraphValueType>>,
     pub spacing_parameters: Arc<[GraphLiteral]>,
-    pub main: EffectRenderer,
+    pub main: BrushMainPipeline,
     pub postprocess: EffectRenderer,
-    pub main_inputs: EffectInputs,
     pub postprocess_inputs: EffectInputs,
-    pub main_dab_output: EffectOutputSlotId,
     pub postprocess_output: EffectOutputSlotId,
 }
 
@@ -87,6 +92,9 @@ impl BrushPresetInstance {
         )?;
         let main_effect =
             EffectInstance::from_asset(&preset.main_effect, main_effect_resources(assets.clone()))?;
+        validate_spacing_effect(&spacing_effect)?;
+        validate_main_effect(&main_effect)?;
+
         let postprocess_effect = EffectInstance::from_asset(
             &preset.postprocess_effect,
             postprocess_effect_resources(assets.clone()),
@@ -248,6 +256,11 @@ impl BrushPresetInstance {
         device: &Device,
         queue: &Queue,
     ) -> Result<CompiledBrushPreset> {
+        validate_spacing_effect(&self.spacing_effect)?;
+        validate_main_effect(&self.main_effect)?;
+
+        let main_dab_output = named_output(&self.main_effect, MAIN_DAB_BUFFER)?;
+
         let spacing_builtin_types =
             brush_builtin_types(target_layer_format, selection_layer_format);
         let (spacing, spacing_resource_layouts, spacing_parameters) =
@@ -255,15 +268,56 @@ impl BrushPresetInstance {
 
         let shader_deps = &[&brush::PACKAGE];
         let main_types = main_builtin_types(target_layer_format, selection_layer_format);
+        let pass = self
+            .main_effect
+            .single_pass()
+            .context("Brush main effect must have exactly one pass")?;
+        let mut main_inputs = Vec::new();
+        let output_port = pass_output_port_of(&self.main_effect, main_dab_output)?;
+        for node in pass.graph.iter_nodes() {
+            if let Some(state) = node.data.state::<PassInputNode>() {
+                let Some(PassInput::Effect(id)) = state.input else {
+                    bail!("Brush main pass inputs must reference effect parameters");
+                };
+                let parameter = self
+                    .parameters
+                    .get(&id)
+                    .context("Missing brush main parameter")?;
+                let ty = self
+                    .main_effect
+                    .inputs
+                    .get(&id)
+                    .context("Unknown brush main parameter")?
+                    .ty
+                    .clone();
+                let value = ty.prepare_to_shader(parameter.value.value(), device, queue)?;
+                main_inputs.push((
+                    pass_input_ident(state.id),
+                    GraphShaderLiteral::new_boxed(value, ty),
+                ));
+            }
+            if let Some(state) = node.data.state::<PassOutputNode>()
+                && state.id != output_port
+            {
+                bail!("Brush main pass must have a single dab output node");
+            }
+        }
+        let output_type = self.main_effect.outputs[&main_dab_output]
+            .ty
+            .downcast_ref::<LayerType>()
+            .context("Brush main output must be a layer")?
+            .clone();
+        let main = BrushMainPipeline::new(
+            &pass.graph,
+            &pass_output_ident(output_port),
+            output_type,
+            main_types,
+            main_inputs,
+            device,
+        )?;
+
         let postprocess_types =
             postprocess_builtin_types(target_layer_format, selection_layer_format);
-        let main = EffectRenderer::from_instance(
-            &self.main_effect,
-            main_types.into_iter().collect(),
-            shader_deps,
-            device.clone(),
-            queue.clone(),
-        )?;
         let postprocess = EffectRenderer::from_instance(
             &self.postprocess_effect,
             postprocess_types.into_iter().collect(),
@@ -279,13 +333,11 @@ impl BrushPresetInstance {
             spacing_parameters: spacing_parameters.into(),
             main,
             postprocess,
-            main_inputs: self.prepare_effect_inputs(&self.main_effect, device, queue)?,
             postprocess_inputs: self.prepare_effect_inputs(
                 &self.postprocess_effect,
                 device,
                 queue,
             )?,
-            main_dab_output: named_output(&self.main_effect, MAIN_DAB_BUFFER)?,
             postprocess_output: named_output(&self.postprocess_effect, STROKE_RESULT)?,
         })
     }
@@ -319,9 +371,6 @@ impl BrushPresetInstance {
         &self,
         builtin_types: &BTreeMap<String, Arc<dyn ErasedGraphValueType>>,
     ) -> Result<(String, Vec<BindGroupLayoutEntry>, Vec<GraphLiteral>)> {
-        if self.spacing_effect.passes.len() != 1 {
-            bail!("Brush spacing effect must have exactly one pass");
-        }
         let graph = &self.spacing_effect.passes.first().unwrap().1.graph;
         let spacing_port = pass_output_port_of(
             &self.spacing_effect,
@@ -402,7 +451,7 @@ impl BrushPresetInstance {
             |resolver| {
                 resolver.add_module(
                     "package::brush_types".parse().unwrap(),
-                    include_str!("render/brush_types.wesl").into(),
+                    include_str!("../shaders/brush_types.wesl").into(),
                 );
             },
             |_| {},
@@ -411,6 +460,34 @@ impl BrushPresetInstance {
 
         Ok((shader, layouts, parameters))
     }
+}
+
+fn validate_spacing_effect(effect: &EffectInstance) -> Result<()> {
+    let pass = effect
+        .single_pass()
+        .context("Brush spacing effect must have exactly one pass")?;
+    if pass.dispatch_strategy != EffectPassDispatchStrategy::Once {
+        bail!("Brush spacing effect dispatch strategy must be Once");
+    }
+
+    Ok(())
+}
+
+fn validate_main_effect(effect: &EffectInstance) -> Result<()> {
+    let pass = effect
+        .single_pass()
+        .context("Brush main effect must have exactly one pass")?;
+    let EffectPassDispatchStrategy::EveryOutputLayerPixel(port) = pass.dispatch_strategy else {
+        bail!("Brush main effect dispatch strategy must be EveryOutputLayerPixel");
+    };
+
+    let output = named_output(effect, MAIN_DAB_BUFFER)?;
+    let expected_port = pass_output_port_of(effect, output)?;
+    if port != expected_port {
+        bail!("Brush main effect dispatch target must be the '{MAIN_DAB_BUFFER}' output port");
+    }
+
+    Ok(())
 }
 
 fn named_output(effect: &EffectInstance, name: &str) -> Result<EffectOutputSlotId> {

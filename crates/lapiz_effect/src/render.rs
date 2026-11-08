@@ -1,7 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     sync::Arc,
-    time::{Duration, Instant},
 };
 
 use anyhow::{Context as _, Result, bail, ensure};
@@ -23,7 +22,6 @@ use lapiz_shader_graph::{
         layer_tile_info_ident,
     },
 };
-use parking_lot::Mutex;
 use wesl::{
     CodegenPkg,
     syntax::{
@@ -36,11 +34,9 @@ use wesl::{
 use wesl_quote::quote_statement;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, CommandEncoder,
-    ComputePassDescriptor, ComputePassTimestampWrites, ComputePipeline, ComputePipelineDescriptor,
-    Device, Features, PipelineLayoutDescriptor, PollType, Queue, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages,
+    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Device,
+    PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor, ShaderSource, ShaderStages,
 };
-use wgpu_profiler::{GpuProfiler, GpuProfilerSettings, GpuTimerQueryResult};
 
 use crate::{
     asset::{
@@ -71,15 +67,7 @@ pub struct EffectPassOutputSlotTarget {
     pub ty: Arc<dyn ErasedGraphValueType>,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct EffectRunTiming {
-    pub eval_cpu: Duration,
-    pub readback: Duration,
-    pub main_cpu: Duration,
-}
-
 pub struct EffectRenderer {
-    name: String,
     inputs: Vec<EffectInputSlot>,
     outputs: HashMap<EffectOutputSlotId, EffectPassOutputSlotId>,
     builtin_literals: HashMap<String, Arc<dyn ErasedGraphValueType>>,
@@ -87,7 +75,6 @@ pub struct EffectRenderer {
     passes: Vec<EffectRenderPass>,
     device: Device,
     queue: Queue,
-    profiler: Mutex<GpuProfiler>,
 }
 
 impl EffectRenderer {
@@ -337,7 +324,6 @@ impl EffectRenderer {
             }
 
             passes.push(EffectRenderPass::new(
-                source.name.clone(),
                 inputs_decl,
                 outputs_decl,
                 &effect_inputs_decl,
@@ -350,23 +336,13 @@ impl EffectRenderer {
             )?);
         }
 
-        let profiler = GpuProfiler::new(
-            &device,
-            GpuProfilerSettings {
-                enable_timer_queries: device.features().contains(Features::TIMESTAMP_QUERY),
-                ..Default::default()
-            },
-        )?;
-
         Ok(Self {
-            name: instance.name.clone(),
             inputs: instance.inputs.values().cloned().collect(),
             outputs: exports,
             builtin_literals,
             passes,
             device,
             queue,
-            profiler: Mutex::new(profiler),
         })
     }
 
@@ -374,15 +350,6 @@ impl EffectRenderer {
         &self,
         inputs: &EffectInputs,
         builtin_literals: &HashMap<String, GraphShaderLiteral>,
-    ) -> Result<EffectOutputs> {
-        self.run_profiled(inputs, builtin_literals, &mut EffectRunTiming::default())
-    }
-
-    pub fn run_profiled(
-        &self,
-        inputs: &EffectInputs,
-        builtin_literals: &HashMap<String, GraphShaderLiteral>,
-        timing: &mut EffectRunTiming,
     ) -> Result<EffectOutputs> {
         for def in &self.inputs {
             let literal = inputs
@@ -408,14 +375,11 @@ impl EffectRenderer {
         for pass in &self.passes {
             pass.init_output_values(&mut produced, &self.device, &self.queue)?;
             pass.run(
-                &self.name,
                 inputs,
                 builtin_literals,
                 &mut produced,
                 &self.device,
                 &self.queue,
-                &self.profiler,
-                timing,
             )?;
         }
 
@@ -428,15 +392,6 @@ impl EffectRenderer {
                 ))
             })
             .collect()
-    }
-
-    pub fn finish_profiling(&self) -> Result<()> {
-        self.device.poll(PollType::Wait {
-            submission_index: None,
-            timeout: None,
-        })?;
-        log_finished_gpu_profiles(&mut self.profiler.lock(), &self.queue);
-        Ok(())
     }
 }
 
@@ -762,11 +717,10 @@ impl EffectRenderPassStage {
         &self,
         encoder: &mut CommandEncoder,
         prepared: &PreparedEffectRenderPassStage,
-        timestamp_writes: Option<ComputePassTimestampWrites<'_>>,
     ) -> Result<()> {
         let mut compute = encoder.begin_compute_pass(&ComputePassDescriptor {
             label: Some("effect pass"),
-            timestamp_writes,
+            timestamp_writes: None,
         });
         compute.set_pipeline(&self.pipeline);
         compute.set_bind_group(0, &prepared.input_group, &[]);
@@ -782,7 +736,6 @@ impl EffectRenderPassStage {
 }
 
 struct EffectRenderPass {
-    name: String,
     inputs_decl: EffectPassInputsDecl,
     outputs_decl: EffectPassOutputsDecl,
     eval: Option<EffectRenderPassStage>,
@@ -791,7 +744,6 @@ struct EffectRenderPass {
 
 impl EffectRenderPass {
     fn new(
-        name: String,
         pass_inputs_decl: EffectPassInputsDecl,
         pass_outputs_decl: EffectPassOutputsDecl,
         effect_inputs_decl: &EffectInputsDecl,
@@ -834,7 +786,6 @@ impl EffectRenderPass {
         )?;
 
         Ok(Self {
-            name,
             inputs_decl: pass_inputs_decl,
             outputs_decl: pass_outputs_decl,
             eval,
@@ -863,17 +814,13 @@ impl EffectRenderPass {
 
     fn run(
         &self,
-        effect_name: &str,
         effect_inputs: &EffectInputs,
         builtin_literals: &HashMap<String, GraphShaderLiteral>,
         pass_outputs_global: &mut EffectPassOutputs,
         device: &Device,
         queue: &Queue,
-        profiler: &Mutex<GpuProfiler>,
-        timing: &mut EffectRunTiming,
     ) -> Result<()> {
         if let Some(eval) = &self.eval {
-            let started = Instant::now();
             let mut encoder = device.create_command_encoder(&Default::default());
             let eval_prepared = eval.prepare(
                 &self.inputs_decl,
@@ -883,34 +830,16 @@ impl EffectRenderPass {
                 builtin_literals,
                 device,
             )?;
-            let mut profiler = profiler.lock();
-            log_finished_gpu_profiles(&mut profiler, queue);
-            let query = profiler.begin_pass_query(
-                format!("effect/{effect_name}/{}/eval", self.name),
-                &mut encoder,
-            );
-            eval.dispatch(
-                &mut encoder,
-                &eval_prepared,
-                query.compute_pass_timestamp_writes(),
-            )?;
-            profiler.end_query(&mut encoder, query);
-            profiler.resolve_queries(&mut encoder);
+            eval.dispatch(&mut encoder, &eval_prepared)?;
             queue.submit([encoder.finish()]);
-            profiler.end_frame()?;
-            drop(profiler);
-            timing.eval_cpu += started.elapsed();
 
-            let started = Instant::now();
             for id in self.outputs_decl.keys() {
                 let output = pass_outputs_global.get_mut(id).unwrap();
                 let ty = output.ty().clone();
                 ty.post_eval(output.value_mut(), device, queue)?;
             }
-            timing.readback += started.elapsed();
         }
 
-        let started = Instant::now();
         let mut encoder = device.create_command_encoder(&Default::default());
         let main_prepared = self.main.prepare(
             &self.inputs_decl,
@@ -920,43 +849,9 @@ impl EffectRenderPass {
             builtin_literals,
             device,
         )?;
-        let mut profiler = profiler.lock();
-        log_finished_gpu_profiles(&mut profiler, queue);
-        let query = profiler.begin_pass_query(
-            format!("effect/{effect_name}/{}/main", self.name),
-            &mut encoder,
-        );
-        self.main.dispatch(
-            &mut encoder,
-            &main_prepared,
-            query.compute_pass_timestamp_writes(),
-        )?;
-        profiler.end_query(&mut encoder, query);
-        profiler.resolve_queries(&mut encoder);
+        self.main.dispatch(&mut encoder, &main_prepared)?;
         queue.submit([encoder.finish()]);
-        profiler.end_frame()?;
-        timing.main_cpu += started.elapsed();
         Ok(())
-    }
-}
-
-fn log_finished_gpu_profiles(profiler: &mut GpuProfiler, queue: &Queue) {
-    while let Some(results) = profiler.process_finished_frame(queue.get_timestamp_period()) {
-        log_gpu_profile_results(&results);
-    }
-}
-
-fn log_gpu_profile_results(results: &[GpuTimerQueryResult]) {
-    for result in results {
-        if let Some(time) = &result.time {
-            log::info!(
-                target: "lapiz_gpu_profile",
-                "scope={} duration_ms={:.6}",
-                result.label,
-                (time.end - time.start) * 1_000.0
-            );
-        }
-        log_gpu_profile_results(&result.nested_queries);
     }
 }
 
