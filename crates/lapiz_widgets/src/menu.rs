@@ -606,7 +606,7 @@ where
 {
     fn layout(&mut self, renderer: &Renderer, bounds: Size) -> layout::Node {
         let viewport = self.viewport;
-        let mut panels: Vec<layout::Node> = Vec::new();
+        let mut panels = Vec::<layout::Node>::new();
         for level in 0..self.open.len() {
             let Some((menu, tree)) = self.menu_at_mut(level) else {
                 break;
