@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     mem,
     sync::Arc,
     time::{Duration, Instant},
@@ -13,7 +13,7 @@ use futures::{
     StreamExt as _,
     channel::{mpsc, oneshot},
 };
-use glam::{IVec4, Vec2, Vec4};
+use glam::{IVec2, IVec4, Vec2, Vec4, Vec4Swizzles};
 use iced_runtime::Task;
 use lapiz_canvas::{CanvasAppExt as _, CanvasId};
 use lapiz_color::ForegroundBackgroundColorExt as _;
@@ -27,7 +27,7 @@ use lapiz_image::{
     layer_bounds::LayerBoundsPipeline,
     scan_pixels::ScanPixelsPipeline,
     texel::TexelType,
-    tile::{DynamicLayerStorage, LayerBinding, TileStorageAppExt as _},
+    tile::{DynamicLayerStorage, GpuTileStorage, LayerBinding, TileStorageAppExt as _},
 };
 use lapiz_input::mouse::PressedMouseState;
 use lapiz_render::{
@@ -55,8 +55,7 @@ use crate::{
     instance::{BrushPresetInstance, CompiledBrushPreset},
     render::{
         graph::{
-            BACKGROUND_COLOR_BUILTIN, BRUSH_SAMPLE_BUILTIN, ComputedPenInputValueType,
-            FOREGROUND_COLOR_BUILTIN, HAS_SELECTION_BUILTIN, INITIAL_PEN_INPUT_BUILTIN,
+            BACKGROUND_COLOR_BUILTIN, FOREGROUND_COLOR_BUILTIN, HAS_SELECTION_BUILTIN,
             MAIN_ACCUMULATE_BUFFER, SELECTION_BUILTIN, TARGET_LAYER_BUILTIN,
         },
         pipeline::{BrushInputSamplingPipeline, PreparedInputSamplingPipelineData},
@@ -308,7 +307,6 @@ struct BrushStrokeProfile {
     input_batches: u64,
     dabs: u64,
     dab_tiles: u64,
-    input_readback: Duration,
     effect_eval_cpu: Duration,
     effect_readback: Duration,
     effect_main_cpu: Duration,
@@ -326,12 +324,11 @@ impl BrushStrokeProfile {
     fn log(&self) {
         log::info!(
             target: "lapiz_brush::profile",
-            "stroke raw_inputs={} input_batches={} dabs={} dab_tiles={} input_readback_ms={:.3} effect_eval_cpu_ms={:.3} effect_readback_ms={:.3} effect_main_cpu_ms={:.3} preview_count={} preview_ms={:.3}",
+            "stroke raw_inputs={} input_batches={} dabs={} dab_tiles={} effect_eval_cpu_ms={:.3} effect_readback_ms={:.3} effect_main_cpu_ms={:.3} preview_count={} preview_ms={:.3}",
             self.raw_inputs,
             self.input_batches,
             self.dabs,
             self.dab_tiles,
-            self.input_readback.as_secs_f64() * 1_000.0,
             self.effect_eval_cpu.as_secs_f64() * 1_000.0,
             self.effect_readback.as_secs_f64() * 1_000.0,
             self.effect_main_cpu.as_secs_f64() * 1_000.0,
@@ -361,7 +358,9 @@ struct BrushStrokeWorker {
     profile: Arc<Mutex<BrushStrokeProfile>>,
     resource_group: wgpu::BindGroup,
     input_batch: DynamicBuffer<PenInputBatch>,
-    output_samples: DynamicBuffer<OutputSamples>,
+    batch_bounds: DynamicBuffer<BatchBounds>,
+    main_batch_group: wgpu::BindGroup,
+    main_sample_index_offsets: Vec<u32>,
     input_sample_prepared: PreparedInputSamplingPipelineData,
 }
 
@@ -512,6 +511,21 @@ impl BrushPresetRenderer {
             },
         );
 
+        let capacity = (MAX_DABS_PER_STROKE as usize) * MAX_INPUTS_PER_SAMPLE_BATCH;
+        let mut batch_bounds = DynamicBuffer::new(
+            Some("brush batch bounds".into()),
+            BufferUsages::STORAGE | BufferUsages::COPY_SRC,
+        );
+        batch_bounds.push(&BatchBounds::new(capacity));
+        batch_bounds.write_buffer(device, queue);
+        let (main_batch_group, main_sample_index_offsets) = self.compiled.main.prepare_batch_group(
+            device,
+            queue,
+            output_samples.inner_buffer().unwrap(),
+            initial_pen_input.inner_buffer().unwrap(),
+            batch_bounds.inner_buffer().unwrap(),
+            capacity,
+        );
         let profile = Arc::new(Mutex::new(BrushStrokeProfile::default()));
         let empty_accumulator = prepared_literal(
             Arc::new(LayerType {
@@ -541,7 +555,6 @@ impl BrushPresetRenderer {
                 foreground_color: self.resources.foreground_color.clone(),
                 background_color: self.resources.background_color.clone(),
                 accumulator: Some(empty_accumulator),
-                initial_sample: None,
                 device: device.clone(),
                 queue: queue.clone(),
                 target_layer_format: self.resources.target_layer_format,
@@ -552,7 +565,9 @@ impl BrushPresetRenderer {
             profile: profile.clone(),
             resource_group,
             input_batch,
-            output_samples,
+            batch_bounds,
+            main_batch_group,
+            main_sample_index_offsets,
             input_sample_prepared,
         };
         let mailbox = Arc::new(Mutex::new(StrokeMailbox::default()));
@@ -652,6 +667,7 @@ impl BrushStrokeWorker {
     }
 
     async fn process_input_batch(&mut self, inputs: &[PenInput]) -> Result<()> {
+        // sample input
         let device = self.state.device.clone();
         let queue = self.state.queue.clone();
         self.input_batch.clear();
@@ -682,22 +698,27 @@ impl BrushStrokeWorker {
         }
         self.input_profiler.end_query(&mut encoder, query);
 
-        let output_samples = self.output_samples.inner_buffer().unwrap();
-
+        // batched eval
+        let main_pipeline = &self.state.compiled.main;
+        let eval_started = Instant::now();
+        let builtins = main_builtins(&self.state)?;
+        let resources = main_pipeline.prepare_resource_group(&device, &builtins)?;
+        main_pipeline.dispatch_eval(&mut encoder, &self.main_batch_group, &resources);
+        let eval_cpu = eval_started.elapsed();
+        let bounds_buffer = self.batch_bounds.inner_buffer().unwrap();
         let max_samples = inputs.len() * MAX_DABS_PER_STROKE as usize;
-        // avoid readback dummy samples
-        let readback_size = OutputSamples::min_size().get()
-            + (max_samples as u64 - 1) * ComputedPenInput::SHADER_SIZE.get();
+        let readback_size =
+            BatchBounds::min_size().get() + (max_samples as u64 - 1) * DabBounds::SHADER_SIZE.get();
 
         let staging = device.create_buffer(&BufferDescriptor {
-            label: Some("brush input samples readback"),
+            label: Some("brush batch bounds readback"),
             size: readback_size,
             usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        encoder.copy_buffer_to_buffer(output_samples, 0, &staging, 0, readback_size);
+        encoder.copy_buffer_to_buffer(bounds_buffer, 0, &staging, 0, readback_size);
         let readback =
-            readback_buffer_on_submit_async::<OutputSamples, _>(&mut encoder, &staging, ..);
+            readback_buffer_on_submit_async::<BatchBounds, _>(&mut encoder, &staging, ..);
         self.input_profiler.resolve_queries(&mut encoder);
         let readback_started = Instant::now();
         queue.submit([encoder.finish()]);
@@ -705,77 +726,125 @@ impl BrushStrokeWorker {
             .end_frame()
             .expect("brush input GPU profile frame must be complete");
 
+        // readback bounds and allocate
         let samples = readback.into_inner().await??;
-        let input_readback = readback_started.elapsed();
+        let bounds_readback = readback_started.elapsed();
         let batch_dab_count = samples.n_samples as usize;
-        let is_overflow = samples.is_overflow != 0;
-        let mut batch_dab_tiles = Vec::with_capacity(batch_dab_count);
-        let mut effect_timing = EffectRunTiming::default();
-        for sample in samples.samples.into_iter().take(batch_dab_count) {
-            if self.state.initial_sample.is_none() {
-                self.state.initial_sample = Some(sample);
+        let main_started = Instant::now();
+
+        let count = samples.n_samples as usize;
+        if samples.is_overflow != 0 || count > max_samples || count > samples.entries.len() {
+            bail!("Brush sample batch exceeds its output capacity");
+        }
+
+        let mut dab_bounds = Vec::with_capacity(count);
+        let mut tiles = HashSet::new();
+        for entry in samples.entries.iter().take(count) {
+            let rect = IRect {
+                min: entry.bounds.xy(),
+                max: entry.bounds.zw(),
+            };
+
+            if !rect.is_empty() {
+                let dab_tiles = GpuTileStorage::pixel_rect_to_tile(rect);
+                for y in dab_tiles.min.y..=dab_tiles.max.y {
+                    for x in dab_tiles.min.x..=dab_tiles.max.x {
+                        tiles.insert(IVec2::new(x, y));
+                    }
+                }
             }
+
+            dab_bounds.push(rect);
+        }
+
+        let mut dab = self.state.compiled.main.prepare_output(&device, &queue)?;
+        let PreparedLayerPixels::ReadWrite {
+            storage: dab_storage,
+            ..
+        } = &mut dab.pixels
+        else {
+            unreachable!();
+        };
+        dab_storage.allocate_tiles_batch(&tiles);
+        let accumulator = self
+            .state
+            .accumulator
+            .as_mut()
+            .context("Missing brush accumulator")?
+            .as_mut::<PreparedLayer>();
+        let PreparedLayerPixels::ReadWrite { storage, .. } = &mut accumulator.pixels else {
+            bail!("Brush accumulator must have writable storage");
+        };
+        storage.allocate_tiles_batch(&tiles);
+
+        // run main
+        let builtins = main_builtins(&self.state)?;
+        let resources = main_pipeline.prepare_resource_group(&device, &builtins)?;
+        let output = main_pipeline.prepare_output_group(&device, &dab)?;
+        let PreparedLayerPixels::ReadWrite {
+            storage: dab_storage,
+            ..
+        } = &dab.pixels
+        else {
+            unreachable!();
+        };
+        let mut batch_dab_tiles = Vec::with_capacity(batch_dab_count);
+        for (index, dab_bounds) in dab_bounds.into_iter().enumerate() {
+            if dab_bounds.is_empty() {
+                batch_dab_tiles.push(0);
+                continue;
+            }
+            let mut encoder = device.create_command_encoder(&Default::default());
+            main_pipeline.dispatch_main(
+                &mut encoder,
+                &self.main_batch_group,
+                &resources,
+                &output,
+                self.main_sample_index_offsets[index],
+                dab_bounds,
+            )?;
+            queue.submit([encoder.finish()]);
             let accumulator = self
                 .state
                 .accumulator
-                .take()
-                .context("missing brush accumulator")?;
-            let mut builtins = main_builtins(&self.state, sample, accumulator)?;
-            let mut outputs = self
-                .state
-                .compiled
-                .main
-                .run_profiled(
-                    &self.state.compiled.main_inputs,
-                    &builtins,
-                    &mut effect_timing,
-                )
-                .context("main brush effect failed")?;
-            let dab = outputs
-                .remove(&self.state.compiled.main_dab_output)
-                .context("main effect did not produce its accumulation output")?;
-            let mut accumulator = builtins
-                .remove(MAIN_ACCUMULATE_BUFFER)
-                .context("main effect builtins lost the brush accumulator")?;
-
-            let dab = dab.downcast::<PreparedLayer>();
-            let dab_bounds = dab.pixel_bounds.context("brush dab bounds are unknown")?;
-            let PreparedLayerPixels::ReadWrite {
-                storage: dab_storage,
-                ..
-            } = dab.pixels
-            else {
-                bail!("brush main effect returned a read-only layer");
+                .as_mut()
+                .unwrap()
+                .as_mut::<PreparedLayer>();
+            let PreparedLayerPixels::ReadWrite { storage, .. } = &mut accumulator.pixels else {
+                unreachable!();
             };
-            batch_dab_tiles.push(dab_storage.len());
-
-            {
-                let accumulator = accumulator
-                    .try_as_mut::<PreparedLayer>()
-                    .context("brush accumulator is not a layer")?;
-                let PreparedLayerPixels::ReadWrite { storage, .. } = &mut accumulator.pixels else {
-                    bail!("brush accumulator is read-only");
-                };
-                storage.copy_pixels_from(&dab_storage, dab_bounds);
-                let bounds = accumulator
-                    .pixel_bounds
-                    .unwrap_or(IRect::EMPTY)
-                    .union(dab_bounds);
-                accumulator.pixel_bounds = Some(bounds);
-                let mut encoded = StorageBuffer::new(Vec::new());
-                encoded.write(&IVec4::new(
-                    bounds.min.x,
-                    bounds.min.y,
-                    bounds.max.x,
-                    bounds.max.y,
-                ))?;
-                self.state
-                    .queue
-                    .write_buffer(&accumulator.bounds, 0, encoded.as_ref());
-            }
-
-            self.state.accumulator = Some(accumulator);
+            batch_dab_tiles.push(
+                dab_storage
+                    .iter_tile_indices()
+                    .filter(|tile| {
+                        !GpuTileStorage::tile_to_pixel_rect(*tile)
+                            .intersect(dab_bounds)
+                            .is_empty()
+                    })
+                    .count(),
+            );
+            storage.copy_pixels_from(dab_storage, dab_bounds);
+            let previous = accumulator.pixel_bounds.unwrap_or(IRect::EMPTY);
+            let bounds = if previous.is_empty() {
+                dab_bounds
+            } else {
+                previous.union(dab_bounds)
+            };
+            accumulator.pixel_bounds = Some(bounds);
+            let mut encoded = StorageBuffer::new(Vec::new());
+            encoded.write(&IVec4::new(
+                bounds.min.x,
+                bounds.min.y,
+                bounds.max.x,
+                bounds.max.y,
+            ))?;
+            queue.write_buffer(&accumulator.bounds, 0, encoded.as_ref());
         }
+        let effect_timing = EffectRunTiming {
+            eval_cpu,
+            readback: bounds_readback,
+            main_cpu: main_started.elapsed(),
+        };
 
         let accumulator_tiles = self
             .state
@@ -792,28 +861,21 @@ impl BrushStrokeWorker {
             let mut profile = self.profile.lock();
             profile.dabs += batch_dab_count as u64;
             profile.dab_tiles += batch_tile_count as u64;
-            profile.input_readback += input_readback;
             profile.record_main_effect(effect_timing);
         }
         log::info!(
             target: "lapiz_brush::profile",
-            "batch index={} inputs={} dabs={} dab_tiles={:?} batch_tiles={} accumulator_tiles={} overflow={} input_readback_ms={:.3} eval_cpu_ms={:.3} effect_readback_ms={:.3} main_cpu_ms={:.3}",
+            "batch index={} inputs={} dabs={} dab_tiles={:?} batch_tiles={} accumulator_tiles={} eval_cpu_ms={:.3} effect_readback_ms={:.3} main_cpu_ms={:.3}",
             batch_index,
             inputs.len(),
             batch_dab_count,
             batch_dab_tiles,
             batch_tile_count,
             accumulator_tiles,
-            is_overflow,
-            input_readback.as_secs_f64() * 1_000.0,
             effect_timing.eval_cpu.as_secs_f64() * 1_000.0,
             effect_timing.readback.as_secs_f64() * 1_000.0,
             effect_timing.main_cpu.as_secs_f64() * 1_000.0,
         );
-        if is_overflow {
-            bail!("brush input sampling batch {batch_index} exceeded its output capacity");
-        }
-
         Ok(())
     }
 
@@ -865,11 +927,6 @@ impl BrushStrokeWorker {
             run_postprocess(&mut self.state, &mut timing).expect("brush postprocess failed");
         self.state
             .compiled
-            .main
-            .finish_profiling()
-            .expect("failed to finish main effect profiling");
-        self.state
-            .compiled
             .postprocess
             .finish_profiling()
             .expect("failed to finish postprocess effect profiling");
@@ -919,7 +976,6 @@ struct BrushEffectState {
     foreground_color: Buffer,
     background_color: Buffer,
     accumulator: Option<GraphShaderLiteral>,
-    initial_sample: Option<ComputedPenInput>,
     device: Device,
     queue: Queue,
     target_layer_format: TexelType,
@@ -946,31 +1002,28 @@ fn log_gpu_profile_results(results: &[GpuTimerQueryResult]) {
     }
 }
 
-fn main_builtins(
-    state: &BrushEffectState,
-    sample: ComputedPenInput,
-    accumulator: GraphShaderLiteral,
-) -> Result<HashMap<String, GraphShaderLiteral>> {
+fn main_builtins(state: &BrushEffectState) -> Result<HashMap<String, GraphShaderLiteral>> {
     let mut values = base_builtins(state);
+    let accumulator = state
+        .accumulator
+        .as_ref()
+        .context("Missing brush accumulator")?
+        .as_ref::<PreparedLayer>();
+    let PreparedLayerPixels::ReadWrite { storage, .. } = &accumulator.pixels else {
+        bail!("Brush accumulator must have writable storage");
+    };
     values.insert(
-        BRUSH_SAMPLE_BUILTIN.into(),
-        prepared_literal(
-            Arc::new(ComputedPenInputValueType),
-            &sample,
-            &state.device,
-            &state.queue,
-        )?,
+        MAIN_ACCUMULATE_BUFFER.into(),
+        GraphShaderLiteral::new_boxed(
+            Box::new(PreparedLayer::from_binding(
+                storage.binding_or_empty(),
+                accumulator.bounds.clone(),
+            )),
+            Arc::new(LayerType {
+                texel_type: state.target_layer_format,
+            }),
+        ),
     );
-    values.insert(
-        INITIAL_PEN_INPUT_BUILTIN.into(),
-        prepared_literal(
-            Arc::new(ComputedPenInputValueType),
-            state.initial_sample.as_ref().unwrap_or(&sample),
-            &state.device,
-            &state.queue,
-        )?,
-    );
-    values.insert(MAIN_ACCUMULATE_BUFFER.into(), accumulator);
     Ok(values)
 }
 
@@ -1094,6 +1147,36 @@ pub struct ComputedPenInput {
 pub struct Time {
     pub now: f32,
     pub stroke_begin: f32,
+}
+
+#[derive(Clone, Copy, Debug, ShaderType)]
+pub struct DabBounds {
+    pub bounds: IVec4,
+    pub accumulator_bounds: IVec4,
+}
+
+#[derive(Debug, ShaderType)]
+pub struct BatchBounds {
+    pub n_samples: u32,
+    pub is_overflow: u32,
+    #[shader(size(runtime))]
+    pub entries: Vec<DabBounds>,
+}
+
+impl BatchBounds {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            n_samples: 0,
+            is_overflow: 0,
+            entries: vec![
+                DabBounds {
+                    bounds: IVec4::ZERO,
+                    accumulator_bounds: IVec4::ZERO
+                };
+                capacity
+            ],
+        }
+    }
 }
 
 pub struct BuiltinHostValues<'a> {
