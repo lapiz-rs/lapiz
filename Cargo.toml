@@ -213,7 +213,7 @@ wgpu = "29"
 windows = "0.62"
 winit = "0.31.0-beta.3"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
-zip = "8"
+zip = "9"
 
 [workspace.lints.clippy]
 absolute_paths = "warn"

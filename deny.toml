@@ -6,6 +6,10 @@ ignore = [
     { id = "RUSTSEC-2024-0436", reason = "the direct dependency uses pastey, but paste remains transitive through the image encoding stack" },
     { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 is pulled in by wesl-quote; remove this exception when wesl-quote migrates" },
     { id = "RUSTSEC-2026-0192", reason = "ttf-parser is pulled in by the iced font stack; remove this exception when the stack migrates" },
+    { id = "RUSTSEC-2026-0374", reason = "basic-toml is pulled in by i18n-config through i18n-embed; remove this exception when i18n-config migrates" },
+    { id = "RUSTSEC-2026-0370", reason = "zvariant is pulled in by mundy through zbus 5 for Linux theme detection; remove this exception when mundy migrates to zbus 6" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names is pulled in by mundy through zbus 5 for Linux theme detection; remove this exception when mundy migrates to zbus 6" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is pulled in by mundy through zbus 5 for Linux theme detection; remove this exception when mundy migrates to zbus 6" },
 ]
 
 [licenses]
