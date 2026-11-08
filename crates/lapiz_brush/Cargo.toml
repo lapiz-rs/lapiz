@@ -49,7 +49,6 @@ uuid.workspace = true
 wesl.workspace = true
 wesl-quote.workspace = true
 wgpu.workspace = true
-wgpu-profiler.workspace = true
 zip.workspace = true
 
 [dev-dependencies]

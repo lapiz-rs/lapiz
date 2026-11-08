@@ -3453,7 +3453,6 @@ dependencies = [
  "wesl",
  "wesl-quote",
  "wgpu",
- "wgpu-profiler",
  "zip",
 ]
 
