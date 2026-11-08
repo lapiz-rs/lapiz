@@ -25,6 +25,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set CI optimization levels
+        shell: bash
+        run: |
+          cat >> .cargo/config.toml <<'EOF'
+
+          [profile.dev]
+          opt-level = 1
+
+          [profile.dev.package."*"]
+          opt-level = 1
+          EOF
+
       - uses: taiki-e/install-action@v2
         with:
           tool: just
@@ -54,6 +66,18 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v7
+
+      - name: Set CI optimization levels
+        shell: bash
+        run: |
+          cat >> .cargo/config.toml <<'EOF'
+
+          [profile.dev]
+          opt-level = 1
+
+          [profile.dev.package."*"]
+          opt-level = 1
+          EOF
 
       - uses: taiki-e/install-action@v2
         with:
@@ -132,6 +156,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set CI optimization levels
+        shell: bash
+        run: |
+          cat >> .cargo/config.toml <<'EOF'
+
+          [profile.dev]
+          opt-level = 1
+
+          [profile.dev.package."*"]
+          opt-level = 1
+          EOF
+
       - uses: taiki-e/install-action@v2
         with:
           tool: just
@@ -177,6 +213,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set CI optimization levels
+        shell: bash
+        run: |
+          cat >> .cargo/config.toml <<'EOF'
+
+          [profile.dev]
+          opt-level = 1
+
+          [profile.dev.package."*"]
+          opt-level = 1
+          EOF
+
       - uses: taiki-e/install-action@v2
         with:
           tool: just
@@ -203,6 +251,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set CI optimization levels
+        shell: bash
+        run: |
+          cat >> .cargo/config.toml <<'EOF'
+
+          [profile.dev]
+          opt-level = 1
+
+          [profile.dev.package."*"]
+          opt-level = 1
+          EOF
+
       - uses: taiki-e/install-action@v2
         with:
           tool: just
@@ -228,6 +288,18 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
+
+      - name: Set CI optimization levels
+        shell: bash
+        run: |
+          cat >> .cargo/config.toml <<'EOF'
+
+          [profile.dev]
+          opt-level = 1
+
+          [profile.dev.package."*"]
+          opt-level = 1
+          EOF
 
       - uses: taiki-e/install-action@v2
         with:
