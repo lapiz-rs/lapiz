@@ -15,30 +15,11 @@ The name "Lapiz" means pencil in Spanish. It looks like the English word "Lapis"
 
 ## Development
 
-Lapiz uses [just](https://just.systems/) for everything.
+Lapiz uses [just](https://just.systems/) for all commands.
 
-```bash
-just test  # unit, documentation, and WGSL tests
-just check # formatting, Clippy, and repository lints
-just fmt   # format code
-```
+### Build
 
-### Desktop
-
-```bash
-just build desktop dev
-just run dev
-just run dev-local
-just package desktop dev
-```
-
-### Android
-
-```bash
-just check android aarch64
-just build android dev aarch64
-just package android release aarch64
-```
+`just setup` then `just run dev-local`. That's it. Use `just --usage <recipe>` for detailed help for a specific command and use `just` to have a overall usage view.
 
 ## LLM Assisted Contributions
 
