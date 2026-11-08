@@ -7,12 +7,12 @@ use std::{
 use anyhow::{Context as _, Result, bail};
 use bevy_math::IRect;
 use chrono::{DateTime, Utc};
-use encase::{ShaderSize as _, ShaderType, StorageBuffer};
+use encase::{ShaderType, StorageBuffer};
 use futures::{
     StreamExt as _,
     channel::{mpsc, oneshot},
 };
-use glam::{IVec2, IVec4, Vec2, Vec4, Vec4Swizzles};
+use glam::{IVec2, IVec4, Vec2, Vec4, Vec4Swizzles as _};
 use iced_runtime::Task;
 use lapiz_canvas::{CanvasAppExt as _, CanvasId};
 use lapiz_color::ForegroundBackgroundColorExt as _;
@@ -43,7 +43,7 @@ use lapiz_shader_graph::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use wgpu::{Buffer, BufferDescriptor, BufferUsages, ComputePassDescriptor, Device, Queue};
+use wgpu::{Buffer, BufferUsages, ComputePassDescriptor, Device, Queue};
 
 use crate::{
     input_processing::{InputProcessor, RawPenInput},
@@ -440,7 +440,7 @@ impl BrushPresetRenderer {
             Some("output samples".into()),
             BufferUsages::COPY_SRC | BufferUsages::STORAGE,
         );
-        output_samples.push(&OutputSamples::new());
+        output_samples.push(&OutputSamples::default());
         output_samples.write_buffer(device, queue);
 
         let input_sample_prepared = self.input_sample.prepare(
@@ -465,7 +465,7 @@ impl BrushPresetRenderer {
             Some("brush batch bounds".into()),
             BufferUsages::STORAGE | BufferUsages::COPY_SRC,
         );
-        batch_bounds.push(&BatchBounds::new());
+        batch_bounds.push(&BatchBounds::default());
         batch_bounds.write_buffer(device, queue);
         let (main_batch_group, main_sample_index_offsets) = self.compiled.main.prepare_batch_group(
             device,
@@ -894,8 +894,8 @@ pub struct OutputSamples {
     pub samples: Vec<ComputedPenInput>,
 }
 
-impl OutputSamples {
-    pub fn new() -> Self {
+impl Default for OutputSamples {
+    fn default() -> Self {
         Self {
             n_samples: 0,
             is_overflow: 0,
@@ -959,8 +959,8 @@ pub struct BatchBounds {
     pub entries: Vec<DabBounds>,
 }
 
-impl BatchBounds {
-    pub fn new() -> Self {
+impl Default for BatchBounds {
+    fn default() -> Self {
         Self {
             n_samples: 0,
             is_overflow: 0,

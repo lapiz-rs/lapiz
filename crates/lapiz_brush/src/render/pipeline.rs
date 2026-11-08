@@ -1,13 +1,12 @@
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
-    num::NonZeroU64,
     sync::Arc,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context as _, Result};
 use bevy_math::IRect;
-use glam::{UVec2, UVec4};
+use glam::UVec2;
 use lapiz_image::image;
 use lapiz_render::{
     bind_group_entries::{BindGroupEntries, DynamicBindGroupEntries},
@@ -28,13 +27,16 @@ use lapiz_shader_graph::{
         layer_bounds_ident,
     },
 };
+#[allow(
+    clippy::wildcard_imports,
+    reason = "wesl quote macros resolve syntax types from this prelude"
+)]
 use wesl::syntax::*;
 use wesl_quote::{quote_declaration, quote_statement};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Buffer,
-    BufferBinding, BufferDescriptor, BufferUsages, CommandEncoder, ComputePass, ComputePipeline,
-    ComputePipelineDescriptor, Device, PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages,
+    BufferUsages, CommandEncoder, ComputePass, ComputePipeline, ComputePipelineDescriptor, Device,
+    PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor, ShaderSource, ShaderStages,
 };
 
 use crate::{
@@ -316,7 +318,7 @@ impl BrushMainPipeline {
             DynamicBuffer::new(Some("sample index buffer".into()), BufferUsages::UNIFORM);
         let mut sample_index_offsets = Vec::with_capacity(MAX_SAMPLES_PER_INPUT_BATCH as usize);
         for index in 0..MAX_SAMPLES_PER_INPUT_BATCH {
-            let offset = sample_index_buffer.push(&(index as u32));
+            let offset = sample_index_buffer.push(&index);
             sample_index_offsets.push(offset as u32);
         }
         sample_index_buffer.write_buffer(device, queue);
