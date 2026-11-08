@@ -11,16 +11,73 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  desktop:
+  test-unit:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-    env:
-      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - run: just setup-rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace-deps
+          save-if: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+          cache-on-failure: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+
+      - run: just setup-linux
+
+      - run: just test-unit
+
+  test-doc:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - run: just setup-rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace-deps
+          save-if: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+          cache-on-failure: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+
+      - run: just setup-linux
+
+      - run: just test-doc
+
+  test-wgsl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
 
@@ -32,25 +89,244 @@ jobs:
         with:
           tool: just
 
+      - run: just setup-ci-vulkan
+
+      - run: just test-wgsl
+
+  check-fmt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - run: just setup-format
+
+      - uses: tombi-toml/setup-tombi@v1.5.5
+
+      - run: just check-fmt
+
+  check-clippy:
+    name: check-clippy (${{ matrix.platform }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: desktop
+            arch: ""
+          - os: windows-latest
+            platform: desktop
+            arch: ""
+          - os: macos-latest
+            platform: desktop
+            arch: ""
+          - os: ubuntu-latest
+            platform: android
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - uses: actions/setup-java@v6
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install Android CLI
+        if: matrix.platform == 'android'
+        shell: bash
+        run: >-
+          curl -fsSL
+          https://dl.google.com/android/cli/latest/linux_x86_64/install.sh |
+          bash
+
+      - run: just setup-rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: >-
+            ${{ matrix.platform == 'android' && 'workspace-deps-android' ||
+            'workspace-deps' }}
+          save-if: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+          cache-on-failure: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+
+      - run: just setup-linux
+
+      - run: just setup-android
+        if: matrix.platform == 'android'
+
+      - run: just check-clippy "${{ matrix.platform }}" "${{ matrix.arch }}"
+
+  check-import-alias:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
       - run: just setup-rust
 
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace-deps
-          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          cache-on-failure: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          save-if: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+          cache-on-failure: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
 
-      - run: just setup-ci
+      - run: just setup-linux
 
-      - uses: tombi-toml/setup-tombi@v1.5.5
+      - run: just check-import-alias
 
-      - run: just check
+  check-let-type-annotation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
 
-      - run: just test
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
 
-      - run: just package desktop dev
+      - run: just setup-rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace-deps
+          save-if: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+          cache-on-failure: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+
+      - run: just setup-linux
+
+      - run: just check-let-type-annotation
+
+  check-deny:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - run: just setup-rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: workspace-deps
+          save-if: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+          cache-on-failure: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+
+      - run: just setup-deny
+
+      - run: just check-deny
+
+  check-reuse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - run: just setup-reuse
+
+      - run: just check-reuse
+
+  package:
+    name: package (${{ matrix.platform }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: desktop
+            arch: ""
+          - os: windows-latest
+            platform: desktop
+            arch: ""
+          - os: macos-latest
+            platform: desktop
+            arch: ""
+          - os: ubuntu-latest
+            platform: android
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - uses: actions/setup-java@v6
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install Android CLI
+        if: matrix.platform == 'android'
+        shell: bash
+        run: >-
+          curl -fsSL
+          https://dl.google.com/android/cli/latest/linux_x86_64/install.sh |
+          bash
+
+      - run: just setup-rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: >-
+            ${{ matrix.platform == 'android' && 'workspace-deps-android' ||
+            'workspace-deps' }}
+          save-if: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+          cache-on-failure: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
+
+      - run: just setup-for-package
+
+      - run: just setup-android
+        if: matrix.platform == 'android'
+
+      - run: just package "${{ matrix.platform }}" dev "${{ matrix.arch }}"
 
       - uses: actions/upload-artifact@v7
+        if: matrix.platform == 'desktop'
         with:
           name: build-${{ runner.os }}-${{ runner.arch }}
           retention-days: 1
@@ -62,49 +338,8 @@ jobs:
             target/package/*.debug
             target/package/*.pdb
 
-  android:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    env:
-      CARGO_TERM_COLOR: always
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .node-version
-
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: just
-
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "25"
-
-      - name: Install Android CLI
-        shell: bash
-        run: curl -fsSL https://dl.google.com/android/cli/latest/linux_x86_64/install.sh | bash
-
-      - run: just setup-rust
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: workspace-deps-android
-          save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-
-      - run: just setup-ci
-
-      - uses: tombi-toml/setup-tombi@v1.5.5
-
-      - run: just setup-android
-
-      - run: just check android aarch64
-
-      - run: just package android dev aarch64
-
       - uses: actions/upload-artifact@v7
+        if: matrix.platform == 'android'
         with:
           name: build-android-aarch64
           retention-days: 1
