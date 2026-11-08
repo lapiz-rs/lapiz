@@ -1,7 +1,10 @@
 use std::{any::Any, sync::Arc};
 
 use anyhow::Result;
-use iced::{Element, Length, Subscription, Task, Theme, event::listen_with, keyboard::key, window};
+use iced::{
+    Element, Length, Subscription, Task, Theme, event::listen_with, keyboard::key, widget::sensor,
+    window,
+};
 use iced_core::keyboard;
 use lapiz_actions::{
     ActionFunctionRegistry, ActionId,
@@ -69,6 +72,7 @@ pub struct MainView {
     dock_manager: DockManager,
     action_collection: ActionCollection,
     menu_manifest: MenuBarManifestConfig,
+    last_canvas_dock: Option<DockId>,
     canvas_group_anchor: Option<DockGroupId>,
 }
 
@@ -101,6 +105,34 @@ pub enum MenuBarMessage {
 }
 
 impl MainView {
+    fn update_canvas_group_anchor(&mut self) {
+        if let Some(group) = self
+            .last_canvas_dock
+            .as_ref()
+            .and_then(|id| self.dock_manager.group_of(id))
+        {
+            self.canvas_group_anchor = Some(group);
+        }
+    }
+
+    fn open_canvas_dock(&mut self, globals: &mut Globals, id: DockId) -> Task<DockMessage> {
+        self.update_canvas_group_anchor();
+        let target = self
+            .canvas_group_anchor
+            .filter(|group| self.dock_manager.contains_group(group))
+            .or_else(|| self.dock_manager.largest_group());
+        let task = if let Some(target) = target {
+            self.dock_manager
+                .open_dock_in_group(globals, id.clone(), &target)
+        } else {
+            self.dock_manager.open_dock(globals, id.clone())
+        };
+
+        self.last_canvas_dock = Some(id);
+        self.update_canvas_group_anchor();
+        task
+    }
+
     fn status_cell<'a>(
         icon: Icon<'a>,
         text: String,
@@ -288,6 +320,7 @@ impl WindowView for MainView {
                 dock_manager,
                 action_collection,
                 menu_manifest,
+                last_canvas_dock: None,
                 canvas_group_anchor: None,
             },
             Task::batch([
@@ -379,6 +412,9 @@ impl WindowView for MainView {
         }
         let status = status_bar(status_cells);
 
+        let dock = sensor(dock)
+            .on_show(|size| MainViewMessage::Dock(DockMessage::MainLayoutResized(size)))
+            .on_resize(|size| MainViewMessage::Dock(DockMessage::MainLayoutResized(size)));
         let content = Element::from(
             column![title, dock, status]
                 .width(Length::Fill)
@@ -392,11 +428,14 @@ impl WindowView for MainView {
         message: Self::Message,
         globals: &mut Globals,
     ) -> impl Into<Task<Self::Message>> {
+        self.update_canvas_group_anchor();
+
         match message {
-            MainViewMessage::Dock(m) => self
-                .dock_manager
-                .update(m, globals)
-                .map(MainViewMessage::Dock),
+            MainViewMessage::Dock(m) => {
+                let task = self.dock_manager.update(m, globals);
+                self.update_canvas_group_anchor();
+                task.map(MainViewMessage::Dock)
+            }
             #[cfg(not(target_os = "android"))]
             MainViewMessage::MainWindowDrag => window::drag(self.dock_manager.main_window()),
             MainViewMessage::WindowUnfocused => {
@@ -503,15 +542,9 @@ impl WindowView for MainView {
                 let id = <CanvasDock as Dock>::id(&dock);
                 self.dock_manager.register_dock(dock);
 
-                let dock_task = if let Some(target) = self.canvas_group_anchor {
-                    self.dock_manager
-                        .open_dock_in_group(globals, id.clone(), &target)
-                } else {
-                    let task = self.dock_manager.open_dock(globals, id.clone());
-                    self.canvas_group_anchor = self.dock_manager.group_of(&id);
-                    task
-                }
-                .map(MainViewMessage::Dock);
+                let dock_task = self
+                    .open_canvas_dock(globals, id)
+                    .map(MainViewMessage::Dock);
 
                 Task::batch([
                     tool_task.map(MainViewMessage::ToolFunctionMessage),

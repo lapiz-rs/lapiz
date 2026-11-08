@@ -33,6 +33,8 @@ pub mod state;
 
 const ATTACH_DWELL: Duration = Duration::from_millis(200);
 const MERGE_DISTANCE: f32 = 30.0;
+const PANE_SPACING: f32 = 2.0;
+const PANE_MIN_SIZE: f32 = 50.0;
 
 #[derive(Default)]
 pub struct DockRegistry {
@@ -59,6 +61,7 @@ impl Global for DockRegistry {}
 
 pub struct DockManager {
     main_window: GroupWindowInfo,
+    main_layout_size: Option<Size>,
     detached: HashMap<window::Id, GroupWindowInfo>,
     docks: HashMap<DockId, Box<dyn ErasedDock>>,
     cursor_pos: Option<(window::Id, Point)>,
@@ -77,6 +80,7 @@ impl DockManager {
                 dragging_cursor_relative: None,
                 last_overlap: None,
             },
+            main_layout_size: None,
             docks: HashMap::new(),
             detached: HashMap::new(),
             cursor_pos: None,
@@ -174,16 +178,19 @@ impl DockManager {
             log::warn!("Dock not registered: {}", dock_id);
             return Task::none();
         }
-        if self
-            .main_window
-            .layout
-            .open_in_group(target, dock_id.clone())
-            .is_none()
-        {
-            return self.open_dock(globals, dock_id);
+        let opened = iter::once(&mut self.main_window)
+            .chain(self.detached.values_mut())
+            .any(|window| {
+                window
+                    .layout
+                    .open_in_group(target, dock_id.clone())
+                    .is_some()
+            });
+        if opened {
+            self.on_open_task(globals, dock_id)
+        } else {
+            self.open_dock(globals, dock_id)
         }
-
-        self.on_open_task(globals, dock_id)
     }
 
     fn on_open_task(&mut self, globals: &mut Globals, dock_id: DockId) -> Task<DockMessage> {
@@ -674,15 +681,50 @@ impl DockManager {
     }
 
     pub fn group_of(&self, dock: &DockId) -> Option<DockGroupId> {
-        self.main_window
-            .layout
-            .dock_in_group(dock)
-            .map(|group| *group.id())
+        iter::once(&self.main_window)
+            .chain(self.detached.values())
+            .find_map(|window| window.layout.dock_in_group(dock).map(|group| *group.id()))
+    }
+
+    pub fn contains_group(&self, target: &DockGroupId) -> bool {
+        iter::once(&self.main_window)
+            .chain(self.detached.values())
+            .any(|window| {
+                window
+                    .layout
+                    .panes_state()
+                    .is_some_and(|panes| panes.iter().any(|(_, group)| group.id() == target))
+            })
+    }
+
+    pub fn largest_group(&self) -> Option<DockGroupId> {
+        iter::once(&self.main_window)
+            .chain(self.detached.values())
+            .flat_map(|window| {
+                window.layout.panes_state().into_iter().flat_map(|panes| {
+                    panes
+                        .layout()
+                        .pane_regions(
+                            PANE_SPACING,
+                            PANE_MIN_SIZE,
+                            if window.id == self.main_window.id {
+                                self.main_layout_size.unwrap_or(window.size)
+                            } else {
+                                window.size
+                            },
+                        )
+                        .into_iter()
+                        .map(|(pane, region)| {
+                            let group = panes.get(pane).expect("layout pane must have a group");
+                            (*group.id(), region.width * region.height)
+                        })
+                })
+            })
+            .max_by(|(_, a), (_, b)| a.total_cmp(b))
+            .map(|(group, _)| group)
     }
 
     fn main_attach_info(&self, window: window::Id) -> Option<AttachInfo> {
-        const SPACING: f32 = 2.0;
-
         let info = self.detached.get(&window)?;
         let relative_window_pos = Point::new(
             info.position.x + info.size.width / 2.0 - self.main_window.position.x,
@@ -701,7 +743,7 @@ impl DockManager {
                 return None;
             }
         };
-        let regions = node.pane_regions(SPACING, 0.0, self.main_window.size);
+        let regions = node.pane_regions(PANE_SPACING, 0.0, self.main_window.size);
 
         regions
             .iter()
@@ -835,7 +877,8 @@ impl DockManager {
                     })
                     .width(Length::Fill)
                     .height(Length::Fill)
-                    .spacing(2.0)
+                    .spacing(PANE_SPACING)
+                    .min_size(PANE_MIN_SIZE)
                     .into()
                 },
             );
@@ -849,7 +892,7 @@ impl DockManager {
                         Element::new(PaneHintOverlay {
                             state: &self.main_window.layout,
                             attach_info,
-                            spacing: 2.0,
+                            spacing: PANE_SPACING,
                         })
                     ]
                     .width(Length::Fill)
@@ -952,6 +995,10 @@ impl DockManager {
                     Task::none()
                 }
             }
+            DockMessage::MainLayoutResized(size) => {
+                self.main_layout_size = Some(size);
+                return Task::none();
+            }
             DockMessage::WindowEvent(id, event) => {
                 self.on_window_event(id, event);
                 return Task::none();
@@ -1008,6 +1055,7 @@ pub enum DockMessage {
     Float { id: window::Id, action: TabEvent },
     Dock(DockId, Box<dyn Any + Send>),
     RawWindowGet(window::Id, u64),
+    MainLayoutResized(Size),
     WindowEvent(window::Id, window::Event),
     CursorMoved(window::Id, Point),
     PointerReleased,
@@ -1029,6 +1077,9 @@ impl fmt::Debug for DockMessage {
                 .field("id", id)
                 .field("raw_id", raw_id)
                 .finish(),
+            Self::MainLayoutResized(size) => {
+                f.debug_tuple("MainLayoutResized").field(size).finish()
+            }
             Self::WindowEvent(id, event) => {
                 f.debug_tuple("WindowEvent").field(id).field(event).finish()
             }
