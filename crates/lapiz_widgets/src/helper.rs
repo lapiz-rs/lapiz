@@ -117,17 +117,17 @@ pub fn labeled_frame<'a, Message>(
     LabeledFrame::new(title, content)
 }
 
-pub fn menu<Message>() -> Menu<Message> {
+pub fn menu<'a, Message>() -> Menu<'a, Message> {
     Menu::new()
 }
 
-pub fn menu_bar<Message>() -> MenuBar<Message> {
+pub fn menu_bar<'a, Message>() -> MenuBar<'a, Message> {
     MenuBar::new()
 }
 
 pub fn context_menu<'a, Message>(
     underlay: impl Into<Element<'a, Message, Theme, Renderer>>,
-    menu: Menu<Message>,
+    menu: Menu<'a, Message>,
 ) -> ContextMenu<'a, Message> {
     ContextMenu::new(underlay, menu)
 }

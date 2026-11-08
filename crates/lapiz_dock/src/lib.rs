@@ -821,8 +821,8 @@ impl DockManager {
                         let tabs = context_menu(
                             tabs,
                             menu()
-                                .item("Close Active", TabEvent::Close(active.clone()))
-                                .item("Close Group", TabEvent::CloseGroup),
+                                .item("Close Active", None, TabEvent::Close(active.clone()))
+                                .item("Close Group", None, TabEvent::CloseGroup),
                         );
                         pane_grid::Content::new(body).title_bar(pane_grid::TitleBar::new(
                             Element::new(tabs)
@@ -878,8 +878,8 @@ impl DockManager {
             let tabs = context_menu(
                 tabs,
                 menu()
-                    .item("Close Active", TabEvent::Close(active.clone()))
-                    .item("Close Group", TabEvent::CloseGroup),
+                    .item("Close Active", None, TabEvent::Close(active.clone()))
+                    .item("Close Group", None, TabEvent::CloseGroup),
             );
             let body = self.docks[active].view(window_id, globals).map({
                 let active = active.clone();

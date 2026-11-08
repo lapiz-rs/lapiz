@@ -1,15 +1,16 @@
-use std::slice;
+use std::{cell::Cell, slice};
 
 use iced_core::{
     Border, Color, Element, Event, Font, Layout, Length, Point, Radians, Rectangle, Renderer as _,
     Shadow, Shell, Size, Theme, Vector, Widget, alignment, keyboard, layout, overlay, pointer,
     pointer::mouse,
     renderer,
+    shell::Bus,
     svg::{self, Renderer as _},
     text,
     text::{Paragraph as _, Renderer as _},
     theme::palette::Palette,
-    widget::{Tree, tree},
+    widget::{self, Tree, tree},
 };
 use lapiz_runtime::Renderer;
 
@@ -22,24 +23,28 @@ const PANEL_PADDING: f32 = 4.0;
 const LABEL_SIZE: f32 = 12.0;
 const SHORTCUT_SIZE: f32 = 10.0;
 
-pub enum Item<Message> {
+pub enum Item<'a, Message> {
     Action {
         label: String,
         shortcut: Option<String>,
         message: Message,
-        checked: bool,
+    },
+    Element {
+        label: String,
+        element: Element<'a, Message, Theme, Renderer>,
+        close_on_message: bool,
     },
     Submenu {
         label: String,
-        submenu: Menu<Message>,
+        submenu: Menu<'a, Message>,
     },
     Separator,
 }
 
-impl<Message> Item<Message> {
+impl<Message> Item<'_, Message> {
     fn height(&self) -> f32 {
         match self {
-            Item::Action { .. } | Item::Submenu { .. } => ITEM_HEIGHT,
+            Item::Action { .. } | Item::Element { .. } | Item::Submenu { .. } => ITEM_HEIGHT,
             Item::Separator => SEPARATOR_HEIGHT,
         }
     }
@@ -57,6 +62,7 @@ impl<Message> Item<Message> {
                         .as_ref()
                         .map_or(0.0, |s| text_width(s, SHORTCUT_SIZE) + ITEM_PADDING_X)
             }
+            Item::Element { .. } => 0.0,
             Item::Submenu { label, .. } => {
                 ITEM_PADDING_X * 2.0 + ICON_SLOT + text_width(label, LABEL_SIZE) + 14.0
             }
@@ -64,17 +70,84 @@ impl<Message> Item<Message> {
     }
 }
 
-pub struct Menu<Message> {
-    items: Vec<Item<Message>>,
+pub struct Menu<'a, Message> {
+    items: Vec<Item<'a, Message>>,
     min_width: f32,
 }
 
-impl<Message> Menu<Message> {
+impl<'a, Message> Menu<'a, Message> {
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
             min_width: 0.0,
         }
+    }
+
+    fn diff(&mut self, tree: &mut Tree) {
+        tree.children.resize_with(self.items.len(), Tree::empty);
+        for (item, tree) in self.items.iter_mut().zip(&mut tree.children) {
+            match item {
+                Item::Element { element, .. } => tree.diff(element.as_widget_mut()),
+                Item::Submenu { submenu, .. } => {
+                    if tree.tag != tree::Tag::stateless() {
+                        *tree = Tree::empty();
+                    }
+                    submenu.diff(tree);
+                }
+                _ => *tree = Tree::empty(),
+            }
+        }
+    }
+
+    fn overlays<'b>(
+        &'b mut self,
+        tree: &'b mut Tree,
+        path: &[usize],
+        panels: &mut impl Iterator<Item = Layout<'b>>,
+        renderer: &Renderer,
+        viewport: &Rectangle,
+    ) -> Vec<overlay::Element<'b, (Message, bool), Theme, Renderer>>
+    where
+        Message: 'b,
+    {
+        let Some(panel) = panels.next() else {
+            return Vec::new();
+        };
+        let mut overlays = Vec::new();
+        for (index, ((item, tree), row)) in self
+            .items
+            .iter_mut()
+            .zip(&mut tree.children)
+            .zip(panel.children())
+            .enumerate()
+        {
+            match item {
+                Item::Element {
+                    element,
+                    close_on_message,
+                    ..
+                } => {
+                    if let Some(overlay) = element.as_widget_mut().overlay(
+                        tree,
+                        row.children().next().expect("element layout"),
+                        renderer,
+                        viewport,
+                        Vector::ZERO,
+                    ) {
+                        overlays.push(if *close_on_message {
+                            overlay.map(&|message| (message, true))
+                        } else {
+                            overlay.map(&|message| (message, false))
+                        });
+                    }
+                }
+                Item::Submenu { submenu, .. } if path.first() == Some(&index) => {
+                    overlays.extend(submenu.overlays(tree, &path[1..], panels, renderer, viewport));
+                }
+                _ => {}
+            }
+        }
+        overlays
     }
 
     fn content_width(&self) -> f32 {
@@ -84,41 +157,44 @@ impl<Message> Menu<Message> {
             .fold(self.min_width, f32::max)
     }
 
-    fn action(
+    pub fn item(
         mut self,
-        label: String,
-        shortcut: Option<String>,
+        label: impl Into<String>,
+        shortcut: Option<&str>,
         message: Message,
-        checked: bool,
     ) -> Self {
         self.items.push(Item::Action {
-            label,
-            shortcut,
+            label: label.into(),
+            shortcut: shortcut.map(String::from),
             message,
-            checked,
         });
         self
     }
 
-    pub fn item(self, label: impl Into<String>, message: Message) -> Self {
-        self.action(label.into(), None, message, false)
-    }
-
-    pub fn item_shortcut(self, label: impl Into<String>, shortcut: &str, message: Message) -> Self {
-        self.action(label.into(), Some(String::from(shortcut)), message, false)
-    }
-
-    pub fn selected_item(self, label: impl Into<String>, message: Message) -> Self {
-        self.action(label.into(), None, message, true)
-    }
-
-    pub fn selected_item_shortcut(
-        self,
+    pub fn element(
+        mut self,
         label: impl Into<String>,
-        shortcut: &str,
-        message: Message,
+        element: impl Into<Element<'a, Message, Theme, Renderer>>,
     ) -> Self {
-        self.action(label.into(), Some(String::from(shortcut)), message, true)
+        self.items.push(Item::Element {
+            label: label.into(),
+            element: element.into(),
+            close_on_message: false,
+        });
+        self
+    }
+
+    pub fn oneshot_element(
+        mut self,
+        label: impl Into<String>,
+        element: impl Into<Element<'a, Message, Theme, Renderer>>,
+    ) -> Self {
+        self.items.push(Item::Element {
+            label: label.into(),
+            element: element.into(),
+            close_on_message: true,
+        });
+        self
     }
 
     pub fn separator(mut self) -> Self {
@@ -126,7 +202,7 @@ impl<Message> Menu<Message> {
         self
     }
 
-    pub fn submenu(mut self, label: impl Into<String>, submenu: Menu<Message>) -> Self {
+    pub fn submenu(mut self, label: impl Into<String>, submenu: Menu<'a, Message>) -> Self {
         self.items.push(Item::Submenu {
             label: label.into(),
             submenu,
@@ -139,27 +215,27 @@ impl<Message> Menu<Message> {
         self
     }
 
-    pub fn get_item_mut(&mut self, name: &str) -> Option<&mut Item<Message>> {
+    pub fn get_item_mut(&mut self, name: &str) -> Option<&mut Item<'a, Message>> {
         self.items
             .iter_mut()
-            .find(|item| matches!(item, Item::Action { label, .. } | Item::Submenu { label, .. } if label == name))
+            .find(|item| matches!(item, Item::Action { label, .. } | Item::Element { label, .. } | Item::Submenu { label, .. } if label == name))
     }
 }
 
-impl<Message> Default for Menu<Message> {
+impl<Message> Default for Menu<'_, Message> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-pub struct MenuBar<Message> {
+pub struct MenuBar<'a, Message> {
     labels: Vec<String>,
-    menus: Vec<Menu<Message>>,
+    menus: Vec<Menu<'a, Message>>,
     width: Length,
     height: Length,
 }
 
-impl<Message> MenuBar<Message> {
+impl<'a, Message> MenuBar<'a, Message> {
     pub fn new() -> Self {
         Self {
             labels: Vec::new(),
@@ -169,7 +245,7 @@ impl<Message> MenuBar<Message> {
         }
     }
 
-    pub fn menu(mut self, label: impl Into<String>, menu: Menu<Message>) -> Self {
+    pub fn menu(mut self, label: impl Into<String>, menu: Menu<'a, Message>) -> Self {
         self.labels.push(label.into());
         self.menus.push(menu);
         self
@@ -185,7 +261,7 @@ impl<Message> MenuBar<Message> {
         self
     }
 
-    pub fn get_menu_mut(&mut self, category: &str) -> Option<&mut Menu<Message>> {
+    pub fn get_menu_mut(&mut self, category: &str) -> Option<&mut Menu<'a, Message>> {
         self.labels
             .iter()
             .position(|name| name == category)
@@ -193,7 +269,7 @@ impl<Message> MenuBar<Message> {
     }
 }
 
-impl<Message> Default for MenuBar<Message> {
+impl<Message> Default for MenuBar<'_, Message> {
     fn default() -> Self {
         Self::new()
     }
@@ -239,7 +315,7 @@ fn text_spec(renderer: &Renderer, content: String, size: f32) -> text::Text<Stri
     }
 }
 
-impl<Message> Widget<Message, Theme, Renderer> for MenuBar<Message>
+impl<Message> Widget<Message, Theme, Renderer> for MenuBar<'_, Message>
 where
     Message: Clone,
 {
@@ -252,6 +328,11 @@ where
     }
 
     fn diff(&mut self, tree: &mut Tree) {
+        tree.children.resize_with(self.menus.len(), Tree::empty);
+        for (menu, tree) in self.menus.iter_mut().zip(&mut tree.children) {
+            menu.diff(tree);
+        }
+
         let state = tree.state.downcast_mut::<MenuBarState>();
         let labels = self.labels.clone();
         if state.labels != labels {
@@ -331,6 +412,7 @@ where
                 if let Some(index) = root_at(layout, *position)
                     && state.open[0] != index
                 {
+                    state.open.truncate(1);
                     state.open[0] = index;
                     shell.invalidate_layout();
                     shell.request_redraw();
@@ -424,7 +506,8 @@ where
         let root_layout = layout.children().nth(*state.open.first()?)?;
         let bounds = root_layout.bounds();
         Some(overlay::Element::new(Box::new(MenuOverlay {
-            roots: &self.menus,
+            roots: &mut self.menus,
+            trees: &mut tree.children,
             bar_bounds: Some(Rectangle::new(
                 layout.bounds().position() + translation,
                 layout.bounds().size(),
@@ -450,8 +533,9 @@ struct Panel {
     rows: Vec<Rectangle>,
 }
 
-struct MenuOverlay<'a, Message> {
-    roots: &'a [Menu<Message>],
+struct MenuOverlay<'a, 'b, Message> {
+    roots: &'a mut [Menu<'b, Message>],
+    trees: &'a mut [Tree],
     bar_bounds: Option<Rectangle>,
     open: &'a mut Vec<usize>,
     origin: Point,
@@ -459,78 +543,46 @@ struct MenuOverlay<'a, Message> {
     viewport: Rectangle,
 }
 
-impl<'a, Message> MenuOverlay<'a, Message> {
-    fn menu_at(&self, path: &[usize]) -> Option<&Menu<Message>> {
+impl<'a, 'b, Message> MenuOverlay<'a, 'b, Message> {
+    fn menu_at(&self, path: &[usize]) -> Option<(&Menu<'b, Message>, &Tree)> {
         let mut current = self.roots.get(*path.first()?)?;
+        let mut tree = self.trees.get(*path.first()?)?;
         for &index in &path[1..] {
             let Item::Submenu { submenu, .. } = current.items.get(index)? else {
                 return None;
             };
             current = submenu;
+            tree = tree.children.get(index)?;
         }
-        Some(current)
+        Some((current, tree))
     }
 
-    fn resolve_item(&self, level: usize, index: usize) -> Option<&Item<Message>> {
-        self.menu_at(&self.open[..level + 1])?.items.get(index)
+    fn menu_at_mut(&mut self, level: usize) -> Option<(&mut Menu<'b, Message>, &mut Tree)> {
+        let path = self.open.get(..level + 1)?;
+        let mut menu = self.roots.get_mut(*path.first()?)?;
+        let mut tree = self.trees.get_mut(*path.first()?)?;
+        for &index in &path[1..] {
+            let Item::Submenu { submenu, .. } = menu.items.get_mut(index)? else {
+                return None;
+            };
+            menu = submenu;
+            tree = tree.children.get_mut(index)?;
+        }
+        Some((menu, tree))
     }
 
-    fn panels(&self) -> Vec<Panel> {
-        let viewport = self.viewport;
-        let mut panels = Vec::new();
-        let mut anchor = Point::new(self.origin.x, self.origin.y + self.root_height + 1.0);
-        let mut level = 0;
-        while let Some(menu) = self.menu_at(&self.open[..level + 1]) {
-            let width = menu.content_width();
-            let height = PANEL_PADDING * 2.0 + menu.items.iter().map(Item::height).sum::<f32>();
-            let bounds = Rectangle::new(
-                Point::new(
-                    anchor.x.min((viewport.x + viewport.width - width).max(0.0)),
-                    anchor
-                        .y
-                        .min((viewport.y + viewport.height - height).max(0.0)),
-                ),
-                Size::new(width, height),
-            );
+    fn resolve_item(&self, level: usize, index: usize) -> Option<&Item<'b, Message>> {
+        self.menu_at(&self.open[..level + 1])?.0.items.get(index)
+    }
 
-            let mut rows = Vec::new();
-            let mut y = bounds.y + PANEL_PADDING;
-            for item in &menu.items {
-                let height = item.height();
-                rows.push(Rectangle::new(
-                    Point::new(bounds.x + 1.0, y),
-                    Size::new(bounds.width - 2.0, height),
-                ));
-                y += height;
-            }
-
-            let next = self
-                .open
-                .get(level + 1)
-                .and_then(|&index| rows.get(index).copied());
-            panels.push(Panel { bounds, rows });
-            match next {
-                Some(row) => {
-                    let submenu_width = self
-                        .menu_at(&self.open[..level + 2])
-                        .map(Menu::content_width)
-                        .unwrap_or(0.0);
-                    anchor = Point::new(
-                        if bounds.x + bounds.width + 1.0 + submenu_width
-                            > viewport.x + viewport.width
-                        {
-                            bounds.x - submenu_width - 1.0
-                        } else {
-                            bounds.x + bounds.width + 1.0
-                        },
-                        row.y - PANEL_PADDING,
-                    );
-                    level += 1;
-                }
-                None => break,
-            }
-        }
-        panels
+    fn panels(layout: Layout<'_>) -> Vec<Panel> {
+        layout
+            .children()
+            .map(|panel| Panel {
+                bounds: panel.bounds(),
+                rows: panel.children().map(|row| row.bounds()).collect(),
+            })
+            .collect()
     }
 
     fn hit_test(panels: &[Panel], position: Point) -> Option<(usize, usize)> {
@@ -548,25 +600,153 @@ impl<'a, Message> MenuOverlay<'a, Message> {
     }
 }
 
-impl<Message> overlay::Overlay<Message, Theme, Renderer> for MenuOverlay<'_, Message>
+impl<Message> overlay::Overlay<Message, Theme, Renderer> for MenuOverlay<'_, '_, Message>
 where
     Message: Clone,
 {
-    fn layout(&mut self, _renderer: &Renderer, bounds: Size) -> layout::Node {
-        layout::Node::new(bounds)
+    fn layout(&mut self, renderer: &Renderer, bounds: Size) -> layout::Node {
+        let viewport = self.viewport;
+        let mut panels: Vec<layout::Node> = Vec::new();
+        for level in 0..self.open.len() {
+            let Some((menu, tree)) = self.menu_at_mut(level) else {
+                break;
+            };
+            let max_width = (viewport.width - ITEM_PADDING_X * 2.0 - 2.0).max(0.0);
+            let limits = layout::Limits::with_compression(
+                Size::ZERO,
+                Size::new(max_width, viewport.height),
+                Size::new(true, true),
+            );
+            let mut width = menu.content_width();
+            for (item, tree) in menu.items.iter_mut().zip(&mut tree.children) {
+                if let Item::Element { element, .. } = item {
+                    let node = element.as_widget_mut().layout(tree, renderer, &limits);
+                    width = width.max(node.size().width + ITEM_PADDING_X * 2.0 + 2.0);
+                }
+            }
+            let width = width.min(viewport.width);
+            let limits = layout::Limits::new(
+                Size::ZERO,
+                Size::new(
+                    (width - ITEM_PADDING_X * 2.0 - 2.0).max(0.0),
+                    viewport.height,
+                ),
+            );
+            let mut rows = Vec::new();
+            let mut y = PANEL_PADDING;
+            for (item, tree) in menu.items.iter_mut().zip(&mut tree.children) {
+                let mut height = item.height();
+                let children = if let Item::Element { element, .. } = item {
+                    let node = element.as_widget_mut().layout(tree, renderer, &limits);
+                    height = height.max(node.size().height);
+                    let offset = (height - node.size().height) / 2.0;
+                    vec![node.move_to(Point::new(ITEM_PADDING_X, offset))]
+                } else {
+                    Vec::new()
+                };
+                rows.push(
+                    layout::Node::with_children(
+                        Size::new((width - 2.0).max(0.0), height),
+                        children,
+                    )
+                    .move_to(Point::new(1.0, y)),
+                );
+                y += height;
+            }
+            let height = y + PANEL_PADDING;
+            let anchor = if let Some(parent) = panels.last() {
+                let parent_bounds = parent.bounds();
+                let row = parent.children()[self.open[level]].bounds();
+                Point::new(
+                    if parent_bounds.x + parent_bounds.width + 1.0 + width
+                        > viewport.x + viewport.width
+                    {
+                        parent_bounds.x - width - 1.0
+                    } else {
+                        parent_bounds.x + parent_bounds.width + 1.0
+                    },
+                    parent_bounds.y + row.y - PANEL_PADDING,
+                )
+            } else {
+                Point::new(self.origin.x, self.origin.y + self.root_height + 1.0)
+            };
+            let position = Point::new(
+                anchor.x.clamp(
+                    viewport.x,
+                    (viewport.x + viewport.width - width).max(viewport.x),
+                ),
+                anchor.y.clamp(
+                    viewport.y,
+                    (viewport.y + viewport.height - height).max(viewport.y),
+                ),
+            );
+            panels.push(
+                layout::Node::with_children(Size::new(width, height), rows).move_to(position),
+            );
+        }
+        layout::Node::with_children(bounds, panels)
     }
 
     fn update(
         &mut self,
         event: &Event,
-        _layout: Layout<'_>,
-        _cursor: mouse::Cursor,
-        _renderer: &Renderer,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &Renderer,
         shell: &mut Shell<'_, Message>,
     ) {
+        let panels = Self::panels(layout);
+        let hit = cursor
+            .position()
+            .and_then(|position| Self::hit_test(&panels, position));
+        let mut close = false;
+        for (level, panel) in layout.children().enumerate().rev() {
+            let Some((menu, tree)) = self.menu_at_mut(level) else {
+                continue;
+            };
+            for (index, ((item, tree), row)) in menu
+                .items
+                .iter_mut()
+                .zip(&mut tree.children)
+                .zip(panel.children())
+                .enumerate()
+            {
+                if let Item::Element {
+                    element,
+                    close_on_message,
+                    ..
+                } = item
+                {
+                    let mut bus = Bus::default();
+                    let mut local = shell.local(&mut bus);
+                    element.as_widget_mut().update(
+                        tree,
+                        event,
+                        row.children().next().expect("element layout"),
+                        if hit == Some((level, index)) {
+                            cursor
+                        } else {
+                            mouse::Cursor::Unavailable
+                        },
+                        renderer,
+                        &mut local,
+                        &panel.bounds(),
+                    );
+                    close |= *close_on_message && !local.is_empty();
+                    shell.merge(local, |message| message);
+                }
+            }
+        }
+        if close {
+            self.open.clear();
+            shell.capture_event();
+            shell.invalidate_layout();
+            shell.request_redraw();
+            return;
+        }
+
         match event {
             Event::Pointer(pointer::Event::PointerMoved { position, .. }) => {
-                let panels = self.panels();
                 if let Some((level, index)) = Self::hit_test(&panels, *position) {
                     let opens_submenu =
                         matches!(self.resolve_item(level, index), Some(Item::Submenu { .. }));
@@ -600,7 +780,6 @@ where
                     return;
                 }
 
-                let panels = self.panels();
                 let hit = Self::hit_test(&panels, *position);
                 match hit {
                     Some((level, index)) => match self.resolve_item(level, index) {
@@ -614,6 +793,7 @@ where
                         }
                         _ => {}
                     },
+                    None if panels.iter().any(|panel| panel.bounds.contains(*position)) => {}
                     None => {
                         self.open.clear();
                     }
@@ -639,17 +819,17 @@ where
         &self,
         renderer: &mut Renderer,
         theme: &Theme,
-        _style: &renderer::Style,
-        _layout: Layout<'_>,
+        style: &renderer::Style,
+        layout: Layout<'_>,
         cursor: mouse::Cursor,
     ) {
-        let panels = self.panels();
+        let panels = Self::panels(layout);
         let p = theme.palette();
         let hit = cursor
             .position()
             .and_then(|position| Self::hit_test(&panels, position));
         for (level, panel) in panels.iter().enumerate() {
-            let menu = self
+            let (menu, tree) = self
                 .menu_at(&self.open[..level + 1])
                 .expect("open path resolves during layout");
             {
@@ -688,10 +868,7 @@ where
                             );
                         }
                         Item::Action {
-                            label,
-                            shortcut,
-                            checked,
-                            ..
+                            label, shortcut, ..
                         } => {
                             draw_entry(
                                 renderer,
@@ -700,9 +877,33 @@ where
                                 *row,
                                 label,
                                 hovered == Some(index),
-                                *checked,
                                 shortcut.as_deref(),
                                 false,
+                            );
+                        }
+                        Item::Element { element, .. } => {
+                            let child_layout = layout
+                                .children()
+                                .nth(level)
+                                .expect("panel layout")
+                                .children()
+                                .nth(index)
+                                .expect("row layout")
+                                .children()
+                                .next()
+                                .expect("element layout");
+                            element.as_widget().draw(
+                                &tree.children[index],
+                                renderer,
+                                theme,
+                                style,
+                                child_layout,
+                                if hit == Some((level, index)) {
+                                    cursor
+                                } else {
+                                    mouse::Cursor::Unavailable
+                                },
+                                &panel.bounds,
                             );
                         }
                         Item::Submenu { label, .. } => {
@@ -713,7 +914,6 @@ where
                                 *row,
                                 label,
                                 hovered == Some(index) || opened_submenu == Some(index),
-                                false,
                                 None,
                                 true,
                             );
@@ -724,18 +924,186 @@ where
         }
     }
 
+    fn operate(
+        &mut self,
+        layout: Layout<'_>,
+        renderer: &Renderer,
+        operation: &mut dyn widget::Operation,
+    ) {
+        for (level, panel) in layout.children().enumerate() {
+            let Some((menu, tree)) = self.menu_at_mut(level) else {
+                continue;
+            };
+            operation.container(None, panel.bounds());
+            operation.traverse(&mut |operation| {
+                for ((item, tree), row) in menu
+                    .items
+                    .iter_mut()
+                    .zip(&mut tree.children)
+                    .zip(panel.children())
+                {
+                    if let Item::Element { element, .. } = item {
+                        element.as_widget_mut().operate(
+                            tree,
+                            row.children().next().expect("element layout"),
+                            renderer,
+                            operation,
+                        );
+                    }
+                }
+            });
+        }
+    }
+
+    fn overlay<'b>(
+        &'b mut self,
+        layout: Layout<'b>,
+        renderer: &Renderer,
+    ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
+        let root = *self.open.first()?;
+        let overlays = self.roots.get_mut(root)?.overlays(
+            self.trees.get_mut(root)?,
+            &self.open[1..],
+            &mut layout.children(),
+            renderer,
+            &self.viewport,
+        );
+        if overlays.is_empty() {
+            return None;
+        }
+        Some(overlay::Element::new(Box::new(MenuElementOverlay {
+            content: overlay::Group::with_children(overlays).overlay(),
+            open: self.open,
+        })))
+    }
+
     fn mouse_interaction(
         &self,
-        _layout: Layout<'_>,
+        layout: Layout<'_>,
         cursor: mouse::Cursor,
-        _renderer: &Renderer,
+        renderer: &Renderer,
     ) -> mouse::Interaction {
-        let panels = self.panels();
+        let panels = Self::panels(layout);
+        if let Some((level, index)) = cursor
+            .position()
+            .and_then(|position| Self::hit_test(&panels, position))
+            && let Some((menu, tree)) = self.menu_at(&self.open[..level + 1])
+            && let Item::Element { element, .. } = &menu.items[index]
+        {
+            return element.as_widget().mouse_interaction(
+                &tree.children[index],
+                layout
+                    .children()
+                    .nth(level)
+                    .expect("panel layout")
+                    .children()
+                    .nth(index)
+                    .expect("row layout")
+                    .children()
+                    .next()
+                    .expect("element layout"),
+                cursor,
+                &panels[level].bounds,
+                renderer,
+            );
+        }
         cursor
             .position()
             .and_then(|position| Self::hit_test(&panels, position))
             .map(|_| mouse::Interaction::Pointer)
             .unwrap_or(mouse::Interaction::None)
+    }
+}
+
+struct MenuElementOverlay<'a, Message> {
+    content: overlay::Element<'a, (Message, bool), Theme, Renderer>,
+    open: &'a mut Vec<usize>,
+}
+
+impl<Message> overlay::Overlay<Message, Theme, Renderer> for MenuElementOverlay<'_, Message> {
+    fn layout(&mut self, renderer: &Renderer, bounds: Size) -> layout::Node {
+        self.content.as_overlay_mut().layout(renderer, bounds)
+    }
+
+    fn draw(
+        &self,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        style: &renderer::Style,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+    ) {
+        self.content
+            .as_overlay()
+            .draw(renderer, theme, style, layout, cursor);
+    }
+
+    fn update(
+        &mut self,
+        event: &Event,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &Renderer,
+        shell: &mut Shell<'_, Message>,
+    ) {
+        let mut bus = Bus::default();
+        let mut local = shell.local(&mut bus);
+        self.content
+            .as_overlay_mut()
+            .update(event, layout, cursor, renderer, &mut local);
+        let close = Cell::new(false);
+        shell.merge(local, |(message, close_on_message)| {
+            close.set(close.get() || close_on_message);
+            message
+        });
+        if close.get() {
+            self.open.clear();
+            shell.capture_event();
+            shell.invalidate_layout();
+            shell.request_redraw();
+        }
+    }
+
+    fn operate(
+        &mut self,
+        layout: Layout<'_>,
+        renderer: &Renderer,
+        operation: &mut dyn widget::Operation,
+    ) {
+        self.content
+            .as_overlay_mut()
+            .operate(layout, renderer, operation);
+    }
+
+    fn mouse_interaction(
+        &self,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &Renderer,
+    ) -> mouse::Interaction {
+        self.content
+            .as_overlay()
+            .mouse_interaction(layout, cursor, renderer)
+    }
+
+    fn overlay<'a>(
+        &'a mut self,
+        layout: Layout<'a>,
+        renderer: &Renderer,
+    ) -> Option<overlay::Element<'a, Message, Theme, Renderer>> {
+        self.content
+            .as_overlay_mut()
+            .overlay(layout, renderer)
+            .map(|content| {
+                overlay::Element::new(Box::new(MenuElementOverlay {
+                    content,
+                    open: self.open,
+                }))
+            })
+    }
+
+    fn index(&self) -> f32 {
+        self.content.as_overlay().index()
     }
 }
 
@@ -746,7 +1114,6 @@ fn draw_entry(
     row: Rectangle,
     label: &str,
     hovered: bool,
-    checked: bool,
     shortcut: Option<&str>,
     chevron: bool,
 ) {
@@ -772,21 +1139,6 @@ fn draw_entry(
     } else {
         p.background.weak.text
     };
-    if checked {
-        draw_svg_icon(
-            renderer,
-            include_bytes!("../assets/icons/check.svg"),
-            icon_color,
-            Rectangle::new(
-                Point::new(
-                    row.x + ITEM_PADDING_X + 2.0,
-                    row.y + (row.height - 10.0) / 2.0,
-                ),
-                Size::new(10.0, 10.0),
-            ),
-            panel_bounds,
-        );
-    }
     renderer.fill_text(
         text::Text {
             bounds: Size::new(row.width - ITEM_PADDING_X * 2.0 - ICON_SLOT, row.height),
@@ -850,18 +1202,18 @@ fn draw_svg_icon(
     );
 }
 
-impl<'a, Message> From<MenuBar<Message>> for Element<'a, Message, Theme, Renderer>
+impl<'a, Message> From<MenuBar<'a, Message>> for Element<'a, Message, Theme, Renderer>
 where
     Message: Clone + 'a,
 {
-    fn from(value: MenuBar<Message>) -> Self {
+    fn from(value: MenuBar<'a, Message>) -> Self {
         Element::new(value)
     }
 }
 
 pub struct ContextMenu<'a, Message> {
     underlay: Element<'a, Message, Theme, Renderer>,
-    menu: Menu<Message>,
+    menu: Menu<'a, Message>,
 }
 
 #[derive(Default)]
@@ -874,7 +1226,7 @@ struct ContextMenuState {
 impl<'a, Message> ContextMenu<'a, Message> {
     pub fn new(
         underlay: impl Into<Element<'a, Message, Theme, Renderer>>,
-        menu: Menu<Message>,
+        menu: Menu<'a, Message>,
     ) -> Self {
         Self {
             underlay: underlay.into(),
@@ -893,7 +1245,9 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
     }
 
     fn diff(&mut self, tree: &mut Tree) {
-        tree.diff_children(&mut [&mut self.underlay]);
+        tree.children.resize_with(2, Tree::empty);
+        tree.children[0].diff(self.underlay.as_widget_mut());
+        self.menu.diff(&mut tree.children[1]);
     }
 
     fn size(&self) -> Size<Length> {
@@ -1009,7 +1363,8 @@ impl<Message: Clone> Widget<Message, Theme, Renderer> for ContextMenu<'_, Messag
 
         let origin = state.cursor_position;
         Some(overlay::Element::new(Box::new(MenuOverlay {
-            roots: slice::from_ref(&self.menu),
+            roots: slice::from_mut(&mut self.menu),
+            trees: &mut tree.children[1..],
             bar_bounds: None,
             open: &mut state.open,
             origin: origin + translation,
