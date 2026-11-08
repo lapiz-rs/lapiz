@@ -9,7 +9,7 @@ publish.workspace = true
 [dependencies]
 anyhow.workspace = true
 bevy_math.workspace = true
-bytemuck.workspace = true
+bytemuck = { workspace = true, features = ["must_cast"] }
 encase.workspace = true
 futures.workspace = true
 iced_core.workspace = true
