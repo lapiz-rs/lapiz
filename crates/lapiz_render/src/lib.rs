@@ -10,7 +10,6 @@ use crate::{
 
 pub mod bind_group_entries;
 pub mod bind_group_layout_entries;
-pub mod buffer;
 pub mod buffer_vec;
 pub mod owned_bind_group_entries;
 pub mod readback;

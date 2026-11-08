@@ -10,15 +10,15 @@ use iced_runtime::Task;
 use iced_wgpu::Primitive;
 use lapiz_render::{
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
     render_context::RenderContextAppExt as _,
+    uniform_buffer::UniformBuffer,
 };
 use lapiz_runtime::global::Globals;
 use lapiz_widgets::shader;
 use moxcms::ColorProfile;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BufferUsages, Device, IndexFormat, Queue, RenderPass, ShaderStages, TextureFormat,
+    Device, IndexFormat, Queue, RenderPass, ShaderStages, TextureFormat,
 };
 
 use crate::{
@@ -363,9 +363,9 @@ impl Primitive for GradientDrawPrimitive {
 }
 
 struct Instance {
-    settings_buffer: DynamicBuffer<GradientSettings>,
+    settings_buffer: UniformBuffer<GradientSettings>,
     bind_group: BindGroup,
-    ring_settings_buffer: Option<DynamicBuffer<GradientSettings>>,
+    ring_settings_buffer: Option<UniformBuffer<GradientSettings>>,
     ring_bind_group: Option<BindGroup>,
 }
 
@@ -425,11 +425,8 @@ impl GradientDirectPipeline {
         }
 
         let instance = self.instances.entry(data.id).or_insert_with(|| {
-            let mut settings_buffer = DynamicBuffer::new(
-                Some("gradient_settings_uniform".into()),
-                BufferUsages::UNIFORM,
-            );
-            settings_buffer.push(&data.settings);
+            let mut settings_buffer = UniformBuffer::from(data.settings.clone());
+            settings_buffer.set_label(Some("gradient_settings_uniform"));
             settings_buffer.write_buffer(device, queue);
 
             let bind_group = device.create_bind_group(&BindGroupDescriptor {
@@ -445,11 +442,8 @@ impl GradientDirectPipeline {
                 .ring_settings
                 .as_ref()
                 .map(|buffer| {
-                    let mut ring_settings_buffer = DynamicBuffer::new(
-                        Some("gradient_ring_settings_uniform".into()),
-                        BufferUsages::UNIFORM,
-                    );
-                    ring_settings_buffer.push(buffer);
+                    let mut ring_settings_buffer = UniformBuffer::from(buffer.clone());
+                    ring_settings_buffer.set_label(Some("gradient_ring_settings_uniform"));
                     ring_settings_buffer.write_buffer(device, queue);
 
                     let ring_bind_group = device.create_bind_group(&BindGroupDescriptor {
@@ -472,15 +466,13 @@ impl GradientDirectPipeline {
             }
         });
 
-        instance.settings_buffer.clear();
-        instance.settings_buffer.push(&data.settings);
+        instance.settings_buffer.set(data.settings.clone());
         instance.settings_buffer.write_buffer(device, queue);
 
         if let (Some(buffer), Some(settings)) =
             (&mut instance.ring_settings_buffer, &data.ring_settings)
         {
-            buffer.clear();
-            buffer.push(settings);
+            buffer.set(settings.clone());
             buffer.write_buffer(device, queue);
         }
     }

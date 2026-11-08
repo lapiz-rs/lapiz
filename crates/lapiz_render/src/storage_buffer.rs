@@ -3,10 +3,7 @@
 
 use core::marker::PhantomData;
 
-use encase::{
-    DynamicStorageBuffer as DynamicStorageBufferWrapper, ShaderType,
-    StorageBuffer as StorageBufferWrapper, internal::WriteInto,
-};
+use encase::{ShaderType, internal::WriteInto};
 use wgpu::{
     BindingResource, Buffer, BufferBinding, BufferSize, BufferUsages, Device, Queue,
     util::{BufferInitDescriptor, DeviceExt as _},
@@ -36,7 +33,7 @@ use crate::bind_group_entries::IntoBinding;
 /// [std430 alignment/padding requirements]: https://www.w3.org/TR/WGSL/#address-spaces-storage
 pub struct StorageBuffer<T: ShaderType> {
     value: T,
-    scratch: StorageBufferWrapper<Vec<u8>>,
+    scratch: encase::StorageBuffer<Vec<u8>>,
     buffer: Option<Buffer>,
     label: Option<String>,
     changed: bool,
@@ -48,7 +45,7 @@ impl<T: ShaderType> From<T> for StorageBuffer<T> {
     fn from(value: T) -> Self {
         Self {
             value,
-            scratch: StorageBufferWrapper::new(Vec::new()),
+            scratch: encase::StorageBuffer::new(Vec::new()),
             buffer: None,
             label: None,
             changed: false,
@@ -62,7 +59,7 @@ impl<T: ShaderType + Default> Default for StorageBuffer<T> {
     fn default() -> Self {
         Self {
             value: T::default(),
-            scratch: StorageBufferWrapper::new(Vec::new()),
+            scratch: encase::StorageBuffer::new(Vec::new()),
             buffer: None,
             label: None,
             changed: false,
@@ -181,7 +178,7 @@ impl<'a, T: ShaderType + WriteInto> IntoBinding<'a> for &'a StorageBuffer<T> {
 ///
 /// [std430 alignment/padding requirements]: https://www.w3.org/TR/WGSL/#address-spaces-storage
 pub struct DynamicStorageBuffer<T: ShaderType> {
-    scratch: DynamicStorageBufferWrapper<Vec<u8>>,
+    scratch: encase::DynamicStorageBuffer<Vec<u8>>,
     buffer: Option<Buffer>,
     label: Option<String>,
     changed: bool,
@@ -193,7 +190,7 @@ pub struct DynamicStorageBuffer<T: ShaderType> {
 impl<T: ShaderType> Default for DynamicStorageBuffer<T> {
     fn default() -> Self {
         Self {
-            scratch: DynamicStorageBufferWrapper::new(Vec::new()),
+            scratch: encase::DynamicStorageBuffer::new(Vec::new()),
             buffer: None,
             label: None,
             changed: false,

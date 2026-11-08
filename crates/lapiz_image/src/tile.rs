@@ -17,7 +17,7 @@ use glam::{IVec2, UVec2};
 use image::{DynamicImage, GenericImageView as _, ImageBuffer, imageops::FilterType};
 use indexmap::{IndexMap, IndexSet};
 use lapiz_render::{
-    buffer::BufferVec, readback::readback_buffer_raw_on_submit_async,
+    buffer_vec::BufferVec, readback::readback_buffer_raw_on_submit_async,
     render_context::RenderContextAppExt as _, util::DevicePollExt as _,
 };
 use lapiz_runtime::global::{FromGlobals, Global, Globals};
@@ -372,6 +372,12 @@ impl DynamicLayerStorage {
         tile_info_buffer_usage: Option<BufferUsages>,
         info: GpuLayerInfo,
     ) -> Self {
+        let mut tile_info_buffer =
+            BufferVec::new(tile_info_buffer_usage.unwrap_or(DEFAULT_LAYER_TILE_INFO_BUFFER_USAGES));
+        tile_info_buffer.set_label(Some(
+            &tile_info_buffer_label.unwrap_or(DEFAULT_LAYER_TILE_INFO_BUFFER_LABEL.clone()),
+        ));
+
         Self {
             device,
             queue,
@@ -381,12 +387,7 @@ impl DynamicLayerStorage {
 
             texture: None,
             tiles: IndexMap::new(),
-            tile_info_buffer: BufferVec::new(
-                Some(
-                    tile_info_buffer_label.unwrap_or(DEFAULT_LAYER_TILE_INFO_BUFFER_LABEL.clone()),
-                ),
-                tile_info_buffer_usage.unwrap_or(DEFAULT_LAYER_TILE_INFO_BUFFER_USAGES),
-            ),
+            tile_info_buffer,
             allocation_generation: 0,
         }
     }
@@ -428,7 +429,7 @@ impl DynamicLayerStorage {
     }
 
     pub fn tile_info_buffer(&self) -> Option<&Buffer> {
-        self.tile_info_buffer.inner_buffer()
+        self.tile_info_buffer.buffer()
     }
 
     pub fn texture_view(&self) -> Option<&TextureView> {
@@ -491,7 +492,7 @@ impl DynamicLayerStorage {
                     ..Default::default()
                 }),
             );
-            self.tile_info_buffer.push(&GpuTileInfo::new(t));
+            self.tile_info_buffer.push(GpuTileInfo::new(t));
         }
         self.tile_info_buffer
             .write_buffer(&self.device, &self.queue);
@@ -572,7 +573,7 @@ impl DynamicLayerStorage {
             tile
         };
 
-        self.tile_info_buffer.push(&GpuTileInfo::new(coord));
+        self.tile_info_buffer.push(GpuTileInfo::new(coord));
         self.tile_info_buffer
             .write_buffer(&self.device, &self.queue);
 
@@ -628,10 +629,9 @@ impl DynamicLayerStorage {
             });
         }
 
-        self.tile_info_buffer.reserve_capacity(
-            &self.device,
-            new_capacity * u64::from(GpuTileInfo::min_size()) as usize,
-        );
+        self.tile_info_buffer.reserve(new_capacity, &self.device);
+        self.tile_info_buffer
+            .write_buffer(&self.device, &self.queue);
         self.allocation_generation += 1;
     }
 
@@ -712,8 +712,8 @@ impl DynamicLayerStorage {
         });
 
         let mut new_tiles = IndexMap::new();
-        let mut new_tile_info_buffer =
-            BufferVec::new(Some("tile info buffer clone".into()), BufferUsages::STORAGE);
+        let mut new_tile_info_buffer = BufferVec::new(BufferUsages::STORAGE);
+        new_tile_info_buffer.set_label(Some("tile info buffer clone"));
 
         for (i, (coord, _)) in self.tiles.iter().enumerate() {
             new_tiles.insert(
@@ -724,7 +724,7 @@ impl DynamicLayerStorage {
                     ..Default::default()
                 }),
             );
-            new_tile_info_buffer.push(&GpuTileInfo::new(*coord));
+            new_tile_info_buffer.push(GpuTileInfo::new(*coord));
         }
 
         new_tile_info_buffer.write_buffer(&self.device, &self.queue);

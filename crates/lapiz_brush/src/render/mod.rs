@@ -7,7 +7,7 @@ use std::{
 use anyhow::{Context as _, Result, bail};
 use bevy_math::IRect;
 use chrono::{DateTime, Utc};
-use encase::{ShaderType, StorageBuffer};
+use encase::ShaderType;
 use futures::{
     StreamExt as _,
     channel::{mpsc, oneshot},
@@ -30,8 +30,8 @@ use lapiz_image::{
 use lapiz_input::mouse::PressedMouseState;
 use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
-    buffer::DynamicBuffer,
     readback::{create_readback_buffer_and_schedule_copy_buffer, readback_buffer_on_submit_async},
+    storage_buffer::StorageBuffer,
 };
 use lapiz_runtime::global::Globals;
 use lapiz_shader_graph::{
@@ -81,8 +81,8 @@ pub struct CanvasBrushPresetOperator {
     renderer: Option<BrushPresetRenderer>,
     session: Option<CanvasBrushStrokeSessionInfo>,
     input_processor: InputProcessor,
-    foreground_color: DynamicBuffer<Vec4>,
-    background_color: DynamicBuffer<Vec4>,
+    foreground_color: StorageBuffer<Vec4>,
+    background_color: StorageBuffer<Vec4>,
 }
 
 impl CanvasBrushPresetOperator {
@@ -92,6 +92,11 @@ impl CanvasBrushPresetOperator {
         queue: Queue,
         input_processor: InputProcessor,
     ) -> Self {
+        let mut foreground_color = StorageBuffer::default();
+        foreground_color.set_label(Some("brush foreground color"));
+        let mut background_color = StorageBuffer::default();
+        background_color.set_label(Some("brush background color"));
+
         Self {
             instance,
             renderer: None,
@@ -99,14 +104,8 @@ impl CanvasBrushPresetOperator {
             queue,
             session: None,
             input_processor,
-            foreground_color: DynamicBuffer::new(
-                Some("brush foreground color".into()),
-                BufferUsages::STORAGE,
-            ),
-            background_color: DynamicBuffer::new(
-                Some("brush background color".into()),
-                BufferUsages::STORAGE,
-            ),
+            foreground_color,
+            background_color,
         }
     }
 
@@ -152,14 +151,12 @@ impl CanvasBrushPresetOperator {
             .inverse();
         let foreground = globals.foreground_color().get().into_rgb(xyz_to_rgb);
         let background = globals.background_color().get().into_rgb(xyz_to_rgb);
-        self.foreground_color.clear();
         self.foreground_color
-            .push(&Vec4::new(foreground.r, foreground.g, foreground.b, 1.0));
+            .set(Vec4::new(foreground.r, foreground.g, foreground.b, 1.0));
         self.foreground_color
             .write_buffer(&self.device, &self.queue);
-        self.background_color.clear();
         self.background_color
-            .push(&Vec4::new(background.r, background.g, background.b, 1.0));
+            .set(Vec4::new(background.r, background.g, background.b, 1.0));
         self.background_color
             .write_buffer(&self.device, &self.queue);
 
@@ -309,8 +306,8 @@ struct BrushStrokeWorker {
     state: BrushEffectState,
     input_sample: Arc<BrushInputSamplingPipeline>,
     resource_group: wgpu::BindGroup,
-    input_batch: DynamicBuffer<PenInputBatch>,
-    batch_bounds: DynamicBuffer<BatchBounds>,
+    input_batch: StorageBuffer<PenInputBatch>,
+    batch_bounds: StorageBuffer<BatchBounds>,
     main_batch_group: wgpu::BindGroup,
     main_sample_index_offsets: Vec<u32>,
     input_sample_prepared: PreparedInputSamplingPipelineData,
@@ -348,8 +345,8 @@ impl BrushPresetRenderer {
         selection_layer_format: TexelType,
         device: &Device,
         queue: &Queue,
-        foreground_color: &DynamicBuffer<Vec4>,
-        background_color: &DynamicBuffer<Vec4>,
+        foreground_color: &StorageBuffer<Vec4>,
+        background_color: &StorageBuffer<Vec4>,
     ) -> Self {
         let resources = StrokeResources::new(
             device,
@@ -391,16 +388,12 @@ impl BrushPresetRenderer {
         target_layer: LayerBinding,
         selection_layer: LayerBinding,
     ) -> Task<()> {
-        let mut input_sampler =
-            DynamicBuffer::new(Some("input sampler".into()), BufferUsages::STORAGE);
-        input_sampler.push(&InputSampler::default());
+        let mut input_sampler = StorageBuffer::from(InputSampler::default());
+        input_sampler.set_label(Some("input sampler"));
         input_sampler.write_buffer(device, queue);
 
-        let mut initial_pen_input = DynamicBuffer::new(
-            Some("initial pen input".into()),
-            BufferUsages::STORAGE | BufferUsages::COPY_DST,
-        );
-        initial_pen_input.push(&ComputedPenInput::default());
+        let mut initial_pen_input = StorageBuffer::from(ComputedPenInput::default());
+        initial_pen_input.set_label(Some("initial pen input"));
         initial_pen_input.write_buffer(device, queue);
 
         let has_selection = self
@@ -432,15 +425,12 @@ impl BrushPresetRenderer {
             PreparedLayer::from_binding(target_layer.clone(), target_layer_bounds.clone());
         let prepared_selection_layer =
             PreparedLayer::from_binding(selection_layer.clone(), selection_layer_bounds.clone());
-        let mut input_batch =
-            DynamicBuffer::new(Some("pen input batch".into()), BufferUsages::STORAGE);
-        input_batch.push(&PenInputBatch::new(&[]));
+        let mut input_batch = StorageBuffer::from(PenInputBatch::new(&[]));
+        input_batch.set_label(Some("pen input batch"));
         input_batch.write_buffer(device, queue);
-        let mut output_samples = DynamicBuffer::new(
-            Some("output samples".into()),
-            BufferUsages::COPY_SRC | BufferUsages::STORAGE,
-        );
-        output_samples.push(&OutputSamples::default());
+        let mut output_samples = StorageBuffer::from(OutputSamples::default());
+        output_samples.set_label(Some("output samples"));
+        output_samples.add_usages(BufferUsages::COPY_SRC);
         output_samples.write_buffer(device, queue);
 
         let input_sample_prepared = self.input_sample.prepare(
@@ -461,18 +451,16 @@ impl BrushPresetRenderer {
             },
         );
 
-        let mut batch_bounds = DynamicBuffer::new(
-            Some("brush batch bounds".into()),
-            BufferUsages::STORAGE | BufferUsages::COPY_SRC,
-        );
-        batch_bounds.push(&BatchBounds::default());
+        let mut batch_bounds = StorageBuffer::from(BatchBounds::default());
+        batch_bounds.set_label(Some("brush batch bounds"));
+        batch_bounds.add_usages(BufferUsages::COPY_SRC);
         batch_bounds.write_buffer(device, queue);
         let (main_batch_group, main_sample_index_offsets) = self.compiled.main.prepare_batch_group(
             device,
             queue,
-            output_samples.inner_buffer().unwrap(),
-            initial_pen_input.inner_buffer().unwrap(),
-            batch_bounds.inner_buffer().unwrap(),
+            output_samples.buffer().unwrap(),
+            initial_pen_input.buffer().unwrap(),
+            batch_bounds.buffer().unwrap(),
         );
         let empty_accumulator = prepared_literal(
             Arc::new(LayerType {
@@ -600,8 +588,7 @@ impl BrushStrokeWorker {
         // sample input
         let device = self.state.device.clone();
         let queue = self.state.queue.clone();
-        self.input_batch.clear();
-        self.input_batch.push(&PenInputBatch::new(inputs));
+        self.input_batch.set(PenInputBatch::new(inputs));
         self.input_batch.write_buffer(&device, &queue);
 
         let mut encoder = device.create_command_encoder(&Default::default());
@@ -622,7 +609,7 @@ impl BrushStrokeWorker {
         let builtins = main_builtins(&self.state)?;
         let resources = main_pipeline.prepare_resource_group(&device, &builtins)?;
         main_pipeline.dispatch_eval(&mut encoder, &self.main_batch_group, &resources);
-        let bounds_buffer = self.batch_bounds.inner_buffer().unwrap();
+        let bounds_buffer = self.batch_bounds.buffer().unwrap();
         let bounds_staging =
             create_readback_buffer_and_schedule_copy_buffer(&device, &mut encoder, bounds_buffer);
         let bounds_readback =
@@ -719,7 +706,7 @@ impl BrushStrokeWorker {
                 previous.union(dab_bounds)
             };
             accumulator.pixel_bounds = Some(bounds);
-            let mut encoded = StorageBuffer::new(Vec::new());
+            let mut encoded = encase::StorageBuffer::new(Vec::new());
             encoded.write(&IVec4::new(
                 bounds.min.x,
                 bounds.min.y,
@@ -1001,8 +988,8 @@ impl StrokeResources {
         brush: &CompiledBrushPreset,
         target_layer_format: TexelType,
         selection_layer_format: TexelType,
-        foreground_color: &DynamicBuffer<Vec4>,
-        background_color: &DynamicBuffer<Vec4>,
+        foreground_color: &StorageBuffer<Vec4>,
+        background_color: &StorageBuffer<Vec4>,
     ) -> Self {
         let prepared_parameters = brush
             .spacing_parameters
@@ -1022,8 +1009,8 @@ impl StrokeResources {
             builtin_types: brush.spacing_builtin_types.clone(),
             parameters: brush.spacing_parameters.clone(),
             prepared_parameters,
-            foreground_color: foreground_color.inner_buffer().unwrap().clone(),
-            background_color: background_color.inner_buffer().unwrap().clone(),
+            foreground_color: foreground_color.buffer().unwrap().clone(),
+            background_color: background_color.buffer().unwrap().clone(),
             target_layer_format,
             selection_layer_format,
         }

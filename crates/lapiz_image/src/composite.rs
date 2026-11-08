@@ -8,7 +8,7 @@ use std::{
 use bevy_math::IRect;
 use dyn_clone::DynClone;
 use encase::ShaderType;
-use glam::IVec2;
+use glam::{IVec2, UVec2};
 use lapiz_runtime::global::{Global, Globals};
 use lapiz_utils::wrapper;
 use log::error;
@@ -227,5 +227,5 @@ pub struct BlendLayerParams {
     pub src_opacity: f32,
     // ...abgr bits
     pub src_disabled_channels: u32,
-    pub _pad: [u32; 2],
+    pub _pad: UVec2,
 }

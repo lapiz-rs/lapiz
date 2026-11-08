@@ -13,8 +13,10 @@ use lapiz_render::{
     bind_group_layout_entries::{
         BindGroupLayoutEntries, DynamicBindGroupLayoutEntries, binding_types,
     },
-    buffer::DynamicBuffer,
-    render, wesl_jit,
+    render,
+    storage_buffer::StorageBuffer,
+    uniform_buffer::DynamicUniformBuffer,
+    wesl_jit,
 };
 use lapiz_shader_graph::{
     graph::{
@@ -35,7 +37,7 @@ use wesl::syntax::*;
 use wesl_quote::{quote_declaration, quote_statement};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Buffer,
-    BufferUsages, CommandEncoder, ComputePass, ComputePipeline, ComputePipelineDescriptor, Device,
+    CommandEncoder, ComputePass, ComputePipeline, ComputePipelineDescriptor, Device,
     PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor, ShaderSource, ShaderStages,
 };
 
@@ -100,18 +102,18 @@ impl BrushInputSamplingPipeline {
     pub fn prepare(
         &self,
         device: &Device,
-        input_batch: &DynamicBuffer<PenInputBatch>,
-        input_sampler: &DynamicBuffer<InputSampler>,
-        output_samples: &DynamicBuffer<OutputSamples>,
-        initial_pen_input: &DynamicBuffer<ComputedPenInput>,
+        input_batch: &StorageBuffer<PenInputBatch>,
+        input_sampler: &StorageBuffer<InputSampler>,
+        output_samples: &StorageBuffer<OutputSamples>,
+        initial_pen_input: &StorageBuffer<ComputedPenInput>,
     ) -> PreparedInputSamplingPipelineData {
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("brush input sampling bind group"),
             layout: &self.layout,
             entries: BindGroupEntries::sequential((
-                input_batch.inner_buffer().unwrap().as_entire_binding(),
+                input_batch.binding().unwrap(),
                 input_sampler.binding().unwrap(),
-                output_samples.inner_buffer().unwrap().as_entire_binding(),
+                output_samples.binding().unwrap(),
                 initial_pen_input.binding().unwrap(),
             ))
             .as_ref(),
@@ -314,12 +316,14 @@ impl BrushMainPipeline {
         initial: &Buffer,
         bounds: &Buffer,
     ) -> (BindGroup, Vec<u32>) {
-        let mut sample_index_buffer =
-            DynamicBuffer::new(Some("sample index buffer".into()), BufferUsages::UNIFORM);
+        let mut sample_index_buffer = DynamicUniformBuffer::new_with_alignment(u64::from(
+            device.limits().min_uniform_buffer_offset_alignment,
+        ));
+        sample_index_buffer.set_label(Some("sample index buffer"));
         let mut sample_index_offsets = Vec::with_capacity(MAX_SAMPLES_PER_INPUT_BATCH as usize);
         for index in 0..MAX_SAMPLES_PER_INPUT_BATCH {
             let offset = sample_index_buffer.push(&index);
-            sample_index_offsets.push(offset as u32);
+            sample_index_offsets.push(offset);
         }
         sample_index_buffer.write_buffer(device, queue);
 

@@ -14,9 +14,9 @@ use lapiz_image::{
 use lapiz_render::{
     bind_group_entries::BindGroupEntries,
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
     readback::{create_readback_buffer_and_schedule_copy_buffer, readback_buffer_on_submit_async},
     render,
+    uniform_buffer::{DynamicUniformBuffer, UniformBuffer},
     util::DevicePollExt as _,
     wesl_jit,
 };
@@ -70,7 +70,7 @@ pub struct JumpParams {
 }
 
 struct BucketResultInternal {
-    bucket_params_buffer: DynamicBuffer<BucketParamsInner>,
+    bucket_params_buffer: UniformBuffer<BucketParamsInner>,
     mask: DynamicLayerStorage,
 }
 
@@ -652,20 +652,16 @@ impl Bucket {
             transparent_mode: 0,
         };
 
-        let mut seed_params_buffer = DynamicBuffer::new(
-            Some("bucket_seed_params_buffer".into()),
-            BufferUsages::UNIFORM,
-        );
-        seed_params_buffer.push(&inner_params);
+        let mut seed_params_buffer = UniformBuffer::from(inner_params);
+        seed_params_buffer.set_label(Some("bucket_seed_params_buffer"));
         seed_params_buffer.write_buffer(device, queue);
 
         let seed_transparent_mode =
             self.classify_seed_mode(device, queue, &seed_params_buffer, ref_layer);
         inner_params.transparent_mode = u32::from(seed_transparent_mode);
 
-        let mut bucket_params_buffer =
-            DynamicBuffer::new(Some("bucket_params_buffer".into()), BufferUsages::UNIFORM);
-        bucket_params_buffer.push(&inner_params);
+        let mut bucket_params_buffer = UniformBuffer::from(inner_params);
+        bucket_params_buffer.set_label(Some("bucket_params_buffer"));
         bucket_params_buffer.write_buffer(device, queue);
 
         let mask_tile_indices = if seed_transparent_mode {
@@ -1108,7 +1104,7 @@ impl Bucket {
         &self,
         device: &Device,
         queue: &Queue,
-        params_buffer: &DynamicBuffer<BucketParamsInner>,
+        params_buffer: &UniformBuffer<BucketParamsInner>,
         ref_layer: &LayerBinding,
     ) -> bool {
         let seed_mode_buffer = device.create_buffer(&BufferDescriptor {
@@ -1159,13 +1155,16 @@ fn create_jfa_params(
     queue: &Queue,
     max_jump: u32,
     label: &'static str,
-) -> (DynamicBuffer<JumpParams>, Vec<u32>) {
-    let mut jump_params_buffer = DynamicBuffer::new(Some(label.into()), BufferUsages::UNIFORM);
+) -> (DynamicUniformBuffer<JumpParams>, Vec<u32>) {
+    let mut jump_params_buffer = DynamicUniformBuffer::new_with_alignment(u64::from(
+        device.limits().min_uniform_buffer_offset_alignment,
+    ));
+    jump_params_buffer.set_label(Some(label));
     let mut jump_params_offsets = Vec::new();
     let mut jump = max_jump.max(1);
     while jump > 0 {
         let offset = jump_params_buffer.push(&JumpParams { jump });
-        jump_params_offsets.push(offset as u32);
+        jump_params_offsets.push(offset);
         jump /= 2;
     }
     jump_params_buffer.write_buffer(device, queue);

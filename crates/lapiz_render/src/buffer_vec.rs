@@ -175,7 +175,7 @@ impl<T: NoUninit> RawBufferVec<T> {
         self.reserve(self.values.len(), device);
         if let Some(buffer) = &self.buffer {
             let range = 0..self.item_size * self.values.len();
-            let bytes: &[u8] = must_cast_slice(&self.values);
+            let bytes = must_cast_slice::<_, u8>(&self.values);
             queue.write_buffer(buffer, 0, &bytes[range]);
         }
     }
@@ -202,7 +202,7 @@ impl<T: NoUninit> RawBufferVec<T> {
         }
         if let Some(buffer) = &self.buffer {
             // Cast only the bytes we need to write
-            let bytes: &[u8] = must_cast_slice(&self.values[range.start..range.end]);
+            let bytes = must_cast_slice::<_, u8>(&self.values[range.start..range.end]);
             render_queue.write_buffer(buffer, (range.start * self.item_size) as u64, bytes);
             Ok(())
         } else {

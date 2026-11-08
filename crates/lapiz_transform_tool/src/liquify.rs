@@ -34,8 +34,8 @@ use lapiz_input::{
 use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
     bind_group_layout_entries::{DynamicBindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
     render_context::RenderContextAppExt as _,
+    uniform_buffer::UniformBuffer,
     wesl_jit,
 };
 use lapiz_runtime::{Renderer, event::Event as _, global::Globals};
@@ -51,10 +51,9 @@ use lapiz_widgets::{
 use parse_display::Display;
 use tracing::warn;
 use wgpu::{
-    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Buffer, BufferUsages,
-    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Device,
-    PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-    StorageTextureAccess, TextureFormat,
+    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Buffer, ComputePassDescriptor,
+    ComputePipeline, ComputePipelineDescriptor, Device, PipelineLayoutDescriptor, Queue,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureFormat,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Display)]
@@ -955,11 +954,8 @@ impl LiquifyPipeline {
             return;
         }
 
-        let mut params_buffer = DynamicBuffer::new(
-            Some("liquify_dab_params_buffer".into()),
-            BufferUsages::UNIFORM,
-        );
-        params_buffer.push(params);
+        let mut params_buffer = UniformBuffer::from(*params);
+        params_buffer.set_label(Some("liquify_dab_params_buffer"));
         params_buffer.write_buffer(device, queue);
 
         let entries = DynamicBindGroupEntries::sequential((

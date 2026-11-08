@@ -4,8 +4,7 @@
 use core::{marker::PhantomData, num::NonZero};
 
 use encase::{
-    DynamicUniformBuffer as DynamicUniformBufferWrapper, ShaderType,
-    UniformBuffer as UniformBufferWrapper,
+    ShaderType,
     internal::{AlignmentValue, BufferMut, WriteInto},
 };
 use wgpu::{
@@ -37,7 +36,7 @@ use crate::bind_group_entries::IntoBinding;
 /// [std140 alignment/padding requirements]: https://www.w3.org/TR/WGSL/#address-spaces-uniform
 pub struct UniformBuffer<T: ShaderType> {
     value: T,
-    scratch: UniformBufferWrapper<Vec<u8>>,
+    scratch: encase::UniformBuffer<Vec<u8>>,
     buffer: Option<Buffer>,
     label: Option<String>,
     changed: bool,
@@ -48,7 +47,7 @@ impl<T: ShaderType> From<T> for UniformBuffer<T> {
     fn from(value: T) -> Self {
         Self {
             value,
-            scratch: UniformBufferWrapper::new(Vec::new()),
+            scratch: encase::UniformBuffer::new(Vec::new()),
             buffer: None,
             label: None,
             changed: false,
@@ -61,7 +60,7 @@ impl<T: ShaderType + Default> Default for UniformBuffer<T> {
     fn default() -> Self {
         Self {
             value: T::default(),
-            scratch: UniformBufferWrapper::new(Vec::new()),
+            scratch: encase::UniformBuffer::new(Vec::new()),
             buffer: None,
             label: None,
             changed: false,
@@ -172,7 +171,7 @@ impl<'a, T: ShaderType + WriteInto> IntoBinding<'a> for &'a UniformBuffer<T> {
 ///
 /// [std140 alignment/padding requirements]: https://www.w3.org/TR/WGSL/#address-spaces-uniform
 pub struct DynamicUniformBuffer<T: ShaderType> {
-    scratch: DynamicUniformBufferWrapper<Vec<u8>>,
+    scratch: encase::DynamicUniformBuffer<Vec<u8>>,
     buffer: Option<Buffer>,
     label: Option<String>,
     changed: bool,
@@ -183,7 +182,7 @@ pub struct DynamicUniformBuffer<T: ShaderType> {
 impl<T: ShaderType> Default for DynamicUniformBuffer<T> {
     fn default() -> Self {
         Self {
-            scratch: DynamicUniformBufferWrapper::new(Vec::new()),
+            scratch: encase::DynamicUniformBuffer::new(Vec::new()),
             buffer: None,
             label: None,
             changed: false,
@@ -196,7 +195,7 @@ impl<T: ShaderType> Default for DynamicUniformBuffer<T> {
 impl<T: ShaderType> DynamicUniformBuffer<T> {
     pub fn new_with_alignment(alignment: u64) -> Self {
         Self {
-            scratch: DynamicUniformBufferWrapper::new_with_alignment(Vec::new(), alignment),
+            scratch: encase::DynamicUniformBuffer::new_with_alignment(Vec::new(), alignment),
             buffer: None,
             label: None,
             changed: false,
