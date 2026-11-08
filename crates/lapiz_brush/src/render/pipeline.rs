@@ -40,7 +40,8 @@ use wgpu::{
 use crate::{
     brush,
     render::{
-        BatchBounds, ComputedPenInput, InputSampler, OutputSamples, PenInputBatch,
+        BatchBounds, ComputedPenInput, InputSampler, MAX_SAMPLES_PER_INPUT_BATCH, OutputSamples,
+        PenInputBatch,
         graph::{BRUSH_SAMPLE_BUILTIN, INITIAL_PEN_INPUT_BUILTIN},
     },
 };
@@ -310,12 +311,11 @@ impl BrushMainPipeline {
         samples: &Buffer,
         initial: &Buffer,
         bounds: &Buffer,
-        capacity: usize,
     ) -> (BindGroup, Vec<u32>) {
         let mut sample_index_buffer =
             DynamicBuffer::new(Some("sample index buffer".into()), BufferUsages::UNIFORM);
-        let mut sample_index_offsets = Vec::with_capacity(capacity);
-        for index in 0..capacity {
+        let mut sample_index_offsets = Vec::with_capacity(MAX_SAMPLES_PER_INPUT_BATCH as usize);
+        for index in 0..MAX_SAMPLES_PER_INPUT_BATCH {
             let offset = sample_index_buffer.push(&(index as u32));
             sample_index_offsets.push(offset as u32);
         }

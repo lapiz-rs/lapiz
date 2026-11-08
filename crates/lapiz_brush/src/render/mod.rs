@@ -31,8 +31,9 @@ use lapiz_image::{
 };
 use lapiz_input::mouse::PressedMouseState;
 use lapiz_render::{
-    bind_group_entries::DynamicBindGroupEntries, buffer::DynamicBuffer,
-    readback::readback_buffer_on_submit_async,
+    bind_group_entries::DynamicBindGroupEntries,
+    buffer::DynamicBuffer,
+    readback::{create_readback_buffer_and_schedule_copy_buffer, readback_buffer_on_submit_async},
 };
 use lapiz_runtime::global::Globals;
 use lapiz_shader_graph::{
@@ -66,8 +67,8 @@ pub mod graph;
 pub mod pipeline;
 pub mod stroke_preview;
 
-const MAX_DABS_PER_STROKE: u32 = 256;
-const MAX_INPUTS_PER_SAMPLE_BATCH: usize = 32;
+const MAX_SAMPLES_PER_INPUT_BATCH: u32 = 256;
+const MAX_INPUTS_PER_BATCH: usize = 32;
 
 pub struct CanvasBrushStrokeSessionInfo {
     pub stroke_id: u64,
@@ -488,9 +489,7 @@ impl BrushPresetRenderer {
             Some("output samples".into()),
             BufferUsages::COPY_SRC | BufferUsages::STORAGE,
         );
-        output_samples.push(&OutputSamples::new(
-            MAX_DABS_PER_STROKE * MAX_INPUTS_PER_SAMPLE_BATCH as u32,
-        ));
+        output_samples.push(&OutputSamples::new());
         output_samples.write_buffer(device, queue);
 
         let input_sample_prepared = self.input_sample.prepare(
@@ -511,12 +510,11 @@ impl BrushPresetRenderer {
             },
         );
 
-        let capacity = (MAX_DABS_PER_STROKE as usize) * MAX_INPUTS_PER_SAMPLE_BATCH;
         let mut batch_bounds = DynamicBuffer::new(
             Some("brush batch bounds".into()),
             BufferUsages::STORAGE | BufferUsages::COPY_SRC,
         );
-        batch_bounds.push(&BatchBounds::new(capacity));
+        batch_bounds.push(&BatchBounds::new());
         batch_bounds.write_buffer(device, queue);
         let (main_batch_group, main_sample_index_offsets) = self.compiled.main.prepare_batch_group(
             device,
@@ -524,7 +522,6 @@ impl BrushPresetRenderer {
             output_samples.inner_buffer().unwrap(),
             initial_pen_input.inner_buffer().unwrap(),
             batch_bounds.inner_buffer().unwrap(),
-            capacity,
         );
         let profile = Arc::new(Mutex::new(BrushStrokeProfile::default()));
         let empty_accumulator = prepared_literal(
@@ -648,7 +645,7 @@ impl BrushStrokeWorker {
                 };
                 match work {
                     StrokeWork::Inputs(inputs) => {
-                        for inputs in inputs.chunks(MAX_INPUTS_PER_SAMPLE_BATCH) {
+                        for inputs in inputs.chunks(MAX_INPUTS_PER_BATCH) {
                             if let Err(error) = self.process_input_batch(inputs).await {
                                 log::error!("Brush main effects failed: {error:#}");
                             }
@@ -706,19 +703,10 @@ impl BrushStrokeWorker {
         main_pipeline.dispatch_eval(&mut encoder, &self.main_batch_group, &resources);
         let eval_cpu = eval_started.elapsed();
         let bounds_buffer = self.batch_bounds.inner_buffer().unwrap();
-        let max_samples = inputs.len() * MAX_DABS_PER_STROKE as usize;
-        let readback_size =
-            BatchBounds::min_size().get() + (max_samples as u64 - 1) * DabBounds::SHADER_SIZE.get();
-
-        let staging = device.create_buffer(&BufferDescriptor {
-            label: Some("brush batch bounds readback"),
-            size: readback_size,
-            usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        encoder.copy_buffer_to_buffer(bounds_buffer, 0, &staging, 0, readback_size);
-        let readback =
-            readback_buffer_on_submit_async::<BatchBounds, _>(&mut encoder, &staging, ..);
+        let bounds_staging =
+            create_readback_buffer_and_schedule_copy_buffer(&device, &mut encoder, bounds_buffer);
+        let bounds_readback =
+            readback_buffer_on_submit_async::<BatchBounds, _>(&mut encoder, &bounds_staging, ..);
         self.input_profiler.resolve_queries(&mut encoder);
         let readback_started = Instant::now();
         queue.submit([encoder.finish()]);
@@ -727,13 +715,13 @@ impl BrushStrokeWorker {
             .expect("brush input GPU profile frame must be complete");
 
         // readback bounds and allocate
-        let samples = readback.into_inner().await??;
+        let samples = bounds_readback.into_inner().await??;
         let bounds_readback = readback_started.elapsed();
         let batch_dab_count = samples.n_samples as usize;
         let main_started = Instant::now();
 
         let count = samples.n_samples as usize;
-        if samples.is_overflow != 0 || count > max_samples || count > samples.entries.len() {
+        if samples.is_overflow != 0 {
             bail!("Brush sample batch exceeds its output capacity");
         }
 
@@ -1080,9 +1068,9 @@ pub struct PenInputBatch {
 
 impl PenInputBatch {
     pub fn new(inputs: &[PenInput]) -> Self {
-        assert!(inputs.len() <= MAX_INPUTS_PER_SAMPLE_BATCH);
+        assert!(inputs.len() <= MAX_INPUTS_PER_BATCH);
         let mut batch = inputs.to_vec();
-        batch.resize(MAX_INPUTS_PER_SAMPLE_BATCH, PenInput::default());
+        batch.resize(MAX_INPUTS_PER_BATCH, PenInput::default());
         Self {
             n_inputs: inputs.len() as u32,
             inputs: batch,
@@ -1099,11 +1087,11 @@ pub struct OutputSamples {
 }
 
 impl OutputSamples {
-    pub fn new(max_samples: u32) -> Self {
+    pub fn new() -> Self {
         Self {
             n_samples: 0,
             is_overflow: 0,
-            samples: vec![ComputedPenInput::default(); max_samples as usize],
+            samples: vec![ComputedPenInput::default(); MAX_SAMPLES_PER_INPUT_BATCH as usize],
         }
     }
 }
@@ -1164,7 +1152,7 @@ pub struct BatchBounds {
 }
 
 impl BatchBounds {
-    pub fn new(capacity: usize) -> Self {
+    pub fn new() -> Self {
         Self {
             n_samples: 0,
             is_overflow: 0,
@@ -1173,7 +1161,7 @@ impl BatchBounds {
                     bounds: IVec4::ZERO,
                     accumulator_bounds: IVec4::ZERO
                 };
-                capacity
+                MAX_SAMPLES_PER_INPUT_BATCH as usize
             ],
         }
     }

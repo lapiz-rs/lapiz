@@ -54,7 +54,7 @@ fn compute_pen_input(last: PenInput, current: PenInput, p0: vec2f, p1: vec2f, p2
     return ComputedPenInput(position, draw_direction_vec, tilt, angle, draw_direction_angle, pressure, dab_index, stroke_distance, time);
 }
 
-fn sample_input(new_input: PenInput, max_output_samples: u32) {
+fn sample_input(new_input: PenInput) {
     let p0 = input_sampler.last_input.position;
     let p1 = new_input.bezier_control_prev;
     let p2 = new_input.bezier_control_cur;
@@ -97,7 +97,7 @@ fn sample_input(new_input: PenInput, max_output_samples: u32) {
     }
 
     var target_arc = input_sampler.distance_to_next_dab;
-    while target_arc <= total_arc && output_samples.n_samples < max_output_samples {
+    while target_arc <= total_arc && output_samples.n_samples < arrayLength(&output_samples.samples) {
         let t = bezier_t_for_arc_length(&arc_table, target_arc);
         let interpolated = compute_pen_input(
             input_sampler.last_input,
@@ -144,11 +144,8 @@ fn main() {
     output_samples.n_samples = 0u;
     output_samples.is_overflow = 0u;
 
-    let max_output_samples = input_batch.n_inputs
-        * arrayLength(&output_samples.samples)
-        / arrayLength(&input_batch.inputs);
     for (var i = 0u; i < input_batch.n_inputs; i++) {
-        sample_input(input_batch.inputs[i], max_output_samples);
+        sample_input(input_batch.inputs[i]);
         if output_samples.is_overflow != 0u {
             return;
         }
