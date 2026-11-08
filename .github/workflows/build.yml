@@ -129,7 +129,7 @@ jobs:
 
       - run: just setup-format
 
-      - uses: tombi-toml/setup-tombi@v1.5.5
+      - uses: tombi-toml/setup-tombi@v1.10.0
 
       - run: just check-fmt
 
