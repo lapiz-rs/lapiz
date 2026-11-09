@@ -3,13 +3,14 @@ use lapiz_color::shader::IccTransformShader;
 use lapiz_render::{
     bind_group_entries::BindGroupEntries,
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
-    wesl_jit::compile_wesl,
+    wesl_jit::compile_wesl_with_config_and_include,
 };
-use moxcms::{ColorProfile, Layout, TransformOptions};
+use moxcms::{ColorProfile, TransformOptions};
 use wgpu::{
-    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, ComputePassDescriptor,
-    ComputePipeline, ComputePipelineDescriptor, Device, PipelineLayoutDescriptor, Queue,
-    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureView,
+    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
+    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Device,
+    PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor, ShaderSource, ShaderStages,
+    StorageTextureAccess, TextureView,
 };
 
 use crate::{image, texel::TexelType, tile::GpuTileStorage};
@@ -17,6 +18,7 @@ use crate::{image, texel::TexelType, tile::GpuTileStorage};
 pub struct ColorProfileConvertPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,
+    trc_bind_group: BindGroup,
 }
 
 impl ColorProfileConvertPipeline {
@@ -24,9 +26,7 @@ impl ColorProfileConvertPipeline {
         device: &Device,
         texel_type: TexelType,
         src_pr: &ColorProfile,
-        src_layout: Layout,
         dst_pr: &ColorProfile,
-        dst_layout: Layout,
         options: TransformOptions,
     ) -> Result<Self> {
         let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -40,25 +40,37 @@ impl ColorProfileConvertPipeline {
             ),
         });
 
-        let icc_transform = IccTransformShader::new(
-            "transform_color",
-            src_pr,
-            src_layout,
-            dst_pr,
-            dst_layout,
-            options,
+        let icc_transform =
+            IccTransformShader::new("transform_color", src_pr, dst_pr, options, device)?;
+        let (icc_shader, trc_entries) = icc_transform.compile(1, 0, ShaderStages::COMPUTE);
+        let trc_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("color_profile_convert_trc_layout"),
+            entries: &trc_entries,
+        });
+        let trc_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("color_profile_convert_trc_bind_group"),
+            layout: &trc_layout,
+            entries: &icc_transform.bindings(0),
+        });
+        let shader = compile_wesl_with_config_and_include(
+            include_str!("color_space_convert.wesl").into(),
+            &[&image::PACKAGE],
+            |resolver| {
+                resolver.add_module(
+                    "package::icc_transform".parse().unwrap(),
+                    icc_shader.clone().into(),
+                );
+            },
+            |_| {},
         )?;
-        let shader = include_str!("color_space_convert.wesl")
-            .replace("//CODEGEN_FLAG_TRANSFORM_COLOR", &icc_transform.function);
-
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("color_space_convert_shader"),
-            source: ShaderSource::Wgsl(compile_wesl(shader, &[&image::PACKAGE])?.into()),
+            source: ShaderSource::Wgsl(shader.into()),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("color_space_convert_pipeline_layout"),
-            bind_group_layouts: &[Some(&layout)],
+            bind_group_layouts: &[Some(&layout), Some(&trc_layout)],
             immediate_size: 0,
         });
 
@@ -71,7 +83,11 @@ impl ColorProfileConvertPipeline {
             cache: None,
         });
 
-        Ok(Self { layout, pipeline })
+        Ok(Self {
+            layout,
+            pipeline,
+            trc_bind_group,
+        })
     }
 
     pub fn convert(&self, device: &Device, queue: &Queue, tiles: &TextureView) {
@@ -93,6 +109,7 @@ impl ColorProfileConvertPipeline {
 
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &bind_group, &[]);
+            pass.set_bind_group(1, &self.trc_bind_group, &[]);
             pass.dispatch_workgroups(
                 GpuTileStorage::TILE_SIZE.div_ceil(16),
                 GpuTileStorage::TILE_SIZE.div_ceil(16),

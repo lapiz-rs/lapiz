@@ -114,7 +114,12 @@ impl IccTransformShader {
         }
     }
 
-    pub fn compile(&self, group: u32, start_binding: u32) -> (String, Vec<BindGroupLayoutEntry>) {
+    pub fn compile(
+        &self,
+        group: u32,
+        start_binding: u32,
+        visibility: ShaderStages,
+    ) -> (String, Vec<BindGroupLayoutEntry>) {
         let shader = format!(
             "{}\nconst {}: u32 = {};\nconst {}: u32 = {};\n",
             self.shader,
@@ -130,7 +135,7 @@ impl IccTransformShader {
             .enumerate()
             .map(|(i, storage)| BindGroupLayoutEntry {
                 binding: start_binding + i as u32,
-                visibility: ShaderStages::FRAGMENT,
+                visibility,
                 ty: BindingType::Buffer {
                     ty: BufferBindingType::Storage { read_only: true },
                     has_dynamic_offset: false,

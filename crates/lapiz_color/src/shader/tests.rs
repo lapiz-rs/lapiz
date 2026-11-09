@@ -22,7 +22,7 @@ fn run_shader(shader: &IccTransformShader, input: &[[f32; 3]]) -> Vec<[f32; 3]> 
     let device = &context.device;
     device.on_uncaptured_error(Arc::new(|error| panic!("{error}")));
     let queue = &context.queue;
-    let (mut source, trc_layout) = shader.compile(1, 5);
+    let (mut source, trc_layout) = shader.compile(1, 5, ShaderStages::FRAGMENT);
     source.push_str(
         &quote_module! {
             @group(0) @binding(0) var<storage, read> inputs: array<vec4f>;
@@ -242,7 +242,7 @@ fn sampled_curves_match_moxcms_in_both_directions() {
             &context.device,
         )
         .unwrap();
-        let (_, layout) = shader.compile(1, 5);
+        let (_, layout) = shader.compile(1, 5, ShaderStages::FRAGMENT);
         assert_eq!(shader.bindings(5).len(), expected_tables);
         assert_eq!(layout.len(), expected_tables);
         for (i, (binding, entry)) in shader.bindings(5).iter().zip(&layout).enumerate() {
@@ -413,7 +413,7 @@ fn analytic_and_unmanaged_transforms_have_empty_bindings() {
     .unwrap();
     let unmanaged = IccTransformShader::unmanaged("convert");
     for shader in [&managed, &unmanaged] {
-        let (_, layout) = shader.compile(1, 8);
+        let (_, layout) = shader.compile(1, 8, ShaderStages::FRAGMENT);
         assert!(layout.is_empty());
         assert!(shader.bindings(8).is_empty());
     }

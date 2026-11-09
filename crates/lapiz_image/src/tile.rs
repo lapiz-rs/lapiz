@@ -901,9 +901,7 @@ impl DynamicLayerStorage {
             &self.device,
             self.layer_info.texel_type,
             src_pr,
-            self.layer_info.texel_type.moxcms_layout(),
             dst_pr,
-            self.layer_info.texel_type.moxcms_layout(),
             options,
         )?;
         converter.convert(&self.device, &self.queue, texture);

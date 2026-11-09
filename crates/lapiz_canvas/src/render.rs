@@ -17,10 +17,10 @@ use lapiz_render::{
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
     resources::{FullscreenVertex, GlobalSamplers},
     uniform_buffer::UniformBuffer,
-    wesl_jit::compile_wesl,
+    wesl_jit::compile_wesl_with_config_and_include,
 };
 use lapiz_widgets::shader;
-use moxcms::{ColorProfile, Layout};
+use moxcms::ColorProfile;
 use wesl::include_wesl;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -72,10 +72,9 @@ impl CanvasRenderer {
         let icc_transform = IccTransformShader::new(
             ICC_TRANSFORM_SHADER_IDENT,
             src_pr,
-            Layout::Rgb,
             &dst_pr,
-            Layout::Rgb,
             Default::default(),
+            device,
         )?;
         self.render_pipeline = CanvasRenderPipeline::new(
             device,
@@ -261,6 +260,7 @@ impl shader::Primitive for CanvasPrimitive {
 struct CanvasRenderPipeline {
     pipeline: ComputePipeline,
     main_layout: BindGroupLayout,
+    trc_bind_group: BindGroup,
     uniform_buffer: UniformBuffer<CanvasUniform>,
     dispatch: Option<(BindGroup, UVec3)>,
 }
@@ -317,16 +317,37 @@ impl CanvasRenderPipeline {
             )
             .as_ref(),
         });
+
+        let (icc_shader, trc_entries) = icc_transform.compile(1, 0, ShaderStages::COMPUTE);
+        let trc_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("canvas TRC layout"),
+            entries: &trc_entries,
+        });
+        let trc_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("canvas TRC bind group"),
+            layout: &trc_layout,
+            entries: &icc_transform.bindings(0),
+        });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("canvas pipeline layout"),
-            bind_group_layouts: &[Some(&main_layout)],
+            bind_group_layouts: &[Some(&main_layout), Some(&trc_layout)],
             immediate_size: 0,
         });
-        let shader = include_str!("shaders/canvas_render.wesl")
-            .replace("//CODEGEN_FLAG_CALIBRATE_COLOR", &icc_transform.function);
+        let shader = compile_wesl_with_config_and_include(
+            include_str!("shaders/canvas_render.wesl").into(),
+            &[&PACKAGE],
+            |resolver| {
+                resolver.add_module(
+                    "package::icc_transform".parse().unwrap(),
+                    icc_shader.clone().into(),
+                );
+            },
+            |_| {},
+        )
+        .unwrap();
         let shader_module = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("canvas shader"),
-            source: ShaderSource::Wgsl(compile_wesl(shader, &[&PACKAGE]).unwrap().into()),
+            source: ShaderSource::Wgsl(shader.into()),
         });
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
             label: Some("canvas pipeline"),
@@ -342,6 +363,7 @@ impl CanvasRenderPipeline {
         Self {
             pipeline,
             main_layout,
+            trc_bind_group,
             uniform_buffer,
             dispatch: None,
         }
@@ -402,6 +424,7 @@ impl CanvasRenderPipeline {
         });
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, bind_group, &[]);
+        pass.set_bind_group(1, &self.trc_bind_group, &[]);
         pass.dispatch_workgroups(workgroups.x, workgroups.y, workgroups.z);
     }
 }
