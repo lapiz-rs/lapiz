@@ -1,4 +1,4 @@
-use std::{sync::OnceLock, time::Instant};
+use std::{fmt, sync::OnceLock, time::Instant};
 
 use anyhow::Result;
 use bevy_math::IRect;
@@ -15,8 +15,8 @@ use lapiz_image::{
 use lapiz_render::{
     bind_group_entries::BindGroupEntries,
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
     resources::{FullscreenVertex, GlobalSamplers},
+    uniform_buffer::UniformBuffer,
     wesl_jit::compile_wesl,
 };
 use lapiz_widgets::shader;
@@ -24,14 +24,14 @@ use moxcms::{ColorProfile, Layout};
 use wesl::include_wesl;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingResource, BindingType, BlendState, BufferUsages, ColorTargetState,
-    ColorWrites, CommandEncoder, ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor,
-    Device, Extent3d, FilterMode, FragmentState, LoadOp, Operations, PipelineLayoutDescriptor,
-    Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor,
-    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, StoreOp,
-    TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
-    TextureView, TextureViewDescriptor, TextureViewDimension,
+    BindGroupLayoutEntry, BindingResource, BindingType, BlendState, ColorTargetState, ColorWrites,
+    CommandEncoder, ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Device,
+    Extent3d, FilterMode, FragmentState, LoadOp, Operations, PipelineLayoutDescriptor, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+    Sampler, SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource,
+    ShaderStages, StorageTextureAccess, StoreOp, TextureDescriptor, TextureDimension,
+    TextureFormat, TextureSampleType, TextureUsages, TextureView, TextureViewDescriptor,
+    TextureViewDimension,
 };
 
 use crate::control::CanvasTransform;
@@ -258,15 +258,25 @@ impl shader::Primitive for CanvasPrimitive {
     }
 }
 
-#[derive(Debug)]
 struct CanvasRenderPipeline {
     pipeline: ComputePipeline,
     main_layout: BindGroupLayout,
-    uniform_buffer: DynamicBuffer<CanvasUniform>,
+    uniform_buffer: UniformBuffer<CanvasUniform>,
     dispatch: Option<(BindGroup, UVec3)>,
 }
 
-#[derive(Debug, Clone, Copy, ShaderType)]
+impl fmt::Debug for CanvasRenderPipeline {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CanvasRenderPipeline")
+            .field("pipeline", &self.pipeline)
+            .field("main_layout", &self.main_layout)
+            .field("uniform_buffer", &self.uniform_buffer.buffer())
+            .field("dispatch", &self.dispatch)
+            .finish()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, ShaderType)]
 struct CanvasUniform {
     transform: Mat3,
     inv_transform: Mat3,
@@ -326,13 +336,13 @@ impl CanvasRenderPipeline {
             compilation_options: Default::default(),
             cache: None,
         });
+        let mut uniform_buffer = UniformBuffer::default();
+        uniform_buffer.set_label(Some("canvas uniform buffer"));
+
         Self {
             pipeline,
             main_layout,
-            uniform_buffer: DynamicBuffer::new(
-                Some("canvas uniform buffer".into()),
-                BufferUsages::UNIFORM,
-            ),
+            uniform_buffer,
             dispatch: None,
         }
     }
@@ -347,8 +357,7 @@ impl CanvasRenderPipeline {
         root_layer_id: LayerId,
         selection_layer_id: LayerId,
     ) {
-        self.uniform_buffer.clear();
-        self.uniform_buffer.push(&uniform);
+        self.uniform_buffer.set(uniform);
         self.uniform_buffer.write_buffer(device, queue);
         let Some(uniform_buffer) = self.uniform_buffer.binding() else {
             return;

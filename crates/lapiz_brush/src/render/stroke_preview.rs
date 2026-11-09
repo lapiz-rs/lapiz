@@ -18,11 +18,11 @@ use lapiz_image::{
 use lapiz_render::{
     bind_group_entries::BindGroupEntries,
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
     readback::{
         create_readback_buffer_and_schedule_copy_texture, readback_buffer_raw_on_submit_async,
     },
     render_context::RenderContextAppExt as _,
+    storage_buffer::StorageBuffer,
     util::DevicePollExt as _,
 };
 use lapiz_runtime::global::Globals;
@@ -30,11 +30,10 @@ use lapiz_utils::log_err::LogErr as _;
 use tracing::info;
 use wesl::include_wesl;
 use wgpu::{
-    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Buffer, BufferUsages,
-    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Device, Extent3d,
-    PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-    StorageTextureAccess, Texture, TextureDescriptor, TextureDimension, TextureFormat,
-    TextureUsages, TextureViewDescriptor,
+    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Buffer, ComputePassDescriptor,
+    ComputePipeline, ComputePipelineDescriptor, Device, Extent3d, PipelineLayoutDescriptor, Queue,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, Texture,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor,
 };
 
 use crate::{
@@ -247,20 +246,14 @@ pub fn create_stroke_preview_on_target_with(
     );
 
     let foreground_color = {
-        let mut buffer = DynamicBuffer::new(
-            Some("brush preview foreground color".into()),
-            BufferUsages::STORAGE,
-        );
-        buffer.push(&canvas_resources.foreground_color);
+        let mut buffer = StorageBuffer::from(canvas_resources.foreground_color);
+        buffer.set_label(Some("brush preview foreground color"));
         buffer.write_buffer(device, queue);
         buffer
     };
     let background_color = {
-        let mut buffer = DynamicBuffer::new(
-            Some("brush preview background color".into()),
-            BufferUsages::STORAGE,
-        );
-        buffer.push(&canvas_resources.background_color);
+        let mut buffer = StorageBuffer::from(canvas_resources.background_color);
+        buffer.set_label(Some("brush preview background color"));
         buffer.write_buffer(device, queue);
         buffer
     };

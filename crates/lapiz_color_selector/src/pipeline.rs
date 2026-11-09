@@ -10,11 +10,12 @@ use lapiz_color::{
 use lapiz_render::{
     bind_group_entries::BindGroupEntries,
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
     readback::{
         AsyncBufferReadback, create_readback_buffer_and_schedule_copy_buffer,
         readback_buffer_on_submit_async,
     },
+    storage_buffer::StorageBuffer,
+    uniform_buffer::UniformBuffer,
     wesl_jit::{compile_wesl, compile_wesl_with_config},
 };
 use moxcms::{ColorProfile, Layout};
@@ -114,27 +115,19 @@ impl ComputeBoundsPipeline {
         queue: &Queue,
         settings: &GradientSettings,
     ) -> AsyncBufferReadback<OutputBounds> {
-        let mut settings_buffer = DynamicBuffer::new(
-            Some("compute_bounds_settings_buffer".into()),
-            BufferUsages::UNIFORM,
-        );
-        settings_buffer.push(settings);
+        let mut settings_buffer = UniformBuffer::from(settings.clone());
+        settings_buffer.set_label(Some("compute_bounds_settings_buffer"));
         settings_buffer.write_buffer(device, queue);
 
-        let mut params_buffer = DynamicBuffer::new(
-            Some("compute_bounds_params_buffer".into()),
-            BufferUsages::UNIFORM,
-        );
-        params_buffer.push(&ComputeBoundsParams {
+        let mut params_buffer = UniformBuffer::from(ComputeBoundsParams {
             resolution: UVec2::splat(COMPUTE_BOUNDS_RESOLUTION),
         });
+        params_buffer.set_label(Some("compute_bounds_params_buffer"));
         params_buffer.write_buffer(device, queue);
 
-        let mut output_buffer = DynamicBuffer::new(
-            Some("compute_bounds_output_buffer".into()),
-            BufferUsages::STORAGE | BufferUsages::COPY_SRC,
-        );
-        output_buffer.push(&OutputBounds::empty());
+        let mut output_buffer = StorageBuffer::from(OutputBounds::empty());
+        output_buffer.set_label(Some("compute_bounds_output_buffer"));
+        output_buffer.add_usages(BufferUsages::COPY_SRC);
         output_buffer.write_buffer(device, queue);
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
@@ -165,7 +158,7 @@ impl ComputeBoundsPipeline {
         let readback_buffer = create_readback_buffer_and_schedule_copy_buffer(
             device,
             &mut encoder,
-            output_buffer.inner_buffer().unwrap(),
+            output_buffer.buffer().unwrap(),
         );
         let readback =
             readback_buffer_on_submit_async::<OutputBounds, _>(&mut encoder, &readback_buffer, ..);

@@ -10,13 +10,15 @@ use crate::{
 
 pub mod bind_group_entries;
 pub mod bind_group_layout_entries;
-pub mod buffer;
+pub mod buffer_vec;
 pub mod owned_bind_group_entries;
 pub mod readback;
 pub mod render_context;
 pub mod resources;
+pub mod storage_buffer;
 pub mod texture;
 pub mod texture_atlas;
+pub mod uniform_buffer;
 pub mod util;
 pub mod wesl_jit;
 

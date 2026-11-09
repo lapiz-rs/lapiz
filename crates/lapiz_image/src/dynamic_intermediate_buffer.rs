@@ -1,7 +1,7 @@
 use bevy_math::IRect;
 use encase::ShaderType;
 use glam::IVec2;
-use lapiz_render::buffer::{BufferVec, DynamicBuffer};
+use lapiz_render::{buffer_vec::BufferVec, storage_buffer::StorageBuffer};
 use wgpu::{
     Buffer, BufferUsages, Device, Extent3d, Queue, TextureDescriptor, TextureDimension,
     TextureUsages, TextureView, TextureViewDimension, wgt::TextureViewDescriptor,
@@ -23,7 +23,7 @@ pub struct DynamicIntermediateBuffer {
     device: Device,
     queue: Queue,
     textures: [TextureView; 2],
-    tile_info: DynamicBuffer<DynamicGpuTileInfoBuffer>,
+    tile_info: StorageBuffer<DynamicGpuTileInfoBuffer>,
     tiles: u32,
 }
 
@@ -59,14 +59,12 @@ impl DynamicIntermediateBuffer {
                 ..Default::default()
             });
 
-        let mut info = DynamicBuffer::new(
-            Some("dynamic intermediate buffer".into()),
-            BufferUsages::STORAGE | BufferUsages::COPY_SRC,
-        );
-        info.push(&DynamicGpuTileInfoBuffer {
+        let mut info = StorageBuffer::from(DynamicGpuTileInfoBuffer {
             n_tiles: 0,
             buf: vec![GpuTileInfo::default(); initial as usize],
         });
+        info.set_label(Some("dynamic intermediate buffer"));
+        info.add_usages(BufferUsages::COPY_SRC);
         info.write_buffer(&device, &queue);
 
         Self {
@@ -83,7 +81,7 @@ impl DynamicIntermediateBuffer {
     }
 
     pub fn tile_info_buffer(&self) -> &Buffer {
-        self.tile_info.inner_buffer().unwrap()
+        self.tile_info.buffer().unwrap()
     }
 
     pub fn clear(&mut self) {
@@ -93,8 +91,7 @@ impl DynamicIntermediateBuffer {
         }
         self.queue.submit([ec.finish()]);
 
-        self.tile_info.clear();
-        self.tile_info.push(&DynamicGpuTileInfoBuffer {
+        self.tile_info.set(DynamicGpuTileInfoBuffer {
             n_tiles: 0,
             buf: vec![GpuTileInfo::NULL; self.tiles as usize],
         });
@@ -143,13 +140,11 @@ impl IntermediateBuffer {
                 ..Default::default()
             });
 
-        let mut tile_info_buffer = BufferVec::new(
-            Some("intermediate buffer tile info".into()),
-            BufferUsages::STORAGE,
-        );
+        let mut tile_info_buffer = BufferVec::new(BufferUsages::STORAGE);
+        tile_info_buffer.set_label(Some("intermediate buffer tile info"));
         for y in tile_rect.min.y..tile_rect.max.y {
             for x in tile_rect.min.x..tile_rect.max.x {
-                tile_info_buffer.push(&GpuTileInfo::new(IVec2::new(x, y)));
+                tile_info_buffer.push(GpuTileInfo::new(IVec2::new(x, y)));
             }
         }
         tile_info_buffer.write_buffer(device, queue);
@@ -157,7 +152,7 @@ impl IntermediateBuffer {
         Self {
             textures: [texture_a, texture_b],
             tile_rect,
-            tile_info_buffer: tile_info_buffer.into_inner_buffer().unwrap(),
+            tile_info_buffer: tile_info_buffer.buffer().unwrap().clone(),
             texel_type,
         }
     }

@@ -4,7 +4,7 @@ use wgpu::{
     Texture, TextureAspect, TextureDimension, TextureUsages, TextureView, TextureViewDescriptor,
 };
 
-use crate::buffer::BufferVec;
+use crate::buffer_vec::BufferVec;
 
 pub struct TextureAtlasBuilder {
     textures: Vec<Texture>,
@@ -120,12 +120,13 @@ impl TextureAtlasBuilder {
             .map(|t| t.create_view(&TextureViewDescriptor::default()))
             .collect::<Vec<_>>();
 
-        let mut atlas_bounds_buffer = BufferVec::new(
-            Some(format!("{}_atlas_bounds_buffer", atlas_name.unwrap_or_default()).into()),
-            BufferUsages::STORAGE,
-        );
+        let mut atlas_bounds_buffer = BufferVec::new(BufferUsages::STORAGE);
+        atlas_bounds_buffer.set_label(Some(&format!(
+            "{}_atlas_bounds_buffer",
+            atlas_name.unwrap_or_default()
+        )));
         for bounds in &atlas_bounds {
-            atlas_bounds_buffer.push(bounds);
+            atlas_bounds_buffer.push(*bounds);
         }
         atlas_bounds_buffer.write_buffer(device, queue);
 
@@ -134,7 +135,7 @@ impl TextureAtlasBuilder {
             texture_view,
             atlases,
             atlas_bounds,
-            atlas_bounds_buffer: atlas_bounds_buffer.into_inner_buffer().unwrap(),
+            atlas_bounds_buffer: atlas_bounds_buffer.buffer().unwrap().clone(),
         })
     }
 }

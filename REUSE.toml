@@ -72,6 +72,16 @@ SPDX-FileCopyrightText = [
 SPDX-License-Identifier = "GPL-3.0-or-later AND MIT"
 
 [[annotations]]
+path = [
+    "crates/lapiz_render/src/buffer_vec.rs",
+    "crates/lapiz_render/src/storage_buffer.rs",
+    "crates/lapiz_render/src/uniform_buffer.rs",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "Bevy contributors"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
 path = "docs/readme/main.png"
 SPDX-FileCopyrightText = [
     "Contributors to Lapiz",

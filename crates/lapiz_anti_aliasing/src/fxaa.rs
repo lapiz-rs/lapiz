@@ -3,14 +3,13 @@ use lapiz_image::tile::{GpuTileInfo, LayerBinding};
 use lapiz_render::{
     bind_group_entries::BindGroupEntries,
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
+    uniform_buffer::UniformBuffer,
 };
 use wesl::include_wesl;
 use wgpu::{
-    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BufferUsages,
-    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Device,
-    PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-    StorageTextureAccess, TextureFormat,
+    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, ComputePassDescriptor,
+    ComputePipeline, ComputePipelineDescriptor, Device, PipelineLayoutDescriptor, Queue,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureFormat,
 };
 
 #[derive(ShaderType, Debug, Clone, Copy)]
@@ -123,9 +122,8 @@ impl FxaaPipeline {
         src: LayerBinding,
         dst: LayerBinding,
     ) {
-        let mut fxaa_params_buffer =
-            DynamicBuffer::new(Some("fxaa_params_buffer".into()), BufferUsages::UNIFORM);
-        fxaa_params_buffer.push(params);
+        let mut fxaa_params_buffer = UniformBuffer::from(*params);
+        fxaa_params_buffer.set_label(Some("fxaa_params_buffer"));
         fxaa_params_buffer.write_buffer(device, queue);
 
         let fxaa_bind_group = device.create_bind_group(&BindGroupDescriptor {

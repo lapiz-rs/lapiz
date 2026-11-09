@@ -6,13 +6,13 @@ use glam::{IVec2, UVec3};
 use lapiz_render::{
     bind_group_entries::BindGroupEntries,
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
+    uniform_buffer::UniformBuffer,
     wesl_jit,
 };
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BufferUsages,
-    ComputePass, ComputePipeline, ComputePipelineDescriptor, Device, PipelineLayoutDescriptor,
-    Queue, ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess,
+    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, ComputePass,
+    ComputePipeline, ComputePipelineDescriptor, Device, PipelineLayoutDescriptor, Queue,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess,
 };
 
 use crate::{
@@ -151,10 +151,12 @@ impl Layer for GroupLayer {
             cache: None,
         });
 
-        let params_buffer = DynamicBuffer::new(
-            Some("group layer blend params buffer".into()),
-            BufferUsages::UNIFORM,
-        );
+        let mut params_buffer = UniformBuffer::from(BlendLayerParams {
+            src_opacity: props.opacity(),
+            src_disabled_channels: props.disabled_channels().0,
+            _pad: Default::default(),
+        });
+        params_buffer.set_label(Some("group layer blend params buffer"));
 
         let copy_pipeline = CopyLayerPipeline::new(device, image.texel_type);
 
@@ -251,8 +253,7 @@ impl Layer for GroupLayer {
             return;
         }
 
-        cache.params_buffer.clear();
-        cache.params_buffer.push(&BlendLayerParams {
+        cache.params_buffer.set(BlendLayerParams {
             src_opacity: props.opacity(),
             src_disabled_channels: props.disabled_channels().0,
             _pad: Default::default(),
@@ -329,7 +330,7 @@ impl Layer for GroupLayer {
 pub struct GroupBlendCache {
     blend_func_name: BlendFunctionId,
     intermediate: IntermediateBuffer,
-    params_buffer: DynamicBuffer<BlendLayerParams>,
+    params_buffer: UniformBuffer<BlendLayerParams>,
     layout: BindGroupLayout,
     pipeline: ComputePipeline,
     dispatch: Option<(BindGroup, UVec3)>,

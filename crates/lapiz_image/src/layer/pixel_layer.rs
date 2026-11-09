@@ -8,14 +8,14 @@ use lapiz_render::{
     bind_group_layout_entries::{
         BindGroupLayoutEntries, DynamicBindGroupLayoutEntries, binding_types,
     },
-    buffer::DynamicBuffer,
+    uniform_buffer::UniformBuffer,
     wesl_jit,
 };
 use moxcms::ColorProfile;
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor, BufferUsages, ComputePass,
-    ComputePipeline, ComputePipelineDescriptor, Device, PipelineLayoutDescriptor, Queue,
-    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess,
+    BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor, ComputePass, ComputePipeline,
+    ComputePipelineDescriptor, Device, PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor,
+    ShaderSource, ShaderStages, StorageTextureAccess,
 };
 
 use crate::{
@@ -193,10 +193,12 @@ impl Layer for PixelLayer {
                 cache: None,
             });
 
-        let params_buffer = DynamicBuffer::new(
-            Some("pixel layer blend params buffer".into()),
-            BufferUsages::UNIFORM,
-        );
+        let mut params_buffer = UniformBuffer::from(BlendLayerParams {
+            src_opacity: props.opacity(),
+            src_disabled_channels: props.disabled_channels().0,
+            _pad: Default::default(),
+        });
+        params_buffer.set_label(Some("pixel layer blend params buffer"));
 
         let copy_pipeline = CopyLayerPipeline::new(device, image.texel_type);
 
@@ -241,8 +243,7 @@ impl Layer for PixelLayer {
 
         let src = tiles.get_layer_binding_or_empty(layer_id).unwrap();
 
-        cache.params_buffer.clear();
-        cache.params_buffer.push(&BlendLayerParams {
+        cache.params_buffer.set(BlendLayerParams {
             src_opacity: props.opacity(),
             src_disabled_channels: props.disabled_channels().0,
             _pad: Default::default(),
@@ -321,7 +322,7 @@ pub struct PixelBlendCache {
     blend_func_name: BlendFunctionId,
     layer_texel_type: TexelType,
     image_texel_type: TexelType,
-    params_buffer: DynamicBuffer<BlendLayerParams>,
+    params_buffer: UniformBuffer<BlendLayerParams>,
     with_overrider_pipeline: ComputePipeline,
     without_overrider_pipeline: ComputePipeline,
     dispatch: Option<(ComputePipeline, BindGroup, UVec3)>,

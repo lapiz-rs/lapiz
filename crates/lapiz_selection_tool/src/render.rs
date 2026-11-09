@@ -21,8 +21,8 @@ use lapiz_image::{
 use lapiz_render::{
     bind_group_entries::BindGroupEntries,
     bind_group_layout_entries::{BindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
     render_context::RenderContextAppExt as _,
+    uniform_buffer::{DynamicUniformBuffer, UniformBuffer},
 };
 use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_widgets::shader::Pipeline;
@@ -354,8 +354,10 @@ impl SelectionPipeline {
         let n_render_tiles = (tile_aabb.max - tile_aabb.min).element_product() as usize;
 
         let mut cur_rendering_indices = Vec::with_capacity(n_render_tiles);
-        let mut cur_rendering_index_buffer =
-            DynamicBuffer::new(Some("cur_tile_index_buffer".into()), BufferUsages::UNIFORM);
+        let mut cur_rendering_index_buffer = DynamicUniformBuffer::new_with_alignment(u64::from(
+            device.limits().min_uniform_buffer_offset_alignment,
+        ));
+        cur_rendering_index_buffer.set_label(Some("cur_tile_index_buffer"));
         let mut cur_rendering_index_offsets = Vec::with_capacity(n_render_tiles);
 
         let mut output_tiles = reserved_output_tiles;
@@ -416,7 +418,7 @@ impl SelectionPipeline {
                 multiview_mask: None,
             });
             pass.set_pipeline(&self.render_pipeline);
-            pass.set_bind_group(0, &render_bind_group, &[index_buffer_offset as u32]);
+            pass.set_bind_group(0, &render_bind_group, &[index_buffer_offset]);
             pass.set_vertex_buffer(0, vertices_buffer.slice(..));
             pass.set_index_buffer(indices_buffer.slice(..), IndexFormat::Uint32);
             pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
@@ -480,13 +482,10 @@ impl SelectionPipeline {
         let output_selection = input_selection.deep_clone();
 
         let composite_params_buffer = {
-            let mut b = DynamicBuffer::new(
-                Some("selection_params_buffer".into()),
-                BufferUsages::UNIFORM,
-            );
-            b.push(&SelectionParams {
+            let mut b = UniformBuffer::from(SelectionParams {
                 operation_ty: op as u32,
             });
+            b.set_label(Some("selection_params_buffer"));
             b.write_buffer(device, queue);
             b
         };
@@ -679,23 +678,22 @@ impl SelectionPreviewPipeline {
 
         static FIRST_DRAW: OnceLock<Instant> = OnceLock::new();
         let canvas_params_buffer = {
-            let mut b =
-                DynamicBuffer::new(Some("canvas_params_buffer".into()), BufferUsages::UNIFORM);
-            b.push(&CanvasUniform {
+            let mut b = UniformBuffer::from(CanvasUniform {
                 pixel_to_widget: canvas_transform.pixel_to_widget,
                 widget_min: canvas_transform.widget_bounds.min,
                 screen_size,
                 time: FIRST_DRAW.get_or_init(Instant::now).elapsed().as_secs_f32(),
             });
+            b.set_label(Some("canvas_params_buffer"));
             b.write_buffer(device, queue);
-            b.into_inner_buffer().unwrap()
+            b
         };
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("canvas_params_bind_group"),
             layout: &self.layout,
             entries: &BindGroupEntries::sequential((
-                canvas_params_buffer.as_entire_binding(),
+                canvas_params_buffer.binding().unwrap(),
                 vertices_buffer.as_entire_binding(),
             )),
         });

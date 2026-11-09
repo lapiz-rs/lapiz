@@ -36,9 +36,9 @@ use lapiz_math::rect_transform::RectTransform as _;
 use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
     bind_group_layout_entries::{DynamicBindGroupLayoutEntries, binding_types},
-    buffer::DynamicBuffer,
     readback::{create_readback_buffer_and_schedule_copy_buffer, readback_buffer_on_submit_async},
     render_context::RenderContextAppExt as _,
+    storage_buffer::StorageBuffer,
     util::DevicePollExt as _,
     wesl_jit,
 };
@@ -53,10 +53,9 @@ use lapiz_widgets::{
 };
 use tracing::warn;
 use wgpu::{
-    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BufferUsages,
-    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Device,
-    PipelineLayoutDescriptor, Queue, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-    StorageTextureAccess,
+    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, ComputePassDescriptor,
+    ComputePipeline, ComputePipelineDescriptor, Device, PipelineLayoutDescriptor, Queue,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1520,11 +1519,10 @@ impl FreeTransformPipeline {
         output: LayerBinding,
         selection: Option<LayerBinding>,
     ) {
-        let mut params_buffer = DynamicBuffer::new(
-            Some("free_transform_params_buffer".into()),
-            BufferUsages::STORAGE,
-        );
-        params_buffer.push(params);
+        let mut params_buffer = StorageBuffer::from(FreeTransformParams {
+            mat_inv: params.mat_inv,
+        });
+        params_buffer.set_label(Some("free_transform_params_buffer"));
         params_buffer.write_buffer(device, queue);
 
         let mut entries = DynamicBindGroupEntries::sequential((
