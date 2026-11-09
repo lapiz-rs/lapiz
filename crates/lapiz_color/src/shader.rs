@@ -1,301 +1,289 @@
-use anyhow::{Result, bail};
+#[cfg(test)]
+mod tests;
+
+use std::num::NonZeroU64;
+
+use anyhow::{Result, ensure};
 use moxcms::{
-    CmsError, ColorProfile, DataColorSpace, Layout, Matrix3d, ParametricCurve, ToneReprCurve,
+    CmsError, ColorProfile, DataColorSpace, Matrix3d, ParametricCurve, ToneReprCurve,
     TransformOptions,
 };
+use wesl::syntax::{
+    AccessMode, AddressSpace, Attribute, BinaryExpression, BinaryOperator, CompoundStatement,
+    Declaration, DeclarationKind, ElseClause, Expression, FormalParameter, Function, FunctionCall,
+    GlobalDeclaration, Ident, IfClause, IfStatement, IndexingExpression, LiteralExpression,
+    NamedComponentExpression, ReturnStatement, Span, Spanned, Statement, TemplateArg,
+    TypeExpression,
+};
+use wesl_quote::quote_declaration;
+use wgpu::{
+    BindGroupEntry, BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages,
+    Device, ShaderStages,
+    util::{BufferInitDescriptor, DeviceExt as _},
+};
 
-pub struct IccInputTransformShader {
-    pub function: String,
-}
-
-impl IccInputTransformShader {
-    pub fn new(ident: &str, profile: &ColorProfile, _: Layout) -> Result<Self> {
-        if !profile.is_matrix_shaper() {
-            bail!("Only matrix shaper profiles are supported yet.");
-        }
-
-        if profile.color_space != DataColorSpace::Rgb {
-            bail!("Only RGB color spaces are supported yet.");
-        }
-
-        let r_trc = profile.red_trc.as_ref().unwrap();
-        let g_trc = profile.green_trc.as_ref().unwrap();
-        let b_trc = profile.blue_trc.as_ref().unwrap();
-
-        let r_trc_inv_fn_ident = format!("_{}_r_trc_inv", ident);
-        let g_trc_inv_fn_ident = format!("_{}_g_trc_inv", ident);
-        let b_trc_inv_fn_ident = format!("_{}_b_trc_inv", ident);
-
-        let r_trc_inv_fn = linear_function(&r_trc_inv_fn_ident, "f32", r_trc)?;
-        let g_trc_inv_fn = linear_function(&g_trc_inv_fn_ident, "f32", g_trc)?;
-        let b_trc_inv_fn = linear_function(&b_trc_inv_fn_ident, "f32", b_trc)?;
-
-        let rgb_to_xyz_fn_ident = format!("_{}_rgb_to_xyz", ident);
-        let rgb_to_xyz_body = matrix_function(&rgb_to_xyz_fn_ident, &profile.rgb_to_xyz_matrix())?;
-
-        let function = format!(
-            "
-            fn {ident}(c: vec3f) -> vec3f {{
-                let _r = {r_trc_inv_fn_ident}(c[0]);
-                let _g = {g_trc_inv_fn_ident}(c[1]);
-                let _b = {b_trc_inv_fn_ident}(c[2]);
-
-                return {rgb_to_xyz_fn_ident}(vec3f(_r, _g, _b));
-            }}
-
-            {r_trc_inv_fn}
-            {g_trc_inv_fn}
-            {b_trc_inv_fn}
-            {rgb_to_xyz_body}
-        "
-        );
-
-        Ok(Self { function })
-    }
-}
-
-pub struct IccOutputTransformShader {
-    pub function: String,
-}
-
-impl IccOutputTransformShader {
-    pub fn new(ident: &str, profile: &ColorProfile, _layout: Layout) -> Result<Self> {
-        if !profile.is_matrix_shaper() {
-            bail!("Only matrix shaper profiles are supported yet.");
-        }
-
-        if profile.color_space != DataColorSpace::Rgb {
-            bail!("Only RGB color spaces are supported yet.");
-        }
-
-        let r_trc = profile.red_trc.as_ref().unwrap();
-        let g_trc = profile.green_trc.as_ref().unwrap();
-        let b_trc = profile.blue_trc.as_ref().unwrap();
-
-        let r_trc_fn_ident = format!("_{}_r_trc", ident);
-        let g_trc_fn_ident = format!("_{}_g_trc", ident);
-        let b_trc_fn_ident = format!("_{}_b_trc", ident);
-
-        let r_trc_fn = gamma_function(&r_trc_fn_ident, "f32", r_trc)?;
-        let g_trc_fn = gamma_function(&g_trc_fn_ident, "f32", g_trc)?;
-        let b_trc_fn = gamma_function(&b_trc_fn_ident, "f32", b_trc)?;
-
-        let xyz_to_rgb_fn_ident = format!("_{}_xyz_to_rgb", ident);
-        let xyz_to_rgb_fn =
-            matrix_function(&xyz_to_rgb_fn_ident, &profile.rgb_to_xyz_matrix().inverse())?;
-
-        let function = format!(
-            "
-            fn {ident}(c: vec3f) -> vec3f {{
-                let _xyz = {xyz_to_rgb_fn_ident}(c);
-                let _r = {r_trc_fn_ident}(_xyz[0]);
-                let _g = {g_trc_fn_ident}(_xyz[1]);
-                let _b = {b_trc_fn_ident}(_xyz[2]);
-
-                return vec3f(_r, _g, _b);
-            }}
-
-            {r_trc_fn}
-            {g_trc_fn}
-            {b_trc_fn}
-            {xyz_to_rgb_fn}
-        "
-        );
-
-        Ok(Self { function })
-    }
-}
+const TRC_TABLES_GROUP_CONST: &str = "_TRC_TABLES_GROUP";
+const TRC_TABLES_START_BINDING_CONST: &str = "_TRC_TABLES_START_BINDING";
 
 pub struct IccTransformShader {
-    pub function: String,
+    shader: String,
+    trc_storages: Vec<Buffer>,
 }
 
 impl IccTransformShader {
     pub fn new(
         ident: &str,
         src_pr: &ColorProfile,
-        _: Layout,
         dst_pr: &ColorProfile,
-        _: Layout,
         _: TransformOptions,
+        device: &Device,
     ) -> Result<Self> {
-        if !src_pr.is_matrix_shaper() || !dst_pr.is_matrix_shaper() {
-            bail!("Only matrix shaper profiles are supported yet.");
-        }
+        let src_trcs = profile_trcs(src_pr)?;
+        let dst_trcs = profile_trcs(dst_pr)?;
+        let mut shader = String::new();
+        let mut trc_storages = Vec::new();
 
-        if src_pr.color_space != DataColorSpace::Rgb || dst_pr.color_space != DataColorSpace::Rgb {
-            bail!("Only RGB color spaces are supported yet.");
-        }
+        let [sr, sg, sb, dr, dg, db] = ["src_r", "src_g", "src_b", "dst_r", "dst_g", "dst_b"]
+            .map(|channel| Ident::new(format!("_{ident}_{channel}_trc")));
+        for ((name, trc), inverse) in [&sr, &sg, &sb]
+            .into_iter()
+            .zip(src_trcs)
+            .map(|pair| (pair, false))
+            .chain(
+                [&dr, &dg, &db]
+                    .into_iter()
+                    .zip(dst_trcs)
+                    .map(|pair| (pair, true)),
+            )
+        {
+            let (func, trc_storage) = trc_function(name, trc, inverse)?;
+            shader.push_str(&func.to_string());
 
-        let src_r_trc = src_pr.red_trc.as_ref().unwrap();
-        let src_g_trc = src_pr.green_trc.as_ref().unwrap();
-        let src_b_trc = src_pr.blue_trc.as_ref().unwrap();
-
-        let src_r_trc_inv_fn_ident = format!("_{}_src_r_trc_inv", ident);
-        let src_g_trc_inv_fn_ident = format!("_{}_src_g_trc_inv", ident);
-        let src_b_trc_inv_fn_ident = format!("_{}_src_b_trc_inv", ident);
-
-        let src_r_trc_inv_fn = linear_function(&src_r_trc_inv_fn_ident, "f32", src_r_trc)?;
-        let src_g_trc_inv_fn = linear_function(&src_g_trc_inv_fn_ident, "f32", src_g_trc)?;
-        let src_b_trc_inv_fn = linear_function(&src_b_trc_inv_fn_ident, "f32", src_b_trc)?;
-
-        let dst_r_trc = dst_pr.red_trc.as_ref().unwrap();
-        let dst_g_trc = dst_pr.green_trc.as_ref().unwrap();
-        let dst_b_trc = dst_pr.blue_trc.as_ref().unwrap();
-
-        let dst_r_trc_fn_ident = format!("_{}_dst_r_trc", ident);
-        let dst_g_trc_fn_ident = format!("_{}_dst_g_trc", ident);
-        let dst_b_trc_fn_ident = format!("_{}_dst_b_trc", ident);
-
-        let dst_r_trc_fn = gamma_function(&dst_r_trc_fn_ident, "f32", dst_r_trc)?;
-        let dst_g_trc_fn = gamma_function(&dst_g_trc_fn_ident, "f32", dst_g_trc)?;
-        let dst_b_trc_fn = gamma_function(&dst_b_trc_fn_ident, "f32", dst_b_trc)?;
-
-        let combined_matrix = src_pr.transform_matrix(dst_pr);
-        let combined_matrix_fn_ident = format!("_{}_combined_matrix", ident);
-        let combined_matrix_fn = matrix_function(&combined_matrix_fn_ident, &combined_matrix)?;
-
-        let function = format!(
-            "fn {ident}(c: vec3f) -> vec3f {{
-                let _r = {src_r_trc_inv_fn_ident}(c[0]);
-                let _g = {src_g_trc_inv_fn_ident}(c[1]);
-                let _b = {src_b_trc_inv_fn_ident}(c[2]);
-
-                let _rgb = {combined_matrix_fn_ident}(vec3f(_r, _g, _b));
-
-                return vec3f(
-                    {dst_r_trc_fn_ident}(_rgb[0]),
-                    {dst_g_trc_fn_ident}(_rgb[1]),
-                    {dst_b_trc_fn_ident}(_rgb[2])
+            if let Some(storage) = trc_storage {
+                let storage_ident = &storage.table;
+                let storage_len = storage.samples.len() as u32;
+                let storage_index = trc_storages.len() as u32;
+                let group = Ident::new(TRC_TABLES_GROUP_CONST.to_owned());
+                let start_binding = Ident::new(TRC_TABLES_START_BINDING_CONST.to_owned());
+                shader.push_str(
+                    &quote_declaration! {
+                        @group(#group) @binding(#start_binding + #storage_index) var<storage, read> #storage_ident: array<f32, #storage_len>;
+                    }
+                    .to_string(),
                 );
-            }}
+                trc_storages.push(storage);
+            }
+        }
 
-            {src_r_trc_inv_fn}
-            {src_g_trc_inv_fn}
-            {src_b_trc_inv_fn}
-            {combined_matrix_fn}
-            {dst_r_trc_fn}
-            {dst_g_trc_fn}
-            {dst_b_trc_fn}
-            "
+        let matrix = Ident::new(format!("_{ident}_combined_matrix"));
+        shader.push_str(&matrix_function(&matrix, &src_pr.transform_matrix(dst_pr)).to_string());
+        shader.push_str(
+            &quote_declaration! {
+                fn #ident(c: vec3f) -> vec3f {
+                    let rgb = #matrix(vec3f(#sr(c.x), #sg(c.y), #sb(c.z)));
+                    return vec3f(#dr(rgb.x), #dg(rgb.y), #db(rgb.z));
+                }
+            }
+            .to_string(),
         );
 
-        Ok(Self { function })
+        let trc_storages = trc_storages
+            .into_iter()
+            .map(|storage| {
+                device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some(&storage.table.to_string()),
+                    contents: bytemuck::cast_slice(&storage.samples),
+                    usage: BufferUsages::STORAGE,
+                })
+            })
+            .collect();
+
+        Ok(Self {
+            shader,
+            trc_storages,
+        })
     }
 
     pub fn unmanaged(ident: &str) -> Self {
-        let function = format!(
-            "fn {ident}(c: vec3f) -> vec3f {{
-                return c;
-            }}
-            "
+        Self {
+            shader: quote_declaration! {
+                fn #ident(c: vec3f) -> vec3f { return c; }
+            }
+            .to_string(),
+            trc_storages: Vec::new(),
+        }
+    }
+
+    pub fn compile(&self, group: u32, start_binding: u32) -> (String, Vec<BindGroupLayoutEntry>) {
+        let shader = format!(
+            "{}\nconst {}: u32 = {};\nconst {}: u32 = {};\n",
+            self.shader,
+            TRC_TABLES_GROUP_CONST,
+            group,
+            TRC_TABLES_START_BINDING_CONST,
+            start_binding
         );
 
-        Self { function }
+        let layout = self
+            .trc_storages
+            .iter()
+            .enumerate()
+            .map(|(i, storage)| BindGroupLayoutEntry {
+                binding: start_binding + i as u32,
+                visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: Some(NonZeroU64::new(storage.size()).unwrap()),
+                },
+                count: None,
+            })
+            .collect();
+
+        (shader, layout)
+    }
+
+    pub fn bindings(&self, start_binding: u32) -> Vec<BindGroupEntry<'_>> {
+        self.trc_storages
+            .iter()
+            .enumerate()
+            .map(|(i, storage)| BindGroupEntry {
+                binding: start_binding + i as u32,
+                resource: storage.as_entire_binding(),
+            })
+            .collect()
     }
 }
 
-fn linear_function(ident: &str, component_ty: &str, trc: &ToneReprCurve) -> Result<String> {
-    let body = match trc {
-        ToneReprCurve::Lut(lut) => {
-            if lut.is_empty() {
-                "return x;".to_string()
-            } else if lut.len() == 1 {
-                let gamma = (lut[0] as i32 as f64 / 256.0) as f32;
-                format!("return pow(x, {gamma});")
-            } else {
-                bail!("Lut trcs are not supported yet.")
-            }
-        }
-        ToneReprCurve::Parametric(parametric) => {
-            let ParametricCurve {
-                g,
-                a,
-                b,
-                c,
-                d,
-                e,
-                f,
-            } = ParametricCurve::new(parametric).ok_or(CmsError::BuildTransferFunction)?;
-            format!(
-                "if all(x < {component_ty}({d:e})) {{
-                    return {c:e} * x + {f:e};
-                }} else {{
-                    return pow({a:e} * x + {b:e}, {g:e}) + {e:e};
-                }}"
-            )
-        }
-    };
-
-    Ok(format!(
-        "fn {ident}(x: {component_ty}) -> {component_ty} {{
-            {body}
-        }}"
-    ))
+pub struct ToneReprCurveStorage {
+    table: Ident,
+    samples: Vec<f32>,
 }
 
-fn gamma_function(ident: &str, component_ty: &str, trc: &ToneReprCurve) -> Result<String> {
-    let body = match trc {
-        ToneReprCurve::Lut(lut) => {
-            if lut.is_empty() {
-                "return x;".to_string()
-            } else if lut.len() == 1 {
-                let gamma = 1.0 / (lut[0] as i32 as f64 / 256.0) as f32;
-                format!("return pow(x, {gamma});")
-            } else {
-                bail!("Lut trcs are not supported yet.")
-            }
-        }
-        ToneReprCurve::Parametric(parametric) => {
-            let ParametricCurve {
-                g,
-                a,
-                b,
-                c,
-                d,
-                e,
-                f,
-            } = ParametricCurve::new(parametric)
-                .and_then(|c| c.invert())
-                .ok_or(CmsError::BuildTransferFunction)?;
-            format!(
-                "if all(x < {component_ty}({d:e})) {{
-                    return {c:e} * x + {f:e};
-                }} else {{
-                    return pow({a:e} * x + {b:e}, {g:e}) + {e:e};
-                }}"
-            )
-        }
-    };
-
-    Ok(format!(
-        "fn {ident}(x: {component_ty}) -> {component_ty} {{
-            {body}
-        }}"
-    ))
+fn profile_trcs(profile: &ColorProfile) -> Result<[&ToneReprCurve; 3]> {
+    ensure!(
+        profile.color_space == DataColorSpace::Rgb,
+        "RGB color space required"
+    );
+    ensure!(profile.is_matrix_shaper(), "Matrix shaper profile required");
+    Ok([
+        profile
+            .red_trc
+            .as_ref()
+            .ok_or(CmsError::BuildTransferFunction)?,
+        profile
+            .green_trc
+            .as_ref()
+            .ok_or(CmsError::BuildTransferFunction)?,
+        profile
+            .blue_trc
+            .as_ref()
+            .ok_or(CmsError::BuildTransferFunction)?,
+    ])
 }
 
-fn matrix_function(ident: &str, matrix: &Matrix3d) -> Result<String> {
-    let m = &matrix.v;
-    Ok(format!(
-        // Matrices in wgsl are column major
-        "fn {ident}(x: vec3f) -> vec3f {{
-            const MAT = mat3x3f(
-                {:e}, {:e}, {:e},
-                {:e}, {:e}, {:e},
-                {:e}, {:e}, {:e}
+fn trc_function(
+    ident: &Ident,
+    trc: &ToneReprCurve,
+    inverse: bool,
+) -> Result<(GlobalDeclaration, Option<ToneReprCurveStorage>)> {
+    match trc {
+        ToneReprCurve::Lut(lut) if lut.is_empty() => Ok((
+            quote_declaration! {
+                fn #ident(x: f32) -> f32 {
+                    return x;
+                }
+            },
+            None,
+        )),
+        ToneReprCurve::Lut(lut) if lut.len() == 1 => {
+            let gamma = f32::from(lut[0]) / 256.0;
+            ensure!(gamma > 0.0, "Positive gamma required");
+            let gamma = if inverse { gamma.recip() } else { gamma };
+            Ok((
+                quote_declaration! {
+                    fn #ident(x: f32) -> f32 {
+                        return pow(clamp(x, 0.0f, 1.0f), #gamma);
+                    }
+                },
+                None,
+            ))
+        }
+        ToneReprCurve::Lut(lut) => {
+            let samples = if inverse {
+                const INVERSE_SAMPLES: u32 = 16384;
+                let evaluator = trc.make_gamma_evaluator()?;
+                (0..INVERSE_SAMPLES)
+                    .map(|i| evaluator.evaluate_value(i as f32 / (INVERSE_SAMPLES - 1) as f32))
+                    .collect::<Vec<_>>()
+            } else {
+                lut.iter()
+                    .map(|&value| f32::from(value) / 65535.0)
+                    .collect()
+            };
+            let last = samples.len() as u32 - 1;
+            let scale = last as f32;
+
+            let table = Ident::new(format!("{ident}_trc_table"));
+
+            Ok((
+                quote_declaration! {
+                    fn #ident(x: f32) -> f32 {
+                        let position = clamp(x, 0.0f, 1.0f) * #scale;
+                        let lower = u32(position);
+                        let upper = min(lower + 1u, #last);
+                        return mix(#table[lower], #table[upper], position - f32(lower));
+                    }
+                },
+                Some(ToneReprCurveStorage { table, samples }),
+            ))
+        }
+        ToneReprCurve::Parametric(parameters) => {
+            ensure!(
+                matches!(parameters.len(), 1 | 3 | 4 | 5 | 7)
+                    && parameters.iter().all(|value| value.is_finite()),
+                "Valid finite parametric curve parameters required"
             );
-            return MAT * x;
-        }}",
-        // While in moxcms, they are row major
-        m[0][0],
-        m[1][0],
-        m[2][0],
-        m[0][1],
-        m[1][1],
-        m[2][1],
-        m[0][2],
-        m[1][2],
-        m[2][2],
-    ))
+            let curve = ParametricCurve::new(parameters).ok_or(CmsError::BuildTransferFunction)?;
+            let ParametricCurve {
+                g,
+                a,
+                b,
+                c,
+                d,
+                e,
+                f,
+            } = if inverse {
+                curve.invert().ok_or(CmsError::BuildTransferFunction)?
+            } else {
+                curve
+            };
+
+            Ok((
+                quote_declaration! {
+                    fn #ident(x: f32) -> f32 {
+                        if x < #d {
+                            return #c * x + #f;
+                        } else {
+                            return pow(#a * x + #b, #g) + #e;
+                        }
+                    }
+                },
+                None,
+            ))
+        }
+    }
+}
+
+fn matrix_function(ident: &Ident, matrix: &Matrix3d) -> GlobalDeclaration {
+    let m = matrix.v.map(|row| row.map(|value| value as f32));
+    let [a, b, c] = m[0];
+    let [d, e, f] = m[1];
+    let [g, h, i] = m[2];
+    quote_declaration! {
+        fn #ident(x: vec3f) -> vec3f {
+            // WGSL matrices use columns, moxcms matrices use rows.
+            return mat3x3f(#a, #d, #g, #b, #e, #h, #c, #f, #i) * x;
+        }
+    }
 }
