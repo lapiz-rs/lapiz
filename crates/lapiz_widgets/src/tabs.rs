@@ -19,7 +19,7 @@ use crate::{
 pub struct TabbedView<'a, Message> {
     bar: TabBar<'a, Message>,
     pages: Vec<Element<'a, Message, Theme, Renderer>>,
-    context_menu: Option<Menu<Message>>,
+    context_menu: Option<Menu<'a, Message>>,
 }
 
 impl<'a, Message: 'a> Default for TabbedView<'a, Message> {
@@ -90,7 +90,7 @@ impl<'a, Message: 'a> TabbedView<'a, Message> {
         self
     }
 
-    pub fn context_menu(mut self, menu: Menu<Message>) -> Self {
+    pub fn context_menu(mut self, menu: Menu<'a, Message>) -> Self {
         self.context_menu = Some(menu);
         self
     }

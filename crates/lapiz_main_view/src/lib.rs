@@ -45,6 +45,7 @@ use lapiz_tools::{
 use lapiz_undo::{UndoStack, UndoStacks};
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{
+    checkbox::Checkbox,
     column,
     divider::Divider,
     icon::{self, Icon},
@@ -143,11 +144,11 @@ impl MainView {
             .into()
     }
 
-    fn menu_bar(&self, current_theme: &Theme) -> MenuBar<MenuBarMessage> {
+    fn menu_bar(&self, current_theme: &Theme) -> MenuBar<'static, MenuBarMessage> {
         fn build_menu(
             items: &[MenuBarItem],
             collection: &ActionCollection,
-        ) -> Menu<MenuBarMessage> {
+        ) -> Menu<'static, MenuBarMessage> {
             let mut menu = menu().min_width(236.0);
             for item in items {
                 menu = match item {
@@ -156,9 +157,9 @@ impl MainView {
                         let message = MenuBarMessage::TriggerAction(action.clone());
                         match collection.shortcut_for(action) {
                             Some(shortcut) => {
-                                menu.item_shortcut(t!(action), &format!("{}", shortcut), message)
+                                menu.item(t!(action), Some(&shortcut.to_string()), message)
                             }
-                            None => menu.item(t!(action), message),
+                            None => menu.item(t!(action), None, message),
                         }
                     }
                     MenuBarItem::Submenu { title, items } => {
@@ -187,11 +188,14 @@ impl MainView {
                 .iter()
                 .fold(menu().min_width(220.0), |menu, theme| {
                     let message = MenuBarMessage::SetTheme(theme.clone());
-                    if theme == current_theme {
-                        menu.selected_item(theme.to_string(), message)
-                    } else {
-                        menu.item(theme.to_string(), message)
-                    }
+                    let label = theme.to_string();
+                    menu.oneshot_element(
+                        label.clone(),
+                        Checkbox::new(theme == current_theme)
+                            .label(label)
+                            .width(Length::Fill)
+                            .on_toggle(move |_| message.clone()),
+                    )
                 });
         }
 
@@ -207,11 +211,13 @@ impl MainView {
                             return menu;
                         };
                         let message = MenuBarMessage::SetLanguage(langid.clone());
-                        if langid == lapiz_i18n::current_language() {
-                            menu.selected_item(*name, message)
-                        } else {
-                            menu.item(*name, message)
-                        }
+                        menu.oneshot_element(
+                            *name,
+                            Checkbox::new(langid == lapiz_i18n::current_language())
+                                .label(*name)
+                                .width(Length::Fill)
+                                .on_toggle(move |_| message.clone()),
+                        )
                     });
         }
 
@@ -230,11 +236,13 @@ impl MainView {
                 .fold(menu().min_width(220.0), |menu, dock| {
                     let id = dock.id();
                     let name = dock.display_name();
-                    if self.dock_manager.is_dock_open(&id) {
-                        menu.selected_item(name, MenuBarMessage::ToggleDock(id))
-                    } else {
-                        menu.item(name, MenuBarMessage::ToggleDock(id))
-                    }
+                    menu.oneshot_element(
+                        name.clone(),
+                        Checkbox::new(self.dock_manager.is_dock_open(&id))
+                            .label(name)
+                            .width(Length::Fill)
+                            .on_toggle(move |_| MenuBarMessage::ToggleDock(id.clone())),
+                    )
                 });
             *submenu = dock_menu;
         }

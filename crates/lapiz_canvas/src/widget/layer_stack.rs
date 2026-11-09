@@ -532,6 +532,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
 
             let menu = menu().item(
                 "Rename",
+                None,
                 on_message(LayerStackMessage::RenameLayer(layer_id)),
             );
             rows.push(context_menu(content, menu).into());
