@@ -12,6 +12,12 @@ import color::{
     xyz::Xyz,
 };
 
+import package::{
+    input_transform::picker_to_pcs,
+    image_transform::pcs_to_image,
+    output_transform::pcs_to_output,
+};
+
 struct VertexInput {
     @location(0) position: vec2f,
     @location(1) uv: vec2f,
@@ -54,12 +60,6 @@ struct Settings {
 }
 
 @group(0) @binding(0) var<uniform> settings: Settings;
-
-//CODEGEN_FLAG_PICKER_TO_PCS
-
-//CODEGEN_FLAG_PCS_TO_IMAGE
-
-//CODEGEN_FLAG_PCS_TO_OUTPUT
 
 @vertex
 fn vertex(in: VertexInput) -> VertexOutput {

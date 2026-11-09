@@ -38,8 +38,22 @@ impl IccTransformShader {
         _: TransformOptions,
         device: &Device,
     ) -> Result<Self> {
-        let src_trcs = profile_trcs(src_pr)?;
-        let dst_trcs = profile_trcs(dst_pr)?;
+        Self::from_parts(
+            ident,
+            Some(profile_trcs(src_pr)?),
+            Some(profile_trcs(dst_pr)?),
+            &src_pr.transform_matrix(dst_pr),
+            device,
+        )
+    }
+
+    fn from_parts(
+        ident: &str,
+        src_trcs: Option<[&ToneReprCurve; 3]>,
+        dst_trcs: Option<[&ToneReprCurve; 3]>,
+        transform_matrix: &Matrix3d,
+        device: &Device,
+    ) -> Result<Self> {
         let mut shader = String::new();
         let mut trc_storages = Vec::new();
 
@@ -47,12 +61,12 @@ impl IccTransformShader {
             .map(|channel| Ident::new(format!("_{ident}_{channel}_trc")));
         for ((name, trc), inverse) in [&sr, &sg, &sb]
             .into_iter()
-            .zip(src_trcs)
+            .zip(src_trcs.into_iter().flatten())
             .map(|pair| (pair, false))
             .chain(
                 [&dr, &dg, &db]
                     .into_iter()
-                    .zip(dst_trcs)
+                    .zip(dst_trcs.into_iter().flatten())
                     .map(|pair| (pair, true)),
             )
         {
@@ -76,16 +90,32 @@ impl IccTransformShader {
         }
 
         let matrix = Ident::new(format!("_{ident}_combined_matrix"));
-        shader.push_str(&matrix_function(&matrix, &src_pr.transform_matrix(dst_pr)).to_string());
-        shader.push_str(
-            &quote_declaration! {
+        shader.push_str(&matrix_function(&matrix, transform_matrix).to_string());
+        let function = match (src_trcs.is_some(), dst_trcs.is_some()) {
+            (true, true) => quote_declaration! {
                 fn #ident(c: vec3f) -> vec3f {
                     let rgb = #matrix(vec3f(#sr(c.x), #sg(c.y), #sb(c.z)));
                     return vec3f(#dr(rgb.x), #dg(rgb.y), #db(rgb.z));
                 }
-            }
-            .to_string(),
-        );
+            },
+            (true, false) => quote_declaration! {
+                fn #ident(c: vec3f) -> vec3f {
+                    return #matrix(vec3f(#sr(c.x), #sg(c.y), #sb(c.z)));
+                }
+            },
+            (false, true) => quote_declaration! {
+                fn #ident(c: vec3f) -> vec3f {
+                    let rgb = #matrix(c);
+                    return vec3f(#dr(rgb.x), #dg(rgb.y), #db(rgb.z));
+                }
+            },
+            (false, false) => quote_declaration! {
+                fn #ident(c: vec3f) -> vec3f {
+                    return #matrix(c);
+                }
+            },
+        };
+        shader.push_str(&function.to_string());
 
         let trc_storages = trc_storages
             .into_iter()
@@ -157,6 +187,68 @@ impl IccTransformShader {
                 resource: storage.as_entire_binding(),
             })
             .collect()
+    }
+}
+
+pub struct IccInputTransformShader {
+    transform: IccTransformShader,
+}
+
+impl IccInputTransformShader {
+    pub fn new(ident: &str, profile: &ColorProfile, device: &Device) -> Result<Self> {
+        Ok(Self {
+            transform: IccTransformShader::from_parts(
+                ident,
+                Some(profile_trcs(profile)?),
+                None,
+                &profile.rgb_to_xyz_matrix(),
+                device,
+            )?,
+        })
+    }
+
+    pub fn compile(
+        &self,
+        group: u32,
+        start_binding: u32,
+        visibility: ShaderStages,
+    ) -> (String, Vec<BindGroupLayoutEntry>) {
+        self.transform.compile(group, start_binding, visibility)
+    }
+
+    pub fn bindings(&self, start_binding: u32) -> Vec<BindGroupEntry<'_>> {
+        self.transform.bindings(start_binding)
+    }
+}
+
+pub struct IccOutputTransformShader {
+    transform: IccTransformShader,
+}
+
+impl IccOutputTransformShader {
+    pub fn new(ident: &str, profile: &ColorProfile, device: &Device) -> Result<Self> {
+        Ok(Self {
+            transform: IccTransformShader::from_parts(
+                ident,
+                None,
+                Some(profile_trcs(profile)?),
+                &profile.rgb_to_xyz_matrix().inverse(),
+                device,
+            )?,
+        })
+    }
+
+    pub fn compile(
+        &self,
+        group: u32,
+        start_binding: u32,
+        visibility: ShaderStages,
+    ) -> (String, Vec<BindGroupLayoutEntry>) {
+        self.transform.compile(group, start_binding, visibility)
+    }
+
+    pub fn bindings(&self, start_binding: u32) -> Vec<BindGroupEntry<'_>> {
+        self.transform.bindings(start_binding)
     }
 }
 

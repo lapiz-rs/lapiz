@@ -16,11 +16,11 @@ use lapiz_render::{
     },
     storage_buffer::StorageBuffer,
     uniform_buffer::UniformBuffer,
-    wesl_jit::{compile_wesl, compile_wesl_with_config},
+    wesl_jit::compile_wesl_with_config_and_include,
 };
-use moxcms::{ColorProfile, Layout};
+use moxcms::ColorProfile;
 use wgpu::{
-    BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BlendState, Buffer,
+    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BlendState, Buffer,
     BufferUsages, ColorTargetState, ColorWrites, ComputePassDescriptor, ComputePipeline,
     ComputePipelineDescriptor, Device, FragmentState, PipelineLayoutDescriptor, Queue,
     RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
@@ -36,42 +36,77 @@ use crate::{
 const COMPUTE_BOUNDS_RESOLUTION: u32 = 256;
 const COMPUTE_BOUNDS_PADDING: u32 = 5;
 
-fn compile_gradient_shader(
+fn compile_selector_shader(
+    device: &Device,
+    shader: &str,
     profile: &ColorProfile,
-    output_profile: &ColorProfile,
+    output_profile: Option<&ColorProfile>,
     srgb_output: bool,
-) -> Result<String> {
-    let input = IccInputTransformShader::new("picker_to_pcs", profile, Layout::Rgb)?;
-    let image = IccOutputTransformShader::new("pcs_to_image", profile, Layout::Rgb)?;
-    let output = IccOutputTransformShader::new("pcs_to_output", output_profile, Layout::Rgb)?;
+    visibility: ShaderStages,
+) -> Result<(String, BindGroupLayout, BindGroup)> {
+    let input = IccInputTransformShader::new("picker_to_pcs", profile, device)?;
+    let image = IccOutputTransformShader::new("pcs_to_image", profile, device)?;
+    let output = output_profile
+        .map(|profile| IccOutputTransformShader::new("pcs_to_output", profile, device))
+        .transpose()?;
 
-    compile_wesl_with_config(
-        include_str!("../shader/gradient.wesl")
-            .replace("//CODEGEN_FLAG_PICKER_TO_PCS", &input.function)
-            .replace("//CODEGEN_FLAG_PCS_TO_IMAGE", &image.function)
-            .replace("//CODEGEN_FLAG_PCS_TO_OUTPUT", &output.function),
+    let (input_shader, mut entries) = input.compile(1, 0, visibility);
+    let image_start = entries.len() as u32;
+    let (image_shader, image_entries) = image.compile(1, image_start, visibility);
+    entries.extend(image_entries);
+    let output_start = entries.len() as u32;
+    let output_shader = output.as_ref().map(|output| {
+        let (shader, output_entries) = output.compile(1, output_start, visibility);
+        entries.extend(output_entries);
+        shader
+    });
+
+    let shader = compile_wesl_with_config_and_include(
+        shader.to_owned(),
         &[&color::PACKAGE],
+        |resolver| {
+            resolver.add_module(
+                "package::input_transform".parse().unwrap(),
+                input_shader.clone().into(),
+            );
+            resolver.add_module(
+                "package::image_transform".parse().unwrap(),
+                image_shader.clone().into(),
+            );
+            if let Some(shader) = &output_shader {
+                resolver.add_module(
+                    "package::output_transform".parse().unwrap(),
+                    shader.clone().into(),
+                );
+            }
+        },
         |wesl| {
             wesl.set_feature("IS_SRGB_OUTPUT", srgb_output);
         },
-    )
-}
+    )?;
 
-fn compile_compute_bounds_shader(profile: &ColorProfile) -> Result<String> {
-    let input = IccInputTransformShader::new("picker_to_pcs", profile, Layout::Rgb)?;
-    let image = IccOutputTransformShader::new("pcs_to_image", profile, Layout::Rgb)?;
+    let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        label: Some("selector transform layout"),
+        entries: &entries,
+    });
+    let mut bindings = input.bindings(0);
+    bindings.extend(image.bindings(image_start));
+    if let Some(output) = &output {
+        bindings.extend(output.bindings(output_start));
+    }
+    let bind_group = device.create_bind_group(&BindGroupDescriptor {
+        label: Some("selector transform bind group"),
+        layout: &layout,
+        entries: &bindings,
+    });
 
-    compile_wesl(
-        include_str!("../shader/compute_bounds.wesl")
-            .replace("//CODEGEN_FLAG_PICKER_TO_PCS", &input.function)
-            .replace("//CODEGEN_FLAG_PCS_TO_IMAGE", &image.function),
-        &[&color::PACKAGE],
-    )
+    Ok((shader, layout, bind_group))
 }
 
 pub struct ComputeBoundsPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,
+    transform_bind_group: BindGroup,
 }
 
 impl ComputeBoundsPipeline {
@@ -88,13 +123,22 @@ impl ComputeBoundsPipeline {
             )
             .as_ref(),
         });
+        let (shader, transform_layout, transform_bind_group) = compile_selector_shader(
+            device,
+            include_str!("../shader/compute_bounds.wesl"),
+            profile,
+            None,
+            false,
+            ShaderStages::COMPUTE,
+        )
+        .unwrap();
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("compute_bounds_shader"),
-            source: ShaderSource::Wgsl(compile_compute_bounds_shader(profile).unwrap().into()),
+            source: ShaderSource::Wgsl(shader.into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("compute_bounds_pipeline_layout"),
-            bind_group_layouts: &[Some(&layout)],
+            bind_group_layouts: &[Some(&layout), Some(&transform_layout)],
             immediate_size: 0,
         });
         let pipeline = device.create_compute_pipeline(&ComputePipelineDescriptor {
@@ -106,7 +150,11 @@ impl ComputeBoundsPipeline {
             cache: None,
         });
 
-        Self { layout, pipeline }
+        Self {
+            layout,
+            pipeline,
+            transform_bind_group,
+        }
     }
 
     pub fn compute(
@@ -148,6 +196,7 @@ impl ComputeBoundsPipeline {
             });
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &bind_group, &[]);
+            pass.set_bind_group(1, &self.transform_bind_group, &[]);
             pass.dispatch_workgroups(
                 COMPUTE_BOUNDS_RESOLUTION.div_ceil(16),
                 COMPUTE_BOUNDS_RESOLUTION.div_ceil(16),
@@ -216,6 +265,7 @@ impl OutputBounds {
 
 pub struct GradientPipeline {
     pub(crate) pipeline: RenderPipeline,
+    pub(crate) transform_bind_group: BindGroup,
 }
 
 impl GradientPipeline {
@@ -226,18 +276,23 @@ impl GradientPipeline {
         output_profile: &ColorProfile,
         format: TextureFormat,
     ) -> Self {
+        let (shader, transform_layout, transform_bind_group) = compile_selector_shader(
+            device,
+            include_str!("../shader/gradient.wesl"),
+            profile,
+            Some(output_profile),
+            format.is_srgb(),
+            ShaderStages::FRAGMENT,
+        )
+        .unwrap();
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("gradient_shader"),
-            source: ShaderSource::Wgsl(
-                compile_gradient_shader(profile, output_profile, format.is_srgb())
-                    .unwrap()
-                    .into(),
-            ),
+            source: ShaderSource::Wgsl(shader.into()),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("gradient_pipeline_layout"),
-            bind_group_layouts: &[Some(layout)],
+            bind_group_layouts: &[Some(layout), Some(&transform_layout)],
             immediate_size: 0,
         });
 
@@ -282,12 +337,16 @@ impl GradientPipeline {
             cache: Default::default(),
         });
 
-        Self { pipeline }
+        Self {
+            pipeline,
+            transform_bind_group,
+        }
     }
 }
 
 pub struct GradientRingPipeline {
     pub(crate) pipeline: RenderPipeline,
+    pub(crate) transform_bind_group: BindGroup,
     pub(crate) mesh: GradientMesh,
 }
 
@@ -299,17 +358,22 @@ impl GradientRingPipeline {
         output_profile: &ColorProfile,
         format: TextureFormat,
     ) -> Self {
+        let (shader, transform_layout, transform_bind_group) = compile_selector_shader(
+            device,
+            include_str!("../shader/gradient.wesl"),
+            profile,
+            Some(output_profile),
+            format.is_srgb(),
+            ShaderStages::FRAGMENT,
+        )
+        .unwrap();
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("gradient_ring_shader"),
-            source: ShaderSource::Wgsl(
-                compile_gradient_shader(profile, output_profile, format.is_srgb())
-                    .unwrap()
-                    .into(),
-            ),
+            source: ShaderSource::Wgsl(shader.into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("gradient_ring_pipeline_layout"),
-            bind_group_layouts: &[Some(layout)],
+            bind_group_layouts: &[Some(layout), Some(&transform_layout)],
             immediate_size: 0,
         });
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -354,7 +418,11 @@ impl GradientRingPipeline {
         });
         let mesh = GradientMesh::new_plane(device, GradientPlaneShape::Square, 1.0);
 
-        Self { pipeline, mesh }
+        Self {
+            pipeline,
+            transform_bind_group,
+            mesh,
+        }
     }
 }
 
