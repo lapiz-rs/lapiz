@@ -5,8 +5,9 @@ use std::{
 
 use lapiz_runtime::renderer::global_render_context;
 use moxcms::{
-    CicpColorPrimaries, CicpProfile, Lab, LutDataType, LutMultidimensionalType, LutStore, LutType,
-    LutWarehouse, MatrixCoefficients, RenderingIntent, TransferCharacteristics, Vector3d, Xyzd,
+    CicpColorPrimaries, CicpProfile, DataColorSpace, Lab, LutDataType, LutMultidimensionalType,
+    LutStore, LutType, LutWarehouse, Matrix3d, MatrixCoefficients, RenderingIntent, ToneReprCurve,
+    TransferCharacteristics, Vector3d, Xyzd,
 };
 #[allow(
     clippy::wildcard_imports,
