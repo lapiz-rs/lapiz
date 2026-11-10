@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{Result, bail};
 use parking_lot::{Mutex, MutexGuard, RawMutex, lock_api::MappedMutexGuard};
-use rusqlite::{Connection, MAIN_DB, OpenFlags};
+use rusqlite::{Connection, MAIN_DB, OpenFlags, backup::NO_PROGRESS};
 
 pub mod image_props;
 pub mod layer_tree;
@@ -105,7 +105,7 @@ impl LazuliArchive {
             return Ok(());
         }
 
-        inner.conn.backup(MAIN_DB, &path, None)?;
+        inner.conn.backup(MAIN_DB, &path, NO_PROGRESS)?;
         let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)?;
         inner.conn = conn;
         inner.path = Some(path);
