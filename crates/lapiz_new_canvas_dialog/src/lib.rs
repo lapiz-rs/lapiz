@@ -18,7 +18,7 @@ use lapiz_i18n::t;
 use lapiz_image::{
     CImage,
     layer::properties::builtin::LayerTexelTypePropertyExt as _,
-    tile::{GpuLayerInfo, GpuTileStorage, TileStorageAppExt as _},
+    tile::{GpuLayerInfo, TileStorageAppExt as _},
 };
 use lapiz_lazuli::LazuliArchive;
 use lapiz_runtime::{

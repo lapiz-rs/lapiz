@@ -15,7 +15,6 @@ use lapiz_builtin_docks::canvas::{CanvasDock, construct_canvas_dock_id};
 use lapiz_canvas::{
     CanvasAppExt as _, CanvasToolProxyAppExt as _,
     event::{CanvasCreated, CanvasRemoved},
-    recent::RecentFiles,
     tools::PanTool,
 };
 use lapiz_config::Config;
