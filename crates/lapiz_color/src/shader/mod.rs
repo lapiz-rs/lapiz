@@ -1,7 +1,3 @@
-mod pipeline;
-#[cfg(test)]
-mod tests;
-
 use std::num::NonZeroU64;
 
 use anyhow::{Result, ensure};
@@ -14,6 +10,10 @@ use wgpu::{
     BindGroupEntry, BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, Device,
     ShaderStages,
 };
+
+mod pipeline;
+#[cfg(test)]
+mod tests;
 
 const TABLES_GROUP_CONST: &str = "_TABLES_GROUP";
 const TABLES_START_BINDING_CONST: &str = "_TABLES_START_BINDING";
