@@ -306,7 +306,7 @@ pub fn start_import(globals: &mut Globals, local_file: LocalFile) {
         if let Ok(archive) = archive
             && let Ok(image) = CImage::from_lazuli(&archive, globals).logged_err()
         {
-            globals.add_canvas(CCanvas::new(local_file, image, archive));
+            globals.add_canvas(CCanvas::new(Some(local_file), image, archive));
         }
     }
 }

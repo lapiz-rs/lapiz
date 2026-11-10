@@ -2,6 +2,11 @@
   "name": "Default Key Bindings",
   "actions": [
     {
+      "shortcut": "ctrl-n",
+      "action_name": "create_new_file_action",
+      "context": "main_view"
+    },
+    {
       "shortcut": "ctrl-o",
       "action_name": "open_file_action",
       "context": "main_view"

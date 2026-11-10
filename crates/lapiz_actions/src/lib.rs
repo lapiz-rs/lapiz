@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     about::{DebugManualPanicAction, GenerateReportAction, OpenAboutAction},
     edit::{PasteIntoNewLayerAction, RedoAction, UndoAction},
-    file::{ExportFileAction, OpenFileAction, SaveFileAction},
+    file::{ExportFileAction, NewFileAction, OpenFileAction, SaveFileAction},
     layer::{
         CreateNewLayerAction, DeleteSelectedLayersAction, GroupSelectedLayersAction,
         MoveLayerDownAction, MoveLayerUpAction, SelectNextLayerAction, SelectPreviousLayerAction,
@@ -42,6 +42,7 @@ impl Plugin for ActionPlugin {
         app.add_global::<ActionFunctionRegistry>();
         app.globals_mut()
             .add_action_function::<DeleteSelectionAction>()
+            .add_action_function::<NewFileAction>()
             .add_action_function::<OpenFileAction>()
             .add_action_function::<SaveFileAction>()
             .add_action_function::<ExportFileAction>()

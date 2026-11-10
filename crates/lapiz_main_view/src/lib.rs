@@ -532,15 +532,6 @@ impl WindowView for MainView {
                     },
                 );
 
-                Config::<RecentFiles>::read_or_init_or_fallback()
-                    .update(|c| {
-                        c.update(
-                            canvas.local_file().source(),
-                            canvas.local_file().name().to_owned(),
-                        );
-                    })
-                    .log_err();
-
                 let tool_task = globals
                     .update_tool_proxy(&e.id, |tool_proxy, globals| {
                         tool_proxy.switch_tool(PanTool::id(), globals)

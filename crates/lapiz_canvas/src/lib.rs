@@ -1,6 +1,5 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
-use anyhow::Result;
 use indexmap::IndexSet;
 use lapiz_file_dialog::LocalFile;
 use lapiz_image::{
@@ -46,14 +45,14 @@ pub struct CCanvas {
     id: CanvasId,
     pub image: CImage,
     pub archive: LazuliArchive,
-    local_file: Arc<LocalFile>,
+    local_file: Option<Arc<LocalFile>>,
     pub transform: CanvasTransform,
     active_layer: LayerId,
     selected_layers: IndexSet<LayerId>,
 }
 
 impl CCanvas {
-    pub fn new(local_file: LocalFile, image: CImage, archive: LazuliArchive) -> Self {
+    pub fn new(local_file: Option<LocalFile>, image: CImage, archive: LazuliArchive) -> Self {
         let background_layer = *image
             .layer_stack()
             .root_node()
@@ -63,7 +62,7 @@ impl CCanvas {
 
         Self {
             id: CanvasId::new(Uuid::new_v4()),
-            local_file: Arc::new(local_file),
+            local_file: local_file.map(Arc::new),
             image,
             archive,
             transform: CanvasTransform::default(),
@@ -76,18 +75,16 @@ impl CCanvas {
         self.id
     }
 
-    pub fn file_path(&self) -> &Path {
-        self.local_file.path()
+    pub fn file_path(&self) -> Option<&Path> {
+        self.local_file.as_ref().map(|file| file.path())
     }
 
-    pub fn local_file(&self) -> &Arc<LocalFile> {
-        &self.local_file
+    pub fn local_file(&self) -> Option<&Arc<LocalFile>> {
+        self.local_file.as_ref()
     }
 
-    pub fn set_file_path(&mut self, local_file: LocalFile) -> Result<()> {
-        self.archive.set_path(local_file.path().to_path_buf())?;
-        self.local_file = Arc::new(local_file);
-        Ok(())
+    pub fn set_local_file(&mut self, local_file: Arc<LocalFile>) {
+        self.local_file = Some(local_file);
     }
 
     pub fn set_active_layer(&mut self, layer_id: LayerId) {

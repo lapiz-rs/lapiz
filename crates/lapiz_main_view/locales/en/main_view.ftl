@@ -6,6 +6,7 @@ menu_filter = Filter
 menu_window = Window
 menu_about = About
 
+new_file_action = New Canvas
 open_file_action = Open
 save_file_action = Save
 export_file_action = Export

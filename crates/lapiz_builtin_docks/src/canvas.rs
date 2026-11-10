@@ -69,9 +69,13 @@ impl CanvasDock {
             return Task::none();
         };
 
+        let Some(file) = canvas.local_file() else {
+            return Task::none();
+        };
+
         let root_id = *canvas.image.layer_stack().root_id();
         let tiles = globals.tile_storage().clone();
-        let source = canvas.local_file().source();
+        let source = file.source();
         let image_rect = canvas.image.image_pixel_rect();
         let canvas_id = self.canvas;
         let color_profile = canvas.image.profile().clone();

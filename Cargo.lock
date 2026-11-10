@@ -3301,6 +3301,7 @@ dependencies = [
  "lapiz_image_importer",
  "lapiz_input",
  "lapiz_lazuli",
+ "lapiz_new_canvas_dialog",
  "lapiz_render",
  "lapiz_report",
  "lapiz_runtime",
@@ -3364,6 +3365,7 @@ dependencies = [
  "lapiz_image_importer",
  "lapiz_input",
  "lapiz_main_view",
+ "lapiz_new_canvas_dialog",
  "lapiz_render",
  "lapiz_report",
  "lapiz_runtime",
@@ -3964,6 +3966,25 @@ dependencies = [
  "glam 0.30.10",
  "iced_core",
  "moxcms 0.9.1",
+]
+
+[[package]]
+name = "lapiz_new_canvas_dialog"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "glam 0.30.10",
+ "iced_core",
+ "iced_futures",
+ "iced_runtime",
+ "lapiz_canvas",
+ "lapiz_i18n",
+ "lapiz_image",
+ "lapiz_lazuli",
+ "lapiz_runtime",
+ "lapiz_widgets",
+ "moxcms 0.9.1",
+ "rust-embed",
 ]
 
 [[package]]
