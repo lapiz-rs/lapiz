@@ -1,9 +1,10 @@
 use std::{
     array::from_fn,
-    sync::{Arc, mpsc},
+    sync::{Arc, LazyLock, mpsc},
 };
 
-use lapiz_runtime::renderer::global_render_context;
+use futures::executor::block_on;
+use lapiz_runtime::renderer::RenderContext;
 use moxcms::{
     CicpColorPrimaries, CicpProfile, DataColorSpace, Lab, LutDataType, LutMultidimensionalType,
     LutStore, LutType, LutWarehouse, Matrix3d, MatrixCoefficients, RenderingIntent, ToneReprCurve,
@@ -27,10 +28,35 @@ use wgpu::{
 
 use super::*;
 
+// ICC shaders use f32 and storage buffers, so their tests only require base device features.
+static TEST_CONTEXT: LazyLock<RenderContext> = LazyLock::new(|| {
+    block_on(async {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::from_env().unwrap_or(wgpu::Backends::PRIMARY),
+            ..wgpu::InstanceDescriptor::new_without_display_handle()
+        });
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .expect("Failed to request an ICC test adapter");
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor::default())
+            .await
+            .expect("Failed to request an ICC test device");
+        device.on_uncaptured_error(Arc::new(|error| panic!("{error}")));
+
+        RenderContext {
+            instance,
+            adapter,
+            device,
+            queue,
+        }
+    })
+});
+
 fn run_shader(shader: &IccTransformShader, input: &[[f32; 3]]) -> Vec<[f32; 3]> {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let device = &context.device;
-    device.on_uncaptured_error(Arc::new(|error| panic!("{error}")));
     let queue = &context.queue;
     let (mut source, trc_layout) = shader.compile(1, 5, ShaderStages::FRAGMENT);
     source.push_str(
@@ -242,7 +268,7 @@ fn sampled_profile() -> ColorProfile {
 
 #[test]
 fn sampled_curves_match_moxcms_in_both_directions() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let sampled = sampled_profile();
     let srgb = ColorProfile::new_srgb();
     let inputs = (0..=256)
@@ -275,7 +301,7 @@ fn sampled_curves_match_moxcms_in_both_directions() {
 
 #[test]
 fn sampled_curves_clamp_and_preserve_table_endpoints() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let mut src = sampled_profile();
     src.red_trc = Some(ToneReprCurve::Lut(vec![4000, 16000, 60000]));
     let mut dst = src.clone();
@@ -292,7 +318,7 @@ fn sampled_curves_clamp_and_preserve_table_endpoints() {
 
 #[test]
 fn analytic_and_mixed_curves_match_moxcms() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let mut mixed = sampled_profile();
     mixed.green_trc = Some(ToneReprCurve::Lut(Vec::new()));
     mixed.blue_trc = Some(ToneReprCurve::Lut(vec![512]));
@@ -318,7 +344,7 @@ fn analytic_and_mixed_curves_match_moxcms() {
 
 #[test]
 fn parametric_curve_types_match_moxcms() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let mut linear = ColorProfile::new_srgb();
     linear.red_trc = Some(ToneReprCurve::Lut(Vec::new()));
     linear.green_trc = linear.red_trc.clone();
@@ -374,7 +400,7 @@ fn parametric_curve_types_match_moxcms() {
 
 #[test]
 fn inverse_sampled_curves_handle_plateaus_and_two_entry_tables() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let mut linear = ColorProfile::new_srgb();
     linear.red_trc = Some(ToneReprCurve::Lut(Vec::new()));
     linear.green_trc = linear.red_trc.clone();
@@ -396,7 +422,7 @@ fn inverse_sampled_curves_handle_plateaus_and_two_entry_tables() {
 
 #[test]
 fn analytic_and_unmanaged_transforms_have_empty_bindings() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let profile = ColorProfile::new_srgb();
     let managed = IccTransformShader::new(
         "convert",
@@ -418,7 +444,7 @@ fn analytic_and_unmanaged_transforms_have_empty_bindings() {
 
 #[test]
 fn invalid_profiles_and_curves_return_errors() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let generate = |src: &ColorProfile, dst: &ColorProfile| {
         IccTransformShader::new("convert", src, dst, trc_options(), &context.device)
     };
@@ -444,7 +470,7 @@ fn invalid_profiles_and_curves_return_errors() {
 
 #[test]
 fn managed_identity_transform_preserves_colors() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let profile = ColorProfile::new_srgb();
     let shader = IccTransformShader::new(
         "convert",
@@ -474,7 +500,7 @@ fn identity_xyz_profile() -> ColorProfile {
 
 #[test]
 fn cicp_transfer_switch_matches_evaluators_in_both_directions() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let linear = identity_xyz_profile();
     let inputs = [[0.0; 3], [0.01, 0.2, 0.5], [0.75, 0.9, 1.0]];
     for transfer in [
@@ -587,7 +613,7 @@ fn legacy_lut(value: u16) -> LutWarehouse {
 
 #[test]
 fn rendering_intent_selects_source_and_destination_luts() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let linear = identity_xyz_profile();
     let mut profile = linear.clone();
     profile.lut_a_to_b_perceptual = Some(legacy_lut(8192));
@@ -659,7 +685,7 @@ fn multidimensional_lut() -> LutMultidimensionalType {
 
 #[test]
 fn multidimensional_stages_follow_a_to_b_and_b_to_a_order() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let linear = identity_xyz_profile();
     let lut = multidimensional_lut();
     let mut profile = linear.clone();
@@ -705,7 +731,7 @@ fn multidimensional_stages_follow_a_to_b_and_b_to_a_order() {
 
 #[test]
 fn lab_pcs_supports_legacy_and_multidimensional_encoding() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let linear = identity_xyz_profile();
     let inputs = [[0.01, 0.02, 0.03], [0.2, 0.3, 0.4]];
     for legacy in [false, true] {
@@ -761,7 +787,7 @@ fn lab_pcs_supports_legacy_and_multidimensional_encoding() {
 
 #[test]
 fn absolute_intent_scales_media_whites_for_matrix_and_lut_profiles() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let mut src = identity_xyz_profile();
     let mut dst = identity_xyz_profile();
     src.media_white_point = Some(Xyzd::new(0.8, 1.0, 0.6));
@@ -791,7 +817,7 @@ fn absolute_intent_scales_media_whites_for_matrix_and_lut_profiles() {
 
 #[test]
 fn legacy_tables_and_xyz_matrix_run_in_order() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let linear = identity_xyz_profile();
     let mut profile = linear.clone();
     let LutWarehouse::Lut(mut lut) = legacy_lut(0) else {
@@ -840,7 +866,7 @@ fn legacy_tables_and_xyz_matrix_run_in_order() {
 
 #[test]
 fn eight_bit_lab_lut_and_combined_lut_profiles_preserve_pcs() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let linear = identity_xyz_profile();
     let mut source = linear.clone();
     source.pcs = DataColorSpace::Lab;
@@ -876,7 +902,7 @@ fn eight_bit_lab_lut_and_combined_lut_profiles_preserve_pcs() {
 
 #[test]
 fn input_and_output_transforms_use_separate_curve_bindings() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let sampled = sampled_profile();
     let xyz = identity_xyz_profile();
     let input = IccInputTransformShader::new("convert", &sampled, &context.device).unwrap();
@@ -903,7 +929,7 @@ fn input_and_output_transforms_use_separate_curve_bindings() {
 
 #[test]
 fn lut_validation_reports_missing_intent_and_malformed_tables() {
-    let context = global_render_context();
+    let context = TEST_CONTEXT.clone();
     let linear = identity_xyz_profile();
     let mut profile = linear.clone();
     profile.lut_a_to_b_perceptual = Some(legacy_lut(16384));

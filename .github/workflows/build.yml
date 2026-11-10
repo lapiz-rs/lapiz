@@ -55,6 +55,9 @@ jobs:
 
       - run: just setup-linux
 
+      - run: just setup-ci-vulkan
+        if: runner.os == 'Linux'
+
       - run: just test-unit
 
   test-doc:

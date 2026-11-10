@@ -21,6 +21,9 @@ wesl.workspace = true
 wesl-quote.workspace = true
 wgpu.workspace = true
 
+[dev-dependencies]
+futures.workspace = true
+
 [build-dependencies]
 wesl.workspace = true
 
