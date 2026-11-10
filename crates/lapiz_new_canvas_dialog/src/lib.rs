@@ -191,22 +191,8 @@ impl WindowView for NewCanvasDialog {
             self.tab as usize,
         )
         .on_select(NewCanvasDialogMessage::TabSelected);
-        let dimensions = if self.tab == CanvasTab::Clipboard {
-            let size = self
-                .clipboard_image
-                .as_ref()
-                .map(|image| image.pixels.dimensions());
-            form()
-                .push(
-                    t!("new_canvas_width"),
-                    label(size.map_or_else(|| "—".into(), |(width, _)| width.to_string())),
-                )
-                .push(
-                    t!("new_canvas_height"),
-                    label(size.map_or_else(|| "—".into(), |(_, height)| height.to_string())),
-                )
-        } else {
-            form()
+        let dimensions = match self.tab {
+            CanvasTab::NewCanvas => form()
                 .push(
                     t!("new_canvas_width"),
                     spin_box(
@@ -224,7 +210,22 @@ impl WindowView for NewCanvasDialog {
                         NewCanvasDialogMessage::HeightChanged,
                     )
                     .width(Length::Fill),
-                )
+                ),
+            CanvasTab::Clipboard => {
+                let size = self
+                    .clipboard_image
+                    .as_ref()
+                    .map(|image| image.pixels.dimensions());
+                form()
+                    .push(
+                        t!("new_canvas_width"),
+                        label(size.map_or_else(|| "—".into(), |(width, _)| width.to_string())),
+                    )
+                    .push(
+                        t!("new_canvas_height"),
+                        label(size.map_or_else(|| "—".into(), |(_, height)| height.to_string())),
+                    )
+            }
         };
         let mut content = column![dimensions]
             .gap(8)
