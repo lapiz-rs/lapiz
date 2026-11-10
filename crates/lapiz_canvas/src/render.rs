@@ -179,7 +179,7 @@ impl shader::Pipeline for CanvasRenderer {
             device,
             TexelType::RGBA8,
             TexelType::A8,
-            &IccTransformShader::unmanaged(ICC_TRANSFORM_SHADER_IDENT),
+            &IccTransformShader::unmanaged(ICC_TRANSFORM_SHADER_IDENT, device).unwrap(),
         );
         let present_pipeline =
             CanvasPresentPipeline::new(device, format, &fullscreen_vertex, &global_samplers);
