@@ -3977,6 +3977,7 @@ dependencies = [
  "iced_core",
  "iced_futures",
  "iced_runtime",
+ "image",
  "lapiz_canvas",
  "lapiz_i18n",
  "lapiz_image",
@@ -3985,6 +3986,7 @@ dependencies = [
  "lapiz_widgets",
  "moxcms 0.9.1",
  "rust-embed",
+ "tempfile",
 ]
 
 [[package]]
