@@ -228,6 +228,7 @@ impl WindowView for NewCanvasDialog {
         };
         let mut content = column![dimensions]
             .gap(8)
+            .padding(8)
             .width(Length::Fill)
             .height(Length::Fill);
         if self.tab == CanvasTab::Clipboard {
@@ -256,11 +257,11 @@ impl WindowView for NewCanvasDialog {
                 ),
         ]
         .gap(8)
+        .padding(8)
         .width(Length::Fill);
 
         let body = column![tabs, content, footer]
             .gap(12)
-            .padding(16)
             .width(Length::Fill)
             .height(Length::Fill);
 
