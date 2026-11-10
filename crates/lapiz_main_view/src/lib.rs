@@ -15,7 +15,6 @@ use lapiz_builtin_docks::canvas::{CanvasDock, construct_canvas_dock_id};
 use lapiz_canvas::{
     CanvasAppExt as _, CanvasToolProxyAppExt as _,
     event::{CanvasCreated, CanvasRemoved},
-    recent::RecentFiles,
     tools::PanTool,
 };
 use lapiz_config::Config;
@@ -531,15 +530,6 @@ impl WindowView for MainView {
                         texel_type: TexelType::A8,
                     },
                 );
-
-                Config::<RecentFiles>::read_or_init_or_fallback()
-                    .update(|c| {
-                        c.update(
-                            canvas.local_file().source(),
-                            canvas.local_file().name().to_owned(),
-                        );
-                    })
-                    .log_err();
 
                 let tool_task = globals
                     .update_tool_proxy(&e.id, |tool_proxy, globals| {

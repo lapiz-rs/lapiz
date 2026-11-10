@@ -1,0 +1,29 @@
+[package]
+name = "lapiz_new_canvas_dialog"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+glam.workspace = true
+iced_core = { workspace = true, features = ["image"] }
+iced_futures.workspace = true
+iced_runtime.workspace = true
+image.workspace = true
+lapiz_canvas.workspace = true
+lapiz_i18n.workspace = true
+lapiz_image.workspace = true
+lapiz_lazuli.workspace = true
+lapiz_runtime.workspace = true
+lapiz_widgets.workspace = true
+moxcms.workspace = true
+rust-embed.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

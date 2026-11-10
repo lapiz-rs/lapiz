@@ -1,6 +1,7 @@
 [[categories]]
 title = "menu_file"
 items = [
+    "new_file_action",
     "open_file_action",
     "Separator",
     "save_file_action",

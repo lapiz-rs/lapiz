@@ -1,0 +1,11 @@
+new_canvas_title = 新建画布
+new_canvas_tab = 新画布
+clipboard_tab = 剪切板
+clipboard_loading = 正在读取剪切板图像…
+clipboard_empty = 请先将图像复制到剪切板。
+clipboard_read_error = 读取剪切板失败，请重新选择剪切板标签页以重试。
+clipboard_invalid_image = 剪切板图像数据异常，请重新复制图像。
+new_canvas_width = 宽度（像素）
+new_canvas_height = 高度（像素）
+new_canvas_create = 创建
+new_canvas_error = 创建画布失败：{ $error }

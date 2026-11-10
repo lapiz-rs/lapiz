@@ -43,6 +43,7 @@ lapiz_image_exporter.workspace = true
 lapiz_image_importer.workspace = true
 lapiz_input.workspace = true
 lapiz_main_view.workspace = true
+lapiz_new_canvas_dialog.workspace = true
 lapiz_render.workspace = true
 lapiz_report.workspace = true
 lapiz_runtime.workspace = true

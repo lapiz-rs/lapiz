@@ -149,11 +149,7 @@ impl WindowView for ImportDialogView {
                 if let Ok(archive) = archive
                     && let Ok(image) = CImage::from_lazuli(&archive, globals).logged_err()
                 {
-                    globals.add_canvas(CCanvas::new(
-                        self.local_file.take().unwrap(),
-                        image,
-                        archive,
-                    ));
+                    globals.add_canvas(CCanvas::new(self.local_file.take(), image, archive));
                 }
 
                 Config::<ImageImporterConfig>::read_or_init_or_fallback()

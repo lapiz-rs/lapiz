@@ -1,0 +1,11 @@
+new_canvas_title = New Canvas
+new_canvas_tab = New Canvas
+clipboard_tab = Clipboard
+clipboard_loading = Reading clipboard image…
+clipboard_empty = Copy an image to the clipboard first.
+clipboard_read_error = Reading the clipboard failed. Select the Clipboard tab again to retry.
+clipboard_invalid_image = Clipboard image data is invalid. Copy the image again.
+new_canvas_width = Width (px)
+new_canvas_height = Height (px)
+new_canvas_create = Create
+new_canvas_error = Failed to create canvas: { $error }
