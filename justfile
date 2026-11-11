@@ -1,4 +1,4 @@
-nightly := "nightly-2026-06-16"
+nightly := "nightly-2026-10-15"
 wild-version := "0.10.0"
 wgsl-test-version := "0.2.35"
 cargo-deny-version := "0.20.2"
