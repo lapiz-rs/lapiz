@@ -1,8 +1,7 @@
 import image::image_tiling::{TileInfo, TILE_SIZE};
+import package::icc_transform::transform_color;
 
 @group(0) @binding(0) var tex: texture_storage_2d_array<r32uint, read_write>;
-
-//CODEGEN_FLAG_TRANSFORM_COLOR
 
 @compute
 @workgroup_size(16, 16, 1)

@@ -3572,14 +3572,19 @@ name = "lapiz_color"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytemuck",
+ "futures",
  "glam 0.30.10",
  "lapiz_math",
+ "lapiz_render",
  "lapiz_runtime",
  "lapiz_utils",
  "moxcms 0.9.1",
  "parse-display",
  "serde",
  "wesl",
+ "wesl-quote",
+ "wgpu",
  "windows 0.62.2",
 ]
 

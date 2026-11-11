@@ -344,6 +344,7 @@ impl Primitive for GradientDrawPrimitive {
 
         render_pass.set_pipeline(&gradient.pipeline);
         render_pass.set_bind_group(0, &instance.bind_group, &[]);
+        render_pass.set_bind_group(1, &gradient.transform_bind_group, &[]);
         render_pass.set_vertex_buffer(0, data.mesh.vertices.slice(..));
         render_pass.set_index_buffer(data.mesh.indices.slice(..), IndexFormat::Uint16);
         render_pass.draw_indexed(0..data.mesh.n_indices, 0, 0..1);
@@ -353,6 +354,7 @@ impl Primitive for GradientDrawPrimitive {
         {
             render_pass.set_pipeline(&ring.pipeline);
             render_pass.set_bind_group(0, ring_bind_group, &[]);
+            render_pass.set_bind_group(1, &ring.transform_bind_group, &[]);
             render_pass.set_vertex_buffer(0, ring.mesh.vertices.slice(..));
             render_pass.set_index_buffer(ring.mesh.indices.slice(..), IndexFormat::Uint16);
             render_pass.draw_indexed(0..ring.mesh.n_indices, 0, 0..1);

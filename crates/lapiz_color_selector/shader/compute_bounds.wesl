@@ -12,6 +12,11 @@ import color::{
     xyz::Xyz,
 };
 
+import package::{
+    input_transform::picker_to_pcs,
+    image_transform::pcs_to_image,
+};
+
 struct Settings {
     channel_ranges: array<vec4f, 3>,
     base_channels: vec3f,
@@ -46,10 +51,6 @@ struct OutputBounds {
 @group(0) @binding(0) var<uniform> settings: Settings;
 @group(0) @binding(1) var<uniform> params: Params;
 @group(0) @binding(2) var<storage, read_write> output_bounds: OutputBounds;
-
-//CODEGEN_FLAG_PICKER_TO_PCS
-
-//CODEGEN_FLAG_PCS_TO_IMAGE
 
 fn channels_into_image(ch: vec3f) -> vec3f {
     var xyz = Xyz(0.0, 0.0, 0.0);

@@ -1,4 +1,5 @@
 import image::image_tiling::{TILE_SIZE, TileInfo};
+import package::icc_transform::calibrate_color;
 
 struct Canvas {
     transform: mat3x3f,
@@ -80,8 +81,6 @@ fn marching_ants(pixel: vec2f) -> vec4f {
     let v = select(0.0, 1.0, u32(w) % 2u != 0u);
     return vec4f(v, v, v, 1.0);
 }
-
-//CODEGEN_FLAG_CALIBRATE_COLOR
 
 @compute
 @workgroup_size(16, 16, 1)
