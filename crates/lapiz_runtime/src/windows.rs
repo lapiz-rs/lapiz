@@ -14,13 +14,33 @@ use parse_display::Display;
 use crate::global::{Global, Globals};
 
 wrapper! {
+    /// Unique static string identifier for a [`WindowView`] type.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display)]
     #[display("{0}")]
     pub WindowViewId : &'static str
 }
 
+/// Marker struct representing a window handle namespace.
 pub struct Window;
 
+/// A self-contained UI view controller that manages one or more application windows.
+///
+/// `WindowView` defines the state, rendering, update logic, and window lifecycle for a logical
+/// view in the application (such as the main workspace, brush editor, or modal dialogs). Views
+/// are registered with the [`WindowViewManager`] via [`Runtime::register_view`](crate::Runtime::register_view)
+/// and opened or closed dynamically using [`WindowCommand`]s pushed to the [`WindowCommandBuffer`].
+///
+/// # Lifecycle
+///
+/// - **Booting**: [`boot`](WindowView::boot) constructs the view state from optional `BootParams`
+///   and returns an initial [`Task`] (typically opening the view's OS window(s)).
+/// - **Rendering & Updates**: [`view`](WindowView::view) produces the UI element tree for each
+///   associated `window::Id`, while [`update`](WindowView::update) and
+///   [`subscription`](WindowView::subscription) handle messages and background event streams.
+/// - **Window Tracking**: [`windows`](WindowView::windows) reports all `window::Id`s currently
+///   owned by the view. If [`root_window`](WindowView::root_window) returns a window ID and that
+///   window is closed by the user, the [`WindowViewManager`] automatically closes the entire view.
+/// - **Closing**: [`close`](WindowView::close) consumes the view state and returns a cleanup task.
 pub trait WindowView: 'static + Sized {
     type Message: Send + 'static;
     type BootParams;
@@ -117,12 +137,14 @@ where
     }
 }
 
+/// Type-erased message targeted at a specific opened [`WindowView`].
 #[derive(Debug)]
 pub struct ErasedWindowViewMessage {
     view: WindowViewId,
     message: Box<dyn Any + Send>,
 }
 
+/// Message routed to the [`WindowViewManager`] to update an active view.
 pub enum WindowViewManagerMessage {
     ViewUpdate(ErasedWindowViewMessage),
 }
@@ -149,6 +171,11 @@ impl OpenedView {
     }
 }
 
+/// Manager that tracks registered [`WindowView`] factories, active view instances, and window-to-view routing.
+///
+/// Owned by [`Runtime`](crate::Runtime), `WindowViewManager` boots the designated root view on
+/// startup, dispatches `iced` view/update/subscription calls to the appropriate [`WindowView`] for
+/// each `window::Id`, and processes lifecycle transitions triggered by [`WindowCommand`]s.
 #[derive(Default)]
 pub struct WindowViewManager {
     window_to_view: HashMap<window::Id, WindowViewId>,
@@ -355,6 +382,7 @@ fn update_view_windows(
     }
 }
 
+/// Deferred command executed against the [`WindowViewManager`] and [`Globals`].
 pub trait WindowCommand: 'static {
     fn execute(
         self: Box<Self>,
@@ -363,6 +391,10 @@ pub trait WindowCommand: 'static {
     ) -> Result<Task<WindowViewManagerMessage>>;
 }
 
+/// Global queue of [`WindowCommand`]s drained and executed after each application update step.
+///
+/// Allows views, actions, and tools with access to [`Globals`] to request opening, closing, or
+/// toggling [`WindowView`]s without directly borrowing [`WindowViewManager`].
 #[derive(Default)]
 pub struct WindowCommandBuffer {
     commands: Vec<Box<dyn WindowCommand>>,
@@ -390,6 +422,7 @@ impl WindowCommandBuffer {
     }
 }
 
+/// [`WindowCommand`] that opens a registered [`WindowView`] with optional boot parameters.
 pub struct OpenWindowViewCommand {
     view_id: WindowViewId,
     open_params: Option<Box<dyn Any>>,
@@ -421,6 +454,7 @@ impl OpenWindowViewCommand {
     }
 }
 
+/// [`WindowCommand`] that closes a currently opened [`WindowView`].
 pub struct CloseWindowViewCommand {
     view_id: WindowViewId,
 }
@@ -441,6 +475,7 @@ impl CloseWindowViewCommand {
     }
 }
 
+/// [`WindowCommand`] that closes a [`WindowView`] if it is open, or opens it if it is closed.
 pub struct ToggleWindowViewCommand {
     view_id: WindowViewId,
     open_params: Option<Box<dyn Any>>,
@@ -476,6 +511,7 @@ impl ToggleWindowViewCommand {
     }
 }
 
+/// [`WindowCommand`] that associates a newly opened sub-window ID with an existing [`WindowViewId`].
 pub struct SubWindowOpenedCommand {
     view_id: WindowViewId,
     window: window::Id,

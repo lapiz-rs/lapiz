@@ -11,30 +11,42 @@ use toml::{de, ser};
 use uuid::Uuid;
 
 wrapper! {
+    /// A strongly-typed unique identifier for a pass within an [`EffectAsset`] or [`EffectInstance`](crate::instance::EffectInstance).
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub EffectPassId : Uuid
 }
 
 wrapper! {
+    /// A strongly-typed unique identifier for an external input slot of an [`EffectAsset`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub EffectInputSlotId : Uuid
 }
 
 wrapper! {
+    /// A strongly-typed unique identifier for an external output slot of an [`EffectAsset`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub EffectOutputSlotId : Uuid
 }
 
 wrapper! {
+    /// A strongly-typed unique identifier for a [`PassInputNode`](crate::nodes::PassInputNode) binding inside an effect pass.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub EffectPassInputSlotId : Uuid
 }
 
 wrapper! {
+    /// A strongly-typed unique identifier for a [`PassOutputNode`](crate::nodes::PassOutputNode) binding inside an effect pass.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub EffectPassOutputSlotId : Uuid
 }
 
+/// A persistent multi-pass GPU shader effect [`Asset`] stored as a `.lef` TOML file.
+///
+/// `EffectAsset` captures the serialized representation of an effect's external input and output
+/// slots ([`SerializableEffectInputSlot`], [`SerializableEffectOutputSlot`]) along with its
+/// ordered sequence of compute passes ([`SerializableEffectPass`]). At runtime it is instantiated
+/// into an [`EffectInstance`](crate::instance::EffectInstance) for editing or compiled into an
+/// [`EffectRenderer`](crate::render::EffectRenderer) for GPU execution.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct EffectAsset {
     pub name: String,
@@ -47,9 +59,11 @@ impl Asset for EffectAsset {
     const TYPE_NAME: &'static str = "effect";
 }
 
+/// An [`AssetSerializer`] that reads and writes [`EffectAsset`] definitions as `.lef` TOML files.
 #[derive(Default)]
 pub struct EffectAssetSerializer;
 
+/// An error that can occur when reading or writing an [`EffectAsset`].
 #[derive(Debug, thiserror::Error)]
 pub enum EffectAssetSerializerError {
     #[error(transparent)]
@@ -79,6 +93,7 @@ impl AssetSerializer for EffectAssetSerializer {
     }
 }
 
+/// The serialized representation of a single pass within an [`EffectAsset`].
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SerializableEffectPass {
     pub id: EffectPassId,
@@ -87,6 +102,7 @@ pub struct SerializableEffectPass {
     pub dispatch_strategy: EffectPassDispatchStrategy,
 }
 
+/// The serialized definition of an external input slot on an [`EffectAsset`].
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SerializableEffectInputSlot {
     pub name: String,
@@ -94,6 +110,7 @@ pub struct SerializableEffectInputSlot {
     pub ty: String,
 }
 
+/// The serialized definition of an external output slot on an [`EffectAsset`].
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SerializableEffectOutputSlot {
     pub name: String,
@@ -101,6 +118,15 @@ pub struct SerializableEffectOutputSlot {
     pub ty: String,
 }
 
+/// Determines how compute workgroups and `dispatch_index` values are scheduled for an effect pass.
+///
+/// - `Once`: Dispatches a single invocation (`[1, 1, 1]`) with `dispatch_index = 0u`.
+/// - `EveryBufferElement`: Dispatches 1D workgroups across the length of the specified array or
+///   atomic-array pass input slot, providing a `u32` element index.
+/// - `EveryOutputLayerPixel`: Dispatches 2D tiled workgroups across the allocated tiles of the
+///   specified writable output layer, providing a `vec2i` pixel coordinate.
+/// - `EveryInputLayerPixel`: Dispatches 2D tiled workgroups across the tiles of the specified
+///   input layer, providing a `vec2i` pixel coordinate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EffectPassDispatchStrategy {
     Once,

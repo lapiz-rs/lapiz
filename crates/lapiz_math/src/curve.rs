@@ -1,5 +1,10 @@
 use glam::Vec2;
 
+/// A 1D piecewise cubic Hermite spline curve evaluated over normalized `[0.0, 1.0]` coordinates.
+///
+/// `CubicCurve` interpolates smoothly through a sorted sequence of 2D control points using
+/// precomputed first derivatives solved via a tridiagonal system. Sampled outputs are clamped
+/// to `[0.0, 1.0]`, making it suitable for transfer functions, falloff profiles, and brush response curves.
 #[derive(Debug, Clone)]
 pub struct CubicCurve {
     control_points: Vec<Vec2>,
@@ -104,6 +109,10 @@ impl CubicCurve {
     }
 }
 
+/// A 2D cubic Bézier curve defined by four control points.
+///
+/// Evaluates positions and tangent vectors along the parametric interval `t` using the standard
+/// Bernstein polynomial basis between start point `p0`, handle points `p1` and `p2`, and end point `p3`.
 pub struct CubicBezierCurve {
     pub p0: Vec2,
     pub p1: Vec2,

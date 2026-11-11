@@ -49,6 +49,7 @@ pub mod desc;
 pub mod patt;
 pub mod samp;
 
+/// Plugin that registers [`AbrAssetBundleSource`] so `.abr` files are discovered as asset bundles.
 pub struct AbrBridgePlugin;
 
 impl Plugin for AbrBridgePlugin {
@@ -57,6 +58,7 @@ impl Plugin for AbrBridgePlugin {
     }
 }
 
+/// An [`AssetSource`] that scans an asset root for Adobe Brush (`.abr`) files.
 pub struct AbrAssetBundleSource;
 
 impl AssetSource for AbrAssetBundleSource {
@@ -69,6 +71,17 @@ impl AssetSource for AbrAssetBundleSource {
     }
 }
 
+/// A read-only [`AssetBundle`] backed by a parsed Adobe Brush (`.abr`) file.
+///
+/// Converts the contents of an [`Abr`] archive into in-memory engine assets upon opening:
+///
+/// - **Samples (`samp`)**: Converted into [`Image`] mask assets (`samp-<id>.lig`).
+/// - **Patterns (`patt`)**: Converted into [`Image`] texture assets (`patt-<id>.lig`).
+/// - **Descriptors (`desc`)**: Compiled into [`BrushPreset`](lapiz_brush::asset::BrushPreset) assets
+///   (`desc-<id>.lapiz`) with generated spacing, main dab, and postprocess shader graphs referencing
+///   the converted sample and pattern [`AssetId`]s.
+///
+/// Asset IDs are deterministically derived as UUID v5 values namespaced by the bundle's [`BundleId`].
 pub struct AbrAssetBundle {
     path: PathBuf,
     metadata: AssetBundleMetadata,

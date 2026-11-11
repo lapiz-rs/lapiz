@@ -18,6 +18,7 @@ use crate::ImageFormatExporter;
 // ravif speed, 1 (slowest, best compression) to 10 (fastest)
 const AVIF_SPEED: u8 = 4;
 
+/// Exporter for the AVIF (`.avif`) image format with configurable encoding quality.
 #[derive(Serialize, Deserialize)]
 pub struct AvifExporter {
     quality: u8,
@@ -29,6 +30,7 @@ impl Default for AvifExporter {
     }
 }
 
+/// UI messages emitted by the [`AvifExporter`] options form.
 #[derive(Debug, Clone, Copy)]
 pub enum AvifExportMessage {
     QualityChanged(u8),

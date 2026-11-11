@@ -46,6 +46,7 @@ pub fn read_or_create_cached_thumbnail(handle: &AssetHandle<Image>) -> Result<Pa
     Ok(path)
 }
 
+/// UI widget adapter that renders an [`AssetHandle<Image>`] as a thumbnail row with its display name.
 pub struct ImageListItem {
     handle: AssetHandle<Image>,
 }
@@ -82,12 +83,14 @@ impl<'a, Message: 'a> From<ImageListItem> for Element<'a, Message, Theme, Render
     }
 }
 
+/// A CPU-resident image [`Asset`] containing decoded pixel data, format information, and [`ImageMetadata`].
 pub struct Image {
     pub metadata: ImageMetadata,
     pub image: DynamicImage,
     pub format: ImageFormat,
 }
 
+/// Serializable metadata associated with an [`Image`] asset.
 #[derive(Serialize, Deserialize)]
 pub struct ImageMetadata {
     pub name: String,
@@ -109,9 +112,11 @@ impl Image {
     }
 }
 
+/// [`AssetSerializer`] implementation for reading `.lig` zip-archived [`Image`] assets.
 #[derive(Default)]
 pub struct ImageSerializer;
 
+/// Error type returned when reading or deserializing an [`Image`] archive fails.
 #[derive(Debug, thiserror::Error)]
 pub enum ImageSerializerError {
     #[error(transparent)]
@@ -162,6 +167,7 @@ impl AssetSerializer for ImageSerializer {
     }
 }
 
+/// A GPU-resident [`Texture`] uploaded from a CPU [`Image`] asset.
 #[derive(Debug, Clone)]
 pub struct GpuImage {
     pub texture: Texture,

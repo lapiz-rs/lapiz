@@ -57,6 +57,7 @@ use wgpu::{Buffer, Device, Queue, util::DeviceExt as _};
 
 use super::ComputedPenInput;
 
+/// Foreground and background RGBA colors supplied as built-in uniforms when rendering a brush stroke.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CanvasResources {
     pub foreground_color: Vec4,
@@ -76,6 +77,7 @@ pub const BRUSH_SAMPLE_BUILTIN: &str = "brush_sample";
 pub const INITIAL_PEN_INPUT_BUILTIN: &str = "initial_pen_input";
 pub const MAIN_ACCUMULATE_BUFFER: &str = "main_accumulate";
 
+/// Shader graph value type representing a [`ComputedPenInput`] storage buffer binding.
 #[derive(Default, Clone)]
 pub struct ComputedPenInputValueType;
 
@@ -193,6 +195,7 @@ impl ExtraShaderBody for BrushNodeShaderBody {
     }
 }
 
+/// Shader graph node that outputs the current dab's canvas pixel position (`brush_sample.position`).
 #[derive(Default, Clone)]
 pub struct PenPositionNode;
 
@@ -225,6 +228,7 @@ impl StatelessCommonGraphNode for PenPositionNode {
     }
 }
 
+/// Shader graph node that outputs the current dab's normalized pen pressure (`brush_sample.pressure`).
 #[derive(Default, Clone)]
 pub struct PenPressureNode;
 
@@ -257,6 +261,7 @@ impl StatelessCommonGraphNode for PenPressureNode {
     }
 }
 
+/// Shader graph node that outputs the current dab's pen tilt vector (`brush_sample.tilt`).
 #[derive(Default, Clone)]
 pub struct PenTiltNode;
 
@@ -286,6 +291,7 @@ impl StatelessCommonGraphNode for PenTiltNode {
     }
 }
 
+/// Shader graph node that outputs the current dab's pen altitude and azimuth angles.
 #[derive(Default, Clone)]
 pub struct PenAngleNode;
 
@@ -322,6 +328,7 @@ impl StatelessCommonGraphNode for PenAngleNode {
     }
 }
 
+/// Shader graph node that outputs the current dab's stroke tangent angle and unit direction vector.
 #[derive(Default, Clone)]
 pub struct DrawDirectionNode;
 
@@ -358,6 +365,7 @@ impl StatelessCommonGraphNode for DrawDirectionNode {
     }
 }
 
+/// Shader graph node that outputs the sequential index of the current dab within the stroke.
 #[derive(Default, Clone)]
 pub struct DabIndexNode;
 
@@ -390,6 +398,7 @@ impl StatelessCommonGraphNode for DabIndexNode {
     }
 }
 
+/// Shader graph node that outputs the cumulative arc-length distance traveled along the stroke.
 #[derive(Default, Clone)]
 pub struct StrokeDistanceNode;
 
@@ -422,6 +431,7 @@ impl StatelessCommonGraphNode for StrokeDistanceNode {
     }
 }
 
+/// Shader graph node that outputs the pen position recorded at the start of the stroke.
 #[derive(Default, Clone)]
 pub struct InitialPenPositionNode;
 
@@ -454,6 +464,7 @@ impl StatelessCommonGraphNode for InitialPenPositionNode {
     }
 }
 
+/// Shader graph node that outputs the pen pressure recorded at the start of the stroke.
 #[derive(Default, Clone)]
 pub struct InitialPenPressureNode;
 
@@ -486,6 +497,7 @@ impl StatelessCommonGraphNode for InitialPenPressureNode {
     }
 }
 
+/// Shader graph node that outputs the pen tilt vector recorded at the start of the stroke.
 #[derive(Default, Clone)]
 pub struct InitialPenTiltNode;
 
@@ -518,6 +530,7 @@ impl StatelessCommonGraphNode for InitialPenTiltNode {
     }
 }
 
+/// Shader graph node that outputs the pen altitude and azimuth angles recorded at the start of the stroke.
 #[derive(Default, Clone)]
 pub struct InitialPenAngleNode;
 
@@ -554,6 +567,7 @@ impl StatelessCommonGraphNode for InitialPenAngleNode {
     }
 }
 
+/// Shader graph node that outputs the initial stroke tangent angle and direction vector.
 #[derive(Default, Clone)]
 pub struct InitialDrawDirectionNode;
 
@@ -590,6 +604,7 @@ impl StatelessCommonGraphNode for InitialDrawDirectionNode {
     }
 }
 
+/// Shader graph node that outputs the current sample timestamp and stroke start timestamp.
 #[derive(Default, Clone)]
 pub struct TimeNode;
 
@@ -626,6 +641,7 @@ impl StatelessCommonGraphNode for TimeNode {
     }
 }
 
+/// Shader graph node that outputs the 2D canvas pixel coordinate of the current compute invocation.
 #[derive(Default, Clone)]
 pub struct PixelPositionNode;
 
@@ -658,6 +674,7 @@ impl StatelessCommonGraphNode for PixelPositionNode {
     }
 }
 
+/// Shader graph node that masks a color to zero outside a given bounding rectangle.
 #[derive(Default, Clone)]
 pub struct FilterWithinBoundsNode;
 
@@ -712,14 +729,17 @@ impl StatelessCommonGraphNode for FilterWithinBoundsNode {
     }
 }
 
+/// Shader graph node that blends a source and destination color using a selectable [`BlendMode`].
 #[derive(Default, Clone)]
 pub struct BlendColorNode;
 
+/// Persisted state for [`BlendColorNode`], storing the selected [`BlendMode`].
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlendColorNodeState {
     pub blend_mode: BlendMode,
 }
 
+/// UI messages emitted by blend-mode shader graph nodes.
 #[derive(Clone)]
 pub enum BlendModeNodeMessage {
     ModeChanged(BlendMode),
@@ -810,9 +830,11 @@ impl GraphNode for BlendColorNode {
     }
 }
 
+/// Shader graph node that blends an input color and opacity over the current pixel in the stroke accumulation buffer.
 #[derive(Default, Clone)]
 pub struct BlendWithInputNode;
 
+/// Persisted state for [`BlendWithInputNode`] and [`BlendWithLayerNode`], storing the selected [`BlendMode`].
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlendWithBufferNodeState {
     pub blend_mode: BlendMode,
@@ -902,6 +924,7 @@ impl GraphNode for BlendWithInputNode {
     }
 }
 
+/// Shader graph node that blends an input color and opacity over the current pixel of the target canvas layer.
 #[derive(Default, Clone)]
 pub struct BlendWithLayerNode;
 
@@ -994,6 +1017,7 @@ impl GraphNode for BlendWithLayerNode {
     }
 }
 
+/// Display wrapper around [`BlendMode`] for combo box selection widgets in blend nodes.
 #[derive(Clone)]
 pub struct BlendModeOption(BlendMode);
 
@@ -1015,6 +1039,7 @@ impl PartialEq for BlendModeOption {
     }
 }
 
+/// Shader graph node that samples a pixel color from the target canvas layer at a given position.
 #[derive(Default, Clone)]
 pub struct LayerPixelColorNode;
 
@@ -1050,6 +1075,7 @@ impl StatelessCommonGraphNode for LayerPixelColorNode {
     }
 }
 
+/// Shader graph node that samples a pixel color from the stroke accumulation buffer at a given position.
 #[derive(Default, Clone)]
 pub struct CurrentPixelColorNode;
 
@@ -1083,6 +1109,7 @@ impl StatelessCommonGraphNode for CurrentPixelColorNode {
     }
 }
 
+/// Shader graph node that outputs the tile-aligned pixel bounding rectangle of the stroke accumulation buffer.
 #[derive(Default, Clone)]
 pub struct StrokeBoundsNode;
 
@@ -1119,6 +1146,7 @@ impl StatelessCommonGraphNode for StrokeBoundsNode {
     }
 }
 
+/// Shader graph node that unions a dab bounding rectangle with the current stroke accumulation bounds.
 #[derive(Default, Clone)]
 pub struct AccumulateBoundsNode;
 
@@ -1154,6 +1182,7 @@ impl StatelessCommonGraphNode for AccumulateBoundsNode {
     }
 }
 
+/// Shader graph node that evaluates a rotated elliptical falloff mask and its bounding rectangle.
 #[derive(Default, Clone)]
 pub struct EllipticalMaskNode;
 
@@ -1207,6 +1236,7 @@ impl StatelessCommonGraphNode for EllipticalMaskNode {
     }
 }
 
+/// Shader graph node that samples the canvas selection mask value at a given pixel position.
 #[derive(Default, Clone)]
 pub struct SelectionMaskNode;
 
@@ -1242,6 +1272,7 @@ impl StatelessCommonGraphNode for SelectionMaskNode {
     }
 }
 
+/// Shader graph node that outputs the active foreground color uniform.
 #[derive(Default, Clone)]
 pub struct ForegroundColorNode;
 
@@ -1271,6 +1302,7 @@ impl StatelessCommonGraphNode for ForegroundColorNode {
     }
 }
 
+/// Shader graph node that outputs the active background color uniform.
 #[derive(Default, Clone)]
 pub struct BackgroundColorNode;
 

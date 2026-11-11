@@ -50,10 +50,12 @@ use crate::{
     },
 };
 
+/// Prepared bind group for dispatching [`BrushInputSamplingPipeline`].
 pub struct PreparedInputSamplingPipelineData {
     bind_group: BindGroup,
 }
 
+/// Compute pipeline that steps along cubic Bezier [`PenInputBatch`] segments using the brush spacing shader to emit [`OutputSamples`].
 pub struct BrushInputSamplingPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,
@@ -134,6 +136,15 @@ impl BrushInputSamplingPipeline {
     }
 }
 
+/// Two-stage compute pipeline that evaluates dab bounding boxes and renders brush dabs for the main brush effect.
+///
+/// `BrushMainPipeline` compiles the main brush shader graph twice—once with the `EVAL` WESL
+/// feature enabled and once without:
+///
+/// - **Evaluation Pass** (`eval`): Dispatched once per sample batch via [`dispatch_eval`](Self::dispatch_eval)
+///   to compute the pixel bounding rect ([`BatchBounds`]) of every dab without writing layer pixels.
+/// - **Main Pass** (`main`): Dispatched per dab via [`dispatch_main`](Self::dispatch_main) over the
+///   dab's non-empty pixel bounding rect after the host allocates the necessary GPU tiles.
 pub struct BrushMainPipeline {
     eval: ComputePipeline,
     main: ComputePipeline,

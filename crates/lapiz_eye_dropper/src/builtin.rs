@@ -10,6 +10,7 @@ use wgpu::{Device, Queue};
 
 use crate::{EyeDropperSampleMode, EyeDropperTarget};
 
+/// [`EyeDropperTarget`] implementation that samples texels from a [`PixelLayer`](lapiz_image::layer::pixel_layer::PixelLayer).
 #[derive(Default)]
 pub struct PixelLayerEyeDropperTarget;
 
@@ -28,6 +29,7 @@ impl EyeDropperTarget for PixelLayerEyeDropperTarget {
     }
 }
 
+/// [`EyeDropperTarget`] implementation that samples composited texels from a [`GroupLayer`](lapiz_image::layer::group_layer::GroupLayer).
 #[derive(Default)]
 pub struct GroupLayerEyeDropperTarget;
 

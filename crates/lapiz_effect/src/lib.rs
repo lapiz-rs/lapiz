@@ -15,6 +15,7 @@ pub fn init_i18n() {
     i18n::init();
 }
 
+/// Registers effect localization and the [`EffectAssetSerializer`] with the [`Runtime`].
 pub struct EffectPlugin;
 
 impl Plugin for EffectPlugin {

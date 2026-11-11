@@ -11,18 +11,32 @@ use serde::{Deserialize, Serialize};
 use toml::{de, ser};
 use zip::{ZipArchive, result::ZipError, write::FileOptions};
 
+/// A serializable image filter preset asset backed by an [`EffectAsset`].
+///
+/// A `FilterPreset` pairs an underlying multi-pass compute effect with display metadata and
+/// default parameter values keyed by [`EffectInputSlotId`]. On disk, presets are stored as
+/// `.lfp` ZIP archives managed by [`FilterPresetSerializer`], containing:
+/// - `filter.toml`: Display metadata ([`FilterPresetMetadata`]).
+/// - `effect.lef`: The serialized [`EffectAsset`] pipeline.
+/// - `parameters.toml`: Optional default [`SerializableFilterParameter`] entries for non-layer effect inputs.
+///
+/// At runtime, presets are instantiated into [`FilterInstance`](crate::instance::FilterInstance) values
+/// for editing in [`FilterEditor`](crate::editor::FilterEditor) or live canvas application in
+/// [`FilterPanel`](crate::panel::FilterPanel).
 pub struct FilterPreset {
     pub metadata: FilterPresetMetadata,
     pub effect: EffectAsset,
     pub parameters: IndexMap<EffectInputSlotId, SerializableFilterParameter>,
 }
 
+/// The serialized representation of a user-adjustable filter parameter and its default literal value.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableFilterParameter {
     pub name: String,
     pub value: SerializableGraphLiteral,
 }
 
+/// Display metadata associated with a [`FilterPreset`].
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FilterPresetMetadata {
     pub name: String,
@@ -37,9 +51,11 @@ struct FilterToml {
     name: String,
 }
 
+/// [`AssetSerializer`] implementation that reads and writes [`FilterPreset`] assets as `.lfp` ZIP archives.
 #[derive(Default)]
 pub struct FilterPresetSerializer;
 
+/// Errors that can occur while serializing or deserializing a [`FilterPreset`] archive.
 #[derive(Debug, thiserror::Error)]
 pub enum FilterPresetSerializerError {
     #[error(transparent)]

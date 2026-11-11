@@ -2,6 +2,10 @@ use anyhow::{Result, bail};
 
 use crate::cursor::Cursor;
 
+/// Version header located at the start of an [`Abr`](crate::Abr) file.
+///
+/// Identifies the major version and subversion of the ABR binary layout (currently requiring
+/// major version `>= 6` and subversion `2`).
 #[derive(Debug)]
 pub struct AbrHeader {
     pub major: u16,

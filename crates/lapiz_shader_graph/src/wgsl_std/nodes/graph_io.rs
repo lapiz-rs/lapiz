@@ -16,15 +16,18 @@ use crate::{
     },
 };
 
+/// A shader graph node that declares a typed external input parameter on the owning [`Graph`](crate::graph::Graph)'s signature.
 #[derive(Default, Clone)]
 pub struct GraphInputNode;
 
+/// Per-instance state for [`GraphInputNode`], storing the parameter's name and value type ID.
 #[derive(Default, Serialize, Deserialize)]
 pub struct GraphInputNodeState {
     pub name: String,
     pub ty: Option<String>,
 }
 
+/// UI message emitted by [`GraphInputNode`].
 #[derive(Clone)]
 pub enum GraphInputNodeMessage {
     NameChanged(String),
@@ -127,15 +130,18 @@ impl GraphNode for GraphInputNode {
     }
 }
 
+/// A shader graph node that declares a typed external output value on the owning [`Graph`](crate::graph::Graph)'s signature.
 #[derive(Default, Clone)]
 pub struct GraphOutputNode;
 
+/// Per-instance state for [`GraphOutputNode`], storing the output's name and value type ID.
 #[derive(Default, Serialize, Deserialize)]
 pub struct GraphOutputNodeState {
     pub name: String,
     pub ty: Option<String>,
 }
 
+/// UI message emitted by [`GraphOutputNode`].
 #[derive(Clone)]
 pub enum GraphOutputNodeMessage {
     NameChanged(String),

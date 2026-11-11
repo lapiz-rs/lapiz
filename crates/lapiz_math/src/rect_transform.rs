@@ -1,6 +1,7 @@
 use bevy_math::Rect;
 use glam::Mat3;
 
+/// Extension trait for transforming an axis-aligned [`Rect`] by a 2D affine [`Mat3`] and recomputing its bounding box.
 pub trait RectTransform {
     fn transform(&mut self, mat: &Mat3);
     fn transformed(self, mat: &Mat3) -> Self;

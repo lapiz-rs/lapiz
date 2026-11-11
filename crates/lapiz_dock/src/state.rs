@@ -5,6 +5,10 @@ use crate::{
     group::{DockGroupData, DockGroupId},
 };
 
+/// Manages the [`pane_grid::State`] of [`DockGroupData`] tab groups within a dock window.
+///
+/// The main window uses a `DockState` with splits enabled (`allow_splits: true`), whereas detached
+/// floating windows use [`DockState::single`] with splits disabled so each floating window hosts a single tab group.
 #[derive(Debug)]
 pub struct DockState {
     panes: Option<pane_grid::State<DockGroupData>>,

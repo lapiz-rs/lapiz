@@ -20,6 +20,7 @@ use crate::{
     },
 };
 
+/// Shader graph node that loads a pixel color ([`ColorType`]) from a [`TextureType`] at a given 2D coordinate.
 #[derive(Default, Clone)]
 pub struct GetPixelColorNode;
 
@@ -79,6 +80,7 @@ impl ExtraShaderBody for TextureSampleShaderBody {
 }
 
 // TODO: Mixing in different color spaces.
+/// Shader graph node that linearly interpolates between two [`ColorType`] values by a scalar factor.
 #[derive(Default, Clone)]
 pub struct ColorMixNode;
 
@@ -120,6 +122,7 @@ impl StatelessCommonGraphNode for ColorMixNode {
     }
 }
 
+/// Shader graph node that queries the width and height of a [`TextureType`] as a [`Vec2FType`].
 #[derive(Default, Clone)]
 pub struct TextureSizeNode;
 

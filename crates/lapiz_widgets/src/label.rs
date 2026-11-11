@@ -4,6 +4,18 @@ use iced_core::{
 };
 use lapiz_runtime::Renderer;
 
+/// A themed text label widget with typography and semantic color presets.
+///
+/// `Label` wraps `iced_widget::Text` with a default `12px` font size, word-or-glyph wrapping,
+/// and vertical centering.
+///
+/// # Typography and Color Presets
+///
+/// - [`strong`](Self::strong): Renders text with semibold font weight.
+/// - [`muted`](Self::muted): Uses the theme's weak background text color for secondary labels.
+/// - [`faint`](Self::faint): Uses a translucent weak text color for de-emphasized hints or counts.
+/// - [`accent`](Self::accent): Highlights text with the theme's strong primary color.
+/// - [`window_title`](Self::window_title): Semibold `13px` preset suited for window and panel titles.
 pub struct Label<'a> {
     inner: iced_widget::Text<'a, Theme, Renderer>,
 }

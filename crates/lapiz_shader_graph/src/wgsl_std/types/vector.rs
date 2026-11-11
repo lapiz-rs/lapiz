@@ -19,6 +19,7 @@ use crate::{
     save::GraphValueTypeId,
 };
 
+/// UI message updating a single component at `index` of a vector literal.
 #[derive(Clone)]
 pub struct VectorMessage<T> {
     index: usize,
@@ -27,6 +28,7 @@ pub struct VectorMessage<T> {
 
 macro_rules! vector_type {
     (
+        $(#[$meta:meta])*
         $name:ident,
         $literal:ty,
         $scalar:ty,
@@ -37,6 +39,7 @@ macro_rules! vector_type {
         $range:expr,
         $component:ident
     ) => {
+        $(#[$meta])*
         #[derive(Default, Clone)]
         pub struct $name;
 
@@ -151,6 +154,7 @@ macro_rules! vector_type {
 }
 
 vector_type!(
+    /// Shader graph value type representing a 2D 32-bit floating-point vector (`vec2f`).
     Vec2FType,
     Vec2,
     f32,
@@ -162,6 +166,7 @@ vector_type!(
     f
 );
 vector_type!(
+    /// Shader graph value type representing a 3D 32-bit floating-point vector (`vec3f`).
     Vec3FType,
     Vec3,
     f32,
@@ -173,6 +178,7 @@ vector_type!(
     f
 );
 vector_type!(
+    /// Shader graph value type representing a 4D 32-bit floating-point vector (`vec4f`).
     Vec4FType,
     Vec4,
     f32,
@@ -185,6 +191,7 @@ vector_type!(
 );
 
 vector_type!(
+    /// Shader graph value type representing a 2D 32-bit signed integer vector (`vec2i`).
     Vec2IType,
     IVec2,
     i32,
@@ -196,6 +203,7 @@ vector_type!(
     i
 );
 vector_type!(
+    /// Shader graph value type representing a 3D 32-bit signed integer vector (`vec3i`).
     Vec3IType,
     IVec3,
     i32,
@@ -207,6 +215,7 @@ vector_type!(
     i
 );
 vector_type!(
+    /// Shader graph value type representing a 4D 32-bit signed integer vector (`vec4i`).
     Vec4IType,
     IVec4,
     i32,
@@ -219,6 +228,7 @@ vector_type!(
 );
 
 vector_type!(
+    /// Shader graph value type representing a 2D 32-bit unsigned integer vector (`vec2u`).
     Vec2UType,
     UVec2,
     u32,
@@ -230,6 +240,7 @@ vector_type!(
     u
 );
 vector_type!(
+    /// Shader graph value type representing a 3D 32-bit unsigned integer vector (`vec3u`).
     Vec3UType,
     UVec3,
     u32,
@@ -241,6 +252,7 @@ vector_type!(
     u
 );
 vector_type!(
+    /// Shader graph value type representing a 4D 32-bit unsigned integer vector (`vec4u`).
     Vec4UType,
     UVec4,
     u32,

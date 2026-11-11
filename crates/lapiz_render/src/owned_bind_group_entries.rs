@@ -3,6 +3,7 @@ use wgpu::{
     TextureView,
 };
 
+/// Owned counterpart to [`BindingResource`] that holds cloned `wgpu` handles without lifetime parameters.
 #[derive(Clone, Debug)]
 pub enum OwnedBindingResource {
     Buffer(OwnedBufferBinding),
@@ -35,6 +36,7 @@ impl OwnedBindingResource {
     }
 }
 
+/// Owned counterpart to [`BufferBinding`] storing a cloned [`Buffer`], byte offset, and optional binding size.
 #[derive(Clone, Debug)]
 pub struct OwnedBufferBinding {
     pub buffer: Buffer,
@@ -60,6 +62,7 @@ impl OwnedBufferBinding {
     }
 }
 
+/// Owned counterpart to [`BindGroupEntry`] pairing a binding index with an [`OwnedBindingResource`].
 #[derive(Clone, Debug)]
 pub struct OwnedBindGroupEntry {
     pub binding: u32,

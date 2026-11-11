@@ -4,6 +4,11 @@ use iced_core::{Background, Border, Element, Length, Theme};
 use iced_widget::progress_bar::{Catalog, Style};
 use lapiz_runtime::Renderer;
 
+/// A horizontal or vertical progress indicator bar with semantic status styles.
+///
+/// `ProgressBar` wraps [`iced_widget::ProgressBar`] with a bordered track and provides color
+/// presets for [`default`] (primary), [`success`](Self::success), [`warning`](Self::warning),
+/// and [`danger`](Self::danger) states.
 pub struct ProgressBar<'a> {
     inner: iced_widget::ProgressBar<'a, Theme>,
 }

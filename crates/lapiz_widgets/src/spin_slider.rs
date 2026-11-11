@@ -19,6 +19,25 @@ use num_traits::AsPrimitive;
 
 use crate::text_input::{focus_and_select_all, unfocus};
 
+/// A hybrid numeric control combining a draggable value bar, `−`/`+` step buttons, and inline text editing.
+///
+/// `SpinSlider` displays a horizontal value bar flanked by decrement (`−`) and increment (`+`)
+/// buttons, with the formatted numeric value (including optional [`prefix`](Self::prefix) and
+/// [`suffix`](Self::suffix)) centered in the middle field.
+///
+/// # Interaction Modes
+///
+/// - **Scrubbing / dragging**: Pressing and dragging horizontally across the center field scrubs the
+///   value across the configured range using either [`SliderScale::Linear`] or
+///   [`SliderScale::Logarithmic`] mapping, emitting [`on_change`](Self::on_change) during the drag
+///   and [`on_confirm`](Self::on_confirm) upon release.
+/// - **Inline text editing**: Clicking and releasing the center field without dragging switches the
+///   control into an inline text editor with all text selected. Pressing `Enter` or clicking outside
+///   commits the parsed value (optionally allowing values outside the slider range when
+///   [`allow_beyond_range`](Self::allow_beyond_range) is enabled); pressing `Escape` cancels.
+/// - **Stepping**: Clicking the `−` or `+` buttons, pressing `ArrowUp`/`ArrowDown` while hovered, or
+///   scrolling with `Ctrl` held steps the value by [`step`](Self::step) and emits both `on_change`
+///   and `on_confirm`.
 pub struct SpinSlider<'a, T, Message, Theme = iced_core::Theme>
 where
     Theme: Catalog,
@@ -825,12 +844,14 @@ where
     }
 }
 
+/// Mapping curve between a [`SpinSlider`]'s numeric value and its horizontal fill ratio.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SliderScale {
     Linear,
     Logarithmic,
 }
 
+/// Sub-region of a [`SpinSlider`] where a pointer press originated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PressTarget {
     Minus,
@@ -838,6 +859,7 @@ enum PressTarget {
     Plus,
 }
 
+/// The visual appearance of a [`SpinSlider`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Style {
     pub background: Background,
@@ -847,12 +869,14 @@ pub struct Style {
     pub text_color: Option<Color>,
 }
 
+/// Internal message produced by the inline text editor of a [`SpinSlider`].
 #[derive(Clone)]
 enum SpinSliderInputMessage {
     Changed(String),
     Submitted,
 }
 
+/// The interaction status of a [`SpinSlider`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     Active,
@@ -862,6 +886,7 @@ pub enum Status {
     Disabled,
 }
 
+/// Widget tree state for a [`SpinSlider`], storing current interaction state and keyboard modifiers.
 #[derive(Debug)]
 struct SpinSliderTreeState<T> {
     interaction: SpinSliderState<T>,
@@ -877,6 +902,7 @@ impl<T> Default for SpinSliderTreeState<T> {
     }
 }
 
+/// Active gesture or editing state of a [`SpinSlider`].
 #[derive(Debug, Default)]
 enum SpinSliderState<T> {
     #[default]
@@ -940,6 +966,7 @@ fn fill_text<Renderer>(
     );
 }
 
+/// The theme catalog of a [`SpinSlider`].
 pub trait Catalog: text_input::Catalog + Sized {
     type Class<'a>;
 

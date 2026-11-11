@@ -4,6 +4,10 @@ use uuid::Uuid;
 
 use crate::LazuliArchive;
 
+/// Document-level image properties persisted in the singleton `image` table of a [`LazuliArchive`].
+///
+/// Captures the canvas dimensions, tile grid size, raw ICC color profile bytes, root layer
+/// identifier, and encoded texel format required to reconstruct a document image.
 #[derive(Debug, Clone)]
 pub struct ImageProperties {
     pub width: u32,

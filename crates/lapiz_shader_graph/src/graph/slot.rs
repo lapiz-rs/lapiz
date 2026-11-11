@@ -33,17 +33,24 @@ use crate::{
 };
 
 wrapper! {
+    /// A strongly-typed unique identifier for an input slot in a [`Graph`](crate::graph::Graph).
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
     #[display("{0}")]
     pub GraphInputSlotId : Uuid
 }
 
 wrapper! {
+    /// A strongly-typed unique identifier for an output slot in a [`Graph`](crate::graph::Graph).
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
     #[display("{0}")]
     pub GraphOutputSlotId : Uuid
 }
 
+/// Storage for all input and output slot instances within a [`Graph`](crate::graph::Graph).
+///
+/// `GraphSlots` maintains the bidirectional connection topology between [`GraphInputSlotData`]
+/// (each holding at most one upstream [`GraphOutputSlotId`]) and [`GraphOutputSlotData`] (each
+/// tracking the set of downstream [`GraphInputSlotId`]s connected to it).
 #[derive(Default)]
 pub struct GraphSlots {
     pub(crate) inputs: HashMap<GraphInputSlotId, GraphInputSlotData>,
@@ -65,6 +72,7 @@ impl GraphSlots {
     }
 }
 
+/// A template definition for an input slot returned by [`GraphNode::create_inputs`](crate::graph::node::GraphNode::create_inputs).
 pub struct GraphDefaultInputSlot {
     pub name: String,
     pub ty: Arc<dyn ErasedGraphValueType>,
@@ -83,6 +91,7 @@ impl GraphDefaultInputSlot {
     }
 }
 
+/// Runtime data for an input slot on a node, holding its fallback [`GraphLiteral`] and optional upstream connection.
 pub struct GraphInputSlotData {
     pub node_id: GraphNodeId,
     pub name: String,
@@ -90,6 +99,7 @@ pub struct GraphInputSlotData {
     pub connected: Option<GraphOutputSlotId>,
 }
 
+/// A template definition for an output slot returned by [`GraphNode::create_outputs`](crate::graph::node::GraphNode::create_outputs).
 pub struct GraphDefaultOutputSlot {
     pub name: String,
     pub ty: Arc<dyn ErasedGraphValueType>,
@@ -115,6 +125,7 @@ impl GraphDefaultOutputSlot {
     }
 }
 
+/// Runtime data for an output slot on a node, holding its value type and set of connected downstream input slots.
 pub struct GraphOutputSlotData {
     pub node_id: GraphNodeId,
     pub name: String,
@@ -122,6 +133,7 @@ pub struct GraphOutputSlotData {
     pub connected: HashSet<GraphInputSlotId>,
 }
 
+/// The shader binding stage or role for which a [`GraphValueType`] generates layout and binding entries.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum GraphShaderStage {
     Input,
@@ -129,6 +141,19 @@ pub enum GraphShaderStage {
     Main,
 }
 
+/// Defines a data type that can flow through shader graph slots, be edited as a literal, and bind to GPU shaders.
+///
+/// Implementors of `GraphValueType` bridge three representations of a shader value:
+/// - [`AssociatedLiteralType`](Self::AssociatedLiteralType): The CPU-side literal value edited in
+///   unconnected input slots and serialized to TOML.
+/// - [`PreparedShaderType`](Self::PreparedShaderType): The GPU-uploaded resource (such as a
+///   uniform buffer, storage buffer, or texture binding) created by
+///   [`prepare_to_shader`](Self::prepare_to_shader).
+/// - WGSL code generation: Inline literal expressions via [`literal_to_code`](Self::literal_to_code),
+///   bind group layout/entry declarations via [`push_shader_layout`](Self::push_shader_layout) and
+///   [`push_shader_binding`](Self::push_shader_binding), and pass I/O accessors via
+///   [`handle_input_values`](Self::handle_input_values) and
+///   [`handle_output_values`](Self::handle_output_values).
 pub trait GraphValueType: Send + Sync + 'static + DynClone {
     type AssociatedLiteralType: GraphLiteralValue;
     // TODO Better naming
@@ -242,11 +267,13 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
     ) -> Result<Self::AssociatedLiteralType>;
 }
 
+/// Marker trait for cloneable, downcastable UI messages that update a [`GraphValueType`]'s literal value.
 pub trait GraphLiteralUpdateMessage: DynClone + Send + Sync + 'static + Downcast {}
 
 impl<T: DynClone + Send + Sync + 'static> GraphLiteralUpdateMessage for T {}
 downcast_rs::impl_downcast!(GraphLiteralUpdateMessage);
 
+/// A type-erased literal update message paired with the target [`GraphInputSlotId`].
 pub struct ErasedGraphLiteralUpdateMessage {
     pub inner: Box<dyn GraphLiteralUpdateMessage>,
     pub id: GraphInputSlotId,
@@ -269,6 +296,7 @@ impl Clone for ErasedGraphLiteralUpdateMessage {
     }
 }
 
+/// Object-safe, type-erased counterpart to [`GraphValueType`].
 pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
     fn hue_chroma(&self) -> (f32, f32);
     fn id(&self) -> GraphValueTypeId;

@@ -41,6 +41,7 @@ pub mod tile;
 
 lapiz_i18n::define_i18n!("image");
 
+/// Runtime plugin that initializes image localization, [`GpuTileStorage`], [`LayerPreviewOverriders`], built-in [`BlendMode`]s, and standard layer types.
 pub struct ImagePlugin;
 
 impl Plugin for ImagePlugin {
@@ -62,6 +63,12 @@ impl Plugin for ImagePlugin {
     }
 }
 
+/// A multi-layered canvas document image managed by the editing engine.
+///
+/// `CImage` represents the structural state of an open document, including its pixel dimensions,
+/// working [`ColorProfile`], default [`TexelType`], hierarchical [`LayerStack`], and [`SpecialLayers`]
+/// (such as the active selection mask). Actual pixel tile data resides on the GPU inside
+/// [`GpuTileStorage`], indexed by each layer's [`LayerId`].
 #[derive(Debug)]
 pub struct CImage {
     size: UVec2,

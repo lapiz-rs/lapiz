@@ -10,6 +10,7 @@ use crate::{
 };
 
 wrapper! {
+    /// Layer property indicating whether the layer is visible during compositing.
     #[derive(Debug, Clone, Copy)]
     pub VisibleProp : bool
 }
@@ -35,6 +36,7 @@ impl Default for VisibleProp {
         Self(true)
     }
 }
+/// Extension trait on [`LayerProperties`] for reading and modifying [`VisibleProp`].
 pub trait VisiblePropertyExt {
     fn visible(&self) -> bool {
         self.get_visible().unwrap()
@@ -53,6 +55,7 @@ impl VisiblePropertyExt for LayerProperties {
 }
 
 wrapper! {
+    /// Layer property storing the [`BlendFunctionId`] used to composite the layer.
     #[derive(Debug, Clone)]
     pub BlendFunctionProp : BlendFunctionId
 }
@@ -78,6 +81,7 @@ impl Default for BlendFunctionProp {
         Self(BlendMode::Normal.id())
     }
 }
+/// Extension trait on [`LayerProperties`] for reading and modifying [`BlendFunctionProp`].
 pub trait BlendFunctionPropertyExt {
     fn blend_function(&self) -> &BlendFunctionId {
         self.get_blend_function().unwrap()
@@ -96,6 +100,7 @@ impl BlendFunctionPropertyExt for LayerProperties {
 }
 
 wrapper! {
+    /// Layer property storing the layer's opacity multiplier in `[0.0, 1.0]`.
     #[derive(Debug, Clone, Copy)]
     pub OpacityProp : f32
 }
@@ -121,6 +126,7 @@ impl Default for OpacityProp {
         Self(1.0)
     }
 }
+/// Extension trait on [`LayerProperties`] for reading and modifying [`OpacityProp`].
 pub trait OpacityPropertyExt {
     fn opacity(&self) -> f32 {
         self.get_opacity().unwrap()
@@ -139,6 +145,7 @@ impl OpacityPropertyExt for LayerProperties {
 }
 
 wrapper! {
+    /// Layer property storing the user-visible display name of the layer.
     #[derive(Debug, Clone, Default)]
     pub NameProp : String
 }
@@ -159,6 +166,7 @@ impl LayerProperty for NameProp {
         Ok(Self(rmp_serde::from_slice(data)?))
     }
 }
+/// Extension trait on [`LayerProperties`] for reading and modifying [`NameProp`].
 pub trait NamePropertyExt {
     fn name(&self) -> &str {
         self.get_name().unwrap()
@@ -177,6 +185,7 @@ impl NamePropertyExt for LayerProperties {
 }
 
 wrapper! {
+    /// Layer property indicating whether the layer is locked against editing.
     #[derive(Debug, Clone, Copy, Default)]
     pub LockedProp : bool
 }
@@ -197,6 +206,7 @@ impl LayerProperty for LockedProp {
         Ok(Self(rmp_serde::from_slice(data)?))
     }
 }
+/// Extension trait on [`LayerProperties`] for reading and modifying [`LockedProp`].
 pub trait LockedPropertyExt {
     fn locked(&self) -> bool {
         self.get_locked().unwrap()
@@ -214,6 +224,7 @@ impl LockedPropertyExt for LayerProperties {
 }
 
 wrapper! {
+    /// Layer property storing a bitmask of color channels disabled during compositing.
     #[derive(Debug, Clone, Copy, Default)]
     pub DisabledChannelsProp : u32
 }
@@ -234,6 +245,7 @@ impl LayerProperty for DisabledChannelsProp {
         Ok(Self(rmp_serde::from_slice(data)?))
     }
 }
+/// Extension trait on [`LayerProperties`] for reading and modifying [`DisabledChannelsProp`].
 pub trait DisabledChannelsPropertyExt {
     fn disabled_channels(&self) -> DisabledChannelsProp {
         self.get_disabled_channels().unwrap()
@@ -269,6 +281,7 @@ impl DisabledChannelsProp {
 }
 
 wrapper! {
+    /// Layer property storing a bitmask of color channels locked against pixel modification.
     #[derive(Debug, Clone, Copy, Default)]
     pub LockedChannelsProp : u32
 }
@@ -289,6 +302,7 @@ impl LayerProperty for LockedChannelsProp {
         Ok(Self(rmp_serde::from_slice(data)?))
     }
 }
+/// Extension trait on [`LayerProperties`] for reading and modifying [`LockedChannelsProp`].
 pub trait LockedChannelsPropertyExt {
     fn locked_channels(&self) -> LockedChannelsProp {
         self.get_locked_channels().unwrap()
@@ -323,12 +337,14 @@ impl LockedChannelsProp {
     }
 }
 
+/// Origin of a layer's texel storage in [`GpuTileStorage`](crate::tile::GpuTileStorage).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TexelSource {
     Generated,
     DirectlyDefined,
 }
 
+/// Layer property declaring the [`TexelType`] and [`TexelSource`] of a layer's GPU tile storage.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LayerTexelProp {
     pub ty: TexelType,
@@ -358,6 +374,7 @@ impl LayerProperty for LayerTexelProp {
         Ok(rmp_serde::from_slice(data)?)
     }
 }
+/// Extension trait on [`LayerProperties`] for querying [`LayerTexelProp`].
 pub trait LayerTexelTypePropertyExt {
     fn get_texel_prop(&self) -> Option<LayerTexelProp>;
     fn get_texel_type(&self) -> Option<TexelType>;

@@ -4,6 +4,10 @@ use lapiz_runtime::Renderer;
 
 use crate::{button, flex::Flex, icon, label};
 
+/// A mutually exclusive radio button option with an SVG indicator and text label.
+///
+/// `Radio` compares its option `value` against the currently `selected` value to choose between
+/// active and inactive radio SVG icons, and emits `on_click(value)` when pressed.
 pub struct Radio<'a, Message> {
     label: String,
     selected: bool,
@@ -108,12 +112,14 @@ impl<'a, Message: 'a> From<Radio<'a, Message>> for Element<'a, Message, Theme, R
     }
 }
 
+/// The interaction status of a [`Radio`] button.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     Active { is_selected: bool },
     Hovered { is_selected: bool },
 }
 
+/// The visual appearance of a [`Radio`] button.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Style {
     pub background: Background,
@@ -123,6 +129,7 @@ pub struct Style {
     pub text_color: Option<Color>,
 }
 
+/// The theme catalog of a [`Radio`] button.
 pub trait Catalog: Sized {
     type Class<'a>;
 

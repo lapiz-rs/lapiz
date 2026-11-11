@@ -36,6 +36,7 @@ pub mod config;
 pub mod import_dialog;
 pub mod importer;
 
+/// Plugin that initializes the image import subsystem, registers built-in [`ImageFormatImporter`]s, and sets up the [`ImportDialogView`].
 pub struct ImageImporterPlugin;
 
 impl Plugin for ImageImporterPlugin {
@@ -67,6 +68,18 @@ impl Plugin for ImageImporterPlugin {
 
 pub type ErasedImportDialogMessage = Box<dyn Any + Send>;
 
+/// Defines a format-specific importer capable of loading an image file into a [`LazuliArchive`].
+///
+/// Implementations declare their supported file extension and aliases, provide an optional
+/// configuration UI displayed in [`ImportDialogView`], persist user preferences as TOML values,
+/// and implement [`import`](Self::import) to decode the file into a [`LazuliArchive`] ready for
+/// [`CImage::from_lazuli`] and [`CCanvas`] creation.
+///
+/// # Lifecycle
+///
+/// 1. Registered into [`ImageImporterRegistry`] at startup.
+/// 2. Resolved by file extension in [`start_import`] and hydrated with saved settings from [`ImageImporterConfig`].
+/// 3. If [`has_options`](Self::has_options) is `true`, presented in [`ImportDialogView`]; otherwise imported immediately.
 pub trait ImageFormatImporter: 'static {
     type DialogMessage: Send + 'static;
 
@@ -108,6 +121,7 @@ pub trait ImageFormatImporter: 'static {
     fn from_toml(&mut self, value: toml::Value) -> Result<()>;
 }
 
+/// Type-erased wrapper trait for [`ImageFormatImporter`] used for dynamic storage and dispatch.
 pub trait ErasedImageFormatImporter: Send + Sync + 'static {
     fn extension(&self) -> &'static str;
     fn description(&self) -> String;
@@ -192,6 +206,7 @@ where
     }
 }
 
+/// Metadata describing a registered import format for file dialogs and format filters.
 pub struct ImageFormatInfo {
     pub extension: &'static str,
     pub aliases: &'static [&'static str],
@@ -205,6 +220,11 @@ struct ImporterEntry {
     construct: fn() -> Box<dyn ErasedImageFormatImporter>,
 }
 
+/// Global registry of available [`ImageFormatImporter`] implementations indexed by file extension.
+///
+/// Maps primary extensions and aliases (case-insensitively) to factory functions that construct
+/// type-erased [`ErasedImageFormatImporter`] instances, optionally hydrated with saved user
+/// preferences from [`ImageImporterConfig`].
 #[derive(Default)]
 pub struct ImageImporterRegistry {
     entries: Vec<ImporterEntry>,
@@ -271,6 +291,7 @@ impl ImageImporterRegistry {
     }
 }
 
+/// Parameters passed when opening [`ImportDialogView`] for a selected local file.
 pub struct PendingImport {
     pub local_file: LocalFile,
 }

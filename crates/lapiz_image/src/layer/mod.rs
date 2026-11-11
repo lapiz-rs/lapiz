@@ -31,6 +31,10 @@ pub mod group_layer;
 pub mod pixel_layer;
 pub mod properties;
 
+/// Global registry of prototype [`Layer`] instances indexed by their numeric layer type ID.
+///
+/// Used during archive deserialization to instantiate concrete [`Layer`] implementations
+/// (such as [`PixelLayer`] and [`GroupLayer`]) from serialized type tags.
 #[derive(Default)]
 pub struct LayerTypeRegistry {
     tys: HashMap<u32, Box<dyn Layer>>,
@@ -49,6 +53,7 @@ impl LayerTypeRegistry {
     }
 }
 
+/// Sequential counter that generates numbered default names for newly created layers.
 #[derive(Debug, Default)]
 pub struct LayerNameGenerator {
     counters: HashMap<String, usize>,
@@ -63,6 +68,7 @@ impl LayerNameGenerator {
 }
 
 wrapper! {
+    /// Unique identifier for a layer within a [`CImage`] and [`GpuTileStorage`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, Serialize, Deserialize, JsonSchema)]
     pub LayerId : Uuid
 }
@@ -73,6 +79,12 @@ impl LayerId {
     }
 }
 
+/// Core trait implemented by all layer types in a [`LayerStack`].
+///
+/// A `Layer` defines whether it can parent child layers, declares its numeric serialization tag,
+/// provides default and decoded [`LayerProperties`] via [`HasLayerPropertiesDyn`], and implements
+/// the three-stage GPU compositing lifecycle (`create_blend_cache`, `prepare_blend_cache`, and
+/// `dispatch_blend`) used by [`ImageCompositor`].
 pub trait Layer: Send + Sync + DynClone + 'static + HasLayerPropertiesDyn {
     // TODO This doesn't allow us to extend existing layers.
     //      Probably use a dynamic registry?
@@ -118,6 +130,7 @@ pub trait Layer: Send + Sync + DynClone + 'static + HasLayerPropertiesDyn {
 }
 dyn_clone::clone_trait_object!(Layer);
 
+/// Relative or absolute insertion position for placing a child layer within a parent's child list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LayerPosition {
     Absolute(usize),
@@ -153,6 +166,12 @@ impl From<usize> for LayerPosition {
     }
 }
 
+/// Hierarchical tree of [`LayerStackNode`]s representing the compositing structure of a [`CImage`].
+///
+/// `LayerStack` maintains a root [`GroupLayer`] node and a flat lookup table mapping each
+/// [`LayerId`] to its [`LayerStackNode`]. It supports tree mutations (insertion, removal,
+/// reparenting), ancestor queries, and traversal in both bottom-to-top compositing order
+/// and top-to-bottom UI display order.
 #[derive(Debug, Clone)]
 pub struct LayerStack {
     root: LayerId,
@@ -515,6 +534,7 @@ impl LayerStack {
     }
 }
 
+/// A node in a [`LayerStack`] pairing tree links (`id`, `parent`, `children`) with a [`Layer`] instance and its [`LayerProperties`].
 #[derive(Clone)]
 pub struct LayerStackNode {
     id: LayerId,
@@ -741,6 +761,7 @@ impl LayerStackNode {
     }
 }
 
+/// Reserved [`LayerId`]s for auxiliary internal layers associated with a [`CImage`], such as the selection mask.
 #[derive(Debug, Clone)]
 pub struct SpecialLayers {
     selection_layer: LayerId,

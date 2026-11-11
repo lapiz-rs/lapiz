@@ -40,6 +40,7 @@ pub mod adapter;
 pub mod config;
 pub mod export_dialog;
 
+/// Plugin that initializes the image export subsystem, registers built-in [`ImageFormatExporter`]s, and sets up the [`ExportDialogView`].
 pub struct ImageExporterPlugin;
 
 impl Plugin for ImageExporterPlugin {
@@ -76,6 +77,19 @@ pub(crate) fn default_embed_profile() -> bool {
     true
 }
 
+/// Defines a format-specific exporter capable of saving a [`CCanvas`] to disk.
+///
+/// Implementations provide format metadata (primary file extension, extension aliases, and
+/// localized description), an optional configuration UI rendered inside [`ExportDialogView`],
+/// TOML settings persistence, and an asynchronous [`export`](Self::export) routine.
+///
+/// # Lifecycle
+///
+/// 1. Registered into [`ImageFormatAdapterRegistry`] at startup.
+/// 2. Instantiated and populated with persisted settings from [`ImageExporterConfig`] when an
+///    export is requested.
+/// 3. Displayed in [`ExportDialogView`] if [`has_options`](Self::has_options) returns `true`.
+/// 4. Executed via [`export`](Self::export) to write the canvas contents to the target path.
 pub trait ImageFormatExporter: 'static {
     type DialogMessage: Send + 'static;
 
@@ -117,6 +131,7 @@ pub trait ImageFormatExporter: 'static {
     fn from_toml(&mut self, value: toml::Value) -> Result<()>;
 }
 
+/// Type-erased wrapper trait for [`ImageFormatExporter`] used for dynamic storage and dispatch.
 pub trait ErasedImageFormatAdapter: Send + Sync + 'static {
     fn extension(&self) -> &'static str;
 
@@ -205,6 +220,7 @@ where
     }
 }
 
+/// Metadata describing a registered export format for file dialogs and format pickers.
 pub struct ImageFormatInfo {
     pub extension: &'static str,
     pub aliases: &'static [&'static str],
@@ -218,6 +234,11 @@ struct AdapterEntry {
     construct: fn() -> Box<dyn ErasedImageFormatAdapter>,
 }
 
+/// Global registry of available [`ImageFormatExporter`] implementations indexed by file extension.
+///
+/// Maps primary extensions and aliases (case-insensitively) to factory functions that construct
+/// type-erased [`ErasedImageFormatAdapter`] instances, optionally hydrated with saved user
+/// preferences from [`ImageExporterConfig`].
 #[derive(Default)]
 pub struct ImageFormatAdapterRegistry {
     entries: Vec<AdapterEntry>,
@@ -290,12 +311,14 @@ impl ImageFormatAdapterRegistry {
     }
 }
 
+/// Parameters passed when opening [`ExportDialogView`] for a specific canvas and target file.
 pub struct PendingExport {
     pub local_file: Arc<LocalFile>,
     pub allow_silent_export: bool,
     pub canvas_id: CanvasId,
 }
 
+/// Global set of [`CanvasId`]s that have opted into silent subsequent saves without re-opening the export dialog.
 #[derive(Default)]
 pub struct SilentSaveCanvases {
     canvases: HashSet<CanvasId>,

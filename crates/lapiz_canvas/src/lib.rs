@@ -36,11 +36,26 @@ pub mod tools;
 pub mod widget;
 
 wrapper! {
+    /// Unique identifier for an open [`CCanvas`] document instance.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
     #[display("{0}")]
     pub CanvasId : Uuid
 }
 
+/// An open canvas document combining image layer data, persistence state, viewport transform, and layer selection.
+///
+/// `CCanvas` is the central runtime representation of a document being edited. It owns the
+/// [`CImage`] layer hierarchy and pixel metadata, its backing [`LazuliArchive`] project database,
+/// an optional [`LocalFile`] handle when associated with a file on disk, and the interactive
+/// [`CanvasTransform`] mapping between image pixel coordinates and widget/window coordinates.
+///
+/// # Layer Selection Invariants
+///
+/// - A canvas always maintains an `active_layer` (which is never the root layer) and a non-empty
+///   ordered set of `selected_layers` ([`IndexSet<LayerId>`]).
+/// - Changing the active layer via [`set_active_layer`](Self::set_active_layer) automatically
+///   ensures the active layer is included in `selected_layers` and broadcasts a
+///   [`CanvasActiveLayerChanged`] event.
 pub struct CCanvas {
     id: CanvasId,
     pub image: CImage,
@@ -175,6 +190,7 @@ impl CCanvas {
     }
 }
 
+/// Plugin that registers [`CanvasManager`] and the built-in viewport navigation tools ([`PanTool`], [`RotateTool`], [`ZoomTool`]).
 pub struct CanvasPlugin;
 
 impl Plugin for CanvasPlugin {
@@ -187,6 +203,11 @@ impl Plugin for CanvasPlugin {
     }
 }
 
+/// Global resource managing all open [`CCanvas`] documents and tracking the currently active canvas.
+///
+/// `CanvasManager` stores open canvases indexed by [`CanvasId`] and maintains the [`current_id`](Self::current_id)
+/// focus pointer. Adding a canvas automatically makes it current and broadcasts [`CanvasCreated`].
+/// Most callers interact with `CanvasManager` through the [`CanvasAppExt`] extension trait on [`Globals`].
 #[derive(Default)]
 pub struct CanvasManager {
     canvases: HashMap<CanvasId, CCanvas>,
@@ -238,6 +259,7 @@ impl CanvasManager {
     }
 }
 
+/// Extension trait on [`Globals`] providing convenient access and mutation helpers for [`CanvasManager`].
 pub trait CanvasAppExt {
     fn add_canvas(&mut self, canvas: CCanvas) -> CanvasId;
     fn remove_canvas(&mut self, id: &CanvasId) -> Option<CCanvas>;
@@ -311,6 +333,7 @@ impl CanvasAppExt for Globals {
     }
 }
 
+/// Extension trait on [`Globals`] for accessing and pushing commands to per-canvas [`UndoStack`]s.
 pub trait CanvasUndoStackAppExt {
     fn current_canvas_undo_stack(&self) -> Option<&UndoStack>;
     fn current_canvas_undo_stack_mut(&mut self) -> Option<&mut UndoStack>;
@@ -402,6 +425,7 @@ impl CanvasUndoStackAppExt for Globals {
     }
 }
 
+/// Extension trait on [`Globals`] for accessing and updating per-canvas [`ToolProxy`] instances.
 pub trait CanvasToolProxyAppExt {
     fn current_tool_proxy(&self) -> Option<&ToolProxy>;
     fn tool_proxy(&self, canvas_id: &CanvasId) -> Option<&ToolProxy>;

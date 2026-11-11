@@ -21,6 +21,11 @@ use crate::manifest::{ToolBinding, ToolBindingManifestConfig};
 
 pub mod manifest;
 
+/// A [`Plugin`] that initializes the tool subsystem and loads configured tool shortcut bindings.
+///
+/// Registers [`ToolFunctionRegistry`], [`ToolProxies`], and [`GlobalToolBindings`] into the
+/// runtime's [`Globals`], and populates shortcut bindings from [`ToolBindingManifestConfig`]
+/// during plugin completion.
 pub struct ToolsPlugin;
 
 impl Plugin for ToolsPlugin {
@@ -47,6 +52,7 @@ impl Plugin for ToolsPlugin {
     }
 }
 
+/// Extension trait for registering [`ToolFunction`] implementations into [`Globals`].
 pub trait ToolsAppExt {
     fn add_tool_function<T: ToolFunction + Default>(&mut self) -> &mut Self;
 }
@@ -59,11 +65,16 @@ impl ToolsAppExt for Globals {
 }
 
 wrapper! {
+    /// A unique string identifier for a registered [`ToolFunction`].
     #[derive(Debug, Clone, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
     #[display("{0}")]
     pub ToolId : Arc<str>
 }
 
+/// A linear history stack for tracking tool-local state changes and supporting undo/redo.
+///
+/// Pushing a new state truncates any redo history beyond the current cursor before appending
+/// the snapshot.
 pub struct ChangesTracker<S> {
     cursor: usize,
     history: Vec<S>,
@@ -97,6 +108,24 @@ impl<S> ChangesTracker<S> {
     }
 }
 
+/// An interactive canvas tool that responds to pointer/keyboard input and renders UI overlays.
+///
+/// `ToolFunction` defines the lifecycle and interaction contract for all tools in Lapiz (such as
+/// brushes, selection tools, transform tools, and the eyedropper). Tool types are registered in the
+/// global [`ToolFunctionRegistry`] and instantiated per canvas inside a [`ToolProxy`].
+///
+/// # Lifecycle and Interaction
+///
+/// - **Activation**: [`activate`](ToolFunction::activate) and [`deactivate`](ToolFunction::deactivate)
+///   are called when switching tools or temporary override tools.
+/// - **Pointer Events**: [`hover`](ToolFunction::hover) handles unpressed cursor movement, while a stroke
+///   or drag gesture progresses through [`begin`](ToolFunction::begin), [`update`](ToolFunction::update),
+///   and [`end`](ToolFunction::end).
+/// - **History**: Tools with internal multi-step state can intercept [`undo`](ToolFunction::undo) and
+///   [`redo`](ToolFunction::redo) before canvas-level history is triggered.
+/// - **UI Integration**: Tools can expose a configuration panel via [`tool_option_widget`](ToolFunction::tool_option_widget),
+///   draw custom interactive gizmos over the canvas via [`canvas_overlay`](ToolFunction::canvas_overlay),
+///   and listen to background events via [`subscription`](ToolFunction::subscription).
 pub trait ToolFunction: 'static {
     type Message: Send + Sync + 'static;
 
@@ -343,11 +372,17 @@ impl<T: ToolFunction> ErasedToolFunction for T {
     }
 }
 
+/// A type-erased message emitted by an [`ErasedToolFunction`], tagged with its [`ToolId`].
 pub struct ErasedToolFunctionMessage {
     pub tool_id: ToolId,
     pub message: Box<dyn Any + Send + Sync>,
 }
 
+/// Global registry of factory functions for spawning registered [`ToolFunction`] instances.
+///
+/// Tools are registered at startup via [`ToolsAppExt::add_tool_function`] or
+/// [`register`](ToolFunctionRegistry::register). When a new canvas is created, [`ToolProxy::new`]
+/// uses this registry to instantiate a fresh set of tool states for that canvas.
 #[derive(Default)]
 pub struct ToolFunctionRegistry {
     spawners: HashMap<ToolId, Rc<dyn Fn() -> Box<dyn ErasedToolFunction>>>,
@@ -367,12 +402,19 @@ impl ToolFunctionRegistry {
 
 impl Global for ToolFunctionRegistry {}
 
+/// Active state of a selected or temporary override tool within a [`ToolProxy`].
 struct State {
     function: ToolId,
     // TODO prevent tool switching on some scenarios like the tool is updating
     is_updating: bool,
 }
 
+/// Per-canvas manager that owns instantiated [`ToolFunction`]s and routes input, messages, and UI.
+///
+/// Each canvas has its own `ToolProxy` stored in [`ToolProxies`]. It tracks both a primary active
+/// tool (`current_state`) and an optional temporary override tool (`override_state`, such as a
+/// held-shortcut tool). When an override tool is active, it takes precedence for input events,
+/// undo/redo, subscriptions, and tool option widgets, while both overlays are stacked on the canvas.
 pub struct ToolProxy {
     current_state: Option<State>,
     override_state: Option<State>,
@@ -646,6 +688,7 @@ impl ToolProxy {
     }
 }
 
+/// Global collection mapping canvas [`Uuid`]s to their respective [`ToolProxy`] instances.
 #[derive(Default, Deref, DerefMut)]
 pub struct ToolProxies {
     proxies: HashMap<Uuid, ToolProxy>,
@@ -653,6 +696,7 @@ pub struct ToolProxies {
 
 impl Global for ToolProxies {}
 
+/// Global lookup table of keyboard shortcuts mapped to [`ToolBinding`] definitions.
 #[derive(Default)]
 pub struct GlobalToolBindings {
     bindings: Vec<(KeySequence, ToolBinding)>,

@@ -8,6 +8,7 @@ use lapiz_utils::wrapper;
 use parking_lot::RwLock;
 
 wrapper! {
+    /// Thread-safe shared handle to a typed canvas resource stored in [`CanvasResources`].
     #[derive(Debug)]
     pub CanvasResource<T> : Arc<RwLock<T>>
 }
@@ -18,6 +19,7 @@ impl<T> Clone for CanvasResource<T> {
     }
 }
 
+/// Type-indexed container of shared [`CanvasResource`]s associated with a canvas.
 pub struct CanvasResources {
     resources: HashMap<TypeId, Box<dyn Any + Send + Sync>>,
 }

@@ -17,6 +17,7 @@ use crate::{
     tag::{Tag, TagId},
 };
 
+/// Synchronization status of an indexed database record after an upsert operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ItemStatus {
     UpToDate,

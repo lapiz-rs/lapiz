@@ -20,6 +20,7 @@ use lapiz_utils::log_err::LogErr as _;
 
 use crate::{ActionFunction, ActionId};
 
+/// Action that opens the dialog for creating a new canvas.
 #[derive(Default)]
 pub struct NewFileAction;
 
@@ -40,9 +41,11 @@ impl ActionFunction for NewFileAction {
     }
 }
 
+/// Action that prompts the user to pick an image file and imports it as a canvas.
 #[derive(Default)]
 pub struct OpenFileAction;
 
+/// Message produced by the asynchronous file picker in [`OpenFileAction`].
 pub enum OpenFileMessage {
     Opened(LocalFile),
     Canceled,
@@ -94,6 +97,7 @@ impl ActionFunction for OpenFileAction {
     }
 }
 
+/// Action that saves the active canvas to its associated file or prompts for a destination path.
 #[derive(Default)]
 pub struct SaveFileAction;
 
@@ -140,9 +144,11 @@ impl ActionFunction for SaveFileAction {
     }
 }
 
+/// Action that prompts for a destination file path and exports the active canvas.
 #[derive(Default)]
 pub struct ExportFileAction;
 
+/// Message carrying the chosen destination file for [`ExportFileAction`] and [`SaveFileAction`].
 pub enum ExportFileMessage {
     PathChosen(CanvasId, Option<LocalFile>),
 }

@@ -18,6 +18,7 @@ use crate::{
     wgsl_std::types::{primitive::F32Type, vector::Vec2FType},
 };
 
+/// Shader graph node that hashes a scalar seed ([`F32Type`]) into pseudo-random scalar and 2D vector values.
 #[derive(Default, Clone)]
 pub struct RandomNode;
 

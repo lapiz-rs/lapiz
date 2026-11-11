@@ -103,6 +103,7 @@ fn compile_selector_shader(
     Ok((shader, layout, bind_group))
 }
 
+/// GPU compute pipeline that determines the in-gamut UV bounding box of a 2D color gradient plane.
 pub struct ComputeBoundsPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,
@@ -216,11 +217,13 @@ impl ComputeBoundsPipeline {
     }
 }
 
+/// GPU uniform specifying the grid resolution for [`ComputeBoundsPipeline`].
 #[derive(ShaderType)]
 struct ComputeBoundsParams {
     resolution: UVec2,
 }
 
+/// Pixel-grid bounding box returned by [`ComputeBoundsPipeline`] for gamut-clipped planes.
 #[derive(Debug, Clone, Copy, ShaderType)]
 pub struct OutputBounds {
     x_min: u32,
@@ -263,6 +266,7 @@ impl OutputBounds {
     }
 }
 
+/// GPU render pipeline for drawing 2D color gradient planes and 1D channel bars with ICC transforms.
 pub struct GradientPipeline {
     pub(crate) pipeline: RenderPipeline,
     pub(crate) transform_bind_group: BindGroup,
@@ -344,6 +348,7 @@ impl GradientPipeline {
     }
 }
 
+/// GPU render pipeline and quad mesh for drawing the circular primary-channel ring around a gradient plane.
 pub struct GradientRingPipeline {
     pub(crate) pipeline: RenderPipeline,
     pub(crate) transform_bind_group: BindGroup,
@@ -426,6 +431,7 @@ impl GradientRingPipeline {
     }
 }
 
+/// A 2D vertex with clip-space position and UV coordinates for [`GradientMesh`].
 #[derive(Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
 struct Vertex {
@@ -433,6 +439,7 @@ struct Vertex {
     uv: Vec2,
 }
 
+/// GPU vertex and index buffers representing a square or triangular gradient surface mesh.
 #[derive(Debug)]
 pub struct GradientMesh {
     pub(crate) n_indices: u32,
@@ -506,6 +513,7 @@ fn vtx(px: f32, py: f32, uvx: f32, uvy: f32) -> Vertex {
     }
 }
 
+/// GPU uniform buffer payload describing color model, channel ranges, geometry, and ring parameters for a gradient surface.
 #[derive(Debug, Clone, ShaderType)]
 pub struct GradientSettings {
     pub channel_ranges: [Vec4; 3],

@@ -45,10 +45,12 @@ use crate::{
 };
 
 wrapper! {
+    /// A strongly-typed unique identifier for a user-defined variable on a [`CustomExpressionNode`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
     pub CustomExpressionVariableId : Uuid
 }
 
+/// A user-defined input or output variable on a [`CustomExpressionNode`], mapping a display slot name to a WGSL identifier.
 #[derive(Clone)]
 pub struct CustomExpressionVariable {
     pub id: CustomExpressionVariableId,
@@ -65,6 +67,7 @@ struct SerializableCustomExpressionVariable {
     ty: String,
 }
 
+/// Per-instance state for [`CustomExpressionNode`], holding its custom input/output variable lists and inline WGSL source code.
 #[derive(Default)]
 pub struct CustomExpressionNodeState {
     inputs: IndexMap<CustomExpressionVariableId, CustomExpressionVariable>,
@@ -138,6 +141,7 @@ struct CustomExpressionVariableDraft {
     ty: Option<Arc<dyn ErasedGraphValueType>>,
 }
 
+/// Distinguishes whether a [`CustomExpressionVariable`] is an input or output slot of a [`CustomExpressionNode`].
 #[derive(Clone, Copy)]
 pub enum CustomExpressionVariableKind {
     Input,
@@ -454,9 +458,15 @@ impl Widget<CustomExpressionNodeMessage, GraphTheme, GraphRenderer>
     }
 }
 
+/// A shader graph node that executes user-authored inline WGSL statements with customizable input and output slots.
+///
+/// `CustomExpressionNode` wraps its body in a scoped WGSL block (`{ ... }`), binding each configured
+/// input slot to its chosen WGSL identifier and copying each output identifier back to the node's
+/// generated output variables at the end of the block.
 #[derive(Default, Clone)]
 pub struct CustomExpressionNode;
 
+/// UI message emitted by [`CustomExpressionNode`] for editing its variable schema and WGSL source code.
 #[derive(Clone)]
 pub enum CustomExpressionNodeMessage {
     ToggleEditor,

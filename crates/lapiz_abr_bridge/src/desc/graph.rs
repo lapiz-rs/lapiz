@@ -102,6 +102,8 @@ fn connect_dynamics_input_nodes(graph: &mut Graph, expression: GraphNodeId, inpu
     graph.connect_slots_by_index(dab_index, 0, expression, input_offset + 5);
 }
 
+/// Resolved brush dynamics, pose, color adjustment, scattering, texture, and dual-brush options
+/// used when constructing the spacing and main dab effect graphs.
 #[derive(Clone, Copy)]
 pub struct MainGraphOptions {
     pub flow: f32,
@@ -123,6 +125,7 @@ pub struct MainGraphOptions {
     pub dual_sample_asset: Option<AssetId<Image>>,
 }
 
+/// Resolved geometry parameters for a procedural computed brush tip in the main effect graph.
 #[derive(Clone, Copy)]
 pub struct ComputedMainTip {
     pub diameter: f32,
@@ -134,6 +137,7 @@ pub struct ComputedMainTip {
     pub spacing: f32,
 }
 
+/// Resolved geometry parameters and mask texture [`AssetId`] for a sampled brush tip in the main effect graph.
 #[derive(Clone, Copy)]
 pub struct SampledMainTip {
     pub sample_asset: AssetId<Image>,
@@ -145,12 +149,14 @@ pub struct SampledMainTip {
     pub spacing: f32,
 }
 
+/// Resolved primary brush tip representation (computed or sampled) passed to the main dab effect builder.
 #[derive(Clone, Copy)]
 pub enum MainTip {
     Computed(ComputedMainTip),
     Sampled(SampledMainTip),
 }
 
+/// Metadata and default literal value for a single effect input slot exposed by a converted brush preset.
 pub struct BrushInputSlot {
     pub id: EffectInputSlotId,
     pub name: String,
@@ -158,6 +164,10 @@ pub struct BrushInputSlot {
     pub value: SerializableGraphLiteral,
 }
 
+/// Shared collection of effect input slots wired into a brush preset's spacing, main, and postprocess [`EffectAsset`]s.
+///
+/// Always provides user-controllable `Size`, `Opacity`, and `Flow` scalar slots, along with
+/// optional texture slots for the primary sampled tip, surface pattern, and dual brush tip.
 pub struct BrushInputs {
     pub size: EffectInputSlotId,
     pub opacity: EffectInputSlotId,

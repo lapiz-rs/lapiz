@@ -22,6 +22,10 @@ use crate::{
     tile::{DynamicLayerStorage, GpuTileStorage},
 };
 
+/// A shader-backed compositing function that blends a source pixel into a destination pixel.
+///
+/// Implementations provide a unique [`BlendFunctionId`] and generate the WGSL statement
+/// injected into the layer compositing compute shader.
 pub trait BlendFunction: Send + Sync + DynClone + 'static {
     fn id(&self) -> BlendFunctionId;
     fn wgsl_function_call(&self, src_ident: &str, dst_ident: &str) -> String;
@@ -29,11 +33,13 @@ pub trait BlendFunction: Send + Sync + DynClone + 'static {
 dyn_clone::clone_trait_object!(BlendFunction);
 
 wrapper! {
+    /// Unique string identifier for a registered [`BlendFunction`].
     #[derive(Debug, Clone, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
     #[display("{0}")]
     pub BlendFunctionId : Arc<str>
 }
 
+/// Extension trait on [`Globals`] for registering custom [`BlendFunction`] implementations.
 pub trait BlendFunctionAppExt {
     fn add_blend_function(&mut self, func: Arc<dyn BlendFunction>);
 }
@@ -44,6 +50,7 @@ impl BlendFunctionAppExt for Globals {
     }
 }
 
+/// Global registry mapping [`BlendFunctionId`]s to their [`BlendFunction`] implementations.
 #[derive(Default)]
 pub struct BlendFunctionRegistry {
     functions: HashMap<BlendFunctionId, Arc<dyn BlendFunction>>,
@@ -76,6 +83,12 @@ impl BlendFunctionRegistry {
     }
 }
 
+/// GPU compute compositor that evaluates a [`CImage`]'s [`LayerStack`](crate::layer::LayerStack) into the root layer's tile storage.
+///
+/// `ImageCompositor` maintains per-layer type-erased blend caches (such as compiled compute
+/// pipelines, bind groups, and intermediate ping-pong buffers) keyed by [`LayerId`], and
+/// orchestrates the three-phase compositing lifecycle (`create_cache`, `prepare_blend_cache`,
+/// and `dispatch_blend`).
 #[derive(Default)]
 pub struct ImageCompositor {
     cache: HashMap<LayerId, Box<dyn Any + Send + Sync>>,
@@ -179,6 +192,10 @@ impl ImageCompositor {
     }
 }
 
+/// Global collection of temporary per-layer preview overrides used during interactive tool strokes.
+///
+/// Allows tools to attach transient GPU buffers or textures (such as [`PixelPreviewOverrider`])
+/// to a [`LayerId`] so that live stroke previews are composited non-destructively before being committed.
 #[derive(Default)]
 pub struct LayerPreviewOverriders {
     overriders: HashMap<LayerId, Box<dyn Any + Send + Sync>>,
@@ -207,6 +224,7 @@ impl LayerPreviewOverriders {
 
 impl Global for LayerPreviewOverriders {}
 
+/// GPU texture and tile metadata binding that overrides or supplements a [`PixelLayer`](crate::layer::pixel_layer::PixelLayer) during preview compositing.
 pub struct PixelPreviewOverrider {
     pub texture: TextureView,
     pub tile_info_buffer: Buffer,
@@ -222,6 +240,7 @@ impl PixelPreviewOverrider {
     }
 }
 
+/// GPU uniform parameters controlling layer opacity and disabled channel bitmasks during blending.
 #[derive(Debug, Clone, Copy, ShaderType)]
 pub struct BlendLayerParams {
     pub src_opacity: f32,

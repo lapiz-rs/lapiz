@@ -302,6 +302,7 @@ impl ColorSelectorState {
     }
 }
 
+/// Per-surface rendering payload bundling the [`GradientMesh`], [`GradientSettings`], and ICC color profiles.
 #[derive(Debug)]
 pub(crate) struct SurfaceDrawData {
     pub(crate) id: u64,
@@ -314,6 +315,7 @@ pub(crate) struct SurfaceDrawData {
     pub(crate) output_profile_version: u64,
 }
 
+/// Custom `iced_wgpu` [`Primitive`] that draws a gradient surface and optional primary-channel ring.
 #[derive(Debug)]
 pub(crate) struct GradientDrawPrimitive {
     pub(crate) data: Arc<SurfaceDrawData>,
@@ -364,6 +366,7 @@ impl Primitive for GradientDrawPrimitive {
     }
 }
 
+/// Cached GPU uniform buffers and bind groups for a single gradient surface instance.
 struct Instance {
     settings_buffer: UniformBuffer<GradientSettings>,
     bind_group: BindGroup,
@@ -371,6 +374,7 @@ struct Instance {
     ring_bind_group: Option<BindGroup>,
 }
 
+/// Custom shader [`Pipeline`](shader::Pipeline) managing [`GradientPipeline`], [`GradientRingPipeline`], and per-surface [`Instance`]s.
 pub(crate) struct GradientDirectPipeline {
     format: TextureFormat,
     layout: BindGroupLayout,

@@ -19,6 +19,7 @@ use crate::{
     tile::{DynamicLayerStorage, GpuTileInfo, GpuTileStorage, LayerBinding},
 };
 
+/// GPU compute pipeline that scans tile textures to detect non-empty (non-zero alpha) tiles or layers.
 #[derive(Clone)]
 pub struct ScanPixelsPipeline {
     layout: wgpu::BindGroupLayout,

@@ -5,6 +5,11 @@ use iced_widget::slider::{Catalog, Handle, HandleShape, Rail, Status, Style};
 use lapiz_runtime::Renderer;
 use num_traits::FromPrimitive;
 
+/// A horizontal slider bar for selecting a numeric value within an inclusive range.
+///
+/// `Slider` wraps [`iced_widget::Slider`] with Lapiz's rectangular handle and bordered rail
+/// styling. It supports configurable [`step`](Self::step) and fine-grained
+/// [`shift_step`](Self::shift_step) increments while dragging.
 pub struct Slider<'a, T, Message>
 where
     T: Copy + From<u8> + PartialOrd,

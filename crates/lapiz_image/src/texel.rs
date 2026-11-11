@@ -10,6 +10,7 @@ use wgpu::{TextureFormat, TextureSampleType};
 pub const A8_FORMAT: TextureFormat = TextureFormat::R8Unorm;
 pub const RGBA8_FORMAT: TextureFormat = TextureFormat::R32Uint;
 
+/// Channel layout of a texel stored in a layer tile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
 pub enum TexelFormat {
@@ -26,6 +27,7 @@ impl TexelFormat {
     }
 }
 
+/// Bit depth per channel of a texel stored in a layer tile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
 pub enum TexelDepth {
@@ -46,6 +48,11 @@ impl TexelDepth {
     }
 }
 
+/// Descriptor combining a [`TexelFormat`] and [`TexelDepth`] to define the storage format of image and layer tiles.
+///
+/// `TexelType` bridges CPU image buffers, `moxcms` color layouts, and `wgpu` storage texture
+/// formats (such as [`RGBA8_FORMAT`] and [`A8_FORMAT`]), and encodes compactly into a single byte
+/// for Lazuli archive serialization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TexelType {
     pub format: TexelFormat,

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use xxhash_rust::xxh3::xxh3_128;
 
+/// Persistent configuration storing the ordered list of recently opened document files.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct RecentFiles {
     pub files: Vec<RecentFileRecord>,
@@ -29,6 +30,7 @@ impl Configuration for RecentFiles {
     const DEFAULT: &'static str = "files = []";
 }
 
+/// A single entry in [`RecentFiles`], recording the document path or URI and its display name.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct RecentFileRecord {
     #[serde(alias = "path")]

@@ -11,6 +11,7 @@ pub mod render;
 
 lapiz_i18n::define_i18n!("filter");
 
+/// Registers the filter editor and application panel views along with the `.lfp` [`FilterPreset`](crate::asset::FilterPreset) asset serializer.
 pub struct FilterPlugin;
 
 impl Plugin for FilterPlugin {

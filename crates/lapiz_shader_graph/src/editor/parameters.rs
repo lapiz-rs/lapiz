@@ -19,6 +19,7 @@ use crate::{
     },
 };
 
+/// A UI component for viewing, adding, renaming, removing, and editing named [`GraphLiteral`] parameters.
 pub struct ParametersEditor<'a, Message> {
     parameters: Vec<(Cow<'a, str>, GraphLiteral)>,
     type_registry: &'a GraphTypeRegistry,
@@ -155,6 +156,7 @@ impl<'a, Message> Component<'a, Message, GraphTheme, GraphRenderer>
     }
 }
 
+/// A mutation emitted by [`ParametersEditor`] when a parameter is added, removed, renamed, or edited.
 #[derive(Clone)]
 pub enum ParametersEditorMessage {
     Add {
@@ -174,12 +176,14 @@ pub enum ParametersEditorMessage {
     },
 }
 
+/// Internal UI state for the new-parameter creation form in [`ParametersEditor`].
 #[derive(Default)]
 pub struct ParametersEditorState {
     new_name: String,
     new_type: Option<Arc<dyn ErasedGraphValueType>>,
 }
 
+/// Internal component event handled by [`ParametersEditor`].
 #[derive(Clone)]
 pub enum ParametersEditorEvent {
     NewNameChanged(String),

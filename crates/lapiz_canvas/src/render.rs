@@ -39,6 +39,7 @@ use crate::control::CanvasTransform;
 pub const INTERMEDIATE_BUFFER_FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
 pub const ICC_TRANSFORM_SHADER_IDENT: &str = "calibrate_color";
 
+/// GPU rendering pipeline for [`CanvasPrimitive`], performing tile-based compute evaluation, ICC color calibration, and fullscreen presentation.
 #[derive(Debug)]
 pub struct CanvasRenderer {
     texture: Option<TextureView>,
@@ -195,6 +196,7 @@ impl shader::Pipeline for CanvasRenderer {
     }
 }
 
+/// Custom shader widget primitive containing the snapshot of canvas state needed by [`CanvasRenderer`] for a frame.
 #[derive(Debug, Clone)]
 pub struct CanvasPrimitive {
     pub image_size: UVec2,

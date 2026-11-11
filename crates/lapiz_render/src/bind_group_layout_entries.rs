@@ -130,6 +130,7 @@ use wgpu::{BindGroupLayoutEntry, BindingType, ShaderStages};
 /// );
 /// ```
 
+/// Builder for configuring an individual [`BindGroupLayoutEntry`] with optional shader stage visibility and array count overrides.
 #[derive(Clone, Copy)]
 pub struct BindGroupLayoutEntryBuilder {
     ty: BindingType,
@@ -158,6 +159,7 @@ impl BindGroupLayoutEntryBuilder {
     }
 }
 
+/// Fixed-size array wrapper for constructing [`BindGroupLayoutEntry`] slices with sequential or explicit binding indices.
 pub struct BindGroupLayoutEntries<const N: usize> {
     entries: [BindGroupLayoutEntry; N],
 }
@@ -209,6 +211,7 @@ impl<const N: usize> Deref for BindGroupLayoutEntries<N> {
     }
 }
 
+/// Conversion trait for turning a binding type or layout entry into a [`BindGroupLayoutEntryBuilder`].
 pub trait IntoBindGroupLayoutEntryBuilder {
     fn into_bind_group_layout_entry_builder(self) -> BindGroupLayoutEntryBuilder;
 }
@@ -244,6 +247,7 @@ impl IntoBindGroupLayoutEntryBuilder for BindGroupLayoutEntryBuilder {
     }
 }
 
+/// Conversion trait for turning a tuple or array of layout entry descriptors into a fixed-size array of [`BindGroupLayoutEntryBuilder`]s.
 pub trait IntoBindGroupLayoutEntryBuilderArray<const N: usize> {
     fn into_array(self) -> [BindGroupLayoutEntryBuilder; N];
 }
@@ -261,6 +265,7 @@ macro_rules! impl_to_binding_type_slice {
 }
 all_tuples_with_size!(impl_to_binding_type_slice, 1, 32, T, s);
 
+/// Conversion trait for turning a tuple of `(binding_index, entry)` pairs into a fixed-size array of indexed [`BindGroupLayoutEntryBuilder`]s.
 pub trait IntoIndexedBindGroupLayoutEntryBuilderArray<const N: usize> {
     fn into_array(self) -> [(u32, BindGroupLayoutEntryBuilder); N];
 }
@@ -283,6 +288,7 @@ impl<const N: usize> IntoBindGroupLayoutEntryBuilderArray<N> for [BindGroupLayou
     }
 }
 
+/// Dynamically sized counterpart to [`BindGroupLayoutEntries`] for incrementally building [`BindGroupLayoutEntry`] lists at runtime.
 pub struct DynamicBindGroupLayoutEntries {
     default_visibility: ShaderStages,
     pub entries: Vec<BindGroupLayoutEntry>,

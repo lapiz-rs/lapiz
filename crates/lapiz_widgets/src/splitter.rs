@@ -9,6 +9,7 @@ use lapiz_runtime::Renderer;
 
 use crate::callback::{CallbackWith, publish_with};
 
+/// The split orientation of a [`Splitter`] container.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Axis {
     #[default]
@@ -16,6 +17,14 @@ pub enum Axis {
     Vertical,
 }
 
+/// A two-pane container separated by a draggable resize divider.
+///
+/// `Splitter` divides its available space between `first` and `second` child elements according to
+/// `ratio` (clamped to `[0.05, 0.95]`) along either [`Axis::Horizontal`] (side-by-side panes with a
+/// vertical divider) or [`Axis::Vertical`] (stacked panes with a horizontal divider).
+///
+/// Dragging the divider handle emits the new split ratio via [`on_resize`](Self::on_resize) and
+/// changes the mouse cursor to the appropriate resize indicator.
 pub struct Splitter<'a, Message> {
     first: Element<'a, Message, Theme, Renderer>,
     second: Element<'a, Message, Theme, Renderer>,
@@ -97,6 +106,7 @@ impl<'a, Message> Splitter<'a, Message> {
     }
 }
 
+/// Internal drag state for a [`Splitter`] handle.
 #[derive(Default)]
 struct State {
     dragging: bool,

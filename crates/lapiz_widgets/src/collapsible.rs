@@ -3,6 +3,15 @@ use lapiz_runtime::Renderer;
 
 use crate::{button, callback::Callback, flex::Flex, icon, panel};
 
+/// An expandable and collapsible container with a clickable header bar.
+///
+/// `Collapsible` renders a [`Panel`](crate::panel::Panel) containing a full-width header
+/// [`Button`](crate::button::Button) prefixed with a directional chevron icon (`chevron_down`
+/// when open, `chevron_right` when closed). When `open` is `true`, the child `content` element
+/// is stacked vertically below the header; when `false`, only the header is shown.
+///
+/// Clicking the header triggers the toggle callback configured via [`on_toggle`](Self::on_toggle),
+/// [`on_toggle_maybe`](Self::on_toggle_maybe), or [`on_toggle_with`](Self::on_toggle_with).
 pub struct Collapsible<'a, Message> {
     header: Element<'a, Message, Theme, Renderer>,
     content: Element<'a, Message, Theme, Renderer>,

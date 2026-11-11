@@ -20,6 +20,11 @@ use lapiz_widgets::{
 
 use crate::render::{SelectionOperation, SelectionPipeline};
 
+/// Contiguous flood-selection tool that selects regions of similar color and alpha on the active layer.
+///
+/// `MagicWandSelectionTool` implements [`ToolFunction`] by dispatching the GPU [`Bucket`] mask
+/// generator at the clicked seed pixel and compositing the resulting region into the canvas's
+/// selection layer via [`SelectionPipeline`] using the active modifier [`SelectionOperation`].
 pub struct MagicWandSelectionTool {
     threshold: f32,
     alpha_threshold: f32,
@@ -43,6 +48,7 @@ impl Default for MagicWandSelectionTool {
     }
 }
 
+/// UI messages for updating [`MagicWandSelectionTool`] parameters.
 #[derive(Debug, Clone)]
 pub enum MagicWandSelectionToolMessage {
     ThresholdChanged(f32),

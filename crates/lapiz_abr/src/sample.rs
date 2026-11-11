@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::{cursor::Cursor, rle};
 
+/// Decoded grayscale alpha bitmap of a [`Sample`], preserving its 8-bit or 16-bit channel depth.
 pub enum SampleImage {
     Bit8(ImageBuffer<Luma<u8>, Vec<u8>>),
     Bit16(ImageBuffer<Luma<u16>, Vec<u16>>),
@@ -20,6 +21,12 @@ impl SampleImage {
     }
 }
 
+/// A sampled brush tip mask decoded from the `samp` section of an [`Abr`](crate::Abr) file.
+///
+/// Stores the raw or PackBits RLE-compressed grayscale alpha bitmap for a custom brush tip,
+/// along with its [`Uuid`], pixel bounding box, and bit depth (`8` or `16`). Sampled brush tips
+/// ([`SampledBrushTip`](crate::descriptor::class::SampledBrushTip)) reference their corresponding
+/// `Sample` by [`id`](Self::id), and [`as_image`](Self::as_image) decodes the payload into a [`SampleImage`].
 pub struct Sample {
     pub id: Uuid,
     pub top: u32,

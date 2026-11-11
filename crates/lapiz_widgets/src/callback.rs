@@ -1,5 +1,9 @@
 use std::mem;
 
+/// A deferred message producer invoked by interactive widgets when an event occurs.
+///
+/// Supports holding no action (`Empty`), a pre-constructed one-shot message value (`Value`),
+/// or a repeatable closure (`Func`).
 #[derive(Default)]
 pub enum Callback<'a, Message> {
     #[default]

@@ -40,6 +40,13 @@ use crate::{
     render::FilterRenderer,
 };
 
+/// Modal dialog window for interactively previewing and applying a [`FilterPreset`] to selected canvas layers.
+///
+/// When a user selects a filter or tweaks its [`FilterParameter`] controls, `FilterPanel` compiles and
+/// dispatches the filter asynchronously via [`FilterRenderer`] across all unlocked RGBA8 target layers.
+/// Completed renders are installed into [`LayerPreviewOverriders`] for non-destructive live canvas previewing;
+/// confirming commits the modified tiles to the canvas undo stack via [`TileReplaceCommand`], whereas
+/// canceling removes the preview overrides and restores the original layer contents.
 pub struct FilterPanel {
     windows: Arc<[window::Id]>,
     main_window: window::Id,
@@ -54,6 +61,7 @@ pub struct FilterPanel {
     canvas_id: Option<CanvasId>,
 }
 
+/// UI and asynchronous render completion messages handled by [`FilterPanel`].
 pub enum FilterPanelMessage {
     FilterSelected(usize),
     ParameterUpdated(EffectInputSlotId, ErasedGraphLiteralUpdateMessage),

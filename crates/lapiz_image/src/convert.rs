@@ -15,6 +15,10 @@ use wgpu::{
 
 use crate::{image, texel::TexelType, tile::GpuTileStorage};
 
+/// GPU compute pipeline that converts a 2D array texture of tiles between ICC [`ColorProfile`]s in place.
+///
+/// Compiles an [`IccTransformShader`] into a WESL compute shader for a specific [`TexelType`]
+/// and dispatches workgroups across all allocated tile layers.
 pub struct ColorProfileConvertPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,

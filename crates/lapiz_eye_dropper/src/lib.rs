@@ -45,6 +45,7 @@ pub mod builtin;
 
 lapiz_i18n::define_i18n!("eye_dropper");
 
+/// A [`Plugin`] that registers [`EyeDropperTool`] and built-in [`EyeDropperTarget`] implementations.
 pub struct EyeDropperPlugin;
 
 impl Plugin for EyeDropperPlugin {
@@ -59,6 +60,10 @@ impl Plugin for EyeDropperPlugin {
     }
 }
 
+/// Asynchronous color-sampling backend for a specific [`Layer`] type.
+///
+/// Implementations read back pixel data from [`GpuTileStorage`] around the requested canvas pixel
+/// coordinate according to the [`EyeDropperSampleMode`] and return the sampled [`Color`].
 #[async_trait]
 pub trait EyeDropperTarget: Send + Sync + 'static {
     async fn sample(
@@ -72,6 +77,7 @@ pub trait EyeDropperTarget: Send + Sync + 'static {
     ) -> Result<Color>;
 }
 
+/// Global registry mapping [`Layer`] type IDs to their corresponding [`EyeDropperTarget`] samplers.
 #[derive(Default)]
 pub struct EyeDropperTargetRegistry {
     inner: HashMap<u32, Arc<dyn EyeDropperTarget>>,
@@ -90,18 +96,21 @@ impl EyeDropperTargetRegistry {
     }
 }
 
+/// Specifies whether the eyedropper samples a single pixel or averages a square neighborhood.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EyeDropperSampleMode {
     Single,
     Average { radius: u32 },
 }
 
+/// Specifies whether the eyedropper samples only the active layer or the composited root image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EyeDropperTargetMode {
     Current,
     Merged,
 }
 
+/// Queued parameters for an asynchronous eyedropper pixel readback operation.
 #[derive(Clone, Copy)]
 struct SampleRequest {
     canvas_id: CanvasId,
@@ -110,6 +119,14 @@ struct SampleRequest {
     mode: EyeDropperSampleMode,
 }
 
+/// Interactive canvas tool for sampling colors from layers into the global foreground color.
+///
+/// `EyeDropperTool` implements [`ToolFunction`] and dispatches asynchronous GPU tile readbacks
+/// through [`EyeDropperTargetRegistry`] when pressing or dragging on the canvas. To avoid
+/// overlapping GPU readbacks during rapid drags, at most one sample request is kept in flight at
+/// a time while the latest cursor position is queued in `pending_sample`. When a sample completes,
+/// it updates the global foreground color, broadcasts [`ForegroundColorChanged`], and renders a
+/// floating color swatch above the cursor.
 pub struct EyeDropperTool {
     sample_mode: EyeDropperSampleMode,
     target_mode: EyeDropperTargetMode,
@@ -132,6 +149,7 @@ impl Default for EyeDropperTool {
     }
 }
 
+/// Messages handled by [`EyeDropperTool`] for option changes and completed GPU color readbacks.
 #[derive(Debug, Clone)]
 pub enum EyeDropperToolMessage {
     SampleModeChanged(EyeDropperSampleMode),

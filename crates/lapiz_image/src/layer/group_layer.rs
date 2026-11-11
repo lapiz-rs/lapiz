@@ -40,6 +40,7 @@ use crate::{
     tile::{GpuTileInfo, GpuTileStorage, LayerBinding},
 };
 
+/// A composite [`Layer`] that groups child layers and blends their combined result into the parent backdrop.
 #[derive(Debug, Default, Clone)]
 pub struct GroupLayer;
 
@@ -327,6 +328,7 @@ impl Layer for GroupLayer {
     }
 }
 
+/// Cached GPU pipelines, intermediate ping-pong buffers, and bind groups for compositing a [`GroupLayer`].
 pub struct GroupBlendCache {
     blend_func_name: BlendFunctionId,
     intermediate: IntermediateBuffer,

@@ -1,5 +1,10 @@
 use anyhow::{Context as _, Result, bail};
 
+/// A sequential big-endian binary reader over a borrowed byte slice.
+///
+/// Tracks the current read offset within an ABR input buffer or section slice, providing
+/// bounds-checked primitives, four-character OSType tags, descriptor identifiers, UTF-16 strings,
+/// sub-slice cursors, and byte-boundary alignment.
 pub struct Cursor<'a> {
     input: &'a [u8],
     position: usize,

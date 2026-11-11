@@ -26,6 +26,10 @@ const EMPTY_BOUNDS: [u32; 4] = [
     i32::MIN as u32,
 ];
 
+/// GPU compute pipeline that calculates the tight non-empty pixel bounding rectangle of a [`LayerBinding`].
+///
+/// Optionally intersects the non-empty check with an active selection mask layer via an internal
+/// [`ScanPixelsPipeline`].
 pub struct LayerBoundsPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,

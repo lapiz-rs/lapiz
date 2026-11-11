@@ -16,6 +16,7 @@ use crate::{
     recent_files::LandingDock, tool_box::ToolBoxDock, tool_options::ToolOptionsDock,
 };
 
+/// Plugin that initializes localization and registers all built-in workspace [`Dock`](lapiz_dock::dock::Dock) panels in [`DockRegistry`].
 pub struct BuiltinDocksPlugin;
 
 impl Plugin for BuiltinDocksPlugin {

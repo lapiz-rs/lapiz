@@ -136,6 +136,7 @@ pub fn t(key: &str, args: Option<&'_ FluentArgs<'_>>) -> String {
     key.to_string()
 }
 
+/// In-memory implementation of [`I18nAssets`] backed by a map of file paths to byte buffers.
 pub struct MemoryAssets {
     files: BTreeMap<String, Vec<u8>>,
 }
@@ -187,6 +188,7 @@ macro_rules! t {
 macro_rules! define_i18n {
     ($domain:literal) => {
         mod i18n {
+            /// Embedded Fluent localization files for this crate's translation domain.
             #[derive($crate::RustEmbed)]
             #[folder = "locales/"]
             pub struct Localizations;
@@ -213,6 +215,7 @@ macro_rules! define_i18n {
     };
 }
 
+/// Wrapper that translates its inner key via [`t!`] when formatted with [`fmt::Display`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Translated<T>(pub T);
 

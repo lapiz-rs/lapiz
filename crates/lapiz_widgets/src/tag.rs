@@ -5,6 +5,7 @@ use iced_widget::{
 };
 use lapiz_runtime::Renderer;
 
+/// Semantic color palette variant for a [`Tag`] badge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Tone {
     #[default]
@@ -16,6 +17,10 @@ pub enum Tone {
     Danger,
 }
 
+/// A compact inline badge widget for displaying status labels, categories, or metadata pills.
+///
+/// `Tag` renders `10px` text inside a bordered [`Container`] and can be styled using semantic
+/// [`Tone`] presets via [`tone`](Self::tone) or a custom [`style`](Self::style) closure.
 pub struct Tag<'a, Message> {
     inner: Container<'a, Message, Theme, Renderer>,
 }

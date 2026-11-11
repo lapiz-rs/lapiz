@@ -27,6 +27,7 @@ use crate::{
     save::GraphValueTypeId,
 };
 
+/// Shader graph value type representing a 32-bit floating-point scalar (`f32`).
 #[derive(Default, Clone)]
 pub struct F32Type;
 
@@ -117,6 +118,7 @@ impl GraphValueType for F32Type {
     }
 }
 
+/// Shader graph value type representing a 32-bit signed integer scalar (`i32`).
 #[derive(Default, Clone)]
 pub struct I32Type;
 
@@ -204,6 +206,7 @@ impl GraphValueType for I32Type {
     }
 }
 
+/// Shader graph value type representing a 32-bit unsigned integer scalar (`u32`).
 #[derive(Default, Clone)]
 pub struct U32Type;
 
@@ -290,6 +293,7 @@ impl GraphValueType for U32Type {
     }
 }
 
+/// Shader graph value type representing a boolean scalar (`bool`, stored as `u32` in GPU buffers).
 #[derive(Default, Clone)]
 pub struct BoolType;
 

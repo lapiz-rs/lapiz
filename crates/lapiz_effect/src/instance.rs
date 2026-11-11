@@ -30,6 +30,14 @@ pub type EffectOutputs = HashMap<EffectOutputSlotId, GraphShaderLiteral>;
 pub type EffectPassOutputs = HashMap<EffectPassOutputSlotId, GraphShaderLiteral>;
 pub type EffectPassOutputTypes = HashMap<EffectPassOutputSlotId, Arc<dyn ErasedGraphValueType>>;
 
+/// The live, editable runtime representation of a multi-pass shader effect instantiated from an [`EffectAsset`].
+///
+/// `EffectInstance` owns the resolved [`EffectInputSlot`]s, [`EffectOutputSlot`]s, and ordered
+/// [`EffectPass`]es (each containing a live [`Graph`]). Whenever passes or I/O slots are modified,
+/// [`sync_pass_graph_effect_properties`](Self::sync_pass_graph_effect_properties) propagates the
+/// available input sources, output targets, value types, and dispatch strategies into each pass's
+/// [`PassInputNode`], [`PassOutputNode`], and [`DispatchIndexNode`] states before reconciling node
+/// slots.
 pub struct EffectInstance {
     pub name: String,
     pub passes: IndexMap<EffectPassId, EffectPass>,
@@ -390,6 +398,7 @@ impl EffectInstance {
     }
 }
 
+/// Human-readable input and output binding labels summarized for an [`EffectPass`] card in the editor.
 #[derive(Default)]
 pub struct EffectPassIoLabels {
     pub inputs: Vec<String>,
@@ -402,12 +411,14 @@ struct PassOutputInfo {
     name: String,
 }
 
+/// A single compute pass within an [`EffectInstance`], pairing a shader [`Graph`] with an [`EffectPassDispatchStrategy`].
 pub struct EffectPass {
     pub name: String,
     pub graph: Graph,
     pub dispatch_strategy: EffectPassDispatchStrategy,
 }
 
+/// A resolved external input slot on an [`EffectInstance`].
 #[derive(Clone)]
 pub struct EffectInputSlot {
     pub name: String,
@@ -415,6 +426,7 @@ pub struct EffectInputSlot {
     pub ty: Arc<dyn ErasedGraphValueType>,
 }
 
+/// A resolved external output slot on an [`EffectInstance`].
 #[derive(Clone)]
 pub struct EffectOutputSlot {
     pub name: String,

@@ -17,6 +17,7 @@ CREATE UNIQUE INDEX metadata_singleton ON metadata ((1));
     Ok(())
 }
 
+/// Format version metadata stored in the `metadata` table of a [`LazuliArchive`].
 pub struct Metadata {
     pub version: u32,
 }

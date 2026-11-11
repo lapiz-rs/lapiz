@@ -18,6 +18,12 @@ pub mod model;
 pub mod platform;
 pub mod shader;
 
+/// A polymorphic color value represented in one of the supported color models.
+///
+/// `Color` acts as a unified interchange representation across perceptual, cylindrical,
+/// linear-light RGB, and CIE tristimulus color spaces. It can be converted into linear
+/// working-space [`Rgb`] via [`Color::into_rgb`] given the appropriate [`Xyz`]-to-RGB
+/// transformation matrix.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Color {
     Gray(Gray),
@@ -73,6 +79,7 @@ impl_from!(Rgb, Rgb);
 impl_from!(Xyz, Xyz);
 
 wrapper! {
+    /// Global state storing the active primary (foreground) [`Color`] used by tools and brushes.
     #[derive(Debug, Clone, Copy)]
     pub mut ForegroundColor : Color
 }
@@ -90,6 +97,7 @@ impl ForegroundColor {
 }
 
 wrapper! {
+    /// Global state storing the active secondary (background) [`Color`] used by tools and canvas operations.
     #[derive(Debug, Clone, Copy)]
     pub mut BackgroundColor : Color
 }
@@ -106,6 +114,7 @@ impl BackgroundColor {
 
 impl Global for BackgroundColor {}
 
+/// Extension trait on [`Globals`] providing convenient access to [`ForegroundColor`] and [`BackgroundColor`].
 pub trait ForegroundBackgroundColorExt {
     fn foreground_color(&self) -> &ForegroundColor;
     fn foreground_color_mut(&mut self) -> &mut ForegroundColor;
@@ -131,6 +140,7 @@ impl ForegroundBackgroundColorExt for Globals {
     }
 }
 
+/// Event emitted when the global [`ForegroundColor`] changes.
 #[derive(Event, Debug, Clone)]
 pub struct ForegroundColorChanged {
     pub old: Color,
@@ -143,6 +153,7 @@ impl ForegroundColorChanged {
     }
 }
 
+/// Event emitted when the global [`BackgroundColor`] changes.
 #[derive(Event, Debug, Clone)]
 pub struct BackgroundColorChanged {
     pub old: Color,
@@ -155,6 +166,7 @@ impl BackgroundColorChanged {
     }
 }
 
+/// Runtime plugin that initializes the default [`ForegroundColor`] and [`BackgroundColor`] globals.
 pub struct ColorPlugin;
 
 impl Plugin for ColorPlugin {

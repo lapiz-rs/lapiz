@@ -12,6 +12,12 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureFormat,
 };
 
+/// GPU uniform parameters controlling Fast Approximate Anti-Aliasing (FXAA) quality and edge detection.
+///
+/// `FxaaParams` configures the luminance contrast thresholds, search iteration budget, and
+/// subpixel smoothing strength consumed by [`FxaaPipeline`] during its compute pass. Five built-in
+/// quality presets are provided (`LOW`, `MEDIUM`, `HIGH`, `ULTRA`, and `EXTREME`), with `HIGH`
+/// used as the [`Default`].
 #[derive(ShaderType, Debug, Clone, Copy)]
 pub struct FxaaParams {
     pub edge_threshold_min: f32,
@@ -63,6 +69,12 @@ impl FxaaParams {
     };
 }
 
+/// A GPU compute pipeline that applies Fast Approximate Anti-Aliasing (FXAA) to tiled image layers.
+///
+/// `FxaaPipeline` compiles the embedded WESL FXAA compute shader for a specific [`TextureFormat`]
+/// and dispatches workgroups across the 2D array tiles of a destination [`LayerBinding`], reading
+/// unsmoothed texels from a source [`LayerBinding`] and writing anti-aliased results using the
+/// provided [`FxaaParams`].
 pub struct FxaaPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,

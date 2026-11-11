@@ -17,6 +17,7 @@ use crate::{
     wgsl_std::types::{compound::ColorType, primitive::F32Type, vector::Vec2FType},
 };
 
+/// Shader graph node that splits a 2D vector ([`Vec2FType`]) into its scalar `x` and `y` components ([`F32Type`]).
 #[derive(Default, Clone)]
 pub struct SplitComponentsNode;
 
@@ -57,6 +58,7 @@ impl StatelessCommonGraphNode for SplitComponentsNode {
     }
 }
 
+/// Shader graph node that combines two scalar `x` and `y` values ([`F32Type`]) into a 2D vector ([`Vec2FType`]).
 #[derive(Default, Clone)]
 pub struct CombineComponentsNode;
 
@@ -96,6 +98,7 @@ impl StatelessCommonGraphNode for CombineComponentsNode {
     }
 }
 
+/// Shader graph node that combines four scalar `r`, `g`, `b`, and `a` channels ([`F32Type`]) into a color ([`ColorType`]).
 #[derive(Default, Clone)]
 pub struct CombineColorComponentsNode;
 
@@ -139,6 +142,7 @@ impl StatelessCommonGraphNode for CombineColorComponentsNode {
     }
 }
 
+/// Shader graph node that splits a color ([`ColorType`]) into its four scalar `r`, `g`, `b`, and `a` channels ([`F32Type`]).
 #[derive(Default, Clone)]
 pub struct SplitColorComponentsNode;
 

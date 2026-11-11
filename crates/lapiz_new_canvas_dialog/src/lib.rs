@@ -37,6 +37,7 @@ lapiz_i18n::define_i18n!("new_canvas_dialog");
 pub const NEW_CANVAS_DIALOG_VIEW_ID: &str = "new_canvas_dialog";
 const MAX_DIMENSION: u32 = i32::MAX as u32;
 
+/// A [`Plugin`] that initializes localization and registers the [`NewCanvasDialog`] window view.
 pub struct NewCanvasDialogPlugin;
 
 impl Plugin for NewCanvasDialogPlugin {
@@ -46,6 +47,15 @@ impl Plugin for NewCanvasDialogPlugin {
     }
 }
 
+/// Modal dialog [`WindowView`] for creating a new blank canvas or importing an image from the system clipboard.
+///
+/// Presents two tabs:
+/// - **New Canvas**: Allows specifying custom pixel width and height dimensions.
+/// - **Clipboard**: Asynchronously inspects the system clipboard for raw image data or copied image
+///   files, displaying a scaled preview and its dimensions.
+///
+/// Confirming the dialog initializes a [`CImage`], wraps it in an in-memory [`LazuliArchive`] and
+/// [`CCanvas`], declares its layers in GPU tile storage, and registers the canvas in [`Globals`].
 pub struct NewCanvasDialog {
     window: window::Id,
     width: u32,
@@ -56,12 +66,14 @@ pub struct NewCanvasDialog {
     reading_clipboard: bool,
 }
 
+/// Active tab within [`NewCanvasDialog`].
 #[derive(Clone, Copy, PartialEq)]
 enum CanvasTab {
     NewCanvas,
     Clipboard,
 }
 
+/// Decoded RGBA image, preview handle, and ICC color profile read from the system clipboard.
 struct ClipboardImage {
     pixels: RgbaImage,
     preview: Handle,
@@ -124,6 +136,7 @@ impl ClipboardImage {
     }
 }
 
+/// UI and window management messages handled by [`NewCanvasDialog`].
 #[derive(Clone)]
 pub enum NewCanvasDialogMessage {
     TabSelected(usize),

@@ -23,12 +23,14 @@ use crate::{
     render::{GradientDrawPrimitive, SurfaceDrawData},
 };
 
+/// Identifies which gradient plane or bar surface received a pointer or layout event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SurfaceTarget {
     Plane(usize),
     Bar(usize),
 }
 
+/// Tracks the specific color selector component currently being dragged by the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ActiveSelection {
     Plane(usize),
@@ -203,6 +205,7 @@ impl ColorSelectorState {
     }
 }
 
+/// Custom Iced [`Widget`] that renders a single GPU color gradient plane or bar and its selection indicators.
 pub(crate) struct GradientSurface {
     surface_target: SurfaceTarget,
     data: Option<Arc<SurfaceDrawData>>,
@@ -402,6 +405,7 @@ impl Widget<ColorSelectorMessage, Theme, Renderer> for GradientSurface {
     }
 }
 
+/// Custom Iced [`Widget`] that lays out a horizontal row of square [`GradientSurface`] planes.
 pub(crate) struct PlaneRow {
     surfaces: Vec<GradientSurface>,
     spacing: f32,

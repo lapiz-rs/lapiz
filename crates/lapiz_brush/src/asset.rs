@@ -11,6 +11,21 @@ use serde::{Deserialize, Serialize};
 use toml::{de, ser};
 use zip::{ZipArchive, ZipWriter, result::ZipError, write::FileOptions};
 
+/// Persisted asset definition of a programmable brush preset.
+///
+/// A `BrushPreset` defines a complete GPU-accelerated brush through three shader-graph
+/// [`EffectAsset`] stages and a shared table of user-adjustable parameters:
+///
+/// - **Spacing Effect** (`spacing_effect`): Evaluates the required arc-length distance between
+///   successive brush dabs along a cubic Bezier stroke curve.
+/// - **Main Effect** (`main_effect`): Computes per-pixel dab bounds and renders each dab into the
+///   stroke accumulation buffer.
+/// - **Postprocess Effect** (`postprocess_effect`): Transforms the accumulated stroke layer and
+///   composites it with the target canvas layer to produce the final stroke result.
+///
+/// At runtime, a `BrushPreset` is instantiated into a [`BrushPresetInstance`](crate::instance::BrushPresetInstance)
+/// for editing or compilation into GPU pipelines. On disk, presets are stored as `.lapiz` ZIP
+/// archives by [`BrushPresetSerializer`].
 pub struct BrushPreset {
     pub metadata: BrushPresetMetadata,
     pub spacing_effect: EffectAsset,
@@ -19,12 +34,14 @@ pub struct BrushPreset {
     pub parameters: IndexMap<EffectInputSlotId, SerializableBrushParameter>,
 }
 
+/// Serialized representation of a named brush parameter and its default literal value.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableBrushParameter {
     pub name: String,
     pub value: SerializableGraphLiteral,
 }
 
+/// Descriptive metadata for a [`BrushPreset`], such as its display name.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct BrushPresetMetadata {
     pub name: String,
@@ -39,9 +56,11 @@ struct BrushToml {
     name: String,
 }
 
+/// [`AssetSerializer`] implementation that reads and writes [`BrushPreset`] assets as `.lapiz` ZIP archives.
 #[derive(Default)]
 pub struct BrushPresetSerializer;
 
+/// Errors that can occur while reading or writing a [`BrushPreset`] archive with [`BrushPresetSerializer`].
 #[derive(Debug, thiserror::Error)]
 pub enum BrushPresetSerializerError {
     #[error(transparent)]

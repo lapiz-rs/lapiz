@@ -36,6 +36,7 @@ use crate::{
     texel::{TexelDepth, TexelFormat, TexelType},
 };
 
+/// Extension trait on [`Globals`] providing convenient access to [`GpuTileStorage`].
 pub trait TileStorageAppExt {
     fn tile_storage(&self) -> &GpuTileStorage;
 }
@@ -48,6 +49,12 @@ impl TileStorageAppExt for Globals {
 
 static EMPTY_LAYER_BINDINGS: OnceLock<HashMap<TexelType, LayerBinding>> = OnceLock::new();
 
+/// Global GPU tile manager storing sparse 2D tile textures for all layers across open images.
+///
+/// `GpuTileStorage` partitions layer pixel data into fixed `256×256` ([`Self::TILE_SIZE`]) tiles
+/// backed by per-layer [`DynamicLayerStorage`] instances keyed by [`LayerId`]. It also provides
+/// coordinate conversion utilities between pixel space and tile grid space, as well as fallback
+/// empty [`LayerBinding`]s for unallocated layers.
 #[derive(Clone, Deref)]
 pub struct GpuTileStorage {
     inner: Arc<GpuTileStorageInner>,
@@ -144,6 +151,7 @@ impl GpuTileStorage {
     }
 }
 
+/// Shader-compatible metadata for an individual tile, storing its 2D tile grid index and pixel-space origin.
 #[derive(ShaderType, Clone, Copy, PartialEq, Eq)]
 pub struct GpuTileInfo {
     pub index: IVec2,
@@ -172,17 +180,20 @@ impl GpuTileInfo {
     }
 }
 
+/// Configuration metadata describing the [`TexelType`] of a GPU-backed layer in [`GpuTileStorage`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GpuLayerInfo {
     pub texel_type: TexelType,
 }
 
+/// Pair of a 2D array [`TextureView`] and its corresponding [`GpuTileInfo`] storage [`Buffer`] for binding a layer in shaders.
 #[derive(Debug, Clone)]
 pub struct LayerBinding {
     pub texture: TextureView,
     pub tile_info_buffer: Buffer,
 }
 
+/// Shared inner state of [`GpuTileStorage`] holding the concurrent map of [`LayerId`]s to [`DynamicLayerStorage`] instances.
 pub struct GpuTileStorageInner {
     device: Device,
     queue: Queue,
@@ -341,6 +352,12 @@ pub const DEFAULT_LAYER_TILE_INFO_BUFFER_USAGES: BufferUsages = BufferUsages::fr
 pub const DEFAULT_LAYER_TILE_INFO_BUFFER_LABEL: Cow<'static, str> =
     Cow::Borrowed("tile_info_buffer");
 
+/// Dynamically resizable GPU storage for a single layer's sparse 2D tiles.
+///
+/// `DynamicLayerStorage` packs allocated `256×256` tiles into a 2D array [`Texture`] alongside
+/// a synchronized [`BufferVec<GpuTileInfo>`] mapping each array layer to its 2D tile grid coordinate.
+/// When tile allocations exceed the current array layer capacity, the underlying texture is
+/// automatically reallocated and existing tile slices are copied on the GPU.
 pub struct DynamicLayerStorage {
     device: Device,
     queue: Queue,

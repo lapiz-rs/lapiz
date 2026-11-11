@@ -5,6 +5,10 @@ use iced_widget::{
 };
 use lapiz_runtime::Renderer;
 
+/// A horizontal or vertical dividing line for visually separating content.
+///
+/// `Divider` wraps `iced_widget::rule::Rule` with Lapiz's theme palette colors and full fill mode,
+/// offering a standard [`default`] style and a higher-contrast [`strong`](Self::strong) variant.
 pub struct Divider<'a> {
     inner: rule::Rule<'a, Theme>,
 }

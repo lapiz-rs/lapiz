@@ -15,6 +15,15 @@ use crate::{
 
 pub type Style = container::Style;
 
+/// A custom `32px`-tall window title bar with an optional drag caption region and window control buttons.
+///
+/// `TitleBar` places arbitrary `content` (such as an application icon, [`MenuBar`](crate::menu::MenuBar),
+/// or window title) on the left and automatically appends minimize, maximize, and close buttons on
+/// the right whenever their respective callbacks ([`on_minimize`](Self::on_minimize),
+/// [`on_maximize`](Self::on_maximize), [`on_close`](Self::on_close)) are configured.
+///
+/// When a drag callback is set via [`on_drag`](Self::on_drag), a flexible [`WindowCaptionRegion`]
+/// is inserted between the content and window controls to initiate window dragging on primary press.
 pub struct TitleBar<'a, Message> {
     content: Element<'a, Message, Theme, Renderer>,
     content_padding: Padding,
@@ -135,6 +144,7 @@ pub fn default(theme: &Theme, _status: flex::Status) -> Style {
         })
 }
 
+/// An invisible space-filling region inside a [`TitleBar`] that emits a drag message when pressed.
 #[derive(Default)]
 pub struct WindowCaptionRegion<'a, Message> {
     drag: Callback<'a, Message>,

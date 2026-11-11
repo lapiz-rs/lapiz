@@ -8,6 +8,10 @@ pub mod builtin;
 
 use crate::layer::Layer;
 
+/// Type-erased map of [`LayerProperty`] values attached to a [`LayerStackNode`](crate::layer::LayerStackNode).
+///
+/// `LayerProperties` stores heterogeneous property instances keyed by their static string
+/// identifier ([`LayerProperty::ident`]) and provides typed lookup and mutation methods.
 #[derive(Clone)]
 pub struct LayerProperties {
     props: HashMap<&'static str, Box<dyn LayerProperty>>,
@@ -52,6 +56,7 @@ impl LayerProperties {
     }
 }
 
+/// Intermediate map of MessagePack-encoded property byte blobs used when deserializing [`LayerProperties`].
 pub struct EncodedLayerProperties {
     props: HashMap<String, Vec<u8>>,
 }
@@ -76,11 +81,13 @@ impl EncodedLayerProperties {
     }
 }
 
+/// Trait implemented by concrete [`Layer`] types to declare and decode their supported [`LayerProperties`].
 pub trait HasLayerProperties {
     fn new_properties() -> LayerPropertiesDeclaration;
     fn decode_properties(data: EncodedLayerProperties) -> Result<LayerPropertiesDeclaration>;
 }
 
+/// Object-safe counterpart to [`HasLayerProperties`] for dynamic [`Layer`] trait objects.
 pub trait HasLayerPropertiesDyn {
     fn new_properties(&self) -> LayerPropertiesDeclaration;
     fn decode_properties(&self, data: EncodedLayerProperties)
@@ -100,6 +107,7 @@ impl<T: HasLayerProperties> HasLayerPropertiesDyn for T {
     }
 }
 
+/// Builder used inside [`HasLayerProperties`] implementations to register a layer's initial or decoded properties.
 #[derive(Default)]
 pub struct LayerPropertiesDeclaration {
     props: HashMap<&'static str, Box<dyn LayerProperty>>,
@@ -115,6 +123,7 @@ impl LayerPropertiesDeclaration {
     }
 }
 
+/// A serializable, downcastable metadata property that can be stored in [`LayerProperties`].
 pub trait LayerProperty: DynClone + Downcast + Send + 'static {
     fn ident() -> &'static str
     where

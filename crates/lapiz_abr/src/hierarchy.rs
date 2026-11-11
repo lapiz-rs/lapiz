@@ -4,6 +4,11 @@ use uuid::Uuid;
 
 use crate::{cursor::Cursor, descriptor::AbrObject as _};
 
+/// A node in the brush preset hierarchy tree reconstructed from the `phry` section.
+///
+/// Represents either the synthetic root container or a named preset group. Each node holds the
+/// ordered indices of brush presets in [`Abr::descriptors`](crate::Abr::descriptors) that belong
+/// directly to it, along with any nested child groups.
 #[derive(Debug)]
 pub struct HierarchyNode {
     pub name: String,
@@ -67,6 +72,7 @@ impl HierarchyNode {
     }
 }
 
+/// Root descriptor container for the `phry` hierarchy section.
 #[derive(AbrClass)]
 #[abr(class = "null")]
 struct HierarchyDescriptorRoot {
@@ -74,6 +80,7 @@ struct HierarchyDescriptorRoot {
     entries: Vec<HierarchyEntry>,
 }
 
+/// Flat stack-based entry decoded from the `phry` hierarchy stream before tree reconstruction.
 #[derive(AbrObject)]
 pub(crate) enum HierarchyEntry {
     Group(HierarchyGroup),
@@ -81,6 +88,7 @@ pub(crate) enum HierarchyEntry {
     Preset(HierarchyPreset),
 }
 
+/// Start marker and metadata for a brush preset group in the `phry` stream.
 #[derive(AbrClass)]
 #[abr(class = "Grup")]
 pub(crate) struct HierarchyGroup {
@@ -90,10 +98,12 @@ pub(crate) struct HierarchyGroup {
     id: Option<Uuid>,
 }
 
+/// Closing marker for the current brush preset group in the `phry` stream.
 #[derive(AbrClass)]
 #[abr(class = "groupEnd")]
 pub(crate) struct HierarchyGroupEnd {}
 
+/// Leaf marker representing the next sequential brush preset in the `phry` stream.
 #[derive(AbrClass)]
 #[abr(class = "preset")]
 pub(crate) struct HierarchyPreset {}

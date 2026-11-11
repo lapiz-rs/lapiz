@@ -2,6 +2,10 @@ use iced_core::{Background, Color, Element, Length, Pixels, Theme, text};
 use iced_widget::toggler::{Catalog, Status, Style};
 use lapiz_runtime::Renderer;
 
+/// A rectangular on/off toggle switch with an optional text label.
+///
+/// `Switch` wraps [`iced_widget::Toggler`] with sharp-cornered track and thumb styling that
+/// highlights in the theme's primary color when toggled on.
 pub struct Switch<'a, Message> {
     inner: iced_widget::Toggler<'a, Message, Theme, Renderer>,
 }

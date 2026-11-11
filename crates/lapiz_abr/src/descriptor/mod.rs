@@ -7,6 +7,7 @@ use crate::cursor::Cursor;
 
 pub mod class;
 
+/// Measurement unit tag associated with a [`UnitFloat`] descriptor value (`#Ang`, `#Prc`, or `#Pxl`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DescriptorUnit {
     Angle,
@@ -14,6 +15,7 @@ pub enum DescriptorUnit {
     Pixels,
 }
 
+/// A 64-bit floating-point descriptor value paired with its physical or relative [`DescriptorUnit`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UnitFloat {
     pub unit: DescriptorUnit,
@@ -29,6 +31,13 @@ impl UnitFloat {
     }
 }
 
+/// A typed property value that can be decoded from an ABR descriptor entry.
+///
+/// Descriptor entries in ABR sections prefix each value with a four-byte OSType tag
+/// (such as `Objc`, `VlLs`, `TEXT`, `enum`, `UntF`, `doub`, `long`, or `bool`). Implementing
+/// types validate this tag and decode their payload from a [`Cursor`].
+///
+/// All types implementing [`AbrObject`] automatically implement `AbrValue` as nested `Objc` values.
 pub trait AbrValue: Sized {
     fn parse_value(cursor: &mut Cursor<'_>, value_type: [u8; 4], offset: usize) -> Result<Self>;
 
@@ -42,6 +51,18 @@ pub trait AbrValue: Sized {
     }
 }
 
+/// A structured ABR descriptor object (`Objc`) consisting of a class header and keyed property entries.
+///
+/// An object begins with a UTF-16 display name, a class identifier, and an entry count, followed
+/// by a sequence of `(key, value_type, value)` property records.
+///
+/// # Derive Support
+///
+/// - **Structs**: `#[derive(AbrClass)]` implements both `AbrObject` and [`AbrClass`] for a single
+///   expected class identifier, decoding known keys into struct fields and skipping unrecognized keys
+///   via [`skip_value`](Self::skip_value).
+/// - **Enums**: `#[derive(AbrObject)]` dispatches across multiple [`AbrClass`] variant types based
+///   on the parsed `class_id`.
 pub trait AbrObject: Sized {
     fn parse_with_header(
         cursor: &mut Cursor<'_>,
@@ -124,10 +145,15 @@ impl<T: AbrObject> AbrValue for T {
     }
 }
 
+/// An [`AbrObject`] associated with a single static descriptor [`CLASS_ID`](Self::CLASS_ID).
 pub trait AbrClass: AbrObject {
     const CLASS_ID: &'static str;
 }
 
+/// A symbolic ABR descriptor enumeration (`enum`) identified by a [`TYPE_ID`](Self::TYPE_ID) and string value tags.
+///
+/// Decodes `enum` descriptor entries by verifying that the stream's enum type matches [`TYPE_ID`](Self::TYPE_ID)
+/// and mapping the value identifier to a variant via [`from_value_id`](Self::from_value_id).
 pub trait AbrEnum: AbrValue {
     const TYPE_ID: &'static str;
 
@@ -158,6 +184,7 @@ pub trait AbrEnum: AbrValue {
     }
 }
 
+/// An integer-backed ABR descriptor enumeration decoded from a 32-bit signed `long` entry.
 pub trait AbrIntegerEnum: AbrValue {
     fn from_i32(value: i32) -> Option<Self>;
 

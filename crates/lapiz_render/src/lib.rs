@@ -22,6 +22,7 @@ pub mod uniform_buffer;
 pub mod util;
 pub mod wesl_jit;
 
+/// Runtime plugin that registers shared rendering globals ([`GlobalSamplers`], [`FullscreenVertex`]) and the [`ImageSerializer`] asset loader.
 pub struct RenderPlugin;
 
 impl Plugin for RenderPlugin {

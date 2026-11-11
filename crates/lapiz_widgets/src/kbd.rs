@@ -5,6 +5,11 @@ use iced_widget::{
 };
 use lapiz_runtime::Renderer;
 
+/// A compact badge widget styled like a physical keyboard keycap.
+///
+/// `Kbd` displays non-wrapping shortcut or key labels inside a bordered [`Container`] with a
+/// default fixed height of `18px`, supporting both the [`default`] neutral keycap style and an
+/// [`accent`](Self::accent) highlight variant.
 pub struct Kbd<'a> {
     content: Text<'a, Theme, Renderer>,
     width: Length,

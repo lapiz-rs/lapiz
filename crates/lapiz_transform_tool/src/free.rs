@@ -58,6 +58,7 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess,
 };
 
+/// Affine transformation parameters (translation, rotation, scale, shear, pivot, and anchor) for a free transform session.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TransformParams {
     pub translate: Vec2,
@@ -69,12 +70,18 @@ pub struct TransformParams {
     pub anchor: Vec2,
 }
 
+/// Undo/redo history entry recording [`TransformParams`] before and after a single transform gesture or edit.
 #[derive(Debug, Clone, Copy)]
 pub struct TransformStep {
     pub before: TransformParams,
     pub after: TransformParams,
 }
 
+/// Active state of an interactive affine transformation session managed by [`FreeTransformTool`].
+///
+/// Holds the target layers and selection bounds, current affine parameters and composite [`Mat3`],
+/// per-layer GPU preview buffers (`result_buffers`), compiled [`FreeTransformPipeline`] instances,
+/// and a [`ChangesTracker`] for stepping through in-session undo/redo history before committing.
 pub struct TransformSession {
     pub canvas_id: CanvasId,
     pub target_layers: Vec<(LayerId, TexelType)>,
@@ -436,6 +443,7 @@ impl TransformSession {
     }
 }
 
+/// Snapshot of transform parameters captured at the start of an active pointer drag gesture.
 #[derive(Debug, Clone, Copy)]
 pub struct OngoingTransform {
     pub cursor_origin_ps: Vec2,
@@ -556,6 +564,7 @@ pub fn hit_test(quad: [Vec2; 4], p: Vec2, anchor: Vec2) -> Option<InteractionTyp
     None
 }
 
+/// Kind of gizmo manipulation triggered by clicking or dragging on the free-transform bounding quad.
 #[derive(Debug, Clone, Copy)]
 pub enum InteractionType {
     Anchor,
@@ -566,6 +575,7 @@ pub enum InteractionType {
     // TODO rotate transform bounds
 }
 
+/// Corner handle identifier for rotation gestures in [`FreeTransformTool`].
 #[derive(Debug, Clone, Copy)]
 pub enum RotateType {
     TopLeft,
@@ -574,6 +584,7 @@ pub enum RotateType {
     BottomRight,
 }
 
+/// Edge or corner handle identifier for scaling gestures in [`FreeTransformTool`].
 #[derive(Debug, Clone, Copy)]
 pub enum ScaleType {
     Left,
@@ -586,6 +597,7 @@ pub enum ScaleType {
     BottomRight,
 }
 
+/// Edge identifier for shearing gestures in [`FreeTransformTool`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ShearType {
     Left,
@@ -594,6 +606,7 @@ pub enum ShearType {
     Bottom,
 }
 
+/// Initialization payload containing computed layer and selection bounds for starting a [`TransformSession`].
 #[derive(Debug, Clone)]
 pub struct InitTransform {
     pub canvas_id: CanvasId,
@@ -603,6 +616,7 @@ pub struct InitTransform {
     pub pixel_bounds: IRect,
 }
 
+/// Pixel interpolation filter used when resampling layers during a free transform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SamplingMethod {
     NearestNeighbor,
@@ -614,6 +628,7 @@ impl fmt::Display for SamplingMethod {
     }
 }
 
+/// Primary axis along which shear is applied in [`FreeTransformTool`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShearAxis {
     Horizontal,
@@ -629,6 +644,7 @@ impl fmt::Display for ShearAxis {
     }
 }
 
+/// Messages handled by [`FreeTransformTool`] for session initialization, numeric adjustments, and commit/cancel actions.
 #[derive(Debug, Clone)]
 pub enum FreeTransformToolMessage {
     RequestInit,
@@ -647,6 +663,13 @@ pub enum FreeTransformToolMessage {
     Confirm,
 }
 
+/// Interactive tool for applying affine transformations (translate, rotate, scale, shear, mirror) to selected layers.
+///
+/// `FreeTransformTool` implements [`ToolFunction`] and computes the non-empty pixel bounds of the
+/// active selection or selected layers via [`LayerBoundsPipeline`] upon activation. During an active
+/// [`TransformSession`], it renders live previews through [`LayerPreviewOverriders`], draws interactive
+/// bounding-box and pivot gizmos via [`FreeTransformToolOverlay`], supports in-session undo/redo,
+/// and commits a [`BatchedUndoCommand`] of [`TileReplaceCommand`]s on confirmation or tool deactivation.
 #[derive(Default)]
 pub struct FreeTransformTool {
     session: Option<TransformSession>,
@@ -1266,6 +1289,7 @@ fn commit_transform(session: TransformSession, globals: &mut Globals) {
     globals.push_undo_command(&session.canvas_id, cmd).log_err();
 }
 
+/// Canvas overlay [`Widget`] that draws the transformed quad, corner handles, and pivot crosshair for [`FreeTransformTool`].
 pub struct FreeTransformToolOverlay<'a> {
     pub canvas_transform: &'a CanvasTransform,
     pub session: &'a TransformSession,
@@ -1424,6 +1448,7 @@ impl<'a> Widget<FreeTransformToolMessage, Theme, Renderer> for FreeTransformTool
     }
 }
 
+/// GPU compute pipeline that resamples layer tiles using an inverse 3x3 affine transformation matrix.
 pub struct FreeTransformPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,
@@ -1567,6 +1592,7 @@ impl FreeTransformPipeline {
     }
 }
 
+/// GPU storage buffer payload holding the inverse affine transformation matrix for [`FreeTransformPipeline`].
 #[derive(ShaderType, Debug)]
 pub struct FreeTransformParams {
     pub mat_inv: Mat3,

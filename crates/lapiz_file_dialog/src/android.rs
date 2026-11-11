@@ -13,6 +13,7 @@ use jni::{
 };
 use lapiz_runtime::android::AndroidApp;
 
+/// Metadata returned by the Android document picker, containing the content URI and display name.
 pub struct Document {
     pub uri: String,
     pub name: String,

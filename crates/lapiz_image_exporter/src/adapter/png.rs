@@ -35,6 +35,7 @@ const FILTERS: [PngFilter; 6] = [
     PngFilter::Paeth,
 ];
 
+/// Exporter for the PNG (`.png`) image format with compression, filter, and ICC profile options.
 #[derive(Serialize, Deserialize)]
 pub struct PngExporter {
     compression: PngCompression,
@@ -53,6 +54,7 @@ impl Default for PngExporter {
     }
 }
 
+/// Compression level presets available when exporting a PNG image with [`PngExporter`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, Serialize, Deserialize)]
 pub enum PngCompression {
     #[display("png_compression_default")]
@@ -76,6 +78,7 @@ impl From<PngCompression> for CompressionType {
     }
 }
 
+/// Row filter strategies available when exporting a PNG image with [`PngExporter`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, Serialize, Deserialize)]
 pub enum PngFilter {
     #[display("png_filter_adaptive")]
@@ -105,6 +108,7 @@ impl From<PngFilter> for FilterType {
     }
 }
 
+/// UI messages emitted by the [`PngExporter`] options form.
 #[derive(Debug, Clone, Copy)]
 pub enum PngExportMessage {
     CompressionChanged(PngCompression),

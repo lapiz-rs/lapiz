@@ -56,6 +56,7 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, ShaderStages, StorageTextureAccess, TextureFormat,
 };
 
+/// Deformation brush behavior applied by [`LiquifyTransformTool`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Display)]
 pub enum LiquifyMode {
     #[default]
@@ -78,6 +79,7 @@ impl LiquifyMode {
     }
 }
 
+/// User-configurable brush parameters for [`LiquifyTransformTool`].
 #[derive(Debug, Clone, Copy)]
 pub struct LiquifyProperties {
     pub mode: LiquifyMode,
@@ -99,6 +101,7 @@ impl Default for LiquifyProperties {
     }
 }
 
+/// GPU uniform parameters for a single liquify displacement dab compute pass.
 #[derive(ShaderType, Debug, Clone, Copy)]
 pub struct LiquifyDabParams {
     pub center: Vec2,
@@ -108,6 +111,7 @@ pub struct LiquifyDabParams {
     pub magnitude: f32,
 }
 
+/// Undo/redo snapshot storing displacement tiles modified during a single liquify brush stroke.
 pub struct LiquifyStrokeStep {
     pub before: DynamicLayerStorage,
     // equivalent to empty tiles in `before`,
@@ -116,6 +120,10 @@ pub struct LiquifyStrokeStep {
     pub after: DynamicLayerStorage,
 }
 
+/// Active GPU displacement-field session for interactive liquify brush strokes.
+///
+/// Maintains ping-pong displacement tile storages (`disp` and `disp_back`), per-layer preview
+/// buffers, dab and warp compute pipelines, and per-stroke undo/redo snapshots via [`ChangesTracker`].
 pub struct LiquifySession {
     pub canvas_id: CanvasId,
     pub target_layers: Vec<LayerId>,
@@ -346,6 +354,7 @@ impl LiquifySession {
     }
 }
 
+/// UI messages for configuring, confirming, or cancelling [`LiquifyTransformTool`].
 #[derive(Debug, Clone)]
 pub enum LiquifyToolMessage {
     RequestInit,
@@ -358,6 +367,12 @@ pub enum LiquifyToolMessage {
     Cancel,
 }
 
+/// Interactive brush-based warp tool that accumulates a diffeomorphic 2D displacement field over selected layers.
+///
+/// `LiquifyTransformTool` implements [`ToolFunction`] to let users push, scale, twirl, offset, or
+/// relax pixels within a circular brush radius (`size`). Strokes are subdivided into small dabs so
+/// the displacement field never folds, previewed live via [`LayerPreviewOverriders`], and committed
+/// as a [`BatchedUndoCommand`] when confirmed or deactivated.
 #[derive(Default)]
 pub struct LiquifyTransformTool {
     props: LiquifyProperties,
@@ -745,6 +760,7 @@ fn cancel_liquify(session: LiquifySession, globals: &mut Globals) {
     });
 }
 
+/// Canvas overlay [`Widget`] that renders the circular brush cursor for [`LiquifyTransformTool`].
 pub struct LiquifyBrushOverlay<'a> {
     pub canvas_transform: &'a CanvasTransform,
     pub center_ps: Vec2,
@@ -817,6 +833,7 @@ impl<'a> Widget<LiquifyToolMessage, Theme, Renderer> for LiquifyBrushOverlay<'a>
     }
 }
 
+/// GPU compute pipeline used either for accumulating displacement dabs or warping layer tiles by the displacement field.
 pub struct LiquifyPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,

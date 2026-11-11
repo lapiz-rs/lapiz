@@ -21,10 +21,12 @@ use lapiz_widgets::{
 pub static TOOL_BOX_DOCK_ID: LazyLock<DockId> =
     LazyLock::new(|| DockId::new("tool_box_dock".into()));
 
+/// Workspace [`Dock`] that renders grouped tool buttons from [`ToolBoxManifestConfig`] and switches the active canvas's current tool.
 pub struct ToolBoxDock {
     manifest: ToolBoxManifestConfig,
 }
 
+/// Messages handled by [`ToolBoxDock`].
 pub enum ToolBoxDockMessage {
     Switch(ToolId),
     ToolFunction(ErasedToolFunctionMessage),

@@ -13,10 +13,12 @@ use lapiz_widgets::{button, flex::Flex, label, scrollable};
 pub static BRUSH_PRESETS_DOCK_ID: LazyLock<DockId> =
     LazyLock::new(|| DockId::new("brush_presets_dock".into()));
 
+/// Workspace [`Dock`] that displays loaded [`BrushPreset`] assets and updates the active brush preset when selected.
 pub struct BrushPresetDock {
     brushes: BrushPresetListDelegate,
 }
 
+/// Messages handled by [`BrushPresetDock`].
 #[derive(Clone)]
 pub enum BrushPresetDockMessage {
     SelectBrush(usize),

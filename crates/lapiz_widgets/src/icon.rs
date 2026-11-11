@@ -7,6 +7,11 @@ use lapiz_runtime::Renderer;
 
 use crate::icon;
 
+/// An SVG icon widget with semantic color presets and built-in asset constructors.
+///
+/// `Icon` wraps [`Svg`] with a default `16x16` size and theme-aware coloring. In addition to
+/// custom handles passed to [`Icon::new`], the [`mod@crate::icon`] module provides constructor
+/// functions for all bundled application icons (such as [`brush`], [`layers`], [`search`], and [`settings`]).
 pub struct Icon<'a> {
     inner: Svg<'a, Theme>,
 }

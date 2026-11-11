@@ -12,6 +12,11 @@ use rfd::AsyncFileDialog;
 #[cfg(target_os = "android")]
 mod android;
 
+/// Cross-platform asynchronous file open/save dialog builder.
+///
+/// Wraps `rfd::AsyncFileDialog` on desktop platforms and bridges to the native Android Storage
+/// Access Framework document picker on Android, returning a [`LocalFile`] handle when a file is
+/// selected.
 pub struct FileDialog {
     #[cfg(not(target_os = "android"))]
     dialog: AsyncFileDialog,
@@ -131,6 +136,11 @@ impl FileDialog {
     }
 }
 
+/// A local filesystem handle to a file chosen through [`FileDialog`].
+///
+/// On desktop platforms this points directly to the selected path. On Android, it manages a
+/// temporary staging file copied from or written back to the underlying content URI when
+/// [`commit`](LocalFile::commit) is called.
 pub struct LocalFile {
     path: PathBuf,
     name: String,

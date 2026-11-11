@@ -37,6 +37,14 @@ use crate::{
     render::graph::filter_graph_resources,
 };
 
+/// A standalone window view for creating, authoring, and saving [`FilterPreset`] assets.
+///
+/// `FilterEditor` provides a three-pane authoring environment:
+/// - A preset browser sidebar for selecting existing [`FilterPreset`] assets or creating new ones.
+/// - A central [`EffectEditorView`] for editing the filter's multi-pass shader graphs and pass topology.
+/// - A right-hand [`ParametersEditor`] panel for adding, renaming, removing, and configuring default values
+///   for external filter parameters, while validating that the underlying effect exposes exactly one
+///   [`LayerType`] input and one [`LayerType`] output.
 pub struct FilterEditor {
     windows: Arc<[window::Id]>,
     main_window: window::Id,
@@ -49,11 +57,13 @@ pub struct FilterEditor {
     validation_error: Option<String>,
 }
 
+/// Holds the asset handle and live [`FilterInstance`] of the filter preset currently open in [`FilterEditor`].
 pub struct SelectedFilter {
     pub handle: AssetHandle<FilterPreset>,
     pub instance: FilterInstance,
 }
 
+/// UI messages handled by [`FilterEditor`].
 #[derive(Clone)]
 pub enum FilterEditorMessage {
     SelectFilter(usize),

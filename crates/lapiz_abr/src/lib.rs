@@ -38,6 +38,21 @@ pub mod pattern;
 mod rle;
 pub mod sample;
 
+/// A parsed Adobe Brush (`.abr`) archive.
+///
+/// Aggregates the version header and all top-level `8BIM` sections decoded from a version 6.2+
+/// ABR binary stream.
+///
+/// # Sections
+///
+/// - **Descriptors (`desc`)**: Brush preset definitions stored in [`descriptors`](Self::descriptors),
+///   describing tip geometry, dynamics, scattering, texture references, dual brushes, and tool options.
+/// - **Hierarchy (`phry`)**: Folder and preset organization tree stored in [`hierarchy`](Self::hierarchy),
+///   mapping group nodes to indices in [`descriptors`](Self::descriptors).
+/// - **Samples (`samp`)**: Grayscale alpha mask bitmaps stored in [`samples`](Self::samples),
+///   referenced by [`Uuid`](uuid::Uuid) from sampled brush tips.
+/// - **Patterns (`patt`)**: Multi-channel texture patterns stored in [`patterns`](Self::patterns),
+///   referenced by [`Uuid`](uuid::Uuid) from textured brush presets.
 #[derive(Debug)]
 pub struct Abr {
     pub header: AbrHeader,

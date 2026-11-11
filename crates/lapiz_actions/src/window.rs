@@ -6,6 +6,7 @@ use lapiz_runtime::{
 
 use crate::{ActionFunction, ActionId};
 
+/// Action that opens the brush editor window view.
 #[derive(Default)]
 pub struct OpenBrushEditorAction;
 
@@ -26,6 +27,7 @@ impl ActionFunction for OpenBrushEditorAction {
     }
 }
 
+/// Action that toggles the visibility of the filter panel window view.
 #[derive(Default)]
 pub struct ToggleFilterPanelAction;
 

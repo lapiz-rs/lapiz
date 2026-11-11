@@ -11,6 +11,7 @@ pub mod perspective;
 
 lapiz_i18n::define_i18n!("transform_tool");
 
+/// A [`Plugin`] that registers [`FreeTransformTool`], [`LiquifyTransformTool`], and [`PerspectiveTransformTool`].
 pub struct FreeTransformPlugin;
 
 impl Plugin for FreeTransformPlugin {

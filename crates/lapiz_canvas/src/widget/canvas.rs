@@ -13,6 +13,7 @@ use moxcms::ColorProfile;
 
 use crate::{CCanvas, render::CanvasPrimitive};
 
+/// Interactive UI widget that renders a [`CCanvas`] via [`CanvasPrimitive`] and routes pointer and focus events.
 pub struct CanvasWidget<'a, Message> {
     pub is_focusing: bool,
     pub canvas: &'a CCanvas,

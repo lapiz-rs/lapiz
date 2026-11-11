@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use tracing::error;
 
+/// Extension trait for logging `Err` variants of a [`Result`] via `tracing::error!`.
 pub trait LogErr {
     fn log_err(self);
     fn logged_err(self) -> Self;
@@ -22,6 +23,7 @@ impl<T, E: Display> LogErr for Result<T, E> {
     }
 }
 
+/// Extension trait for logging `None` variants of an [`Option`] via `tracing::error!`.
 pub trait LogNone {
     fn log_none(self, msg: &str);
     fn logged_none(self, msg: &str) -> Self;

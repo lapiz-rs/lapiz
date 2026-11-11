@@ -16,6 +16,7 @@ use crate::ImageFormatExporter;
 macro_rules! simple_exporters {
     ($($name:ident($extension:literal, [$($alias:literal),*], $format:expr, $description:literal))*) => {
         $(
+            /// Stateless image exporter backed by the [`image`] crate.
             #[derive(Default)]
             pub struct $name;
 

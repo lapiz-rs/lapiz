@@ -26,6 +26,7 @@ pub fn init_i18n() {
     i18n::init();
 }
 
+/// Registers shader graph localization, function asset serialization, and global texture storage with the [`Runtime`].
 pub struct ShaderGraphPlugin;
 
 impl Plugin for ShaderGraphPlugin {

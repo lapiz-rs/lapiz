@@ -20,6 +20,15 @@ use lapiz_dirs::config_dir;
 use parking_lot::Mutex;
 use serde::{Serialize, de::DeserializeOwned};
 
+/// A typed configuration document that can be loaded from and persisted to the configuration directory.
+///
+/// Types implementing `Configuration` define a file [`NAME`](Configuration::NAME) relative to
+/// [`config_dir`] and a built-in [`DEFAULT`](Configuration::DEFAULT) string payload used to
+/// initialize the file when it does not yet exist on disk.
+///
+/// By default, configurations are serialized and deserialized as TOML via [`parse`](Configuration::parse)
+/// and [`unparse`](Configuration::unparse), though implementations may override these methods to use
+/// alternative formats such as JSON.
 pub trait Configuration: Serialize + DeserializeOwned + Clone + Send + Sync + 'static {
     const NAME: &'static str;
 
@@ -61,6 +70,19 @@ impl<T: Configuration> Shared<T> {
     }
 }
 
+/// Thread-safe handle to a shared, atomically persisted [`Configuration`] instance.
+///
+/// `Config<T>` manages a process-wide singleton per configuration type `T`. It provides lock-free
+/// reads via [`get`](Config::get), synchronized mutations with atomic temporary-file persistence
+/// via [`update`](Config::update), and reactive change notifications via [`listen_to`](Config::listen_to).
+///
+/// # Initialization
+///
+/// - [`read_or_init`](Config::read_or_init): Loads the configuration from disk, or parses and persists
+///   [`Configuration::DEFAULT`] if the file is missing, caching the shared state for subsequent callers.
+/// - [`fallback`](Config::fallback): Creates an uncached in-memory instance from [`Configuration::DEFAULT`].
+/// - [`read_or_init_or_fallback`](Config::read_or_init_or_fallback): Attempts [`read_or_init`](Config::read_or_init)
+///   and falls back to [`fallback`](Config::fallback) on I/O or parse errors.
 #[derive(Clone)]
 pub struct Config<T: Configuration> {
     shared: Arc<Shared<T>>,
@@ -142,6 +164,7 @@ impl<T: Configuration> Config<T> {
     }
 }
 
+/// Subscription recipe that emits an event whenever a [`Config<T>`] is updated.
 struct ConfigUpdated<T> {
     receiver: Receiver<()>,
     _config: PhantomData<fn() -> T>,

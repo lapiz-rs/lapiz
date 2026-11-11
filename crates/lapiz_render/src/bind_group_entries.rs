@@ -138,6 +138,7 @@ impl<'b, const N: usize> Deref for BindGroupEntries<'b, N> {
     }
 }
 
+/// Conversion trait for turning a GPU resource reference into a [`BindingResource`].
 pub trait IntoBinding<'a> {
     fn into_binding(self) -> BindingResource<'a>;
 }
@@ -191,6 +192,7 @@ impl<'a> IntoBinding<'a> for &'a [BufferBinding<'a>] {
     }
 }
 
+/// Conversion trait for turning a tuple of GPU resources into a fixed-size array of [`BindingResource`]s.
 pub trait IntoBindingArray<'b, const N: usize> {
     fn into_array(self) -> [BindingResource<'b>; N];
 }
@@ -210,6 +212,7 @@ macro_rules! impl_to_binding_slice {
 
 all_tuples_with_size!(impl_to_binding_slice, 1, 32, T, s);
 
+/// Conversion trait for turning a tuple of `(binding_index, resource)` pairs into a fixed-size array.
 pub trait IntoIndexedBindingArray<'b, const N: usize> {
     fn into_array(self) -> [(u32, BindingResource<'b>); N];
 }
@@ -228,6 +231,7 @@ macro_rules! impl_to_indexed_binding_slice {
 
 all_tuples_with_size!(impl_to_indexed_binding_slice, 1, 32, T, n, s);
 
+/// Dynamically sized counterpart to [`BindGroupEntries`] for incrementally assembling [`BindGroupEntry`] lists at runtime.
 pub struct DynamicBindGroupEntries<'b> {
     pub entries: Vec<BindGroupEntry<'b>>,
 }

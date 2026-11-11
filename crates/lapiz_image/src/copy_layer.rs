@@ -16,11 +16,13 @@ use crate::{
     tile::{GpuTileInfo, GpuTileStorage, LayerBinding},
 };
 
+/// Prepared bind group and workgroup dispatch dimensions for a [`CopyLayerPipeline`] operation.
 pub struct PreparedCopyLayerPipeline {
     bind_group: BindGroup,
     workgroup_count: UVec3,
 }
 
+/// GPU compute pipeline that copies tile texels from a source [`LayerBinding`] into a destination [`LayerBinding`].
 pub struct CopyLayerPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,

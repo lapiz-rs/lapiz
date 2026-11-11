@@ -16,6 +16,7 @@ use lapiz_utils::log_err::LogErr as _;
 
 use crate::{ActionFunction, ActionId};
 
+/// Action that undoes the most recent operation on the active tool or canvas undo stack.
 #[derive(Default)]
 pub struct UndoAction;
 
@@ -43,6 +44,7 @@ impl ActionFunction for UndoAction {
     }
 }
 
+/// Action that redoes the most recently undone operation on the active tool or canvas undo stack.
 #[derive(Default)]
 pub struct RedoAction;
 
@@ -70,9 +72,11 @@ impl ActionFunction for RedoAction {
     }
 }
 
+/// Action that reads image files from the system clipboard and inserts them as new pixel layers.
 #[derive(Default)]
 pub struct PasteIntoNewLayerAction;
 
+/// Message returned after reading clipboard contents for [`PasteIntoNewLayerAction`].
 pub enum PasteMessage {
     Clipboard(Result<Arc<Content>, Error>),
 }

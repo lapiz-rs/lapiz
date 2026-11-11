@@ -6,6 +6,11 @@ use wgpu::{
 
 use crate::buffer_vec::BufferVec;
 
+/// Builder that collects individual GPU [`Texture`]s and packs them into a single [`TextureAtlas`].
+///
+/// Uses a skyline bin-packing algorithm to arrange 2D textures of the same format into a
+/// power-of-two width atlas texture, copying texels on the GPU and uploading their bounding
+/// rectangles to a storage buffer.
 pub struct TextureAtlasBuilder {
     textures: Vec<Texture>,
 }
@@ -140,6 +145,7 @@ impl TextureAtlasBuilder {
     }
 }
 
+/// Internal skyline heightfield state used for 2D rectangle bin packing.
 struct Skyline {
     nodes: Vec<(u32, u32)>,
     width: u32,
@@ -243,6 +249,10 @@ fn skyline_pack(sizes: &[UVec2]) -> (UVec2, Vec<UVec2>) {
     (actual_size, placements)
 }
 
+/// A packed 2D GPU texture atlas alongside per-entry [`URect`] bounds and individual [`TextureView`]s.
+///
+/// `TextureAtlas` stores the combined [`Texture`], its full [`TextureView`], the original per-item
+/// views, and a GPU storage [`Buffer`] containing the packed [`URect`] coordinates for shader indexing.
 #[derive(Clone)]
 pub struct TextureAtlas {
     texture: Texture,

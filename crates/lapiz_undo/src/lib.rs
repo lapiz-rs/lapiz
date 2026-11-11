@@ -17,6 +17,7 @@ use lapiz_utils::{Deref, DerefMut, log_err::LogErr as _};
 use tracing::info;
 use uuid::Uuid;
 
+/// Plugin that initializes the global [`UndoStacks`] resource in [`Runtime`].
 pub struct UndoPlugin;
 
 impl Plugin for UndoPlugin {
@@ -25,6 +26,11 @@ impl Plugin for UndoPlugin {
     }
 }
 
+/// Reservation handle for an asynchronous [`UndoCommand`] that preserves submission order in an [`UndoStack`].
+///
+/// Created via [`UndoStack::queue`] when an operation begins asynchronously (for example, waiting on
+/// a GPU readback) so that its resulting [`UndoCommand`] is committed in the exact sequence it was
+/// initiated. Calling [`send`](QueuedUndoCommand::send) delivers the finished command and polls the stack.
 pub struct QueuedUndoCommand {
     stack_id: Uuid,
     tx: Sender<Box<dyn UndoCommand>>,
@@ -43,6 +49,7 @@ impl QueuedUndoCommand {
     }
 }
 
+/// Global collection mapping canvas or document [`Uuid`]s to their respective [`UndoStack`]s.
 #[derive(Default, Deref, DerefMut)]
 pub struct UndoStacks {
     stacks: HashMap<Uuid, UndoStack>,
@@ -50,6 +57,20 @@ pub struct UndoStacks {
 
 impl Global for UndoStacks {}
 
+/// Bounded undo/redo command history and asynchronous ordering queue for a single document or canvas.
+///
+/// `UndoStack` maintains a linear history of executed [`UndoCommand`]s up to `max_history` entries
+/// alongside a cursor tracking the current state.
+///
+/// # Command Execution & Ordering
+///
+/// - **Immediate Push**: [`push`](UndoStack::push) executes [`UndoCommand::redo`] immediately if no
+///   asynchronous commands are pending, truncating any redo history beyond the current cursor.
+/// - **Cancellation**: If a newly pushed command reports [`UndoCommand::can_cancel_out`] with the
+///   command at the top of the stack, both commands are annihilated after applying the new command.
+/// - **Queued Push**: [`queue`](UndoStack::queue) reserves a slot in the FIFO pending queue and
+///   returns a [`QueuedUndoCommand`]. Subsequent pushes wait behind pending reservations until
+///   [`poll`](UndoStack::poll) drains ready commands in order.
 pub struct UndoStack {
     id: Uuid,
     cursor: usize,
@@ -217,11 +238,25 @@ impl fmt::Debug for UndoStack {
     }
 }
 
+/// Entry in an [`UndoStack`] pairing an executed [`UndoCommand`] with its creation timestamp.
 pub struct UndoCommandData {
     _pushed_at: Instant,
     command: Box<dyn UndoCommand>,
 }
 
+/// A reversible state mutation that can be applied and rolled back by an [`UndoStack`].
+///
+/// Implementations encapsulate the state needed to perform an edit ([`redo`](UndoCommand::redo))
+/// and restore the prior state ([`undo`](UndoCommand::undo)) using [`Globals`].
+///
+/// # Methods
+///
+/// - [`label`](UndoCommand::label): Human-readable description of the operation for history display and logging.
+/// - [`redo`](UndoCommand::redo): Applies (or re-applies) the command's mutation. Called automatically
+///   when the command is first pushed onto an [`UndoStack`].
+/// - [`undo`](UndoCommand::undo): Reverts the mutation performed by [`redo`](UndoCommand::redo).
+/// - [`can_cancel_out`](UndoCommand::can_cancel_out): Optional check allowing two consecutive inverse
+///   commands to cancel each other out and be removed from history.
 pub trait UndoCommand: 'static + Downcast {
     fn label(&self) -> Cow<'static, str>;
     fn redo(&mut self, globals: &mut Globals) -> anyhow::Result<()>;
@@ -232,6 +267,11 @@ pub trait UndoCommand: 'static + Downcast {
 }
 downcast_rs::impl_downcast!(UndoCommand);
 
+/// Composite [`UndoCommand`] that executes a sequence of child commands as a single atomic history step.
+///
+/// During [`redo`](UndoCommand::redo), child commands are applied in forward order; if any command
+/// fails, previously applied children in the batch are rolled back in reverse order. During
+/// [`undo`](UndoCommand::undo), child commands are reverted in reverse order with forward recovery on error.
 pub struct BatchedUndoCommand {
     label: Cow<'static, str>,
     commands: Vec<Box<dyn UndoCommand>>,

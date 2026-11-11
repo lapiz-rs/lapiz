@@ -67,6 +67,17 @@ pub fn unfocus(apply: impl FnOnce(&mut dyn Operation)) {
     apply(&mut Unfocus);
 }
 
+/// A single-line editable text field with placeholder, password masking, and validation styles.
+///
+/// `TextInput` wraps [`iced_widget::TextInput`] with a `12px` default font size and sharp-bordered
+/// theme styling that highlights the border on hover and focus.
+///
+/// # Presets
+///
+/// - [`default`]: Standard bordered input field.
+/// - [`transparent`](Self::transparent): Bordered input with a transparent background.
+/// - [`invalid`](Self::invalid): Highlights the border in the theme's danger color to indicate validation errors.
+/// - [`compact`](Self::compact): Applies tight `[3, 8]` padding and `12px` text size for dense toolbars or forms.
 pub struct TextInput<'a, Message> {
     inner: iced_widget::TextInput<'a, Message, Theme, Renderer>,
 }

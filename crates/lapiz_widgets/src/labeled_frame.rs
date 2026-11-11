@@ -11,6 +11,11 @@ const BORDER: f32 = 1.0;
 const PADDING: f32 = 12.0;
 const TITLE_SPACING: f32 = 8.0;
 
+/// A bordered group box container with a title element embedded along its top border.
+///
+/// `LabeledFrame` draws a rectangular border around `content` and positions `title` straddling
+/// the top edge over an opaque background backing so the border line appears interrupted behind
+/// the label.
 pub struct LabeledFrame<'a, Message> {
     title: Element<'a, Message, Theme, Renderer>,
     content: Element<'a, Message, Theme, Renderer>,

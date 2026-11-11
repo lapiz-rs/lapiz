@@ -16,6 +16,22 @@ use crate::callback::{CallbackWith, publish_with};
 
 const MIN_POINT_GAP: f32 = 0.001;
 
+/// An interactive widget for viewing and editing a normalized [`CubicCurve`].
+///
+/// `CurveEdit` renders a background grid, the subdivided cubic spline curve, and interactive
+/// control point handles mapped to normalized `[0.0, 1.0]` coordinates.
+///
+/// # Interaction
+///
+/// - **Selecting and dragging**: Clicking within `2 * control_point_radius` of an existing point
+///   selects it and initiates dragging. Moving the pointer updates its coordinates while clamping
+///   its horizontal position between neighboring control points.
+/// - **Adding points**: Clicking on empty space when an [`on_change`](Self::on_change) callback is
+///   set inserts a new control point at the clicked position and begins dragging it.
+/// - **Deleting points**: Pressing the `Delete` key while hovering over the widget removes the
+///   currently selected control point, provided more than two points remain.
+/// - **Callbacks**: [`on_change`](Self::on_change) is emitted continuously during edits, while
+///   [`on_release`](Self::on_release) is emitted when a drag gesture finishes.
 pub struct CurveEdit<'a, Message> {
     curve: CubicCurve,
     change: CallbackWith<'a, CubicCurve, Message>,
@@ -359,6 +375,7 @@ impl<'a, Message: 'a> From<CurveEdit<'a, Message>> for Element<'a, Message, Them
     }
 }
 
+/// Internal interaction state for [`CurveEdit`].
 #[derive(Default)]
 struct CurveEditState {
     selected_index: Option<usize>,
@@ -366,6 +383,7 @@ struct CurveEditState {
     drag_curve: Option<CubicCurve>,
 }
 
+/// The interaction status of a [`CurveEdit`] widget.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     Active,
@@ -373,6 +391,7 @@ pub enum Status {
     Dragged,
 }
 
+/// The visual appearance of a [`CurveEdit`] widget.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Style {
     pub background: Background,
@@ -383,6 +402,7 @@ pub struct Style {
     pub selected_control_point: Color,
 }
 
+/// The theme catalog of a [`CurveEdit`].
 pub trait Catalog: Sized {
     type Class<'a>;
 

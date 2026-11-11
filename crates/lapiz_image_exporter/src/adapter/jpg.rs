@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use super::pixels;
 use crate::ImageFormatExporter;
 
+/// Exporter for the JPEG (`.jpg` / `.jpeg`) image format with quality and ICC profile embedding options.
 #[derive(Serialize, Deserialize)]
 pub struct JpgExporter {
     quality: u8,
@@ -31,6 +32,7 @@ impl Default for JpgExporter {
     }
 }
 
+/// UI messages emitted by the [`JpgExporter`] options form.
 #[derive(Debug, Clone, Copy)]
 pub enum JpgExportMessage {
     QualityChanged(u8),

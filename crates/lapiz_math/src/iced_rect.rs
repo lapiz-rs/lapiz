@@ -2,6 +2,7 @@ use bevy_math::{IRect, Rect, URect};
 use glam::{IVec2, UVec2, Vec2};
 use iced_core::Rectangle;
 
+/// Extension trait for converting UI rectangle types into `bevy_math` rectangle representations.
 pub trait IntoRect<T> {
     fn into_rect(self) -> T;
 }

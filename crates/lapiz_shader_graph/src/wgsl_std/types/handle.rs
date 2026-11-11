@@ -59,9 +59,11 @@ use crate::{
     save::GraphValueTypeId,
 };
 
+/// UI message emitted when a user selects a new [`Image`] asset for a [`TextureType`] literal.
 #[derive(Clone)]
 pub struct TextureChanged(pub AssetHandle<Image>);
 
+/// Shader graph value type representing a 2D sampled/loaded texture (`texture_2d<T>`) with a specific [`TexelType`].
 #[derive(Clone)]
 pub struct TextureType {
     pub texel_type: TexelType,
@@ -75,6 +77,7 @@ impl Default for TextureType {
     }
 }
 
+/// CPU-side literal value for [`TextureType`], holding an optional [`AssetHandle<Image>`].
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct TextureReference {
     pub texture: Option<AssetHandle<Image>>,
@@ -261,14 +264,23 @@ impl GraphValueType for TextureType {
     }
 }
 
+/// Shader graph value type representing a tiled 2D image layer (`layer_rgba8` or `layer_a8`).
+///
+/// Unlike [`TextureType`], `LayerType` represents a dynamically tiled canvas layer backed by a
+/// `texture_storage_2d_array`, a tile metadata buffer, and an integer bounding box. In effect
+/// passes, it exposes both texel color/alpha and spatial bounds slots, and participates in the
+/// two-stage `Eval` (bounding-box calculation and tile allocation) and `Main` (texel read/write)
+/// execution pipeline.
 #[derive(Clone)]
 pub struct LayerType {
     pub texel_type: TexelType,
 }
 
+/// Unit literal value placeholder for [`LayerType`], which cannot be specified as an inline constant.
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct LayerReference;
 
+/// Backing GPU pixel storage for a [`PreparedLayer`], either dynamically allocated read-write tiles or a borrowed read-only [`LayerBinding`].
 #[allow(
     clippy::large_enum_variant,
     reason = "callers move DynamicLayerStorage out of the writable variant"
@@ -282,6 +294,7 @@ pub enum PreparedLayerPixels {
     ReadOnly(LayerBinding),
 }
 
+/// GPU-prepared representation of a [`LayerType`] value, bundling tile storage, CPU-readback pixel bounds, and a GPU bounds buffer.
 pub struct PreparedLayer {
     pub pixels: PreparedLayerPixels,
     pub pixel_bounds: Option<IRect>,
@@ -737,23 +750,27 @@ impl GraphValueType for LayerType {
     fn update_literal(&self, _data: &mut Self::AssociatedLiteralType, _message: Self::Message) {}
 }
 
+/// Shader graph value type representing a fixed-length storage buffer array (`array<T>`) of a primitive, vector, or compound element type.
 #[derive(Clone)]
 pub struct ArrayType {
     pub element_type: Arc<dyn ErasedGraphValueType>,
     pub len: u32,
 }
 
+/// CPU-side literal value for [`ArrayType`], storing a vector of per-element [`GraphLiteral`]s.
 #[derive(Clone)]
 pub struct ArrayLiteral {
     pub elements: Vec<GraphLiteral>,
 }
 
+/// UI message updating the element at `index` within an [`ArrayLiteral`].
 #[derive(Clone)]
 pub struct ArrayLiteralUpdateMessage {
     index: usize,
     message: ErasedGraphLiteralUpdateMessage,
 }
 
+/// GPU-prepared storage [`Buffer`] and element count for an [`ArrayType`] binding.
 #[derive(Clone)]
 pub struct PreparedArray {
     pub buffer: Buffer,
