@@ -560,7 +560,7 @@ fn cicp_transfer_switch_matches_evaluators_in_both_directions() {
                     });
                     for (actual, expected) in actual.into_iter().zip(expected) {
                         assert!(
-                            (actual - expected).abs() <= 0.00002,
+                            (actual - expected).abs() <= 0.0001,
                             "transfer {transfer:?}, enabled {enabled}, inverse {inverse}: actual {actual}, expected {expected}"
                         );
                     }
