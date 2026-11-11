@@ -212,7 +212,9 @@ fn run_shader(shader: &IccTransformShader, input: &[[f32; 3]]) -> Vec<[f32; 3]> 
     rx.recv().unwrap().unwrap();
     let mapped = readback.get_mapped_range(..);
     mapped[..input_bytes.len()]
-        .chunks_exact(16)
+        .as_chunks::<16>()
+        .0
+        .iter()
         .map(|pixel| from_fn(|i| f32::from_ne_bytes(pixel[i * 4..i * 4 + 4].try_into().unwrap())))
         .collect()
 }

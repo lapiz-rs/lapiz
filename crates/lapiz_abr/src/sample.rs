@@ -139,8 +139,10 @@ impl Sample {
             )),
             16 => {
                 let pixels = decoded
-                    .chunks_exact(2)
-                    .map(|bytes| u16::from_be_bytes([bytes[0], bytes[1]]))
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|bytes| u16::from_be_bytes(*bytes))
                     .collect();
                 Ok(SampleImage::Bit16(
                     ImageBuffer::from_raw(width, height, pixels)

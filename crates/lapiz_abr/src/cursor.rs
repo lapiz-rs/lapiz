@@ -67,8 +67,10 @@ impl<'a> Cursor<'a> {
                 .context("ABR UTF-16 string length overflow")?,
         )?;
         let mut units = bytes
-            .chunks_exact(2)
-            .map(|bytes| u16::from_be_bytes([bytes[0], bytes[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|bytes| u16::from_be_bytes(*bytes))
             .collect::<Vec<_>>();
         if units.last() == Some(&0) {
             units.pop();

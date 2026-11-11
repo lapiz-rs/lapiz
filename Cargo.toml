@@ -52,7 +52,7 @@ default-members = ["crates/lapiz_app"]
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.96.0"
+rust-version = "1.99.1"
 license = "GPL-3.0-or-later"
 publish = false
 
