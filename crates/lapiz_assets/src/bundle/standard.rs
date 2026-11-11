@@ -19,6 +19,7 @@ use crate::{
     tag::{ASSET_TAGS_EXT, AssetTags, TagFile},
 };
 
+/// An [`AssetSource`] that scans an asset root for packaged standard `.lazurite` bundles.
 pub struct StandardAssetBundleSource;
 
 impl AssetSource for StandardAssetBundleSource {
@@ -31,6 +32,11 @@ impl AssetSource for StandardAssetBundleSource {
     }
 }
 
+/// A packaged, read-only [`AssetBundle`] backed by a `.lazurite` ZIP archive.
+///
+/// Loads metadata, manifests, assets, and tags directly from an archive on disk.
+/// Any modifications or overrides to assets contained in this bundle are handled by
+/// writing revisioned copies into an external modified folder rather than updating the ZIP archive.
 pub struct StandardAssetBundle {
     path: PathBuf,
     archive: RwLock<ZipArchive<File>>,
@@ -92,6 +98,7 @@ fn scan_bundles(
     }
 }
 
+/// Header metadata deserialized from `metadata.toml` inside a `.lazurite` bundle archive.
 #[derive(Serialize, Deserialize)]
 pub struct StandardAssetBundleMetadata {
     pub bundle_id: BundleId,

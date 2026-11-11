@@ -10,6 +10,10 @@ use lapiz_runtime::global::Global;
 
 use crate::asset::{Asset, ErasedAsset};
 
+/// A global registry of asset serializers indexed by file extension.
+///
+/// Maps file extensions to their corresponding [`ErasedAssetSerializer`] instances, enabling
+/// dynamic serializer lookup when reading and writing asset files from bundles.
 #[derive(Default, Clone)]
 pub struct AssetSerializerRegistry {
     serializers: HashMap<&'static str, Arc<dyn ErasedAssetSerializer>>,
@@ -38,6 +42,18 @@ impl AssetSerializerRegistry {
     }
 }
 
+/// Serializer and deserializer for a specific [`Asset`] type.
+///
+/// Associates an asset type with a file extension and provides methods to read and write
+/// asset instances from and to byte streams.
+///
+/// # Registration
+///
+/// Implementations must be registered with the [`AssetSerializerRegistry`] (or via
+/// [`AssetAppExt::add_asset_serializer`](crate::AssetAppExt::add_asset_serializer)) to allow
+/// bundles to automatically select the correct serializer when loading files.
+///
+/// All types implementing `AssetSerializer` automatically implement [`ErasedAssetSerializer`].
 pub trait AssetSerializer: Send + Sync + 'static {
     type Asset: Asset;
     fn file_extension() -> &'static str;

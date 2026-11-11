@@ -21,6 +21,7 @@ use crate::{
     tag::{ASSET_TAGS_EXT, AssetTags, TAG_EXT, TagFile},
 };
 
+/// An [`AssetSource`] that discovers loose asset bundles in the `builtin_assets` directory.
 pub struct BuiltinAssetsDirectorySource;
 
 impl AssetSource for BuiltinAssetsDirectorySource {
@@ -35,11 +36,18 @@ impl AssetSource for BuiltinAssetsDirectorySource {
 
 const METADATA_FILE_NAME: &str = "metadata.toml";
 
+/// On-disk metadata stored in `metadata.toml` for an uncompressed asset directory bundle.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetDirectoryMetadata {
     pub bundle_id: BundleId,
 }
 
+/// A filesystem directory representing an uncompressed, mutable [`AssetBundle`].
+///
+/// Discovers assets and tags by recursively traversing the directory tree. Because it is
+/// mutable (`READONLY = false`), newly created assets (at revision 0) and tags can be written
+/// directly into the directory structure, while subsequent asset revisions are still tracked
+/// in `.modified`.
 pub struct AssetDirectory {
     root: PathBuf,
     id: BundleId,

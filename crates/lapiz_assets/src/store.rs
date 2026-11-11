@@ -21,6 +21,18 @@ use crate::{
     tag::{AssetTags, Tag, TagId},
 };
 
+/// Central service managing asset bundles, in-memory caches, serialization, and index queries.
+///
+/// `AssetRegistry` acts as the primary access point for the asset subsystem. It holds an
+/// [`AssetIndexDb`] for persistent metadata queries and an active collection of [`AssetBundleCache`]
+/// instances for reading and mutating assets.
+///
+/// # Key Operations
+///
+/// - **Handle Retrieval**: Access loaded assets through typed [`AssetHandle`] references.
+/// - **Asset Insertion**: Register newly created assets into specific bundles.
+/// - **Queries**: Query assets and tags matching typed [`AssetFilter`] criteria.
+/// - **Bundle Management**: Add and scan bundles from registered sources.
 #[derive(Clone)]
 pub struct AssetRegistry {
     inner: Arc<AssetRegistryInner>,

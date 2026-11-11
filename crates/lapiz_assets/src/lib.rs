@@ -75,6 +75,10 @@ impl Plugin for AssetsPlugin {
     }
 }
 
+/// Extension trait providing asset-related helper methods on [`Globals`].
+///
+/// Offers convenient registration of typed [`AssetSerializer`]s and access to the
+/// global [`AssetRegistry`].
 pub trait AssetAppExt {
     fn add_asset_serializer<A: AssetSerializer + Default>(&mut self);
     fn assets(&self) -> &AssetRegistry;
