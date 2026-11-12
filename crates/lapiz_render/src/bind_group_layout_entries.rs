@@ -129,7 +129,7 @@ use wgpu::{BindGroupLayoutEntry, BindingType, ShaderStages};
 ///     ],
 /// );
 /// ```
-
+///
 /// Builder for configuring an individual [`BindGroupLayoutEntry`] with optional shader stage visibility and array count overrides.
 #[derive(Clone, Copy)]
 pub struct BindGroupLayoutEntryBuilder {
