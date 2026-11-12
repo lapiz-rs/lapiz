@@ -33,6 +33,7 @@ impl Configuration for RecentFiles {
 /// A single entry in [`RecentFiles`], recording the document path or URI and its display name.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct RecentFileRecord {
+    // TODO: Remove the alias
     #[serde(alias = "path")]
     pub path_or_uri: String,
     #[serde(default)]

@@ -136,6 +136,7 @@ impl CanvasRenderer {
             min: IVec2::ZERO,
             max: image_size.as_ivec2(),
         });
+        // TODO: We should probably have a centralized time source.
         static FIRST_DRAW: OnceLock<Instant> = OnceLock::new();
         self.render_pipeline.prepare(
             device,

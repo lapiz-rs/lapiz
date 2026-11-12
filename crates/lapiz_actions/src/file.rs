@@ -45,7 +45,6 @@ impl ActionFunction for NewFileAction {
 #[derive(Default)]
 pub struct OpenFileAction;
 
-/// Message produced by the asynchronous file picker in [`OpenFileAction`].
 pub enum OpenFileMessage {
     Opened(LocalFile),
     Canceled,
@@ -148,7 +147,6 @@ impl ActionFunction for SaveFileAction {
 #[derive(Default)]
 pub struct ExportFileAction;
 
-/// Message carrying the chosen destination file for [`ExportFileAction`] and [`SaveFileAction`].
 pub enum ExportFileMessage {
     PathChosen(CanvasId, Option<LocalFile>),
 }

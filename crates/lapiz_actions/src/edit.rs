@@ -76,7 +76,6 @@ impl ActionFunction for RedoAction {
 #[derive(Default)]
 pub struct PasteIntoNewLayerAction;
 
-/// Message returned after reading clipboard contents for [`PasteIntoNewLayerAction`].
 pub enum PasteMessage {
     Clipboard(Result<Arc<Content>, Error>),
 }

@@ -13,15 +13,22 @@ use zip::{ZipArchive, ZipWriter, result::ZipError, write::FileOptions};
 
 /// Persisted asset definition of a programmable brush preset.
 ///
-/// A `BrushPreset` defines a complete GPU-accelerated brush through three shader-graph
-/// [`EffectAsset`] stages and a shared table of user-adjustable parameters:
+/// A `BrushPreset` defines a GPU-accelerated brush through three [`EffectAsset`] stages and a
+/// shared table of user-adjustable parameters:
 ///
-/// - **Spacing Effect** (`spacing_effect`): Evaluates the required arc-length distance between
-///   successive brush dabs along a cubic Bezier stroke curve.
-/// - **Main Effect** (`main_effect`): Computes per-pixel dab bounds and renders each dab into the
-///   stroke accumulation buffer.
-/// - **Postprocess Effect** (`postprocess_effect`): Transforms the accumulated stroke layer and
-///   composites it with the target canvas layer to produce the final stroke result.
+/// - **Spacing Effect** (`spacing_effect`): Restricted to a single pass with
+///   [`EffectPassDispatchStrategy::Once`](lapiz_effect::asset::EffectPassDispatchStrategy::Once)
+///   and a fixed `f32` output ([`SPACING_OUTPUT`](crate::render::graph::SPACING_OUTPUT)). Evaluates
+///   the arc-length distance between successive dabs along a cubic Bezier stroke curve.
+/// - **Main Effect** (`main_effect`): Restricted to a single pass with a fixed layer output
+///   ([`MAIN_DAB_BUFFER`](crate::render::graph::MAIN_DAB_BUFFER)) and
+///   [`EffectPassDispatchStrategy::EveryOutputLayerPixel`](lapiz_effect::asset::EffectPassDispatchStrategy::EveryOutputLayerPixel)
+///   bound to that output. Evaluates per-dab pixel bounds and renders each dab into the stroke
+///   accumulation buffer.
+/// - **Postprocess Effect** (`postprocess_effect`): A full multi-pass [`EffectAsset`] supporting
+///   arbitrary passes and dispatch strategies, producing the final
+///   [`STROKE_RESULT`](crate::render::graph::STROKE_RESULT) layer by transforming and compositing
+///   the accumulated stroke buffer with the target canvas layer.
 ///
 /// At runtime, a `BrushPreset` is instantiated into a [`BrushPresetInstance`](crate::instance::BrushPresetInstance)
 /// for editing or compilation into GPU pipelines. On disk, presets are stored as `.lapiz` ZIP

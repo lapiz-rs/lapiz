@@ -173,6 +173,7 @@ impl Plugin for ColorPlugin {
     fn build(&self, app: &mut Runtime) {
         let globals = app.globals_mut();
 
+        // TODO: Remember the color before the app was closed and restore it on startup.
         let default_color = Color::Rgb(Rgb::new(0.0, 0.0, 0.0));
         globals.insert_global(ForegroundColor::new(default_color));
         globals.insert_global(BackgroundColor::new(default_color));
