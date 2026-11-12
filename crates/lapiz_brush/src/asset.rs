@@ -1,4 +1,7 @@
-use std::io::{self, Cursor, Read, Write};
+use std::{
+    io::{self, Cursor, Read, Write},
+    path::Path,
+};
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -91,7 +94,7 @@ impl AssetSerializer for BrushPresetSerializer {
         "lapiz"
     }
 
-    fn read(&self, reader: &mut dyn Read) -> Result<Self::Asset> {
+    fn read(&self, _relative_path: &Path, reader: &mut dyn Read) -> Result<Self::Asset> {
         let mut buf = Vec::new();
         reader.read_to_end(&mut buf)?;
         let mut archive = ZipArchive::new(Cursor::new(buf.as_slice()))?;
@@ -105,7 +108,7 @@ impl AssetSerializer for BrushPresetSerializer {
         let mut read_effect = |name: &str| -> Result<EffectAsset> {
             let mut buffer = String::new();
             archive.by_name(name)?.read_to_string(&mut buffer)?;
-            EffectAssetSerializer.read(&mut Cursor::new(buffer))
+            EffectAssetSerializer.read(Path::new(name), &mut Cursor::new(buffer))
         };
 
         let spacing_effect = read_effect("spacing.lef")?;

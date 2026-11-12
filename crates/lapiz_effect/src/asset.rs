@@ -1,6 +1,9 @@
 //! Persistent effect definitions. Pass ports live in graph nodes, not in this asset.
 
-use std::io::{self, Read, Write};
+use std::{
+    io::{self, Read, Write},
+    path::Path,
+};
 
 use anyhow::Result;
 use lapiz_assets::{asset::Asset, loader::AssetSerializer};
@@ -81,7 +84,7 @@ impl AssetSerializer for EffectAssetSerializer {
         "lef"
     }
 
-    fn read(&self, reader: &mut dyn Read) -> Result<Self::Asset> {
+    fn read(&self, _relative_path: &Path, reader: &mut dyn Read) -> Result<Self::Asset> {
         let mut source = String::new();
         reader.read_to_string(&mut source)?;
         Ok(toml::from_str(&source)?)

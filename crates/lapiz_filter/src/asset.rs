@@ -1,4 +1,7 @@
-use std::io::{self, Cursor, Read, Write};
+use std::{
+    io::{self, Cursor, Read, Write},
+    path::Path,
+};
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -79,7 +82,7 @@ impl AssetSerializer for FilterPresetSerializer {
         "lfp"
     }
 
-    fn read(&self, reader: &mut dyn Read) -> Result<Self::Asset> {
+    fn read(&self, _relative_path: &Path, reader: &mut dyn Read) -> Result<Self::Asset> {
         let mut buf = Vec::new();
         reader.read_to_end(&mut buf)?;
         let mut archive = ZipArchive::new(Cursor::new(buf))?;
@@ -90,11 +93,13 @@ impl AssetSerializer for FilterPresetSerializer {
             .read_to_string(&mut filter_buffer)?;
         let filter_toml = toml::from_str::<FilterToml>(&filter_buffer)?;
 
+        let effect_path = "effect.lef";
         let mut effect_buffer = String::new();
         archive
-            .by_name("effect.lef")?
+            .by_name(effect_path)?
             .read_to_string(&mut effect_buffer)?;
-        let effect = EffectAssetSerializer.read(&mut Cursor::new(effect_buffer))?;
+        let effect =
+            EffectAssetSerializer.read(Path::new(effect_path), &mut Cursor::new(effect_buffer))?;
 
         let parameters = match archive.by_name("parameters.toml") {
             Ok(mut file) => {

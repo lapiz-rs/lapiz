@@ -266,8 +266,7 @@ pub(crate) fn read_asset_file(
     if revision == 0 {
         Ok(bundle.read(path, serializer)?)
     } else {
-        let path = modified_asset_relative_path(path, revision);
-        read_modified_asset(assets_root, &path, bundle_id, serializer)
+        read_modified_asset(assets_root, path, bundle_id, revision, serializer)
     }
 }
 
@@ -461,13 +460,18 @@ fn restore_original_path(modified_path: &Path) -> Option<PathBuf> {
 
 fn read_modified_asset(
     assets_root: &Path,
-    asset_relative_path: &Path,
+    original_relative_path: &Path,
     bundle_id: &BundleId,
+    revision: u32,
     serializer: &dyn ErasedAssetSerializer,
 ) -> Result<Arc<dyn ErasedAsset>> {
-    let path = modified_bundle_absolute_path(assets_root, bundle_id).join(asset_relative_path);
-    let mut file = File::open(path)?;
-    serializer.read(&mut file).map(Into::into)
+    let modified_relative_path = modified_asset_relative_path(original_relative_path, revision);
+    let file_path =
+        modified_bundle_absolute_path(assets_root, bundle_id).join(modified_relative_path);
+    let mut file = File::open(file_path)?;
+    serializer
+        .read(original_relative_path, &mut file)
+        .map(Into::into)
 }
 
 fn write_modified_asset(

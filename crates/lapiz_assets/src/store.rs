@@ -334,7 +334,7 @@ mod tests {
             "storetest"
         }
 
-        fn read(&self, reader: &mut dyn Read) -> Result<Self::Asset> {
+        fn read(&self, _relative_path: &Path, reader: &mut dyn Read) -> Result<Self::Asset> {
             let mut value = String::new();
             reader.read_to_string(&mut value)?;
             Ok(TestAsset {

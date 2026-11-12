@@ -117,7 +117,8 @@ impl DemoEditor {
 
 fn load_instance(path: &Path) -> Option<EffectInstance> {
     let mut file = File::open(path).ok()?;
-    let asset = EffectAssetSerializer.read(&mut file).ok()?;
+    let relative_path = Path::new(path.file_name()?);
+    let asset = EffectAssetSerializer.read(relative_path, &mut file).ok()?;
     EffectInstance::from_asset(&asset, graph_resources()).ok()
 }
 
