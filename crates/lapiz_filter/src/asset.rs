@@ -98,7 +98,8 @@ impl AssetSerializer for FilterPresetSerializer {
         archive
             .by_name(effect_path)?
             .read_to_string(&mut effect_buffer)?;
-        let effect = EffectAssetSerializer.read(Path::new(effect_path), &mut Cursor::new(effect_buffer))?;
+        let effect =
+            EffectAssetSerializer.read(Path::new(effect_path), &mut Cursor::new(effect_buffer))?;
 
         let parameters = match archive.by_name("parameters.toml") {
             Ok(mut file) => {

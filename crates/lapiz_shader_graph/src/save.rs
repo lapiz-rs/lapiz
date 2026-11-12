@@ -503,7 +503,7 @@ impl AssetSerializer for SerializableGraphFunctionSerializer {
         "lsf"
     }
 
-    fn read(&self,_relative_path: &Path, reader: &mut dyn Read) -> Result<Self::Asset> {
+    fn read(&self, _relative_path: &Path, reader: &mut dyn Read) -> Result<Self::Asset> {
         let mut buf = String::new();
         reader.read_to_string(&mut buf)?;
         Ok(toml::from_str(&buf)?)
