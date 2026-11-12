@@ -2,6 +2,7 @@ use std::{
     borrow::Borrow,
     collections::{HashMap, HashSet, hash_map::Entry},
     io::{self, Read, Write},
+    path::Path,
     sync::Arc,
 };
 
@@ -502,7 +503,7 @@ impl AssetSerializer for SerializableGraphFunctionSerializer {
         "lsf"
     }
 
-    fn read(&self, reader: &mut dyn Read) -> Result<Self::Asset> {
+    fn read(&self,_relative_path: &Path, reader: &mut dyn Read) -> Result<Self::Asset> {
         let mut buf = String::new();
         reader.read_to_string(&mut buf)?;
         Ok(toml::from_str(&buf)?)

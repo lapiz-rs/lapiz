@@ -111,7 +111,7 @@ impl AssetBundle for AssetDirectory {
     ) -> Result<Arc<dyn ErasedAsset>> {
         let asset_path = self.root.join(path);
         let mut file = File::open(&asset_path)?;
-        let asset = serializer.read(&mut file)?;
+        let asset = serializer.read(path, &mut file)?;
         Ok(asset.into())
     }
 

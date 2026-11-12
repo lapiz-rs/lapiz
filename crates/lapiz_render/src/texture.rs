@@ -1,7 +1,7 @@
 use std::{
     fs,
     io::{self, Cursor, Read, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use anyhow::Result;
@@ -136,7 +136,7 @@ impl AssetSerializer for ImageSerializer {
         "lig"
     }
 
-    fn read(&self, reader: &mut dyn Read) -> Result<Self::Asset> {
+    fn read(&self, _relative_path: &Path, reader: &mut dyn Read) -> Result<Self::Asset> {
         let mut buf = Vec::new();
         reader.read_to_end(&mut buf)?;
         let mut archive = ZipArchive::new(Cursor::new(buf))?;

@@ -57,14 +57,14 @@ impl AssetSerializerRegistry {
 pub trait AssetSerializer: Send + Sync + 'static {
     type Asset: Asset;
     fn file_extension() -> &'static str;
-    fn read(&self, reader: &mut dyn Read) -> Result<Self::Asset>;
+    fn read(&self, relative_path: &Path, reader: &mut dyn Read) -> Result<Self::Asset>;
     fn write(&self, asset: &Self::Asset, writer: &mut dyn Write) -> Result<()>;
 }
 
 pub trait ErasedAssetSerializer: Send + Sync + 'static {
     fn file_extension(&self) -> &'static str;
     fn asset_type_name(&self) -> &'static str;
-    fn read(&self, reader: &mut dyn Read) -> Result<Box<dyn ErasedAsset>>;
+    fn read(&self, relative_path: &Path, reader: &mut dyn Read) -> Result<Box<dyn ErasedAsset>>;
     fn write(&self, asset: &dyn ErasedAsset, writer: &mut dyn Write) -> Result<()>;
 }
 
@@ -77,8 +77,12 @@ impl<T: AssetSerializer> ErasedAssetSerializer for T {
         <<Self as AssetSerializer>::Asset>::TYPE_NAME
     }
 
-    fn read(&self, reader: &mut dyn Read) -> Result<Box<dyn ErasedAsset>> {
-        Ok(Box::new(<Self as AssetSerializer>::read(self, reader)?))
+    fn read(&self, relative_path: &Path, reader: &mut dyn Read) -> Result<Box<dyn ErasedAsset>> {
+        Ok(Box::new(<Self as AssetSerializer>::read(
+            self,
+            relative_path,
+            reader,
+        )?))
     }
 
     fn write(&self, asset: &dyn ErasedAsset, writer: &mut dyn Write) -> Result<()> {

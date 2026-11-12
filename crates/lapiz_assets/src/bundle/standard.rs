@@ -136,7 +136,7 @@ impl AssetBundle for StandardAssetBundle {
         let mut file = archive.by_name(path.to_str().unwrap_or_default())?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
-        let asset = serializer.read(&mut Cursor::new(buffer))?;
+        let asset = serializer.read(path, &mut Cursor::new(buffer))?;
         Ok(asset.into())
     }
 
