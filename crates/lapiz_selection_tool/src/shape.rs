@@ -70,12 +70,18 @@ fn common_update(
     };
     state.cur_end_ps = cur_end_pos + 1;
 }
+/// Drag-gesture bounding corners and boolean operation for geometric shape selection tools.
 struct ShapeSelectionState {
     start_ps: IVec2,
     cur_end_ps: IVec2,
     op: SelectionOperation,
 }
 
+/// Interactive tool for creating axis-aligned rectangular or square (with Shift) selections.
+///
+/// `RectangularSelectionTool` implements [`ToolFunction`] to track a bounding box drag gesture,
+/// draw a live wireframe preview via [`SelectionPreviewLayer`], and rasterize the rectangle into
+/// the canvas selection mask on release.
 #[derive(Default)]
 pub struct RectangularSelectionTool {
     state: Option<ShapeSelectionState>,
@@ -203,6 +209,11 @@ fn generate_ellipse(center: Vec2, radii: Vec2) -> Vec<Vec2> {
     points
 }
 
+/// Interactive tool for creating elliptical or circular (with Shift) selections.
+///
+/// `EllipticalSelectionTool` implements [`ToolFunction`] to sample an adaptive polygon approximation
+/// of the dragged bounding ellipse, preview its contour via [`SelectionPreviewLayer`], and
+/// tessellate it into the canvas selection mask on release.
 #[derive(Default)]
 pub struct EllipticalSelectionTool {
     state: Option<ShapeSelectionState>,

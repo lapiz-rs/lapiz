@@ -5,6 +5,11 @@ use lapiz_runtime::global::Global;
 use serde::{Deserialize, Serialize, de};
 use smallvec::SmallVec;
 
+/// Tracks currently pressed keyboard keys and active modifier flags.
+///
+/// Registered as a [`Global`] resource by [`InputPlugin`](crate::InputPlugin) and passed to
+/// canvas tools and UI handlers so they can query held keys or construct a [`KeySequence`]
+/// representing the current shortcut combination.
 #[derive(Debug, Default, Clone)]
 pub struct KeyboardState {
     pressed: SmallVec<[key::Code; 8]>,
@@ -61,6 +66,7 @@ impl KeyboardState {
 
 impl Global for KeyboardState {}
 
+/// Errors that can occur when parsing a [`KeySequence`] from key codes or a shortcut string.
 #[derive(Debug, thiserror::Error)]
 pub enum KeyParseError {
     #[error("Multiple non-modifier keys found: {0:?}")]
@@ -69,6 +75,9 @@ pub enum KeyParseError {
     InvalidKeystroke(String),
 }
 
+/// A keyboard shortcut combination consisting of modifier flags and an optional primary key code.
+///
+/// Supports human-readable formatting and hyphen-delimited string serialization (e.g. `"ctrl-shift-z"`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeySequence {
     pub key: Option<key::Code>,

@@ -6,6 +6,10 @@ use unic_langid::LanguageIdentifier;
 
 pub type LanguageConfig = Config<Language>;
 
+/// Persisted language preference configuration.
+///
+/// Stores an optional [`LanguageIdentifier`] override; when `None`, the application falls back to
+/// the operating system's requested desktop languages.
 #[derive(Debug, Clone)]
 pub struct Language {
     pub lang: Option<LanguageIdentifier>,
@@ -17,6 +21,7 @@ impl Configuration for Language {
     const DEFAULT: &'static str = include_str!("../../../default_config/language.toml");
 }
 
+/// Helper struct for serializing and deserializing [`Language`] as an optional string tag.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SerializableLanguage {
     lang: Option<String>,

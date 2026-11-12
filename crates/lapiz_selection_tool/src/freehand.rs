@@ -21,17 +21,25 @@ use crate::render::{
     SelectionOperation, SelectionPreviewLayer, generate_cmd, indices_from_vertices,
 };
 
+/// In-progress stroke state for freehand and polygonal lasso selection tools.
 struct FreehandSelectionState {
     aabb: Rect,
     points_ps: Vec<Vec2>,
     op: SelectionOperation,
 }
 
+/// UI messages for [`FreehandSelectionTool`].
 #[derive(Debug, Clone)]
 pub enum FreehandSelectionToolMessage {
     FillRuleChanged(FillRule),
 }
 
+/// Lasso selection tool that traces a freehand closed path while dragging the pointer.
+///
+/// `FreehandSelectionTool` implements [`ToolFunction`] to record pixel-space vertices during a drag
+/// gesture, render an animated marching-ants preview polyline via [`SelectionPreviewLayer`], and
+/// tessellate the closed contour using the configured [`FillRule`] upon release to update the
+/// canvas selection mask.
 pub struct FreehandSelectionTool {
     fill_rule: FillRule,
     state: Option<FreehandSelectionState>,
@@ -201,11 +209,18 @@ impl ToolFunction for FreehandSelectionTool {
 
 const POLYGON_CLOSE_DISTANCE: f32 = 10.0;
 
+/// UI messages for [`PolygonSelectionTool`].
 #[derive(Debug, Clone)]
 pub enum PolygonSelectionToolMessage {
     FillRuleChanged(FillRule),
 }
 
+/// Polygonal lasso selection tool that constructs a multi-vertex selection polygon across clicks.
+///
+/// `PolygonSelectionTool` implements [`ToolFunction`] to append vertices on each click release,
+/// previewing the active segment to the hovering cursor via [`SelectionPreviewLayer`]. Clicking
+/// within close proximity of the initial vertex closes and tessellates the polygon using the
+/// configured [`FillRule`] and commits the resulting selection mask command.
 pub struct PolygonSelectionTool {
     fill_rule: FillRule,
     state: Option<FreehandSelectionState>,

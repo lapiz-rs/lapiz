@@ -4,6 +4,7 @@
 )]
 use crate::model::oklab::OkLab;
 
+/// Reference chroma milestones (initial slope, midpoint, and gamut maximum) for a given [`OkLab`] lightness and hue.
 #[derive(Clone, Copy)]
 pub struct ChromaValues {
     pub zero: f32,
@@ -37,12 +38,14 @@ impl ChromaValues {
     }
 }
 
+/// Lightness and chroma coordinates of a gamut cusp in [`OkLab`] space.
 #[derive(Clone, Copy)]
 pub struct LC {
     lightness: f32,
     chroma: f32,
 }
 
+/// Triangle slope parameters (`s` and `t`) describing the sRGB gamut boundary in [`OkLab`] space.
 #[derive(Clone, Copy)]
 pub struct ST {
     pub s: f32,

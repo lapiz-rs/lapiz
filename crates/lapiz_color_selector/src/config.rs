@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ColorModel, GradientPlaneShape};
 
+/// Persistent configuration file storing the user's list of [`ColorSelectorConfig`] presets.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColorSelectorConfigGroup {
     pub configs: Vec<ColorSelectorConfig>,
@@ -25,6 +26,7 @@ impl Configuration for ColorSelectorConfigGroup {
     const DEFAULT: &'static str = include_str!("../../../default_config/color_selector.toml");
 }
 
+/// A named preset defining the layout, planes, bars, and gamut-handling options for [`ColorSelector`](crate::ColorSelector).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColorSelectorConfig {
     pub name: String,
@@ -37,6 +39,7 @@ pub struct ColorSelectorConfig {
     pub clip_to_gamut: bool,
 }
 
+/// Configuration for an individual 2D color gradient plane and its optional primary-channel ring.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GradientPlaneConfig {
     pub model: ColorModel,
@@ -52,6 +55,7 @@ pub struct GradientPlaneConfig {
 }
 
 bitflags::bitflags! {
+    /// Bitflags specifying horizontal (`X`) or vertical (`Y`) axis mirroring for a gradient plane.
     #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
     #[serde(transparent)]
     pub struct GradientPlaneFlipAxis : u8 {
@@ -60,6 +64,7 @@ bitflags::bitflags! {
     }
 }
 
+/// Configuration for a single-channel 1D color gradient bar.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GradientBarConfig {
     pub model: ColorModel,
@@ -70,6 +75,7 @@ pub struct GradientBarConfig {
     pub show_primary_channel_lock: bool,
 }
 
+/// UI messages emitted by [`ColorSelectorConfigEditorState`] while editing presets.
 #[derive(Debug, Clone)]
 pub enum ColorSelectorConfigMessage {
     ConfigSelected(usize),
@@ -115,6 +121,7 @@ pub enum ColorSelectorConfigMessage {
     Cancelled,
 }
 
+/// Combo-box item representing a selectable [`ColorSelectorConfig`] entry by index and name.
 #[derive(Debug, Clone, PartialEq)]
 struct ConfigItem {
     index: usize,
@@ -127,6 +134,10 @@ impl fmt::Display for ConfigItem {
     }
 }
 
+/// Interactive editor state and view builder for customizing [`ColorSelectorConfig`] presets.
+///
+/// Allows adding, reordering, removing, and configuring presets, their 2D [`GradientPlaneConfig`]s,
+/// and their 1D [`GradientBarConfig`]s before confirming or cancelling changes.
 pub struct ColorSelectorConfigEditorState {
     configs: Vec<ColorSelectorConfig>,
     selected_config: Option<usize>,

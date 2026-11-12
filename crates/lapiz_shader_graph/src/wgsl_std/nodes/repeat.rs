@@ -47,6 +47,7 @@ use crate::{
 
 static UNIQUE_COUNTER: AtomicU32 = AtomicU32::new(0);
 
+/// Shader graph node available inside a [`RepeatNode`] subgraph that outputs the current zero-based loop iteration index ([`I32Type`]).
 #[derive(Default, Clone)]
 pub struct RepeatIterationNode;
 
@@ -81,10 +82,12 @@ impl StatelessCommonGraphNode for RepeatIterationNode {
 }
 
 wrapper! {
+    /// A strongly-typed unique identifier for a loop-carried variable in a [`RepeatNode`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
     pub RepeatVariableId : Uuid
 }
 
+/// Definition of a loop-carried local variable managed by a [`RepeatNode`].
 #[derive(Clone)]
 pub struct RepeatLocalSchema {
     pub id: RepeatVariableId,
@@ -92,6 +95,7 @@ pub struct RepeatLocalSchema {
     pub ty: Arc<dyn ErasedGraphValueType>,
 }
 
+/// Serializable DTO representation of a [`RepeatLocalSchema`].
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SerializableRepeatLocalSchema {
     pub id: RepeatVariableId,
@@ -171,6 +175,7 @@ impl RepeatSchemaDraft {
     }
 }
 
+/// Per-instance state for [`RepeatNode`], owning the loop-carried variable schemas and the loop body subgraph.
 pub struct RepeatNodeState {
     locals: Arc<Mutex<IndexMap<RepeatVariableId, RepeatLocalSchema>>>,
     revision: u64,
@@ -326,16 +331,19 @@ impl GraphSerializable for RepeatNodeState {
     }
 }
 
+/// Shader graph node inside a [`RepeatNode`] body subgraph that reads the current iteration value of a loop-carried variable.
 #[derive(Default, Clone)]
 pub struct RepeatInputNode {
     pub locals: Arc<Mutex<IndexMap<RepeatVariableId, RepeatLocalSchema>>>,
 }
 
+/// Per-instance state for [`RepeatInputNode`], storing the selected [`RepeatVariableId`].
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct RepeatInputNodeState {
     pub variable: Option<RepeatVariableId>,
 }
 
+/// UI message emitted by [`RepeatInputNode`].
 #[derive(Clone)]
 pub enum RepeatInputNodeMessage {
     VariableChanged(RepeatVariableId),
@@ -428,16 +436,19 @@ impl GraphNode for RepeatInputNode {
     }
 }
 
+/// Shader graph node inside a [`RepeatNode`] body subgraph that writes the next iteration value of a loop-carried variable.
 #[derive(Default, Clone)]
 pub struct RepeatOutputNode {
     pub locals: Arc<Mutex<IndexMap<RepeatVariableId, RepeatLocalSchema>>>,
 }
 
+/// Per-instance state for [`RepeatOutputNode`], storing the selected [`RepeatVariableId`].
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct RepeatOutputNodeState {
     pub variable: Option<RepeatVariableId>,
 }
 
+/// UI message emitted by [`RepeatOutputNode`].
 #[derive(Clone)]
 pub enum RepeatOutputNodeMessage {
     VariableChanged(RepeatVariableId),
@@ -560,9 +571,16 @@ fn repeat_variable_references(
         .collect()
 }
 
+/// A shader graph node that executes an embedded body subgraph in a WGSL `for` loop with loop-carried state variables.
+///
+/// `RepeatNode` exposes an `iterations` count slot alongside an initial input slot (`<Name> In`) and
+/// final output slot (`<Name> Out`) for each configured [`RepeatLocalSchema`]. Inside the body
+/// subgraph, [`RepeatInputNode`], [`RepeatOutputNode`], and [`RepeatIterationNode`] read and update
+/// the loop-carried variables across iterations.
 #[derive(Default, Clone)]
 pub struct RepeatNode;
 
+/// UI message emitted by [`RepeatNode`] for editing its loop-carried variable schema.
 #[derive(Clone)]
 pub enum RepeatNodeMessage {
     ToggleEditor,

@@ -7,6 +7,7 @@ use crate::{
     descriptor::{AbrObject, UnitFloat},
 };
 
+/// Root descriptor container for the `desc` section holding all brush preset [`Descriptor`]s.
 #[derive(Debug, AbrClass)]
 #[abr(class = "null")]
 pub(crate) struct BrushDescriptorRoot {
@@ -14,6 +15,10 @@ pub(crate) struct BrushDescriptorRoot {
     pub brushes: Vec<Descriptor>,
 }
 
+/// Brush tip shape definition used by primary brush presets ([`Descriptor::brush`]) and [`DualBrush`]es.
+///
+/// Dispatches across sampled bitmap tips (`sampledBrush`), procedural elliptical tips
+/// (`computedBrush`), and physical bristle tips (`dBrush`) based on the `Objc` class identifier.
 #[derive(Debug, AbrObject)]
 pub enum BrushTip {
     Sampled(SampledBrushTip),
@@ -21,6 +26,11 @@ pub enum BrushTip {
     DBrush(DBrushTip),
 }
 
+/// A brush tip shape (`sampledBrush`) backed by a bitmap mask in the `samp` section.
+///
+/// References a decoded [`Sample`](crate::sample::Sample) via [`id`](Self::id) (`sampledData`) and
+/// defines the tip's base diameter, rotation angle, elliptical roundness, stroke spacing,
+/// interpolation flag, and axis flips.
 #[derive(Debug, AbrClass)]
 #[abr(class = "sampledBrush")]
 pub struct SampledBrushTip {
@@ -44,6 +54,10 @@ pub struct SampledBrushTip {
     pub flip_y: bool,
 }
 
+/// A procedurally generated elliptical brush tip shape (`computedBrush`).
+///
+/// Defines an analytical round or elliptical dab profile parameterized by base diameter,
+/// radial edge hardness, rotation angle, roundness ratio, stroke spacing, and axis flips.
 #[derive(Debug, AbrClass)]
 #[abr(class = "computedBrush")]
 pub struct ComputedBrushTip {
@@ -65,6 +79,7 @@ pub struct ComputedBrushTip {
     pub flip_y: bool,
 }
 
+/// A bristle brush tip descriptor (`dBrush`) with physical bristle parameters.
 #[derive(Debug, AbrClass)]
 #[abr(class = "dBrush")]
 pub struct DBrushTip {
@@ -96,6 +111,7 @@ pub struct DBrushTip {
     pub flip_y: bool,
 }
 
+/// Input source or stroke progression mode (`bVTy`) driving a [`PropertyDynamics`] curve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, AbrIntegerEnum)]
 pub enum DynamicsControl {
     #[abr(value = 0)]
@@ -116,6 +132,11 @@ pub enum DynamicsControl {
     Rotation,
 }
 
+/// Dynamic modulation settings (`brVr`) for a single brush property.
+///
+/// Governs how a brush attribute (such as size, opacity, flow, angle, roundness, scatter, or
+/// texture depth) varies across dabs using an input [`DynamicsControl`] source, fade step count,
+/// per-dab random jitter, and an optional minimum floor percentage.
 #[derive(Debug, AbrClass)]
 #[abr(class = "brVr")]
 pub struct PropertyDynamics {
@@ -129,6 +150,7 @@ pub struct PropertyDynamics {
     pub minimum: Option<UnitFloat>,
 }
 
+/// Compositing blend mode (`BlnM`) used by paint tools, [`DualBrush`] masking, and brush textures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, AbrEnum)]
 #[abr(enum_type = "BlnM")]
 pub enum BlendMode {
@@ -198,6 +220,7 @@ pub enum BlendMode {
     LinearHeight,
 }
 
+/// Reference (`Ptrn`) linking a brush preset's texture settings to a [`Pattern`](crate::pattern::Pattern) by name and [`Uuid`].
 #[derive(Debug, AbrClass)]
 #[abr(class = "Ptrn")]
 pub struct PatternReference {
@@ -207,6 +230,11 @@ pub struct PatternReference {
     pub id: Uuid,
 }
 
+/// Secondary brush configuration (`dualBrush`) that masks the primary brush tip with another [`BrushTip`].
+///
+/// When [`enabled`](Self::enabled) is `true`, dabs from [`brush`](Self::brush) are evaluated along
+/// the stroke using their own spacing and optional scattering, then composited into the primary
+/// tip mask via [`blend_mode`](Self::blend_mode).
 #[derive(Debug, AbrClass)]
 #[abr(class = "dualBrush")]
 pub struct DualBrush {
@@ -236,6 +264,7 @@ pub struct DualBrush {
     pub scatter_dynamics: Option<PropertyDynamics>,
 }
 
+/// Brush group state (`brushGroup`) embedded within a brush preset [`Descriptor`].
 #[derive(Debug, AbrClass)]
 #[abr(class = "brushGroup")]
 pub struct BrushGroup {
@@ -243,6 +272,7 @@ pub struct BrushGroup {
     pub enabled: bool,
 }
 
+/// An RGB color value (`RGBC`) stored in a descriptor with `0.0..=255.0` channel components.
 #[derive(Debug, AbrClass)]
 #[abr(class = "RGBC")]
 pub struct RgbColor {
@@ -254,6 +284,10 @@ pub struct RgbColor {
     pub blue: f64,
 }
 
+/// Tool-specific preset configuration (`toolOptions`) embedded within a brush [`Descriptor`].
+///
+/// Dispatches on the descriptor class ID (`PbTl`, `SmTl`, `ShTl`, or `ErTl`) to capture tool-level
+/// settings such as stroke blend mode, opacity, flow, and smoothing.
 #[derive(Debug, AbrObject)]
 pub enum ToolOptions {
     Paint(PaintToolOptions),
@@ -262,6 +296,11 @@ pub enum ToolOptions {
     Eraser(EraserToolOptions),
 }
 
+/// Tool options (`PbTl`) for standard paintbrush presets.
+///
+/// Captures preset-saved tool state including stroke [`blend_mode`](Self::blend_mode), base
+/// [`opacity`](Self::opacity) and [`flow`](Self::flow), optional fixed [`foreground_color`](Self::foreground_color),
+/// stroke smoothing settings, and tablet pressure override flags.
 #[derive(Debug, AbrClass)]
 #[abr(class = "PbTl")]
 pub struct PaintToolOptions {
@@ -321,6 +360,7 @@ pub struct PaintToolOptions {
     pub use_pressure_overrides_size: bool,
 }
 
+/// Tool options (`SmTl`) for smudge tool brush presets.
 #[derive(Debug, AbrClass)]
 #[abr(class = "SmTl")]
 pub struct SmudgeToolOptions {
@@ -371,6 +411,7 @@ pub struct SmudgeToolOptions {
     pub use_pressure_overrides_size: bool,
 }
 
+/// Tool options (`ShTl`) for sharpen and blur tool brush presets.
 #[derive(Debug, AbrClass)]
 #[abr(class = "ShTl")]
 pub struct ShToolOptions {
@@ -398,6 +439,7 @@ pub struct ShToolOptions {
     pub use_pressure_overrides_size: bool,
 }
 
+/// Tool options (`ErTl`) for eraser tool brush presets.
 #[derive(Debug, AbrClass)]
 #[abr(class = "ErTl")]
 pub struct EraserToolOptions {
@@ -437,6 +479,17 @@ pub struct EraserToolOptions {
     pub use_pressure_overrides_size: bool,
 }
 
+/// A complete brush preset descriptor (`brushPreset`) decoded from the `desc` section of an [`Abr`](crate::Abr) file.
+///
+/// Aggregates all parameters that define an individual brush preset:
+///
+/// - **Tip Shape**: Primary [`BrushTip`] geometry (computed, sampled, or bristle) and per-dab flip jitter.
+/// - **Tip & Paint Dynamics**: [`PropertyDynamics`] for size, angle, roundness, opacity, flow, wetness, and mix.
+/// - **Color Dynamics**: Foreground-to-background modulation and HSV/purity jitter.
+/// - **Scattering**: Axis mode, dab count, and scatter/count dynamics.
+/// - **Texture**: Linked [`PatternReference`], scale, depth, brightness/contrast, and texture [`BlendMode`].
+/// - **Pose & Dual Brush**: Static [`brush_pose_*`](Self::use_brush_pose) overrides, secondary [`DualBrush`] masking,
+///   and optional tool-specific [`ToolOptions`].
 #[derive(Debug, AbrClass)]
 #[abr(class = "brushPreset")]
 pub struct Descriptor {

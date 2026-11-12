@@ -27,6 +27,10 @@ pub mod directory;
 pub mod standard;
 
 wrapper! {
+    /// A unique identifier for an [`AssetBundle`].
+    ///
+    /// Wraps a [`Uuid`] to identify and distinguish individual asset bundles across sources,
+    /// caches, and database indices.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Display, Serialize, Deserialize)]
     #[display("{0}")]
     pub BundleId: Uuid
@@ -44,6 +48,10 @@ impl ToSql for BundleId {
     }
 }
 
+/// Metadata describing an asset bundle.
+///
+/// Contains the bundle's unique [`BundleId`], human-readable display name, and
+/// the last modified timestamp of its underlying storage.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetBundleMetadata {
     pub bundle_id: BundleId,
@@ -51,6 +59,10 @@ pub struct AssetBundleMetadata {
     pub last_modified: DateTime<Utc>,
 }
 
+/// An intermediate snapshot of a scanned bundle and its discovered contents.
+///
+/// Aggregates the bundle's manifest, discovered asset metadata, tags, and asset-tag associations
+/// before synchronizing them with the persistent database index.
 pub(crate) struct BundleSnapshot {
     pub bundle: Arc<dyn ErasedAssetBundle>,
     pub metadata: AssetBundleMetadata,
@@ -60,6 +72,13 @@ pub(crate) struct BundleSnapshot {
     pub asset_tags: HashMap<UntypedAssetId, AssetTags>,
 }
 
+/// In-memory cache and synchronization manager for an [`AssetBundle`].
+///
+/// Manages cached asset instances, manifest lookups, revisioned disk persistence, and tag sidecars.
+///
+/// Asset modifications (`revision > 0`) are written to revisioned files within a `.modified` directory
+/// under the asset root. For read-only bundles, tag sidecars are also written to `.modified` to preserve
+/// the immutability of the underlying archive.
 pub struct AssetBundleCache {
     assets_root: PathBuf,
     metadata: AssetBundleMetadata,
@@ -118,10 +137,13 @@ impl AssetBundleCache {
             .ok_or_else(|| anyhow!("Asset path not found for asset ID: {id}"))?;
         let serializer = self.serializers.get_for_path(path)?;
 
+        // TODO: Prevent adding new assets to readonly bundles.
+        // Adding new assets to non-readonly bundles.
         if !self.bundle.is_readonly() && revision == 0 {
             self.bundle.add(path, asset.as_ref(), serializer.as_ref())?;
             Ok(path.clone())
         } else {
+            // Even non readonly bundles store modified assets in xxx.modified folders.
             write_modified_asset(
                 &self.assets_root,
                 path,
@@ -490,12 +512,27 @@ pub fn modified_bundle_absolute_path(
         .join(format!("{}.modified", bundle_id.0))
 }
 
+/// A manifest mapping asset IDs and tag IDs to their relative paths within a bundle.
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct BundleManifest {
     pub assets: BTreeMap<UntypedAssetId, PathBuf>,
     pub tags: BTreeMap<TagId, PathBuf>,
 }
 
+/// A container of assets and tags backed by a specific storage format or filesystem layout.
+///
+/// Bundles group related assets together, either as uncompressed filesystem directories
+/// (such as [`AssetDirectory`](crate::bundle::directory::AssetDirectory)) or packaged archives
+/// (such as [`StandardAssetBundle`](crate::bundle::standard::StandardAssetBundle)).
+///
+/// # Storage Semantics
+///
+/// - **Read-only vs. Mutable**: The [`READONLY`](AssetBundle::READONLY) constant indicates whether the bundle
+///   supports direct file additions (at revision 0) and in-place tag persistence. All asset revisions
+///   (`revision > 0`) are persisted to an external `.modified` folder to maintain historical revisions, and
+///   read-only bundles also redirect tag writes to `.modified`.
+/// - **Manifest & Metadata**: Bundles expose their [`BundleManifest`] and [`AssetBundleMetadata`] to allow
+///   the [`AssetIndexDb`](crate::index_db::AssetIndexDb) to track and query assets and tags without loading full payloads.
 pub trait AssetBundle: Send + Sync + 'static {
     const READONLY: bool;
 

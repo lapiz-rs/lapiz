@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use lapiz_config::Configuration;
 use serde::{Deserialize, Serialize};
 
+/// Persistent configuration storing per-format import settings keyed by canonical file extension.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageImporterConfig {
     #[serde(default)]

@@ -6,6 +6,11 @@ use iced_core::{
     pointer::{self, button, tablet},
 };
 
+/// Pointer and stylus telemetry captured while a mouse button or tablet tip is pressed.
+///
+/// Normalizes cursor position alongside graphics tablet parameters (pressure force, tilt angles,
+/// altitude, azimuth, barrel twist, and tangential force). Standard mouse or touch inputs fall
+/// back to neutral defaults (such as full pressure `1.0` and perpendicular stylus orientation).
 #[derive(Debug, Clone)]
 pub struct PressedMouseState {
     pub position: Point,
@@ -75,6 +80,10 @@ impl PressedMouseState {
     }
 }
 
+/// Pointer and stylus orientation state captured while hovering over the canvas without pressing.
+///
+/// Provides cursor position and stylus orientation angles (tilt, altitude, azimuth, and twist)
+/// for hover previews such as brush cursor outlines.
 #[derive(Debug, Clone)]
 pub struct HoverMouseState {
     pub position: Point,

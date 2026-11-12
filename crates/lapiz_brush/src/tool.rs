@@ -31,15 +31,18 @@ use crate::{
     render::{BrushStrokePreview, BrushStrokeResult, CanvasBrushPresetOperator},
 };
 
+/// Global resource holding the active [`CanvasBrushPresetOperator`] used by [`BrushTool`].
 pub struct CurrentBrushPreset(pub CanvasBrushPresetOperator);
 
 impl Global for CurrentBrushPreset {}
 
+/// Global resource holding the [`AssetHandle`] of the currently selected [`BrushPreset`].
 #[derive(Clone)]
 pub struct CurrentBrushPresetHandle(pub AssetHandle<BrushPreset>);
 
 impl Global for CurrentBrushPresetHandle {}
 
+/// Extension trait on [`Globals`] for switching the active [`BrushPreset`].
 pub trait BrushglobalsExt {
     fn set_current_brush_preset(&mut self, handle: AssetHandle<BrushPreset>);
 }
@@ -69,6 +72,12 @@ impl BrushglobalsExt for Globals {
     }
 }
 
+/// Interactive painting [`ToolFunction`] that drives brush strokes on the active canvas layer.
+///
+/// `BrushTool` coordinates stroke lifecycle events (`begin`, `update`, `end`) with the global
+/// [`CurrentBrushPreset`] operator, reserves [`QueuedUndoCommand`] slots in the canvas undo stack
+/// so asynchronous GPU strokes commit in order, updates live [`LayerPreviewOverriders`] during
+/// painting, and commits completed strokes via [`TileReplaceCommand`].
 #[derive(Default)]
 pub struct BrushTool {
     next_stroke_id: u64,
@@ -79,6 +88,7 @@ pub struct BrushTool {
 }
 
 // TODO
+/// Asynchronous stroke results and parameter update messages handled by [`BrushTool`].
 #[allow(
     clippy::large_enum_variant,
     reason = "stroke results own a DynamicLayerStorage and are matched by value"

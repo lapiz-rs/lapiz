@@ -23,6 +23,15 @@ pub mod source;
 pub mod store;
 pub mod tag;
 
+/// Plugin that initializes the asset subsystem and registers default bundle sources.
+///
+/// During [`Plugin::build`], this plugin extracts embedded default assets if the asset root is
+/// empty, initializes the [`AssetSourceRegistry`] and [`AssetSerializerRegistry`] globals, and
+/// registers [`BuiltinAssetsDirectorySource`] and [`StandardAssetBundleSource`].
+///
+/// During [`Plugin::finish`], it scans all registered sources in the asset root, constructs and
+/// synchronizes the [`AssetRegistry`] with its SQLite index database, and inserts the registry
+/// into [`Globals`].
 pub struct AssetsPlugin {
     asset_root: PathBuf,
 }
@@ -75,6 +84,10 @@ impl Plugin for AssetsPlugin {
     }
 }
 
+/// Extension trait providing asset-related helper methods on [`Globals`].
+///
+/// Offers convenient registration of typed [`AssetSerializer`]s and access to the
+/// global [`AssetRegistry`].
 pub trait AssetAppExt {
     fn add_asset_serializer<A: AssetSerializer + Default>(&mut self);
     fn assets(&self) -> &AssetRegistry;

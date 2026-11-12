@@ -58,15 +58,24 @@ pub fn pass_output_ident(slot: EffectPassOutputSlotId) -> String {
     format!("pass_output_{}", slot.to_string().replace('-', "_"))
 }
 
+/// Resolved binding source for an [`EffectPassInputSlotId`] within a compiled [`EffectRenderer`].
 pub enum EffectPassInputSlotSource {
     PassOutput(EffectPassOutputSlotId),
     EffectInput(EffectInputSlotId),
 }
 
+/// Resolved output type metadata for an [`EffectPassOutputSlotId`] within a compiled [`EffectRenderer`].
 pub struct EffectPassOutputSlotTarget {
     pub ty: Arc<dyn ErasedGraphValueType>,
 }
 
+/// A compiled, GPU-ready multi-pass compute pipeline built from an [`EffectInstance`].
+///
+/// `EffectRenderer` validates pass I/O wiring and dispatch strategies, topologically sorts passes
+/// by their inter-pass data dependencies, and compiles each pass's shader [`Graph`] into WESL/WGSL
+/// compute pipelines (including optional `eval` pre-passes for dynamic output layer bounds
+/// allocation). Calling [`EffectRenderer::run`] executes all passes in dependency order and returns
+/// the resulting [`EffectOutputs`].
 pub struct EffectRenderer {
     inputs: Vec<EffectInputSlot>,
     outputs: HashMap<EffectOutputSlotId, EffectPassOutputSlotId>,

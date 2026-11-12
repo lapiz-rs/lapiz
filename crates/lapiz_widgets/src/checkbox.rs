@@ -5,6 +5,11 @@ use iced_widget::{
 };
 use lapiz_runtime::Renderer;
 
+/// A boolean toggle box with an optional text label.
+///
+/// `Checkbox` wraps the base `iced_widget::checkbox::Checkbox` with Lapiz's default sizing,
+/// checkmark icon font, and theme styling. When clicked, it invokes the callback registered
+/// via [`on_toggle`](Self::on_toggle) with the new checked state.
 pub struct Checkbox<'a, Message> {
     checked: bool,
     toggle: Option<Box<dyn Fn(bool) -> Message + 'a>>,

@@ -77,6 +77,7 @@ pub(super) fn build(
     })
 }
 
+/// Internal builder that accumulates generated WGSL stage functions and GPU lookup table buffers for an [`IccTransformShader`].
 struct Pipeline<'a> {
     prefix: &'a str,
     shader: String,

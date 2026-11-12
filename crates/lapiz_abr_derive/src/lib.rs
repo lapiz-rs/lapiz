@@ -40,6 +40,7 @@ pub fn derive_abr_integer_enum(input: TokenStream) -> TokenStream {
     .into()
 }
 
+/// Kind of ABR descriptor derive macro being expanded.
 #[derive(Clone, Copy)]
 enum DeriveKind {
     Class,
@@ -532,6 +533,7 @@ fn expand_integer_enum(
     })
 }
 
+/// Parsed `#[abr(...)]` helper attributes on a descriptor type, field, or variant.
 #[derive(Default)]
 struct AbrAttributes {
     class: Option<LitStr>,

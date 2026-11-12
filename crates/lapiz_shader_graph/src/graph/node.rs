@@ -38,10 +38,34 @@ use crate::{
 };
 
 wrapper! {
+    /// A strongly-typed unique identifier for a node instance within a [`Graph`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub GraphNodeId : Uuid
 }
 
+/// The core trait defining a shader graph node's state, slot layout, editor UI, and WGSL code generation.
+///
+/// Implementors of `GraphNode` represent a distinct node type that can be registered in a
+/// [`GraphNodeRegistry`] and instantiated inside a [`Graph`]. Nodes with no per-instance state can
+/// implement [`StatelessCommonGraphNode`] (or use the `#[stateless]` attribute macro) instead of
+/// implementing `GraphNode` directly.
+///
+/// # Lifecycle
+///
+/// - **Instantiation & Serialization**: [`default_state`](Self::default_state) creates the initial
+///   [`State`](Self::State) when a node is added to a graph, while
+///   [`serialize_state`](Self::serialize_state) and [`deserialize_state`](Self::deserialize_state)
+///   persist it to and from TOML.
+/// - **Slot Creation**: [`create_inputs`](Self::create_inputs) and
+///   [`create_outputs`](Self::create_outputs) declare the node's input and output slots based on
+///   its current state. Whenever [`update`](Self::update) mutates the state, the owning [`Graph`]
+///   reconciles the node's slots against the newly returned definitions.
+/// - **UI & Interaction**: [`view`](Self::view) renders the node's body in the graph editor and
+///   emits [`Message`](Self::Message) values handled by [`update`](Self::update).
+/// - **Compilation**: [`update_signature`](Self::update_signature) registers any external graph
+///   inputs or outputs, [`extra_shader_body`](Self::extra_shader_body) injects top-level helper
+///   declarations into the shader module, and [`generate_code`](Self::generate_code) emits the
+///   WGSL statements for this node.
 pub trait GraphNode: Send + Sync + 'static + DynClone {
     type State: Send + Sync + 'static + GraphSerializable;
     type Message: Send + Sync + 'static + Clone;
@@ -95,6 +119,7 @@ pub trait GraphNode: Send + Sync + 'static + DynClone {
     }
 }
 
+/// A type-erased UI message emitted by a node view and tagged with the target [`GraphNodeId`].
 #[derive(Clone)]
 pub struct ErasedGraphNodeMessage {
     pub inner: Box<dyn ClonableAnySync>,
@@ -109,6 +134,7 @@ impl fmt::Debug for ErasedGraphNodeMessage {
     }
 }
 
+/// Object-safe, type-erased counterpart to [`GraphNode`] for dynamic dispatch in [`Graph`].
 pub trait ErasedGraphNode: Send + Sync + 'static + DynClone + Downcast {
     fn id(&self) -> &'static str;
     fn default_state(&self, ctx: GraphNodeDefaultStateContext<'_>) -> Box<dyn Any + Send + Sync>;
@@ -306,6 +332,12 @@ impl<T: GraphNode> ErasedGraphNode for T {
     }
 }
 
+/// A type-erased [`ErasedGraphNode`] paired with its boxed per-instance state.
+///
+/// `StatefulGraphNode` encapsulates the runtime state and behavior of a node inside a [`Graph`],
+/// forwarding slot creation, view rendering, state updates, serialization, and code generation
+/// to the underlying [`GraphNode`] implementation while allowing typed downcasting via
+/// [`state`](Self::state) and [`state_mut`](Self::state_mut).
 pub struct StatefulGraphNode {
     state: Box<dyn Any + Send + Sync>,
     data: Box<dyn ErasedGraphNode>,
@@ -402,12 +434,17 @@ impl StatefulGraphNode {
     }
 }
 
+/// Empty state type used by stateless [`GraphNode`] implementations.
 #[derive(Default, Serialize, Deserialize)]
 pub struct StatelessState {
     #[serde(skip)]
     _private: (),
 }
 
+/// A simplified trait for [`GraphNode`] implementations that have no per-instance state or custom controls.
+///
+/// Types annotated with `#[stateless]` implement this trait and automatically receive a blanket-like
+/// [`GraphNode`] implementation backed by [`StatelessState`] and a default slot-list view.
 pub trait StatelessCommonGraphNode: Send + Sync + 'static + DynClone {
     fn id(&self) -> &'static str;
     fn header_hue_chroma(&self) -> (f32, f32);
@@ -421,6 +458,7 @@ pub trait StatelessCommonGraphNode: Send + Sync + 'static + DynClone {
     ) -> Result<String, GraphNodeCodeGenError>;
 }
 
+/// Per-node entry stored in a [`Graph`], combining canvas position, [`StatefulGraphNode`], and slot IDs.
 pub struct GraphNodeData {
     pub position: Point,
     pub data: StatefulGraphNode,
@@ -447,20 +485,28 @@ impl GraphNodeData {
     }
 }
 
+/// Top-level WGSL declarations (such as helper functions or structs) injected into a compiled shader module.
+///
+/// Nodes can register `ExtraShaderBody` items during compilation via
+/// [`GraphNodeInjectShaderBodyContext::inject_extra_body`]. Each item is deduplicated by its
+/// [`key`](Self::key) so shared helper definitions are emitted only once per shader module.
 pub trait ExtraShaderBody: Send + Sync + 'static {
     fn key(&self) -> String;
     fn inject_body(&self, shader: &mut String);
 }
 
+/// Context passed to [`GraphNode::default_state`] when initializing a new node's state.
 #[derive(Clone, Copy)]
 pub struct GraphNodeDefaultStateContext<'a> {
     pub resources: &'a GraphResources,
 }
 
+/// Context passed to [`GraphNode::create_inputs`] and [`GraphNode::create_outputs`].
 pub struct GraphNodeCreateSlotsContext<'a> {
     pub resources: &'a GraphResources,
 }
 
+/// Context passed to [`GraphNode::view`] providing access to the node's slots and shared [`GraphResources`].
 pub struct GraphNodeViewContext<'a> {
     pub inputs: &'a [GraphInputSlotId],
     pub outputs: &'a [GraphOutputSlotId],
@@ -565,6 +611,7 @@ impl GraphNodeViewContext<'_> {
     }
 }
 
+/// Context passed to [`GraphNode::update`] for mutating input slot literals and accessing [`GraphResources`].
 pub struct GraphNodeUpdateContext<'a> {
     pub inputs: &'a [GraphInputSlotId],
     pub slots: &'a mut GraphSlots,
@@ -589,6 +636,7 @@ impl GraphNodeUpdateContext<'_> {
     }
 }
 
+/// Context passed to [`GraphNode::update_signature`] for declaring external graph inputs and outputs.
 pub struct GraphNodeUpdateSignatureContext<'a> {
     pub inputs: &'a [GraphInputSlotId],
     pub outputs: &'a [GraphOutputSlotId],
@@ -627,6 +675,7 @@ impl GraphNodeUpdateSignatureContext<'_> {
     }
 }
 
+/// Context passed to [`GraphNode::extra_shader_body`] for registering [`ExtraShaderBody`] declarations.
 pub struct GraphNodeInjectShaderBodyContext<'a> {
     pub inputs: &'a [GraphInputSlotId],
     pub outputs: &'a [GraphOutputSlotId],
@@ -641,6 +690,7 @@ impl GraphNodeInjectShaderBodyContext<'_> {
     }
 }
 
+/// Context passed to [`GraphNode::generate_code`] for resolving input expressions and allocating output identifiers.
 pub struct GraphNodeCodeGenContext<'a> {
     pub inputs: &'a [GraphInputSlotId],
     pub outputs: &'a [GraphOutputSlotId],
@@ -727,6 +777,7 @@ impl GraphNodeCodeGenContext<'_> {
     }
 }
 
+/// An error returned by [`GraphNode::generate_code`] when WGSL code generation for a node fails.
 #[derive(Debug, thiserror::Error)]
 pub enum GraphNodeCodeGenError {
     #[error("Input slot index out of bounds")]
@@ -745,6 +796,7 @@ pub enum GraphNodeCodeGenError {
     Custom(#[from] anyhow::Error),
 }
 
+/// A [`GraphNodeCodeGenError`] annotated with the failing node's ID, type identifier, and partial shader code.
 #[derive(Debug)]
 pub struct ContextualGraphNodeCodeGenError {
     pub node_id: GraphNodeId,
@@ -763,6 +815,10 @@ impl fmt::Display for ContextualGraphNodeCodeGenError {
     }
 }
 
+/// A registry of prototype [`GraphNode`] instances keyed by their static string identifier.
+///
+/// `GraphNodeRegistry` is stored in [`GraphResources`] and used by the node creation menu and
+/// graph deserializer to look up and clone node prototypes by name.
 #[derive(Default)]
 pub struct GraphNodeRegistry {
     nodes: BTreeMap<&'static str, Box<dyn ErasedGraphNode>>,

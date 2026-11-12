@@ -43,6 +43,7 @@ use crate::{
     tile::{GpuTileInfo, GpuTileStorage, LayerBinding},
 };
 
+/// A leaf [`Layer`] containing raster pixel tiles stored in [`GpuTileStorage`].
 #[derive(Debug, Default, Clone)]
 pub struct PixelLayer;
 
@@ -318,6 +319,7 @@ impl Layer for PixelLayer {
     }
 }
 
+/// Cached GPU compute pipelines, uniform buffers, and prepared bind groups for blending a [`PixelLayer`].
 pub struct PixelBlendCache {
     blend_func_name: BlendFunctionId,
     layer_texel_type: TexelType,

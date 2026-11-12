@@ -16,6 +16,7 @@ use crate::{
     },
 };
 
+/// A UI component for selecting a [`GraphValueType`] (including fixed-length array variants) from a [`GraphTypeRegistry`].
 pub struct GraphTypeSelector<'a, Message> {
     type_registry: &'a GraphTypeRegistry,
     on_select: Box<dyn Fn(Option<Arc<dyn ErasedGraphValueType>>) -> Message + 'a>,
@@ -138,6 +139,7 @@ impl<'a, Message> Component<'a, Message, GraphTheme, GraphRenderer>
     }
 }
 
+/// A selectable value-type entry displayed in a [`GraphTypeSelector`] combo box.
 #[derive(Clone)]
 pub struct GraphTypeChoice {
     ty: Arc<dyn ErasedGraphValueType>,
@@ -155,6 +157,7 @@ impl fmt::Display for GraphTypeChoice {
     }
 }
 
+/// Internal UI state for [`GraphTypeSelector`], tracking the array toggle, length input, and selected base type.
 pub struct GraphTypeSelectorState {
     array: bool,
     element_count: String,
@@ -171,6 +174,7 @@ impl Default for GraphTypeSelectorState {
     }
 }
 
+/// Internal UI event handled by [`GraphTypeSelector`].
 #[derive(Clone)]
 pub enum GraphTypeSelectorEvent {
     ArrayToggled(bool),

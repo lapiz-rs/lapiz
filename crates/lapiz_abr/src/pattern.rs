@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::{cursor::Cursor, rle};
 
+/// Color model and optional 256-entry RGB palette (`772` bytes including transparency index) of a [`Pattern`].
 pub enum ColorMode {
     Gray,
     Indexed { table: Vec<u8> },
@@ -25,6 +26,12 @@ impl Debug for ColorMode {
     }
 }
 
+/// A texture pattern resource decoded from the `patt` section of an [`Abr`](crate::Abr) file.
+///
+/// Patterns provide tiled surface textures referenced by [`Uuid`] from brush preset texture settings
+/// ([`PatternReference`](crate::descriptor::class::PatternReference)). Each pattern stores its display
+/// name, pixel bounds, [`ColorMode`], and per-channel image planes ([`PatternChannel`]), and can be
+/// decoded into a [`DynamicImage`] via [`as_image`](Self::as_image).
 #[derive(Debug)]
 pub struct Pattern {
     pub id: Uuid,
@@ -40,6 +47,7 @@ pub struct Pattern {
     pub channels: Vec<Option<PatternChannel>>,
 }
 
+/// A single raw or PackBits-compressed color channel plane within a [`Pattern`].
 pub struct PatternChannel {
     pub depth: u32,
     pub top: u32,

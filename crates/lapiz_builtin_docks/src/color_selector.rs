@@ -24,6 +24,7 @@ use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{button, column, label, panel, scrollable, title_bar};
 use moxcms::ColorProfile;
 
+/// Messages handled by [`ColorSelectorDock`].
 #[derive(Clone)]
 pub enum ColorSelectorDockMessage {
     RawWindowId(u64),
@@ -41,6 +42,7 @@ pub enum ColorSelectorDockMessage {
 pub static COLOR_SELECTOR_DOCK_ID: LazyLock<DockId> =
     LazyLock::new(|| DockId::new("color_selector_dock".into()));
 
+/// Workspace [`Dock`] that embeds the [`ColorSelector`] widget, synchronizes global foreground and background colors, and manages a secondary settings window for editing [`ColorSelectorConfigGroup`].
 pub struct ColorSelectorDock {
     selector: ColorSelectorState,
     config_editor: ColorSelectorConfigEditorState,

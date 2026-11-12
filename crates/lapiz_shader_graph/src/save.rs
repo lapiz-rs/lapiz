@@ -30,6 +30,11 @@ use crate::graph::{
     variable::{GraphLiteral, GraphTypeRegistry},
 };
 
+/// Converts shader graph node states and auxiliary data to and from [`toml::Value`].
+///
+/// Types implementing [`Serialize`] and [`Deserialize`] automatically implement this trait, while
+/// types that need access to [`GraphResources`] (such as asset handles or dynamic slot schemas)
+/// during deserialization can provide a custom implementation.
 pub trait GraphSerializable: Sized {
     fn to_toml(&self) -> Result<toml::Value>;
     fn from_toml(value: toml::Value, resources: &GraphResources) -> Result<Self>;
@@ -45,6 +50,7 @@ impl<'de, T: Serialize + Deserialize<'de>> GraphSerializable for T {
     }
 }
 
+/// An error encountered while reconstructing a [`Graph`] from its serialized representation.
 #[derive(Debug, thiserror::Error)]
 pub enum GraphDeserializeError {
     #[error("Value type not found: {0}")]
@@ -318,6 +324,7 @@ impl Graph {
     }
 }
 
+/// The serializable DTO representation of a [`Graph`], including its nodes, input slots, and output slots.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct SerializableGraph {
     pub nodes: Vec<SerializableNodeData>,
@@ -325,6 +332,7 @@ pub struct SerializableGraph {
     pub outputs: HashMap<GraphOutputSlotId, SerializableOutputSlotData>,
 }
 
+/// A string-based identifier that uniquely names a registered shader graph value type.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GraphValueTypeId {
     pub id: String,
@@ -342,11 +350,13 @@ impl Borrow<str> for GraphValueTypeId {
     }
 }
 
+/// A string-based identifier that uniquely names a registered shader graph node type.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct GraphNodeTypeId {
     pub name: String,
 }
 
+/// The serialized representation of a single node in a [`SerializableGraph`].
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableNodeData {
     pub id: GraphNodeId,
@@ -357,15 +367,18 @@ pub struct SerializableNodeData {
     pub state: toml::Value,
 }
 
+/// The serialized state of an input slot, storing its optional connection and fallback literal value.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableInputSlotData {
     pub connected: Option<GraphOutputSlotId>,
     pub data: toml::Value,
 }
 
+/// Marker DTO representing an output slot entry in a [`SerializableGraph`].
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableOutputSlotData {}
 
+/// The serialized signature of a shader graph function, including its name, return type, and parameters.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableGraphFunctionSignature {
     pub name: String,
@@ -373,12 +386,14 @@ pub struct SerializableGraphFunctionSignature {
     pub params: Vec<SerializableGraphVariable>,
 }
 
+/// A serialized shader variable entry pairing an identifier with a [`GraphValueTypeId`].
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableGraphVariable {
     pub identifier: String,
     pub ty: GraphValueTypeId,
 }
 
+/// An error that can occur when deserializing a [`SerializableGraphLiteral`].
 #[derive(Debug, thiserror::Error)]
 pub enum SerializableGraphLiteralError {
     #[error("Type not found: {0}")]
@@ -387,6 +402,7 @@ pub enum SerializableGraphLiteralError {
     LiteralDeserializeError(#[from] anyhow::Error),
 }
 
+/// A type-tagged TOML value representing a serialized [`GraphLiteral`].
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableGraphLiteral {
     pub ty: String,
@@ -419,6 +435,7 @@ impl SerializableGraphLiteral {
     }
 }
 
+/// A serializable [`Asset`] storing a reusable [`GraphFunction`] and its underlying [`SerializableGraph`].
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableGraphFunction {
     pub id: GraphFunctionId,
@@ -463,9 +480,11 @@ impl Asset for SerializableGraphFunction {
     const TYPE_NAME: &'static str = "shader_graph_function";
 }
 
+/// An [`AssetSerializer`] that reads and writes [`SerializableGraphFunction`] assets as `.lsf` TOML files.
 #[derive(Default)]
 pub struct SerializableGraphFunctionSerializer;
 
+/// An error that can occur when reading or writing a [`SerializableGraphFunction`] asset.
 #[derive(Debug, thiserror::Error)]
 pub enum SerializableGraphFunctionSerializerError {
     #[error("IO error: {0}")]

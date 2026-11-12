@@ -10,6 +10,7 @@ use lapiz_widgets::column;
 
 use crate::ImageFormatImporter;
 
+/// Importer that opens an existing `.lazuli` project archive via [`LazuliArchive::open`].
 #[derive(Default)]
 pub struct LazuliImporter;
 

@@ -7,6 +7,10 @@ use wgpu::{
 
 use crate::render_context::RenderContextAppExt as _;
 
+/// Global collection of preconfigured GPU [`Sampler`]s for common filtering and address modes.
+///
+/// Provides ready-to-bind samplers for nearest-neighbor and linear filtering paired with
+/// clamp-to-edge (`ClampToEdge`) or repeating (`Repeat`) texture coordinate wrapping.
 #[derive(Debug)]
 pub struct GlobalSamplers {
     nearest_clamp: Sampler,
@@ -94,6 +98,10 @@ impl GlobalSamplers {
     }
 }
 
+/// Global GPU resource holding the compiled full-screen triangle vertex [`ShaderModule`].
+///
+/// Used by post-processing and screen-space render pipelines to emit a single oversized triangle
+/// covering the entire viewport without vertex buffers.
 #[derive(Debug)]
 pub struct FullscreenVertex {
     shader: ShaderModule,

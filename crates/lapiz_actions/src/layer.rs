@@ -20,6 +20,7 @@ use lapiz_utils::log_err::LogErr as _;
 
 use crate::{ActionFunction, ActionId};
 
+/// Action that creates and inserts a new empty pixel layer into the active canvas.
 #[derive(Default)]
 pub struct CreateNewLayerAction;
 
@@ -75,6 +76,7 @@ impl ActionFunction for CreateNewLayerAction {
     }
 }
 
+/// Action that places the currently selected layers into a new group layer.
 #[derive(Default)]
 pub struct GroupSelectedLayersAction;
 
@@ -144,6 +146,7 @@ impl ActionFunction for GroupSelectedLayersAction {
     }
 }
 
+/// Action that moves the selected layers one step higher in the layer stack hierarchy.
 #[derive(Default)]
 pub struct MoveLayerUpAction;
 
@@ -210,6 +213,7 @@ impl ActionFunction for MoveLayerUpAction {
     }
 }
 
+/// Action that moves the selected layers one step lower in the layer stack hierarchy.
 #[derive(Default)]
 pub struct MoveLayerDownAction;
 
@@ -276,6 +280,7 @@ impl ActionFunction for MoveLayerDownAction {
     }
 }
 
+/// Action that deletes all currently selected layers from the active canvas.
 #[derive(Default)]
 pub struct DeleteSelectedLayersAction;
 
@@ -310,6 +315,7 @@ impl ActionFunction for DeleteSelectedLayersAction {
     }
 }
 
+/// Action that selects the previous layer in visual stack order.
 #[derive(Default)]
 pub struct SelectPreviousLayerAction;
 
@@ -345,6 +351,7 @@ impl ActionFunction for SelectPreviousLayerAction {
     }
 }
 
+/// Action that selects the next layer in visual stack order.
 #[derive(Default)]
 pub struct SelectNextLayerAction;
 

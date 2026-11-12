@@ -24,6 +24,7 @@ wesl::wesl_pkg!(pub brush);
 
 lapiz_i18n::define_i18n!("brush");
 
+/// Plugin that registers [`BrushPresetSerializer`], [`BrushTool`], [`BrushEditor`], and background stroke preview generation.
 pub struct BrushPlugin;
 
 impl Plugin for BrushPlugin {

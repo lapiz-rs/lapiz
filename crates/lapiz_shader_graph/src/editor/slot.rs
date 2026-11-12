@@ -19,6 +19,7 @@ use crate::{
     },
 };
 
+/// Identifies either an input slot ([`GraphInputSlotId`]) or an output slot ([`GraphOutputSlotId`]) in the editor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GraphSlotId {
     Input(GraphInputSlotId),
@@ -37,6 +38,7 @@ impl From<GraphOutputSlotId> for GraphSlotId {
     }
 }
 
+/// A widget [`Operation`] that collects the canvas center positions of all [`SlotPin`]s in a [`GraphEditorView`](crate::editor::GraphEditorView).
 #[derive(Default)]
 pub struct GraphSlotPinPositionCollection {
     slots: HashMap<GraphSlotId, Point>,
@@ -76,6 +78,7 @@ impl GraphSlotPinPositionCollection {
     }
 }
 
+/// A small colored square [`Widget`] rendered on the edge of a node to represent a connectable slot pin.
 pub struct SlotPin {
     pub id: GraphSlotId,
     pub size: f32,
@@ -151,6 +154,7 @@ struct SlotPinState {
     id: GraphSlotId,
 }
 
+/// Which horizontal edge of a node box a [`SlotPin`] overhangs.
 #[derive(Clone, Copy)]
 pub enum SlotSide {
     Left,

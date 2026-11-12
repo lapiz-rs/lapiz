@@ -16,6 +16,18 @@ use crate::{
     menu::{ContextMenu, Menu},
 };
 
+/// A multi-page container with a header [`TabBar`] for switching, reordering, and detaching tabs.
+///
+/// `TabbedView` stacks a [`TabBar`] (optionally wrapped in a right-click [`ContextMenu`]) above
+/// a page host that lays out, updates, and draws only the currently selected tab's content element.
+///
+/// # Features
+///
+/// - **Tab selection**: Clicking a tab emits the index passed to [`on_select`](Self::on_select).
+/// - **Drag reordering & detaching**: Dragging a tab horizontally within the bar emits
+///   [`on_reorder`](Self::on_reorder) on drop, while dragging it outside the bar's deadband emits
+///   [`on_detach`](Self::on_detach).
+/// - **Context menu**: Attach a right-click menu to the tab header via [`context_menu`](Self::context_menu).
 pub struct TabbedView<'a, Message> {
     bar: TabBar<'a, Message>,
     pages: Vec<Element<'a, Message, Theme, Renderer>>,
@@ -118,6 +130,7 @@ impl<'a, Message: Clone + 'a> From<TabbedView<'a, Message>>
     }
 }
 
+/// Internal page host widget that renders and updates only the active page of a [`TabbedView`].
 struct TabbedViewWidget<'a, Message> {
     pages: Vec<Element<'a, Message, Theme, Renderer>>,
     selected: Option<usize>,
@@ -266,6 +279,7 @@ impl<Message> Widget<Message, Theme, Renderer> for TabbedViewWidget<'_, Message>
     }
 }
 
+/// Widget tree state for a [`TabBar`], caching laid-out label paragraphs and tab bounds.
 #[derive(Debug, Default)]
 struct TabRowState {
     hovered: Option<usize>,
@@ -274,6 +288,7 @@ struct TabRowState {
     bounds: Vec<Rectangle>,
 }
 
+/// Active pointer gesture state within a [`TabBar`].
 #[derive(Debug, Default, Clone, Copy)]
 enum TabAction {
     #[default]
@@ -319,6 +334,18 @@ fn hit_test(bounds: &[Rectangle], cursor_rel: Point) -> Option<usize> {
     None
 }
 
+/// A horizontal bar of interactive tab headers supporting selection, drag-reordering, detaching, and empty-space dragging.
+///
+/// `TabBar` measures each tab's title text and compresses tab widths proportionally when the total
+/// natural width exceeds available horizontal space, left-aligning and clipping overflowing titles
+/// so their leading characters remain legible.
+///
+/// # Callbacks
+///
+/// - [`on_select`](Self::on_select): Emitted when a tab is clicked and released without dragging.
+/// - [`on_reorder`](Self::on_reorder): Emitted with `(from_index, to_index)` when a dragged tab is dropped at a new position on the bar.
+/// - [`on_detach`](Self::on_detach): Emitted when a dragged tab is pulled outside the bar's vertical/horizontal deadband.
+/// - [`on_title_drag`](Self::on_title_drag): Emitted when pressing and dragging on empty space after the tabs exceeds [`title_drag_threshold`](Self::title_drag_threshold).
 pub struct TabBar<'a, Message> {
     titles: Vec<String>,
     selected: Option<usize>,

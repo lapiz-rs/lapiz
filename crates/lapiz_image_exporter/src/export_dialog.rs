@@ -28,6 +28,7 @@ use crate::{
 
 pub const EXPORT_DIALOG_VIEW_ID: &str = "export_dialog";
 
+/// Modal window view that presents format-specific export options before committing an image save.
 pub struct ExportDialogView {
     window: window::Id,
     windows: Arc<[window::Id]>,
@@ -39,6 +40,7 @@ pub struct ExportDialogView {
     dont_ask_again: bool,
 }
 
+/// UI messages handled by [`ExportDialogView`].
 pub enum ExportDialogMessage {
     Adapter(ErasedExportDialogMessage),
     DontAskAgainToggled(bool),

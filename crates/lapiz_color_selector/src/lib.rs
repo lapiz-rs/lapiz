@@ -32,6 +32,7 @@ mod control;
 mod pipeline;
 mod render;
 
+/// A [`Plugin`] that initializes localization resources for the color selector.
 pub struct ColorSelectorPlugin;
 
 impl Plugin for ColorSelectorPlugin {
@@ -42,6 +43,7 @@ impl Plugin for ColorSelectorPlugin {
 
 const GRADIENT_RING_GAP: f32 = 5.0;
 
+/// Geometric shape of a 2D color gradient plane inside the color selector.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[display(style = "snake_case")]
 #[repr(u32)]
@@ -50,6 +52,7 @@ pub enum GradientPlaneShape {
     Triangle,
 }
 
+/// Color space model used to parameterize gradient planes and channel sliders in [`ColorSelector`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[repr(u32)]
 pub enum ColorModel {
@@ -257,6 +260,14 @@ impl ColorModel {
     }
 }
 
+/// Interactive widget view that renders configurable color gradient planes, rings, and channel bars.
+///
+/// `ColorSelector` borrows a [`ColorSelectorState`] and builds an Iced [`Element`] containing:
+/// - Multi-row 2D gradient planes (with optional surrounding primary-channel rings) for the active
+///   [`ColorSelectorConfig`] preset.
+/// - 1D channel gradient bars paired with optional channel labels, numeric spin sliders, and primary
+///   channel lock radio buttons.
+/// - A preset switcher row for toggling between configured [`ColorSelectorConfig`] layouts.
 pub struct ColorSelector<'a, Message> {
     state: &'a ColorSelectorState,
     on_state_message: Box<dyn Fn(ColorSelectorMessage) -> Message>,
@@ -385,6 +396,7 @@ impl<'a, Message: 'a> From<ColorSelector<'a, Message>> for Element<'a, Message, 
     }
 }
 
+/// Messages emitted by [`ColorSelector`] interactions and asynchronous gamut-clipping computations.
 #[derive(Clone)]
 pub enum ColorSelectorMessage {
     SurfacePress(SurfaceTarget, Point),
@@ -403,6 +415,7 @@ pub enum ColorSelectorMessage {
     Confirmed(Color),
 }
 
+/// Cached GPU mesh, layout bounds, and gamut-clipped UV ranges for a single 2D gradient plane.
 struct PlaneState {
     mesh: Arc<GradientMesh>,
     size: f32,
@@ -411,11 +424,19 @@ struct PlaneState {
     primary_channel_override: Option<u8>,
 }
 
+/// Cached GPU mesh and layout bounds for a single 1D gradient bar.
 struct BarState {
     mesh: Arc<GradientMesh>,
     bounds: Rectangle,
 }
 
+/// Persistent state and ICC color-managed GPU pipeline controller for [`ColorSelector`].
+///
+/// `ColorSelectorState` tracks the current [`Color`], the working image [`ColorProfile`], the window
+/// output [`ColorProfile`], and a list of [`ColorSelectorConfig`] presets. It manages GPU meshes and
+/// compute shader dispatches for gamut clipping, and processes [`ColorSelectorMessage`]s
+/// to emit live [`ColorSelectorMessage::Changed`] updates and final [`ColorSelectorMessage::Confirmed`]
+/// events.
 pub struct ColorSelectorState {
     color: Color,
     profile: ColorProfile,

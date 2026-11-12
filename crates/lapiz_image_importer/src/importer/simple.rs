@@ -13,6 +13,7 @@ use crate::ImageFormatImporter;
 macro_rules! simple_importers {
     ($($name:ident($extension:literal, [$($alias:literal),*], $description:literal))*) => {
         $(
+            /// Stateless image importer backed by [`CImage::load_image_with_profile`].
             #[derive(Default)]
             pub struct $name;
 

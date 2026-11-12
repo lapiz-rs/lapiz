@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::composite::{BlendFunction, BlendFunctionId};
 
+/// Built-in compositing blend modes supported by the layer compositor.
+///
+/// Each variant implements [`BlendFunction`] and maps to a WGSL blending function in
+/// `image::blend_modes` for GPU-accelerated layer compositing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
 #[display(style = "snake_case")]
 #[repr(usize)]

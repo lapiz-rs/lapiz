@@ -11,6 +11,7 @@ use lapiz_widgets::column;
 
 use crate::ImageFormatExporter;
 
+/// Exporter that saves a canvas into a `.lazuli` project archive via [`LazuliArchive`].
 #[derive(Default)]
 pub struct LazuliExporter;
 

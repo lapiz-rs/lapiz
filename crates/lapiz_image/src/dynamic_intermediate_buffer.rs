@@ -12,6 +12,7 @@ use crate::{
     tile::{GpuTileInfo, GpuTileStorage},
 };
 
+/// Shader-compatible storage buffer layout holding an active tile count and a runtime-sized array of [`GpuTileInfo`] entries.
 #[derive(ShaderType)]
 pub struct DynamicGpuTileInfoBuffer {
     pub n_tiles: u32,
@@ -19,6 +20,7 @@ pub struct DynamicGpuTileInfoBuffer {
     pub buf: Vec<GpuTileInfo>,
 }
 
+/// Ping-pong pair of 2D array tile textures and a dynamic [`GpuTileInfo`] storage buffer for intermediate GPU processing.
 pub struct DynamicIntermediateBuffer {
     device: Device,
     queue: Queue,
@@ -99,6 +101,7 @@ impl DynamicIntermediateBuffer {
     }
 }
 
+/// Fixed-bounds ping-pong pair of 2D array tile textures and precomputed [`GpuTileInfo`] buffer used during group layer compositing.
 #[derive(Debug, Clone)]
 pub struct IntermediateBuffer {
     textures: [TextureView; 2],

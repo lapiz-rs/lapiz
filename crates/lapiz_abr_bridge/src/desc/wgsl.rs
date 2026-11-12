@@ -41,6 +41,7 @@ pub const DAB_INDEX_INPUT: &str = "dab_index";
 pub const STROKE_DISTANCE_INPUT: &str = "stroke_distance";
 pub const STROKE_BEGIN_INPUT: &str = "stroke_begin";
 
+/// Normalized property dynamics parameters used to emit WGSL modulation expressions.
 #[derive(Clone, Copy)]
 pub struct Dynamics {
     pub control: DynamicsControl,
@@ -49,6 +50,7 @@ pub struct Dynamics {
     pub minimum: f32,
 }
 
+/// Optional static overrides for pen pressure, azimuth, and tilt angles in generated WGSL shaders.
 #[derive(Clone, Copy, Default)]
 pub struct BrushPose {
     pub pressure: Option<f32>,
@@ -57,6 +59,7 @@ pub struct BrushPose {
     pub tilt_y: Option<f32>,
 }
 
+/// Normalized dab scattering parameters used to emit per-copy offset and count loops in WGSL.
 #[derive(Clone, Copy)]
 pub struct Scatter {
     pub both_axes: bool,
@@ -65,6 +68,7 @@ pub struct Scatter {
     pub count_dynamics: Option<Dynamics>,
 }
 
+/// Normalized pattern texture modulation settings used to emit WGSL texture sampling and blending code.
 #[derive(Clone, Copy)]
 pub struct BrushTexture {
     pub scale: f32,
@@ -78,6 +82,7 @@ pub struct BrushTexture {
     pub use_legacy: bool,
 }
 
+/// Normalized secondary brush tip shape and parameters used when emitting dual-brush WGSL code.
 #[derive(Clone, Copy)]
 pub enum DualBrushTip {
     Computed {
@@ -97,6 +102,7 @@ pub enum DualBrushTip {
     },
 }
 
+/// Normalized secondary brush configuration used to emit dual-brush mask evaluation in WGSL.
 #[derive(Clone, Copy)]
 pub struct DualBrush {
     pub tip: DualBrushTip,
@@ -106,6 +112,7 @@ pub struct DualBrush {
     pub scatter: Option<Scatter>,
 }
 
+/// Normalized foreground/background color dynamics and HSV/purity jitter settings for WGSL code generation.
 #[derive(Clone, Copy)]
 pub struct ColorAdjustment {
     pub hue_jitter: f32,

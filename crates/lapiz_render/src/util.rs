@@ -1,5 +1,6 @@
 use wgpu::{Device, PollError, PollStatus, PollType, SubmissionIndex};
 
+/// Extension trait on [`Device`] for blocking indefinitely until a specific GPU [`SubmissionIndex`] completes.
 pub trait DevicePollExt {
     fn poll_indefinitely_for(
         &self,

@@ -58,6 +58,7 @@ const HANDLE_HIT_RADIUS: f32 = 20.0;
 const HANDLE_SIZE: f32 = 10.0;
 const VANISHING_HANDLE_RADIUS: f32 = 8.0;
 
+/// Interactive gizmo handle on the perspective quad or its vanishing points.
 #[derive(Debug, Clone, Copy)]
 pub enum PerspectiveHandle {
     Translate,
@@ -67,6 +68,7 @@ pub enum PerspectiveHandle {
     YVanishing,
 }
 
+/// State captured at the beginning of a pointer drag on a [`PerspectiveHandle`].
 #[derive(Debug, Clone, Copy)]
 pub struct OngoingPerspectiveTransform {
     pub cursor_origin_ps: Vec2,
@@ -74,6 +76,7 @@ pub struct OngoingPerspectiveTransform {
     pub base_quad: [Vec2; 4],
 }
 
+/// Initialization payload containing computed layer and selection bounds for starting a [`PerspectiveSession`].
 #[derive(Debug, Clone)]
 pub struct InitPerspectiveTransform {
     pub canvas_id: CanvasId,
@@ -83,18 +86,24 @@ pub struct InitPerspectiveTransform {
     pub pixel_bounds: IRect,
 }
 
+/// Snapshot of the destination quad and homography matrix at a point in session history.
 #[derive(Debug, Clone, Copy)]
 struct QuadState {
     quad: [Vec2; 4],
     matrix: Mat3,
 }
 
+/// Undo/redo step storing the perspective [`QuadState`] before and after a drag gesture.
 #[derive(Debug, Clone, Copy)]
 struct QuadStep {
     before: QuadState,
     after: QuadState,
 }
 
+/// Active state of a projective (homography) transformation session managed by [`PerspectiveTransformTool`].
+///
+/// Tracks the source bounding quad (`src_quad`), deformed convex destination quad (`dst_quad`),
+/// computed 3x3 homography [`Mat3`], per-layer GPU preview buffers, and in-session undo/redo history.
 pub struct PerspectiveSession {
     pub canvas_id: CanvasId,
     pub target_layers: Vec<(LayerId, TexelType)>,
@@ -233,6 +242,7 @@ impl PerspectiveSession {
     }
 }
 
+/// Messages handled by [`PerspectiveTransformTool`] for session initialization, confirmation, and cancellation.
 #[derive(Debug, Clone)]
 pub enum PerspectiveTransformToolMessage {
     RequestInit,
@@ -241,6 +251,13 @@ pub enum PerspectiveTransformToolMessage {
     Confirm,
 }
 
+/// Interactive tool for applying 4-point projective (perspective) transformations to selected layers.
+///
+/// `PerspectiveTransformTool` implements [`ToolFunction`] to let users drag quad corners, edge
+/// midpoints, or X/Y vanishing points while maintaining convexity constraints. It computes a 3x3
+/// homography matrix, previews warped tiles live via [`LayerPreviewOverriders`], draws handles via
+/// [`PerspectiveTransformToolOverlay`], and commits a [`BatchedUndoCommand`] on confirmation or
+/// tool deactivation.
 #[derive(Default)]
 pub struct PerspectiveTransformTool {
     session: Option<PerspectiveSession>,
@@ -920,6 +937,7 @@ fn commit_transform(session: PerspectiveSession, globals: &mut Globals) {
     globals.push_undo_command(&session.canvas_id, cmd).log_err();
 }
 
+/// Canvas overlay [`Widget`] that renders the perspective quad, corner/midpoint handles, and vanishing points.
 pub struct PerspectiveTransformToolOverlay<'a> {
     pub canvas_transform: &'a CanvasTransform,
     pub session: &'a PerspectiveSession,
@@ -1067,6 +1085,7 @@ impl<'a> Widget<PerspectiveTransformToolMessage, Theme, Renderer>
     }
 }
 
+/// GPU compute pipeline that resamples layer tiles using an inverse 3x3 projective homography matrix.
 pub struct PerspectiveTransformPipeline {
     layout: BindGroupLayout,
     pipeline: ComputePipeline,
@@ -1210,6 +1229,7 @@ impl PerspectiveTransformPipeline {
     }
 }
 
+/// GPU storage buffer payload holding the inverse 3x3 homography matrix for [`PerspectiveTransformPipeline`].
 #[derive(ShaderType, Debug)]
 pub struct PerspectiveTransformParams {
     pub mat_inv: Mat3,

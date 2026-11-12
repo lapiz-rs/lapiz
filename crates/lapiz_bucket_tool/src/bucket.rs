@@ -31,6 +31,7 @@ use wgpu::{
     wgt::{BufferDescriptor, TextureDescriptor, TextureViewDescriptor},
 };
 
+/// Edge-smoothing strategy applied to the generated flood-fill mask.
 #[derive(Debug, Clone, Copy)]
 pub enum BucketAntialiasApproach {
     None,
@@ -38,6 +39,7 @@ pub enum BucketAntialiasApproach {
     Feather(u32),
 }
 
+/// Parameters controlling a GPU flood-fill mask generation and compositing pass.
 #[derive(Debug, Clone, Copy)]
 pub struct BucketParams {
     pub seed: UVec2,
@@ -64,6 +66,7 @@ struct BucketParamsInner {
     pub transparent_mode: u32,
 }
 
+/// GPU uniform storing the current step distance for Jump Flooding Algorithm (JFA) passes.
 #[derive(ShaderType, Debug, Clone, Copy)]
 pub struct JumpParams {
     pub jump: u32,
@@ -74,6 +77,17 @@ struct BucketResultInternal {
     mask: DynamicLayerStorage,
 }
 
+/// GPU compute pipeline suite for flood-fill mask generation and layer compositing.
+///
+/// `Bucket` orchestrates a multi-stage compute workflow over tiled layer storage:
+/// 1. Seed classification (determining whether the seed pixel is transparent or opaque).
+/// 2. Color/alpha thresholding across candidate tiles.
+/// 3. Optional gap closing via Jump Flooding Algorithm (JFA) distance fields.
+/// 4. Optional connected-component labeling (CCL) when `contiguous` is enabled.
+/// 5. Mask dilation (`grow`) and edge antialiasing ([`BucketAntialiasApproach::Fxaa`] or JFA feathering).
+/// 6. Optional blending onto a destination layer respecting the active selection mask via
+///    [`dispatch_composite`](Bucket::dispatch_composite), or standalone mask extraction via
+///    [`dispatch_mask`](Bucket::dispatch_mask).
 pub struct Bucket {
     seed_mode_layout: BindGroupLayout,
     seed_mode_pipeline: ComputePipeline,

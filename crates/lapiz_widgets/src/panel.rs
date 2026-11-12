@@ -5,6 +5,17 @@ use iced_widget::{
 };
 use lapiz_runtime::Renderer;
 
+/// A themed surface container with border, padding, alignment, and maximum size constraints.
+///
+/// `Panel` wraps [`Container`] with Lapiz's sharp-bordered surface styling and adds support for
+/// clamping [`width`](Self::width) and [`height`](Self::height) against optional
+/// [`max_width`](Self::max_width) and [`max_height`](Self::max_height) bounds.
+///
+/// # Visual Variants
+///
+/// - [`default`]: Raised panel surface using the theme's weakest background color and a `1px` border.
+/// - [`inset`](Self::inset): Recessed panel surface using the theme's strongest (darkest) background color.
+/// - [`transparent`](Self::transparent): Unstyled container with no background or border.
 pub struct Panel<'a, Message> {
     inner: Container<'a, Message, Theme, Renderer>,
     width: Length,

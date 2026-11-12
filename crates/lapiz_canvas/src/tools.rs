@@ -8,6 +8,7 @@ use lapiz_widgets::icon;
 
 use crate::{CanvasAppExt as _, control::CanvasTransform};
 
+/// Interactive viewport tool that translates the [`CanvasTransform`] as the pointer drags.
 #[derive(Default)]
 pub struct PanTool {
     start_pos: Vec2,
@@ -57,6 +58,7 @@ impl ToolFunction for PanTool {
     }
 }
 
+/// Interactive viewport tool that rotates the [`CanvasTransform`] around the widget center.
 #[derive(Default)]
 pub struct RotateTool {
     center: Vec2,
@@ -113,6 +115,7 @@ impl ToolFunction for RotateTool {
     }
 }
 
+/// Interactive viewport tool that scales the [`CanvasTransform`] around the initial pointer position.
 #[derive(Default)]
 pub struct ZoomTool {
     start_pos: Vec2,

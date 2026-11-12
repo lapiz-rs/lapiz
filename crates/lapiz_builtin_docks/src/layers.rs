@@ -28,6 +28,7 @@ use lapiz_utils::log_err::LogErr as _;
 
 pub static LAYER_DOCK_ID: LazyLock<DockId> = LazyLock::new(|| DockId::new("layer_dock".into()));
 
+/// Workspace [`Dock`] that renders the active canvas's layer hierarchy via [`LayerStackView`] and dispatches undoable layer property, selection, and reordering commands.
 #[derive(Default)]
 pub struct LayersDock {
     renaming_layer: Option<LayerId>,
@@ -65,6 +66,7 @@ impl LayersDock {
     }
 }
 
+/// Messages handled by [`LayersDock`].
 #[derive(Debug, Clone)]
 pub enum LayersDockMessage {
     Layer(LayerStackMessage),

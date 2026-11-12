@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{DockManager, DockMessage, dock::DockId, group::DockGroupData, state::DockState};
 
+/// Serializable workspace layout configuration capturing the main window's split pane hierarchy and detached floating dock groups.
+///
+/// `DockLayout` implements [`Configuration`] (`dock_layout.toml`) and is used by [`DockManager::layout_snapshot`]
+/// and [`DockManager::restore_layout`] to persist and restore dock arrangements across sessions.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DockLayout {
     main: Option<LayoutNode>,
@@ -20,6 +24,7 @@ impl Configuration for DockLayout {
     const DEFAULT: &'static str = include_str!("../../../default_config/dock_layout.toml");
 }
 
+/// Recursive node in the serialized main window pane tree.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum LayoutNode {
@@ -35,6 +40,7 @@ enum LayoutNode {
     },
 }
 
+/// Split axis orientation for a serialized [`LayoutNode::Split`].
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum LayoutAxis {
@@ -42,6 +48,7 @@ enum LayoutAxis {
     Vertical,
 }
 
+/// Serialized state and window geometry of a detached floating dock group.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct FloatingGroup {
     docks: Vec<DockId>,

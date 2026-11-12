@@ -14,6 +14,7 @@ use taffy::prelude::{
 
 use crate::callback::{Callback, CallbackWith, publish, publish_with};
 
+/// The interaction status of a [`Flex`] container.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     Active,
@@ -23,6 +24,7 @@ pub enum Status {
 pub type Style = container::Style;
 pub type StyleFn<'a> = Box<dyn Fn(&Theme, Status) -> Style + 'a>;
 
+/// The theme catalog of a [`Flex`] container.
 pub trait Catalog {
     type Class<'a>;
 
@@ -43,6 +45,20 @@ impl Catalog for Theme {
     }
 }
 
+/// A CSS Flexbox layout container powered by [`taffy`].
+///
+/// `Flex` arranges child elements in a horizontal row ([`Flex::row`]) or vertical column
+/// ([`Flex::column`]), resolving intrinsic child sizes, fill factors, alignment, justification,
+/// wrapping, gaps, and padding through a `taffy` layout tree.
+///
+/// # Features
+///
+/// - **Layout control**: Configure [`gap`](Self::gap), [`padding`](Self::padding),
+///   [`wrap`](Self::wrap), [`space_between`](Self::space_between), and [`space_evenly`](Self::space_evenly).
+/// - **Direct interaction**: Supports optional pointer press/release and keyboard event callbacks
+///   via [`on_press`](Self::on_press), [`on_release`](Self::on_release), and [`on_key_event`](Self::on_key_event).
+/// - **Styling**: Defaults to [`transparent`], or can be styled as a bordered [`surface`](Self::surface)
+///   or with a custom [`style`](Self::style) closure.
 pub struct Flex<'a, Message> {
     children: Vec<Element<'a, Message, Theme, Renderer>>,
     taffy_style: taffy::Style,

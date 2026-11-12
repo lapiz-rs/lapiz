@@ -45,6 +45,7 @@ pub mod types;
 
 pub const NODE_WIDTH: f32 = 200.0;
 
+/// Persistent navigation state for a [`GraphEditor`], tracking the active subgraph breadcrumb path.
 #[derive(Default)]
 pub struct GraphEditorState {
     pub path: Vec<GraphEditorPathComponent>,
@@ -105,6 +106,7 @@ impl GraphEditorState {
     }
 }
 
+/// A composite widget that pairs a [`GraphEditorView`] canvas with a breadcrumb bar for navigating nested subgraphs.
 pub struct GraphEditor<'a> {
     graph: &'a Graph,
     editor_state: &'a GraphEditorState,
@@ -150,18 +152,21 @@ impl<'a> From<GraphEditor<'a>> for Element<'a, GraphEditorMessage, GraphTheme, G
     }
 }
 
+/// Saved viewport pan offset and node selection state when entering or leaving a subgraph.
 #[derive(Debug, Clone)]
 pub struct GraphEditorSnapshot {
     pub translation: Vector,
     pub selected_nodes: Vec<GraphNodeId>,
 }
 
+/// Top-level message emitted by [`GraphEditor`], distinguishing graph mutations from editor navigation.
 #[derive(Debug, Clone)]
 pub enum GraphEditorMessage {
     Graph(GraphEditorGraphMessage),
     Editor(GraphEditorEditorMessage),
 }
 
+/// A message requesting a structural or state mutation on a [`Graph`].
 #[derive(Debug, Clone)]
 pub enum GraphEditorGraphMessage {
     NodeCreateRequest(Point, &'static str, GraphNodeId),
@@ -173,6 +178,7 @@ pub enum GraphEditorGraphMessage {
     Format(HashMap<GraphNodeId, Rectangle>, HashSet<GraphNodeId>),
 }
 
+/// A message controlling subgraph breadcrumb navigation within a [`GraphEditorState`].
 #[derive(Debug, Clone)]
 pub enum GraphEditorEditorMessage {
     EnterSubgraph(GraphEditorPathComponent, GraphEditorSnapshot),
@@ -200,6 +206,11 @@ impl Graph {
     }
 }
 
+/// An interactive infinite-canvas [`Widget`] for viewing and editing a single [`Graph`].
+///
+/// `GraphEditorView` renders nodes, bezier slot connections, cycle highlights, and a zoomable/pannable
+/// background grid. It handles node dragging, marquee selection, edge wiring, auto-layout formatting,
+/// and the right-click / `Shift+A` node creation context menu.
 pub struct GraphEditorView<'a> {
     graph: DrawableGraph<'a>,
     node_creation_menu_items: Vec<NodeCreationMenuItem>,
@@ -244,12 +255,14 @@ impl<'a> GraphEditorView<'a> {
     }
 }
 
+/// A single step in a [`GraphEditorState`] breadcrumb path, identifying a parent node and subgraph index.
 #[derive(Debug, Clone)]
 pub struct GraphEditorPathComponent {
     pub node_id: GraphNodeId,
     pub subgraph_index: usize,
 }
 
+/// An entry in the node creation popup menu representing a registered node type.
 #[derive(Clone)]
 pub struct NodeCreationMenuItem {
     pub node_title: &'static str,
@@ -261,6 +274,7 @@ impl fmt::Display for NodeCreationMenuItem {
     }
 }
 
+/// Visual styling parameters for rendering a node box in the graph editor.
 pub struct GraphNodeStyle {
     pub background: Background,
     pub padding: f32,
@@ -268,6 +282,7 @@ pub struct GraphNodeStyle {
     pub line_spacing: f32,
 }
 
+/// Precomputed renderable representation of a [`Graph`] for a single frame of [`GraphEditorView`].
 pub struct DrawableGraph<'a> {
     pub nodes: IndexMap<GraphNodeId, DrawableNode<'a>>,
     pub slots: HashMap<GraphSlotId, SlotData>,
@@ -334,11 +349,13 @@ impl<'a> DrawableGraph<'a> {
     }
 }
 
+/// Color metadata (OKLCH hue and chroma) associated with a slot pin in a [`DrawableGraph`].
 pub struct SlotData {
     pub hue: f32,
     pub chroma: f32,
 }
 
+/// Visual endpoint and color data for a connected edge in a [`DrawableGraph`].
 pub struct DrawableEdge {
     from: GraphOutputSlotId,
     from_hue: f32,
@@ -347,6 +364,7 @@ pub struct DrawableEdge {
     to_chroma: f32,
 }
 
+/// A positioned node widget and its slot IDs prepared for rendering inside a [`DrawableGraph`].
 pub struct DrawableNode<'a> {
     pub node_id: GraphNodeId,
     pub position: Point,

@@ -45,6 +45,7 @@ use crate::{
     render::graph::{MAIN_DAB_BUFFER, SPACING_OUTPUT, STROKE_RESULT},
 };
 
+/// Identifies which of the three effect stages of a [`BrushPreset`] is currently active in [`BrushEditor`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BrushEffectSlot {
     Spacing,
@@ -68,6 +69,7 @@ impl BrushEffectSlot {
     }
 }
 
+/// Standalone window view for creating, inspecting, and editing [`BrushPreset`] shader graphs and parameters.
 pub struct BrushEditor {
     windows: Arc<[window::Id]>,
     main_window: window::Id,
@@ -117,6 +119,7 @@ impl BrushEffectEditorStates {
     }
 }
 
+/// UI messages handled by [`BrushEditor`].
 #[derive(Clone)]
 pub enum BrushEditorMessage {
     SelectBrush(usize),

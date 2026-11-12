@@ -16,6 +16,7 @@ use lapiz_runtime::android::AndroidAppExt as _;
 use lapiz_runtime::{Renderer, Theme, global::Globals};
 use lapiz_widgets::{button, column, container, flex::Flex, image::Image, label, scrollable};
 
+/// Workspace [`Dock`] that displays thumbnails of recently opened files from [`RecentFiles`] and triggers image import when an entry is clicked.
 pub struct LandingDock {
     config: Config<RecentFiles>,
     files: Arc<RecentFiles>,
@@ -35,6 +36,7 @@ impl LandingDock {
     }
 }
 
+/// Messages handled by [`LandingDock`].
 pub enum LandingDockMessage {
     OpenFile(usize),
     #[cfg(target_os = "android")]

@@ -17,12 +17,16 @@ use crate::{
     tag::{Tag, TagId},
 };
 
+/// Synchronization status of an indexed database record after an upsert operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ItemStatus {
     UpToDate,
     Outdated,
 }
 
+/// A strongly-typed filter used to query assets of type `T` from the [`AssetIndexDb`].
+///
+/// Allows constraining queries by assigned [`TagId`], containing [`BundleId`], and deletion status.
 pub struct AssetFilter<T: Asset> {
     tag: Option<TagId>,
     bundle: Option<BundleId>,
@@ -71,6 +75,7 @@ impl<T: Asset> AssetFilter<T> {
     }
 }
 
+/// Untyped query parameters for searching asset records in the [`AssetIndexDb`].
 #[derive(Default)]
 pub struct UntypedAssetFilter {
     pub ty: Option<String>,
@@ -79,12 +84,23 @@ pub struct UntypedAssetFilter {
     pub is_deleted: bool,
 }
 
+/// Query parameters for filtering tag records in the [`AssetIndexDb`].
 #[derive(Default)]
 pub struct TagFilter {
     pub asset_ty: Option<Option<String>>,
     pub is_deleted: bool,
 }
 
+/// A SQLite-backed persistent index database for asset and bundle metadata.
+///
+/// Maintains relational tables for bundles, assets, asset revisions, tags, and asset-tag associations.
+///
+/// # Responsibilities
+///
+/// - **Synchronization**: Reconciles scanned bundle snapshots against existing database records upon launch.
+/// - **Revision Tracking**: Tracks multi-version revision histories for modified assets.
+/// - **Fast Lookups**: Enables indexed filtering and querying of assets by type, bundle, and assigned tags.
+/// - **Rollback**: Cleans up uncommitted in-memory revisions upon startup via `revert_all_assets`.
 pub struct AssetIndexDb {
     conn: Mutex<Connection>,
 }

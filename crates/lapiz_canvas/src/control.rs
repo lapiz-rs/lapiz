@@ -1,6 +1,7 @@
 use bevy_math::Rect;
 use glam::{Mat3, Vec2};
 
+/// Affine transformation and viewport bounds mapping between image pixel coordinates, widget coordinates, and window coordinates.
 #[derive(Default, Debug, Clone)]
 pub struct CanvasTransform {
     pub widget_bounds: Rect,

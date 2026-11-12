@@ -27,11 +27,24 @@ const STEPPER_WIDTH: f32 = 16.0;
 const DEFAULT_WIDTH: f32 = 80.0;
 const ICON_SIZE: f32 = 7.0;
 
+/// Internal message emitted by the embedded text input of a [`SpinBox`].
 #[derive(Clone)]
 enum InternalMessage {
     Changed(String),
 }
 
+/// A numeric input field with up/down stepper buttons and range clamping.
+///
+/// `SpinBox` combines an editable [`text_input::TextInput`] with a right-aligned vertical
+/// increment/decrement button pair.
+///
+/// # Interaction
+///
+/// - **Text editing**: Validates typed text against the numeric type `T` and configured range bounds,
+///   emitting `on_change` whenever a valid in-range number is parsed.
+/// - **Stepping**: Clicking the up/down chevron buttons, scrolling the mouse wheel while hovering,
+///   or pressing `ArrowUp`/`ArrowDown` while focused increments or decrements the value by
+///   [`step`](Self::step), clamped to the configured bounds.
 pub struct SpinBox<'a, T, Message> {
     value: T,
     min: Option<T>,
@@ -161,6 +174,7 @@ fn stepper_at(bounds: Rectangle, position: Point) -> Option<bool> {
     Some(position.y < bounds.y + bounds.height / 2.0)
 }
 
+/// Widget tree state tracking whether the inner text input of a [`SpinBox`] is focused.
 #[derive(Default)]
 struct SpinBoxTreeState {
     input_focused: bool,

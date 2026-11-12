@@ -39,6 +39,11 @@ pub fn construct_canvas_dock_id(canvas: CanvasId) -> String {
     format!("canvas_{}", canvas)
 }
 
+/// Workspace [`Dock`] that hosts a single [`CanvasId`] viewport, composites its layer stack, and routes pointer input to the canvas's active tool proxy.
+///
+/// Each open canvas is represented by its own `CanvasDock` instance (with ID `canvas_<id>`), which renders
+/// the [`CanvasWidget`] stacked with the active tool's canvas overlay, listens for [`CanvasUpdated`] events to
+/// re-composite dirty tiles, and writes updated recent-file thumbnails when opened or closed.
 pub struct CanvasDock {
     canvas: CanvasId,
 
@@ -162,6 +167,7 @@ impl CanvasDock {
     }
 }
 
+/// Messages handled by [`CanvasDock`].
 pub enum CanvasDockMessage {
     WindowMoved,
     CanvasUpdated(Option<IRect>),

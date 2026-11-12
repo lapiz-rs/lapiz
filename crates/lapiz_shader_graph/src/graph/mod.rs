@@ -32,6 +32,31 @@ pub mod slot;
 pub mod texture;
 pub mod variable;
 
+/// A directed acyclic shader graph composed of interconnected [`GraphNode`] instances and typed slots.
+///
+/// `Graph` is the core data structure for authoring, validating, and compiling visual shaders into
+/// WGSL/WESL source code. It owns the node map ([`GraphNodeData`]), the slot storage
+/// ([`GraphSlots`]), and the shared [`GraphResources`] registries used to resolve value types,
+/// implicit type casts, node prototypes, and external assets.
+///
+/// # Topology and Slot Reconciliation
+///
+/// Nodes expose typed input and output slots identified by [`GraphInputSlotId`] and
+/// [`GraphOutputSlotId`]. Connections are directed from an output slot to one or more input slots,
+/// validated against [`GraphTypeRegistry::can_cast`]. When a node's internal state changes in a
+/// way that alters its slot layout, [`Graph::reconcile_node_slots`] preserves existing connections
+/// whose slot name and value type remain unchanged.
+///
+/// # Evaluation Order and Compilation
+///
+/// Before generating shader code, `Graph` computes and caches:
+/// - **Topological execution order**: [`Graph::update_run_order_cache`] sorts nodes from upstream
+///   dependencies to downstream consumers (and [`Graph::find_loops`] detects cycles).
+/// - **External signature**: [`Graph::update_signature_cache`] visits nodes in execution order to
+///   populate a [`GraphSignature`] of external graph inputs and outputs.
+/// - **Code generation**: [`Graph::compile`] walks the topological order, invoking each node's code
+///   generator and collecting top-level [`ExtraShaderBody`] declarations (such as helper functions
+///   or lookup tables) required by the final shader module.
 pub struct Graph {
     pub(crate) nodes: HashMap<GraphNodeId, GraphNodeData>,
     pub(crate) slots: GraphSlots,
@@ -712,6 +737,11 @@ fn delete_all_outputs(slots: &mut GraphSlots, output_slot_ids: &[GraphOutputSlot
     }
 }
 
+/// Shared registries and asset storage provided to a [`Graph`] during editing, serialization, and compilation.
+///
+/// `GraphResources` bundles the [`GraphTypeRegistry`] (for value types and implicit casts), the
+/// [`GraphNodeRegistry`] (for instantiating available node types), and the [`AssetRegistry`] (for
+/// resolving textures, curves, and reusable graph functions).
 pub struct GraphResources {
     pub type_registry: Arc<GraphTypeRegistry>,
     pub node_registry: Arc<GraphNodeRegistry>,
@@ -728,12 +758,19 @@ impl Clone for GraphResources {
     }
 }
 
+/// The external input and output interface of a [`Graph`] discovered from its signature-declaring nodes.
+///
+/// During [`Graph::update_signature_cache`], nodes such as graph I/O or pass I/O nodes register
+/// their slots into `inputs` (mapped from [`GraphOutputSlotId`]s that supply external values into
+/// the graph) and `outputs` (mapped from [`GraphInputSlotId`]s that consume final values produced
+/// by the graph).
 #[derive(Default, Clone)]
 pub struct GraphSignature {
     pub inputs: IndexMap<GraphOutputSlotId, GraphVariable>,
     pub outputs: IndexMap<GraphInputSlotId, GraphVariable>,
 }
 
+/// An error returned when [`Graph::compile`] fails to produce WGSL code.
 #[derive(Debug, thiserror::Error)]
 pub enum GraphCompileError {
     #[error("{0}")]
@@ -744,6 +781,7 @@ pub enum GraphCompileError {
     CustomError(anyhow::Error),
 }
 
+/// A sequential generator for unique local WGSL variable identifiers within a compilation scope.
 #[derive(Default)]
 pub struct GraphVarIdentGenerator {
     suffix: String,

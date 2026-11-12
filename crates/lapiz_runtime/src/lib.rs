@@ -31,16 +31,27 @@ pub mod windows;
 pub type Renderer = renderer::Renderer;
 pub type Theme = iced_core::Theme;
 
+/// Global resource storing the active UI [`Theme`].
 pub struct ApplicationTheme(pub Theme);
 
 impl Global for ApplicationTheme {}
 
+/// Lifecycle stage of an [`Application`] during plugin registration and initialization.
 pub enum ApplicationState {
     Adding,
     Built,
     Finished,
 }
 
+/// Top-level entry point that configures plugins, initializes the [`Runtime`], and drives the event loop.
+///
+/// `Application` coordinates startup in three phases tracked by [`ApplicationState`]:
+///
+/// 1. **Registration (`Adding`)**: Plugins are queued via [`add_plugin`](Application::add_plugin).
+/// 2. **Building (`Built` -> `Finished`)**: Calling [`build_plugins`](Application::build_plugins)
+///    invokes [`Plugin::build`] on every registered plugin in order, followed by [`Plugin::finish`].
+/// 3. **Execution**: Calling [`run`](Application::run) hands control to `iced_winit`, booting the
+///    root [`WindowView`] and processing window, view, and command buffer updates.
 pub struct Application {
     state: ApplicationState,
     // TODO remove this ref cell
@@ -255,6 +266,11 @@ impl Program for Application {
     }
 }
 
+/// Core application state holding [`Globals`] and the [`WindowViewManager`].
+///
+/// During startup, [`Plugin`]s mutate `Runtime` to insert [`Global`] resources and register
+/// [`WindowView`] types. Once the application boots, `Runtime` serves as the `iced` program
+/// state, routing window events and view messages through the [`WindowViewManager`].
 #[derive(Default)]
 pub struct Runtime {
     globals: Globals,
@@ -295,6 +311,7 @@ impl Runtime {
     }
 }
 
+/// Top-level message routed by [`Application`] between the windowing backend and [`WindowViewManager`].
 pub enum ApplicationMessage {
     Window(WindowViewManagerMessage),
     WindowOpened(window::Id),

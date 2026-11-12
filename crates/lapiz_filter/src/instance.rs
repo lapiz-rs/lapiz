@@ -15,12 +15,20 @@ use crate::{
     render::graph::filter_graph_resources,
 };
 
+/// A runtime user-adjustable filter parameter pairing a display name with a live [`GraphLiteral`] value.
 #[derive(Clone)]
 pub struct FilterParameter {
     pub name: String,
     pub value: GraphLiteral,
 }
 
+/// The live runtime state of a [`FilterPreset`] loaded for parameter adjustment, graph editing, or GPU execution.
+///
+/// `FilterInstance` wraps a live [`EffectInstance`] alongside resolved [`FilterParameter`] values for
+/// every non-layer input slot of the effect. While the target [`LayerType`] input and output slots
+/// are bound automatically by [`FilterRenderer`](crate::render::FilterRenderer) when processing canvas
+/// layers, all remaining effect inputs are exposed as user-configurable parameters and kept synchronized
+/// with the underlying [`EffectInstance`] signature.
 pub struct FilterInstance {
     filter_id: Option<AssetId<FilterPreset>>,
     metadata: FilterPresetMetadata,

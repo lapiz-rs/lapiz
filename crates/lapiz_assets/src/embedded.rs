@@ -3,6 +3,7 @@ use std::{fs, io, path::Path};
 use anyhow::Result;
 use rust_embed::RustEmbed;
 
+/// Embedded assets compiled into the binary via [`RustEmbed`].
 #[derive(RustEmbed)]
 #[folder = "../../assets"]
 #[include = "builtin_assets/**"]

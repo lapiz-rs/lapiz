@@ -7,10 +7,12 @@ use uuid::Uuid;
 use crate::dock::DockId;
 
 wrapper! {
+    /// Unique identifier for a [`DockGroupData`] tab group.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]
     pub DockGroupId : Uuid
 }
 
+/// An ordered group of [`DockId`] tabs sharing a single pane or floating window, along with the currently active tab.
 #[derive(Debug, Clone, Serialize)]
 pub struct DockGroupData {
     id: DockGroupId,

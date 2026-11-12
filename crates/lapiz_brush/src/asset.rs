@@ -11,6 +11,28 @@ use serde::{Deserialize, Serialize};
 use toml::{de, ser};
 use zip::{ZipArchive, ZipWriter, result::ZipError, write::FileOptions};
 
+/// Persisted asset definition of a programmable brush preset.
+///
+/// A `BrushPreset` defines a GPU-accelerated brush through three [`EffectAsset`] stages and a
+/// shared table of user-adjustable parameters:
+///
+/// - **Spacing Effect** (`spacing_effect`): Restricted to a single pass with
+///   [`EffectPassDispatchStrategy::Once`](lapiz_effect::asset::EffectPassDispatchStrategy::Once)
+///   and a fixed `f32` output ([`SPACING_OUTPUT`](crate::render::graph::SPACING_OUTPUT)). Evaluates
+///   the arc-length distance between successive dabs along a cubic Bezier stroke curve.
+/// - **Main Effect** (`main_effect`): Restricted to a single pass with a fixed layer output
+///   ([`MAIN_DAB_BUFFER`](crate::render::graph::MAIN_DAB_BUFFER)) and
+///   [`EffectPassDispatchStrategy::EveryOutputLayerPixel`](lapiz_effect::asset::EffectPassDispatchStrategy::EveryOutputLayerPixel)
+///   bound to that output. Evaluates per-dab pixel bounds and renders each dab into the stroke
+///   accumulation buffer.
+/// - **Postprocess Effect** (`postprocess_effect`): A full multi-pass [`EffectAsset`] supporting
+///   arbitrary passes and dispatch strategies, producing the final
+///   [`STROKE_RESULT`](crate::render::graph::STROKE_RESULT) layer by transforming and compositing
+///   the accumulated stroke buffer with the target canvas layer.
+///
+/// At runtime, a `BrushPreset` is instantiated into a [`BrushPresetInstance`](crate::instance::BrushPresetInstance)
+/// for editing or compilation into GPU pipelines. On disk, presets are stored as `.lapiz` ZIP
+/// archives by [`BrushPresetSerializer`].
 pub struct BrushPreset {
     pub metadata: BrushPresetMetadata,
     pub spacing_effect: EffectAsset,
@@ -19,12 +41,14 @@ pub struct BrushPreset {
     pub parameters: IndexMap<EffectInputSlotId, SerializableBrushParameter>,
 }
 
+/// Serialized representation of a named brush parameter and its default literal value.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerializableBrushParameter {
     pub name: String,
     pub value: SerializableGraphLiteral,
 }
 
+/// Descriptive metadata for a [`BrushPreset`], such as its display name.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct BrushPresetMetadata {
     pub name: String,
@@ -39,9 +63,11 @@ struct BrushToml {
     name: String,
 }
 
+/// [`AssetSerializer`] implementation that reads and writes [`BrushPreset`] assets as `.lapiz` ZIP archives.
 #[derive(Default)]
 pub struct BrushPresetSerializer;
 
+/// Errors that can occur while reading or writing a [`BrushPreset`] archive with [`BrushPresetSerializer`].
 #[derive(Debug, thiserror::Error)]
 pub enum BrushPresetSerializerError {
     #[error(transparent)]

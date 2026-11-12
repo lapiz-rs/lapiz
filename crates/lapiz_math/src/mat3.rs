@@ -1,6 +1,7 @@
 use glam::{Mat3, Vec2};
 use moxcms::Matrix3f;
 
+/// Extension trait for constructing a 2D affine [`Mat3`] transformation around a custom anchor point.
 pub trait Mat3ScaleRotattionTranslationWithAnchor {
     fn from_scale_angle_translation_with_anchor(
         scale: Vec2,
@@ -31,6 +32,7 @@ impl Mat3ScaleRotattionTranslationWithAnchor for Mat3 {
     }
 }
 
+/// Extension trait for converting a row-major [`moxcms::Matrix3f`] into a column-major [`Mat3`].
 pub trait FromMoxcmsMatrix3f {
     fn from_moxcms(mat: Matrix3f) -> Self;
 }

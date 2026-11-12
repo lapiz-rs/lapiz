@@ -12,6 +12,7 @@ use lapiz_utils::log_err::LogErr as _;
 
 use crate::{ActionFunction, ActionId};
 
+/// Action that opens the application "About" window view.
 #[derive(Default)]
 pub struct OpenAboutAction;
 
@@ -32,6 +33,7 @@ impl ActionFunction for OpenAboutAction {
     }
 }
 
+/// Action that generates a system and WGPU allocator diagnostic report and writes it to disk.
 #[derive(Default)]
 pub struct GenerateReportAction;
 
@@ -63,6 +65,7 @@ impl ActionFunction for GenerateReportAction {
     }
 }
 
+/// Action that intentionally triggers a panic to test crash reporting.
 #[derive(Default)]
 pub struct DebugManualPanicAction;
 

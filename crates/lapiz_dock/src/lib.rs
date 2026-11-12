@@ -36,6 +36,7 @@ const MERGE_DISTANCE: f32 = 30.0;
 const PANE_SPACING: f32 = 2.0;
 const PANE_MIN_SIZE: f32 = 50.0;
 
+/// A global registry used during application startup to collect [`Dock`] implementations before building a [`DockManager`].
 #[derive(Default)]
 pub struct DockRegistry {
     inner: HashMap<DockId, Box<dyn ErasedDock>>,
@@ -59,6 +60,10 @@ impl DockRegistry {
 
 impl Global for DockRegistry {}
 
+/// Orchestrates all registered [`Dock`] panels across the main window pane grid, detached floating windows, and dock sub-windows.
+///
+/// `DockManager` owns the type-erased [`Dock`] instances, tracks window geometry and cursor position for drag-to-detach,
+/// split-attach, and window-merge interactions, and routes [`DockMessage`] events and subscriptions to the appropriate dock.
 pub struct DockManager {
     main_window: GroupWindowInfo,
     main_layout_size: Option<Size>,
@@ -1050,6 +1055,7 @@ fn overlaps(pos_a: Point, size_a: Size, pos_b: Point, size_b: Size) -> bool {
         && pos_a.y + size_a.height > pos_b.y
 }
 
+/// Messages handled by [`DockManager`] for pane and tab interactions, window management, and dock-specific updates.
 pub enum DockMessage {
     Main(DockAction),
     Float { id: window::Id, action: TabEvent },
@@ -1092,12 +1098,14 @@ impl fmt::Debug for DockMessage {
     }
 }
 
+/// Target action when dragging a floating dock window over another window.
 #[derive(Debug, Clone)]
 enum AttachOrMergeInfo {
     Attach(AttachInfo),
     Merge { dst: window::Id },
 }
 
+/// Target placement when attaching a floating dock group into the main window's pane grid.
 #[derive(Debug, Clone)]
 pub(crate) enum AttachInfo {
     Split {

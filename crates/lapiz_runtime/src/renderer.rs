@@ -42,6 +42,11 @@ impl HasWindowHandle for DisplayAndWindow {
     }
 }
 
+/// Shared WGPU rendering handles initialized ahead of window creation.
+///
+/// Holds the [`wgpu::Instance`], [`wgpu::Adapter`], [`wgpu::Device`], and [`wgpu::Queue`] used
+/// across both GPU compute/canvas subsystems and the [`Compositor`]. Registered as a [`Global`]
+/// in [`Globals`](crate::global::Globals).
 #[derive(Clone)]
 pub struct RenderContext {
     pub instance: wgpu::Instance,
@@ -114,6 +119,7 @@ impl Default for RenderContext {
     }
 }
 
+/// Application UI renderer wrapping [`iced_wgpu::Renderer`].
 pub struct Renderer {
     inner: iced_wgpu::Renderer,
 }
@@ -364,6 +370,7 @@ impl image::Renderer for Renderer {
     }
 }
 
+/// WGPU window surface compositor integrating the shared [`RenderContext`] with `iced_wgpu`.
 pub struct Compositor {
     render_context: RenderContext,
     display: Arc<dyn compositor::Display>,

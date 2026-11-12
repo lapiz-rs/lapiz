@@ -10,6 +10,7 @@ pub const ABOUT_VIEW_ID: &str = "about";
 const GPL_LICENSE_TEXT: &str = include_str!("../../../LICENSE");
 const MIT_LICENSE_TEXT: &str = include_str!("../../../LICENSES/MIT.txt");
 
+/// Deserialized collection of third-party license definitions and crate dependencies embedded at build time.
 #[derive(Debug, Deserialize)]
 pub struct ThirdPartyLicenses {
     #[serde(default)]
@@ -18,6 +19,7 @@ pub struct ThirdPartyLicenses {
     pub crates: Vec<CrateEntry>,
 }
 
+/// A third-party software license with its identifier, display name, and full text.
 #[derive(Debug, Deserialize)]
 pub struct LicenseEntry {
     pub id: String,
@@ -25,6 +27,7 @@ pub struct LicenseEntry {
     pub text: String,
 }
 
+/// Metadata for a third-party crate dependency, referencing its license in [`ThirdPartyLicenses::licenses`].
 #[derive(Debug, Deserialize)]
 pub struct CrateEntry {
     pub name: String,
@@ -43,6 +46,7 @@ impl ThirdPartyLicenses {
     }
 }
 
+/// Plugin that initializes localization and registers the application's about window view.
 pub struct AboutPlugin;
 
 impl Plugin for AboutPlugin {

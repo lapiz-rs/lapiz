@@ -3,8 +3,18 @@ use std::{
     collections::HashMap,
 };
 
+/// Marker trait for singleton resources stored in [`Globals`].
+///
+/// Any `'static` type can implement `Global` to be managed by [`Globals`] and [`Runtime`](crate::Runtime).
+/// Plugins typically register globals during startup via [`Runtime::add_global`](crate::Runtime::add_global)
+/// or [`Runtime::add_global_instance`](crate::Runtime::add_global_instance).
 pub trait Global: 'static {}
 
+/// Trait for constructing a [`Global`] resource from existing state in [`Globals`].
+///
+/// Automatically implemented for all types that implement [`Default`]. Types that depend on
+/// previously registered globals can implement `FromGlobals` manually to initialize themselves
+/// when added via [`Runtime::add_global`](crate::Runtime::add_global).
 pub trait FromGlobals {
     fn from_globals(globals: &Globals) -> Self;
 }
@@ -15,6 +25,20 @@ impl<T: Default> FromGlobals for T {
     }
 }
 
+/// Type-indexed container storing singleton [`Global`] resources for the application.
+///
+/// `Globals` acts as the central shared state store passed to [`Plugin`](crate::plugin::Plugin)s,
+/// [`WindowView`](crate::windows::WindowView)s, action functions, and undo commands. Each [`Global`]
+/// type is keyed by its [`TypeId`].
+///
+/// # Access Patterns
+///
+/// - **Direct Borrowing**: Use [`global`](Globals::global) and [`global_mut`](Globals::global_mut)
+///   when the resource is guaranteed to be registered, or [`get_global`](Globals::get_global) and
+///   [`get_global_mut`](Globals::get_global_mut) for fallible lookups.
+/// - **Scoped Updates**: Use [`update_global`](Globals::update_global) or
+///   [`try_update_scope`](Globals::try_update_scope) to temporarily remove a global, mutate it
+///   alongside `&mut Globals`, and reinsert it automatically.
 #[derive(Default)]
 pub struct Globals {
     globals: HashMap<TypeId, Box<dyn Any>>,

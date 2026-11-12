@@ -24,9 +24,11 @@ use crate::{
     save::GraphValueTypeId,
 };
 
+/// Shader graph value type representing an RGBA color (`vec4f`).
 #[derive(Default, Clone)]
 pub struct ColorType;
 
+/// UI message updating a single channel of a [`ColorType`] literal.
 #[derive(Debug, Clone)]
 pub enum ColorMessage {
     R(f32),
@@ -148,9 +150,11 @@ impl GraphValueType for ColorType {
     }
 }
 
+/// Shader graph value type representing a 2D axis-aligned bounding rectangle (`render::math::Rect`).
 #[derive(Default, Clone)]
 pub struct RectType;
 
+/// UI message updating one of the minimum or maximum coordinates of a [`RectType`] literal.
 #[derive(Debug, Clone)]
 pub enum RectMessage {
     MinX(f32),

@@ -4,12 +4,18 @@ use lapiz_runtime::Renderer;
 
 use crate::{button, callback::Callback, flex::Flex, icon, panel};
 
+/// A single entry inside a [`PickList`] column.
 struct Item<'a, Message> {
     content: Element<'a, Message, Theme, Renderer>,
     selected: bool,
     message: Option<Message>,
 }
 
+/// A dual-list transfer widget for moving items between an "Available" list and an "Active" list.
+///
+/// `PickList` renders two side-by-side inset [`Panel`](crate::panel::Panel) columns—each with a
+/// header showing the column title and item count above a scrollable item list—separated by
+/// left/right chevron transfer buttons.
 pub struct PickList<'a, Message> {
     available: Vec<Item<'a, Message>>,
     selected: Vec<Item<'a, Message>>,

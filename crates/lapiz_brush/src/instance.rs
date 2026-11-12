@@ -48,12 +48,17 @@ use crate::{
 
 const SPACING_RESOURCE_GROUP: u32 = 1;
 
+/// Runtime brush parameter pairing a display name with a live [`GraphLiteral`] value.
 #[derive(Clone)]
 pub struct BrushParameter {
     pub name: String,
     pub value: GraphLiteral,
 }
 
+/// GPU-ready compiled representation of a [`BrushPresetInstance`] for a specific target and selection texel format.
+///
+/// Bundles the compiled WESL spacing shader and its bind group layout metadata, the two-stage
+/// [`BrushMainPipeline`], and the [`EffectRenderer`] used to execute the postprocess effect.
 pub struct CompiledBrushPreset {
     pub spacing: String,
     pub spacing_resource_layouts: Vec<BindGroupLayoutEntry>,
@@ -65,6 +70,13 @@ pub struct CompiledBrushPreset {
     pub postprocess_output: EffectOutputSlotId,
 }
 
+/// Live, editable runtime instance of a [`BrushPreset`].
+///
+/// `BrushPresetInstance` holds instantiated [`EffectInstance`] graphs for the spacing, main, and
+/// postprocess stages along with deserialized [`BrushParameter`] values. It validates structural
+/// invariants on the effect passes, synchronizes exposed effect input slots with the parameter
+/// map, serializes back into a [`BrushPreset`] asset via [`as_asset`](Self::as_asset), and compiles
+/// the graphs into a [`CompiledBrushPreset`] via [`compile`](Self::compile).
 pub struct BrushPresetInstance {
     brush_id: Option<AssetId<BrushPreset>>,
     metadata: BrushPresetMetadata,
@@ -552,6 +564,7 @@ pub fn postprocess_effect_resources(assets: AssetRegistry) -> GraphResources {
     brush_graph_resources(POSTPROCESS_GRAPH_NODES.clone(), assets)
 }
 
+/// Wrapper around a reusable shader [`GraphFunction`] within a brush graph.
 pub struct GraphFunctionInstance {
     graph_function: GraphFunction,
 }

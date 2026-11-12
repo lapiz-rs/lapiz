@@ -5,6 +5,10 @@ use iced_widget::container::{self, Catalog, Style};
 pub use iced_widget::tooltip::Position;
 use lapiz_runtime::Renderer;
 
+/// A wrapper widget that displays a floating tooltip overlay when its content is hovered.
+///
+/// `Tooltip` wraps [`iced_widget::Tooltip`] with Lapiz's bordered and shadowed surface styling,
+/// configurable [`Position`], hover [`delay`](Self::delay), and viewport snapping.
 pub struct Tooltip<'a, Message> {
     inner: iced_widget::Tooltip<'a, Message, Theme, Renderer>,
 }

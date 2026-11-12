@@ -2,6 +2,11 @@ use iced_core::{Element, Length, Theme};
 use iced_widget::scrollable::{self, Catalog, Direction, Status, Style};
 use lapiz_runtime::Renderer;
 
+/// A container that scrolls its content when it overflows the available viewport bounds.
+///
+/// `Scrollable` wraps [`iced_widget::Scrollable`] with Lapiz's themed scrollbar rails and scroller
+/// thumbs, supporting vertical, [`horizontal`](Self::horizontal), or custom [`direction`](Self::direction)
+/// scrolling as well as [`anchor_top`](Self::anchor_top) and [`anchor_bottom`](Self::anchor_bottom) alignment.
 pub struct Scrollable<'a, Message> {
     inner: iced_widget::Scrollable<'a, Message, Theme, Renderer>,
 }

@@ -19,6 +19,7 @@ use crate::{
     nodes::TypeChoice,
 };
 
+/// A UI [`Component`] for adding, removing, renaming, retyping, and reordering external input and output slots on an [`EffectInstance`].
 pub struct EffectIoEditor<'a> {
     instance: &'a EffectInstance,
     type_options: Vec<TypeChoice>,
@@ -237,6 +238,7 @@ impl<'a> Component<'a, EffectIoEditorMessage, GraphTheme, GraphRenderer> for Eff
     }
 }
 
+/// Internal UI state for the new-input and new-output creation rows in [`EffectIoEditor`].
 #[derive(Default)]
 pub struct EffectIoEditorState {
     new_input_name: String,
@@ -245,6 +247,7 @@ pub struct EffectIoEditorState {
     new_output_type: Option<TypeChoice>,
 }
 
+/// Internal component event handled by [`EffectIoEditor`].
 #[derive(Debug, Clone)]
 pub enum EffectIoEditorEvent {
     NewInputNameChanged(String),
@@ -256,6 +259,7 @@ pub enum EffectIoEditorEvent {
     Apply(EffectIoEditorMessage),
 }
 
+/// A mutation message emitted by [`EffectIoEditor`] to modify the external inputs or outputs of an [`EffectInstance`].
 #[derive(Debug, Clone)]
 pub enum EffectIoEditorMessage {
     RenameInput(EffectInputSlotId, String),

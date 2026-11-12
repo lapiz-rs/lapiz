@@ -19,6 +19,7 @@ use lapiz_widgets::{
 
 use crate::{ABOUT_VIEW_ID, CrateEntry, GPL_LICENSE_TEXT, MIT_LICENSE_TEXT, ThirdPartyLicenses};
 
+/// Active tab selection in [`AboutView`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum AboutTab {
     #[default]
@@ -43,6 +44,15 @@ impl AboutTab {
     }
 }
 
+/// Window view displaying application version details, primary project licenses, and a searchable
+/// browser for third-party dependency licenses.
+///
+/// The view is divided into two tabs:
+///
+/// - **About**: Shows the application version and collapsible full-text viewers for the project's
+///   GPL and MIT licenses.
+/// - **Third-Party Licenses**: Provides a filterable sidebar of embedded [`CrateEntry`] records
+///   paired with a detail pane displaying the selected crate's version, repository link, and license text.
 pub struct AboutView {
     window: window::Id,
     windows: Arc<[window::Id]>,
@@ -55,6 +65,7 @@ pub struct AboutView {
     selected: Option<usize>,
 }
 
+/// UI interaction and window control messages handled by [`AboutView`].
 #[derive(Clone)]
 pub enum AboutMessage {
     SelectTab(usize),

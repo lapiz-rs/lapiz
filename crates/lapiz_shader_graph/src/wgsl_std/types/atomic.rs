@@ -30,6 +30,7 @@ use crate::{
     save::GraphValueTypeId,
 };
 
+/// A GPU storage [`Buffer`] and element count prepared for an atomic array shader binding.
 #[derive(Clone)]
 pub struct PreparedAtomicArray {
     pub buffer: Buffer,
@@ -37,7 +38,8 @@ pub struct PreparedAtomicArray {
 }
 
 macro_rules! atomic_type {
-    ($name:ident, $value:ty, $plain:ty, $id:literal, $wgsl:literal) => {
+    ($(#[$meta:meta])* $name:ident, $value:ty, $plain:ty, $id:literal, $wgsl:literal) => {
+        $(#[$meta])*
         #[derive(Default, Clone)]
         pub struct $name;
 
@@ -171,7 +173,8 @@ macro_rules! atomic_type {
 }
 
 macro_rules! atomic_array_type {
-    ($name:ident, $value:ty, $plain:ty, $prefix:literal, $wgsl:literal) => {
+    ($(#[$meta:meta])* $name:ident, $value:ty, $plain:ty, $prefix:literal, $wgsl:literal) => {
+        $(#[$meta])*
         #[derive(Clone)]
         pub struct $name {
             pub len: u32,
@@ -318,7 +321,35 @@ macro_rules! atomic_array_type {
     };
 }
 
-atomic_type!(AtomicI32Type, i32, I32Type, "atomic_i32", "i32");
-atomic_type!(AtomicU32Type, u32, U32Type, "atomic_u32", "u32");
-atomic_array_type!(ArrayAtomicI32Type, i32, I32Type, "array_atomic_i32", "i32");
-atomic_array_type!(ArrayAtomicU32Type, u32, U32Type, "array_atomic_u32", "u32");
+atomic_type!(
+    /// Shader graph value type representing a 32-bit signed atomic integer (`atomic<i32>`).
+    AtomicI32Type,
+    i32,
+    I32Type,
+    "atomic_i32",
+    "i32"
+);
+atomic_type!(
+    /// Shader graph value type representing a 32-bit unsigned atomic integer (`atomic<u32>`).
+    AtomicU32Type,
+    u32,
+    U32Type,
+    "atomic_u32",
+    "u32"
+);
+atomic_array_type!(
+    /// Shader graph value type representing a fixed-length storage array of 32-bit signed atomic integers (`array<atomic<i32>>`).
+    ArrayAtomicI32Type,
+    i32,
+    I32Type,
+    "array_atomic_i32",
+    "i32"
+);
+atomic_array_type!(
+    /// Shader graph value type representing a fixed-length storage array of 32-bit unsigned atomic integers (`array<atomic<u32>>`).
+    ArrayAtomicU32Type,
+    u32,
+    U32Type,
+    "array_atomic_u32",
+    "u32"
+);

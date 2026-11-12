@@ -44,15 +44,21 @@ use crate::{
     render::{pass_input_ident, pass_output_ident},
 };
 
+/// A shader graph node that reads an external effect input or an upstream pass's output into the current pass.
+///
+/// `PassInputNode` dynamically configures its output slots via
+/// [`ErasedGraphValueType::push_output_slots`] to match the type of the bound [`PassInput`] source.
 #[derive(Default, Clone)]
 pub struct PassInputNode;
 
+/// Identifies the data source bound to a [`PassInputNode`]: either another pass's output or an effect-level input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PassInput {
     Pass(EffectPassOutputSlotId),
     Effect(EffectInputSlotId),
 }
 
+/// A selectable source option displayed in a [`PassInputNode`] combo box.
 #[derive(Clone, PartialEq)]
 pub struct PassInputChoice {
     pub label: String,
@@ -73,6 +79,7 @@ impl fmt::Display for PassInputChoice {
     }
 }
 
+/// The destination kind selected in a [`PassOutputNode`] target combo box.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PassOutputChoiceTarget {
     Unbound,
@@ -80,6 +87,7 @@ pub enum PassOutputChoiceTarget {
     LocalBuffer,
 }
 
+/// A selectable destination option displayed in a [`PassOutputNode`] combo box.
 #[derive(Clone, PartialEq)]
 pub struct PassOutputChoice {
     pub label: String,
@@ -101,6 +109,7 @@ impl fmt::Display for PassOutputChoice {
     }
 }
 
+/// A selectable shader value type option used in pass and effect I/O editors.
 #[derive(Clone)]
 pub struct TypeChoice {
     pub label: String,
@@ -127,6 +136,7 @@ impl fmt::Display for TypeChoice {
     }
 }
 
+/// Per-instance state for [`PassInputNode`], storing its unique slot ID, bound [`PassInput`], and synchronized choices.
 #[derive(Clone)]
 pub struct PassInputNodeState {
     pub id: EffectPassInputSlotId,
@@ -173,6 +183,7 @@ impl GraphSerializable for PassInputNodeState {
     }
 }
 
+/// UI message emitted by [`PassInputNode`].
 #[derive(Debug, Clone)]
 pub enum PassInputNodeMessage {
     SourceSelected(PassInputChoice),
@@ -267,9 +278,14 @@ impl GraphNode for PassInputNode {
     }
 }
 
+/// A shader graph node that writes a pass's computed result to an external effect output or an intermediate pass buffer.
+///
+/// `PassOutputNode` dynamically configures its input slots via
+/// [`ErasedGraphValueType::push_input_slots`] to match the type of the bound [`PassOutput`] target.
 #[derive(Default, Clone)]
 pub struct PassOutputNode;
 
+/// Name and value type definition for a pass-local intermediate output buffer created by a [`PassOutputNode`].
 #[derive(Clone)]
 pub struct PassOutputDef {
     pub name: String,
@@ -304,12 +320,14 @@ impl GraphSerializable for PassOutputDef {
     }
 }
 
+/// Identifies the destination bound to a [`PassOutputNode`]: either a pass-local buffer or an effect-level output.
 #[derive(Clone)]
 pub enum PassOutput {
     Pass(PassOutputDef),
     Effect(EffectOutputSlotId),
 }
 
+/// Per-instance state for [`PassOutputNode`], storing its unique slot ID, target [`PassOutput`], and synchronized choices.
 pub struct PassOutputNodeState {
     pub id: EffectPassOutputSlotId,
     pub output: Option<PassOutput>,
@@ -385,6 +403,7 @@ impl GraphSerializable for PassOutputNodeState {
     }
 }
 
+/// UI message emitted by [`PassOutputNode`].
 #[derive(Debug, Clone)]
 pub enum PassOutputNodeMessage {
     TargetSelected(PassOutputChoice),
@@ -574,14 +593,22 @@ impl PassOutputNodeState {
     }
 }
 
+/// A shader graph node that outputs the current compute invocation's dispatch index or pixel coordinate.
+///
+/// Its output slot adapts to the owning pass's [`EffectPassDispatchStrategy`]: no output for
+/// [`EffectPassDispatchStrategy::Once`], a `u32` buffer index for
+/// [`EffectPassDispatchStrategy::EveryBufferElement`], or a `vec2i` pixel coordinate for layer
+/// pixel dispatch strategies.
 #[derive(Default, Clone)]
 pub struct DispatchIndexNode;
 
+/// Per-instance state for [`DispatchIndexNode`], caching the owning pass's [`EffectPassDispatchStrategy`].
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DispatchIndexNodeState {
     pub cached_dispatch_strategy: EffectPassDispatchStrategy,
 }
 
+/// Uninhabited message enum for [`DispatchIndexNode`], which has no interactive controls.
 #[derive(Clone)]
 pub enum DispatchIndexNodeMessage {}
 

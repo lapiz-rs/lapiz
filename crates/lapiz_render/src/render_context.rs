@@ -1,6 +1,7 @@
 use lapiz_runtime::{global::Globals, renderer::RenderContext};
 use wgpu::{Device, Queue};
 
+/// Extension trait on [`Globals`] providing direct access to the [`RenderContext`], [`Device`], and [`Queue`].
 pub trait RenderContextAppExt {
     fn render_context(&self) -> &RenderContext;
     fn render_device(&self) -> &Device;

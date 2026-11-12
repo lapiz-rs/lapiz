@@ -26,9 +26,11 @@ use crate::{
     wgsl_std::types::{compound::RectType, primitive::F32Type, vector::Vec2FType},
 };
 
+/// Shader graph node that performs a configurable unary, binary, or ternary mathematical operation on [`F32Type`] scalars.
 #[derive(Default, Clone)]
 pub struct ScalarMathNode;
 
+/// Mathematical operation mode for [`ScalarMathNode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]
 #[display(style = "snake_case")]
 pub enum ScalarMathNodeMode {
@@ -109,6 +111,7 @@ impl ScalarMathNodeMode {
     ];
 }
 
+/// UI message emitted by [`ScalarMathNode`].
 #[derive(Clone)]
 pub enum ScalarMathNodeMessage {
     ModeChanged(ScalarMathNodeMode),
@@ -317,9 +320,11 @@ impl GraphNode for ScalarMathNode {
     }
 }
 
+/// Shader graph node that performs a configurable mathematical or geometric operation on 2D vectors ([`Vec2FType`]).
 #[derive(Default, Clone)]
 pub struct VectorMathNode;
 
+/// Mathematical operation mode for [`VectorMathNode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]
 #[display(style = "snake_case")]
 pub enum VectorMathNodeMode {
@@ -408,6 +413,7 @@ impl VectorMathNodeMode {
     ];
 }
 
+/// UI message emitted by [`VectorMathNode`].
 #[derive(Clone)]
 pub enum VectorMathNodeMessage {
     ModeChanged(VectorMathNodeMode),
@@ -683,9 +689,11 @@ impl GraphNode for VectorMathNode {
     }
 }
 
+/// Shader graph node that computes union, intersection, inflation, or shrinking on [`RectType`] bounding boxes.
 #[derive(Default, Clone)]
 pub struct RectMathNode;
 
+/// Geometric operation mode for [`RectMathNode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]
 #[display(style = "snake_case")]
 pub enum RectMathNodeMode {
@@ -704,6 +712,7 @@ impl RectMathNodeMode {
     ];
 }
 
+/// UI message emitted by [`RectMathNode`].
 #[derive(Clone)]
 pub enum RectMathNodeMessage {
     ModeChanged(RectMathNodeMode),
@@ -841,6 +850,7 @@ impl GraphNode for RectMathNode {
     }
 }
 
+/// Shader graph node that restricts a scalar value ([`F32Type`]) to a `[min, max]` range using WGSL `clamp`.
 #[derive(Default, Clone)]
 pub struct ClampNode;
 
@@ -882,6 +892,7 @@ impl StatelessCommonGraphNode for ClampNode {
     }
 }
 
+/// Shader graph node that evaluates the WGSL `step(edge, x)` threshold function on [`F32Type`] scalars.
 #[derive(Default, Clone)]
 pub struct StepNode;
 
@@ -921,6 +932,7 @@ impl StatelessCommonGraphNode for StepNode {
     }
 }
 
+/// Shader graph node that evaluates Hermite interpolation between two thresholds using WGSL `smoothstep`.
 #[derive(Default, Clone)]
 pub struct SmoothStepNode;
 

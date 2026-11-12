@@ -23,6 +23,7 @@ const PANEL_PADDING: f32 = 4.0;
 const LABEL_SIZE: f32 = 12.0;
 const SHORTCUT_SIZE: f32 = 10.0;
 
+/// An entry inside a [`Menu`], representing an action, custom widget, nested submenu, or divider.
 pub enum Item<'a, Message> {
     Action {
         label: String,
@@ -70,6 +71,11 @@ impl<Message> Item<'_, Message> {
     }
 }
 
+/// A hierarchical list of [`Item`] entries displayed by a [`MenuBar`] or [`ContextMenu`].
+///
+/// `Menu` supports clickable [`item`](Self::item) actions with optional keyboard shortcut labels,
+/// embedded interactive widgets via [`element`](Self::element) and [`oneshot_element`](Self::oneshot_element),
+/// horizontal [`separator`](Self::separator) lines, and cascading [`submenu`](Self::submenu) panels.
 pub struct Menu<'a, Message> {
     items: Vec<Item<'a, Message>>,
     min_width: f32,
@@ -228,6 +234,16 @@ impl<Message> Default for Menu<'_, Message> {
     }
 }
 
+/// A horizontal application menu bar that opens cascading [`Menu`] overlays.
+///
+/// `MenuBar` renders top-level category labels horizontally and manages an active open path
+/// across root menus and nested submenus.
+///
+/// # Interaction
+///
+/// - Clicking a top-level category opens its dropdown [`Menu`] panel below the bar (or closes it if already open).
+/// - Moving the pointer across other top-level categories while a menu is open switches the active root menu immediately.
+/// - Hovering over [`Item::Submenu`] entries automatically expands nested submenu panels to the right (or left when constrained by the viewport), and pressing `Escape` or clicking outside dismisses all open panels.
 pub struct MenuBar<'a, Message> {
     labels: Vec<String>,
     menus: Vec<Menu<'a, Message>>,
@@ -275,6 +291,7 @@ impl<Message> Default for MenuBar<'_, Message> {
     }
 }
 
+/// Widget tree state for a [`MenuBar`], tracking the open submenu path and cached label widths.
 #[derive(Default)]
 pub struct MenuBarState {
     open: Vec<usize>,
@@ -528,11 +545,13 @@ fn root_at(layout: Layout<'_>, position: Point) -> Option<usize> {
         .map(|(index, _)| index)
 }
 
+/// Resolved bounding rectangle and row bounds for a single open menu panel level.
 struct Panel {
     bounds: Rectangle,
     rows: Vec<Rectangle>,
 }
 
+/// Overlay that lays out, draws, and handles pointer/keyboard events for cascading [`Menu`] panels.
 struct MenuOverlay<'a, 'b, Message> {
     roots: &'a mut [Menu<'b, Message>],
     trees: &'a mut [Tree],
@@ -1015,6 +1034,7 @@ where
     }
 }
 
+/// Secondary overlay adapter for nested overlays produced by [`Item::Element`] widgets inside a [`Menu`].
 struct MenuElementOverlay<'a, Message> {
     content: overlay::Element<'a, (Message, bool), Theme, Renderer>,
     open: &'a mut Vec<usize>,
@@ -1211,11 +1231,17 @@ where
     }
 }
 
+/// A wrapper widget that opens a floating [`Menu`] at the cursor position on secondary (right) click.
+///
+/// `ContextMenu` delegates normal layout, rendering, and pointer events to its `underlay` element,
+/// and spawns a cascading menu overlay anchored at the cursor when a secondary press occurs within
+/// the underlay's bounds.
 pub struct ContextMenu<'a, Message> {
     underlay: Element<'a, Message, Theme, Renderer>,
     menu: Menu<'a, Message>,
 }
 
+/// Internal state tracking visibility, anchor position, and open submenu path for [`ContextMenu`].
 #[derive(Default)]
 struct ContextMenuState {
     show: bool,

@@ -5,6 +5,7 @@ use ringbuffer::{AllocRingBuffer, RingBuffer as _};
 
 use crate::render::{ComputedPenInput, PenInput, Time};
 
+/// Unfiltered pointer or stylus sample in canvas pixel coordinates with pressure, tilt, angle, and timestamps.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RawPenInput {
     pub position: Vec2,
@@ -32,6 +33,11 @@ impl RawPenInput {
     }
 }
 
+/// Stateful stroke input processor that stabilizes [`RawPenInput`] samples and fits cubic Bezier segments.
+///
+/// `InputProcessor` buffers incoming [`RawPenInput`] samples in a ring buffer, delegates smoothing
+/// to a configurable [`InputSampleStabilizer`], and derives cubic Bezier control points between
+/// consecutive stabilized positions to emit [`PenInput`] segments for GPU curve sampling.
 pub struct InputProcessor {
     samples: AllocRingBuffer<RawPenInput>,
     stabilizer: Box<dyn InputSampleStabilizer>,
@@ -127,11 +133,13 @@ impl InputProcessor {
     }
 }
 
+/// Strategy trait for smoothing a sliding window of [`RawPenInput`] samples during a brush stroke.
 pub trait InputSampleStabilizer: Send + Sync + 'static {
     fn stabilize(&mut self, inputs: &AllocRingBuffer<RawPenInput>) -> Option<RawPenInput>;
     fn convergence_steps(&self) -> usize;
 }
 
+/// [`InputSampleStabilizer`] that applies a normalized 1D Gaussian kernel over recent pen samples.
 pub struct GaussianStabilizer {
     kernel: Vec<f32>,
 }
@@ -199,6 +207,7 @@ impl InputSampleStabilizer for GaussianStabilizer {
     }
 }
 
+/// Pass-through [`InputSampleStabilizer`] that returns the most recent sample without smoothing.
 pub struct BasicStabilizer;
 
 impl InputSampleStabilizer for BasicStabilizer {

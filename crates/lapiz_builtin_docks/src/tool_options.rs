@@ -12,8 +12,10 @@ use lapiz_widgets::{label, panel, scrollable, space};
 pub static TOOL_OPTIONS_DOCK_ID: LazyLock<DockId> =
     LazyLock::new(|| DockId::new("tool_options_dock".into()));
 
+/// Workspace [`Dock`] that renders the active tool's options widget from the current canvas's [`ToolProxy`](lapiz_tools::ToolProxy).
 pub struct ToolOptionsDock;
 
+/// Messages handled by [`ToolOptionsDock`].
 pub enum ToolOptionsDockMessage {
     ToolFunction(ErasedToolFunctionMessage),
 }

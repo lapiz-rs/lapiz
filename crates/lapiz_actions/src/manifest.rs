@@ -9,6 +9,7 @@ use crate::ActionId;
 
 pub type MenuBarManifestConfig = Config<MenuBarManifest>;
 
+/// Configuration manifest defining the top-level categories and nested items of the menu bar.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MenuBarManifest {
     pub categories: Vec<MenuBarCategory>,
@@ -20,12 +21,14 @@ impl Configuration for MenuBarManifest {
     const DEFAULT: &'static str = include_str!("../../../default_config/menu_bar_manifest.toml");
 }
 
+/// A top-level menu category in the [`MenuBarManifest`].
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MenuBarCategory {
     pub title: String,
     pub items: Vec<MenuBarItem>,
 }
 
+/// An entry within a [`MenuBarCategory`] or nested submenu.
 #[derive(Debug, Clone)]
 pub enum MenuBarItem {
     Separator,
@@ -36,12 +39,14 @@ pub enum MenuBarItem {
     },
 }
 
+/// Helper representation for serializing and deserializing a submenu in [`MenuBarItem`].
 #[derive(Serialize, Deserialize)]
 struct SubmenuDef {
     title: String,
     items: Vec<MenuBarItem>,
 }
 
+/// Helper enum for untagged deserialization of a [`MenuBarItem`].
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum MenuBarItemDef {
@@ -87,6 +92,7 @@ impl<'de> Deserialize<'de> for MenuBarItem {
     }
 }
 
+/// Mapping between a keyboard [`KeySequence`] and an action identifier, with optional parameters and context.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionBinding {
     pub shortcut: KeySequence,
@@ -107,6 +113,7 @@ fn is_none<T>(value: &Option<T>) -> bool {
     value.is_none()
 }
 
+/// Persisted configuration manifest containing named keyboard [`ActionBinding`]s.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionBindingManifest {
     pub name: String,
@@ -129,6 +136,10 @@ impl Configuration for ActionBindingManifest {
 
 pub type ActionBindingManifestConfig = Config<ActionBindingManifest>;
 
+/// Bidirectional lookup table between keyboard [`KeySequence`]s and [`ActionId`]s.
+///
+/// Constructed from an [`ActionBindingManifest`] to resolve triggered shortcuts into actions and
+/// query the assigned shortcut for a given [`ActionId`].
 #[derive(Clone)]
 pub struct ActionCollection {
     shortcuts: HashMap<KeySequence, ActionId>,

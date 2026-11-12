@@ -20,6 +20,7 @@ use wesl::syntax::{
 };
 use wesl_quote::quote_statement;
 
+/// Shader graph node that outputs the 2D integer pixel coordinates (`vec2<i32>`) of the current compute invocation.
 #[derive(Default, Clone)]
 pub struct PixelPositionNode;
 

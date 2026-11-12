@@ -31,6 +31,7 @@ lapiz_i18n::define_i18n!("bucket_tool");
 
 pub mod bucket;
 
+/// A [`Plugin`] that initializes localization and registers [`BucketTool`] in [`Globals`].
 pub struct BucketPlugin;
 
 impl Plugin for BucketPlugin {
@@ -40,6 +41,14 @@ impl Plugin for BucketPlugin {
     }
 }
 
+/// Interactive flood-fill tool that fills similar regions of the active canvas layer.
+///
+/// `BucketTool` implements [`ToolFunction`] to execute GPU-accelerated flood fills via [`Bucket`]
+/// when the pointer is released on the canvas. It supports configurable color and alpha tolerances,
+/// contiguous vs. global fill (toggled temporarily while holding Left Shift), gap closing, mask
+/// expansion/contraction (`grow`), blend mode selection, and edge smoothing ([`BucketAntialiasApproach`]).
+///
+/// Modified tiles are recorded onto the canvas undo stack as a [`TileReplaceCommand`].
 pub struct BucketTool {
     pub threshold: f32,
     pub alpha_threshold: f32,
@@ -66,6 +75,7 @@ impl Default for BucketTool {
     }
 }
 
+/// UI messages for updating [`BucketTool`] options.
 #[derive(Debug, Clone)]
 pub enum BucketToolMessage {
     ThresholdChanged(f32),

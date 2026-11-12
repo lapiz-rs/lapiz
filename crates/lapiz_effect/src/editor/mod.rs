@@ -31,6 +31,11 @@ pub mod io;
 #[cfg(test)]
 mod tests;
 
+/// Persistent UI state for editing an [`EffectInstance`] in [`EffectEditorView`].
+///
+/// `EffectEditorState` tracks whether the user is viewing the top-level pass list or a specific
+/// pass's [`GraphEditor`], maintains per-pass [`GraphEditorState`]s, and resynchronizes pass I/O
+/// bindings after every edit.
 pub struct EffectEditorState {
     pub open_pass: Option<EffectPassId>,
     pub graph_editor_states: HashMap<EffectPassId, GraphEditorState>,
@@ -126,6 +131,7 @@ impl EffectEditorState {
     }
 }
 
+/// UI message emitted by [`EffectEditorView`] for pass management, dispatch configuration, I/O editing, and graph edits.
 #[derive(Debug, Clone)]
 pub enum EffectEditorMessage {
     OpenPass(EffectPassId),
@@ -140,6 +146,7 @@ pub enum EffectEditorMessage {
     PassAddRequested,
 }
 
+/// A view builder that renders either the multi-pass overview list or the active pass's [`GraphEditor`] for an [`EffectInstance`].
 pub struct EffectEditorView<'a> {
     instance: &'a EffectInstance,
     state: &'a EffectEditorState,

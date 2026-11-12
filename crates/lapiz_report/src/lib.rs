@@ -180,6 +180,7 @@ fn wgpu_report(w: &mut dyn Write, device: &Device) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Display wrapper that formats a byte count with human-readable binary unit suffixes.
 struct FmtBytes(u64);
 
 impl Display for FmtBytes {

@@ -13,6 +13,24 @@ use lapiz_runtime::Renderer;
 
 use crate::callback::{Callback, publish};
 
+/// A clickable button widget that wraps arbitrary content and emits a message when pressed.
+///
+/// `Button` centers its child element within configurable dimensions and [`Padding`], tracks
+/// pointer hover and press states via [`Status`], and renders a themed background, border,
+/// and shadow.
+///
+/// # Styling and Variants
+///
+/// In addition to custom [`style`](Self::style) closures and [`Catalog`] classes, `Button`
+/// provides built-in visual presets:
+/// - [`primary`](Self::primary): Emphasized button using the theme's primary accent color and drop shadow.
+/// - [`transparent`](Self::transparent): Borderless button that highlights subtly on hover or press, also used by [`Button::icon`].
+/// - [`outline`](Self::outline): Transparent button with a visible border that highlights on interaction.
+/// - [`danger`](Self::danger): Destructive action button styled with the theme's danger palette.
+/// - [`activated`](Self::activated): Toggles primary active styling based on a boolean state.
+///
+/// By default, a button without a press callback appears [`Status::Disabled`] unless marked
+/// with [`interactive`](Self::interactive).
 pub struct Button<'a, Message> {
     content: Element<'a, Message, Theme, Renderer>,
     press: Callback<'a, Message>,
@@ -113,6 +131,7 @@ impl<'a, Message> Button<'a, Message> {
     }
 }
 
+/// Internal interaction state for a [`Button`].
 #[derive(Debug, Default)]
 struct State {
     pressed: bool,

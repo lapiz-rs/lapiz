@@ -4,6 +4,11 @@ use uuid::Uuid;
 
 use crate::LazuliArchive;
 
+/// A serialized layer tree record stored in the `layer_tree` table of a [`LazuliArchive`].
+///
+/// Represents a single node in the persisted layer hierarchy. The root layer has both
+/// `parent_id` and `sort_order` set to `None`, whereas all child layers specify their parent
+/// UUID and sibling sort order alongside their layer type tag and serialized property blob.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LayerNode {
     pub id: Uuid,

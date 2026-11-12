@@ -57,6 +57,7 @@ use unic_langid::LanguageIdentifier;
 
 lapiz_i18n::define_i18n!("main_view");
 
+/// Plugin that initializes main view localization and registers [`MainView`] as the application's root [`WindowView`].
 pub struct MainViewPlugin;
 
 impl Plugin for MainViewPlugin {
@@ -68,6 +69,13 @@ impl Plugin for MainViewPlugin {
     }
 }
 
+/// The root [`WindowView`] of the application, owning the [`DockManager`], top menu bar, status bar, and global shortcut dispatch.
+///
+/// `MainView` coordinates top-level workspace state and windowing:
+/// - Builds the [`DockManager`] from [`DockRegistry`] on boot and restores/persists [`DockLayout`] across sessions.
+/// - Renders the custom title bar, [`MenuBar`] (populated from [`MenuBarManifestConfig`] alongside dynamic theme, language, and dock submenus), central dock area, and bottom status bar.
+/// - Listens for [`CanvasCreated`] and [`CanvasRemoved`] events to initialize per-canvas [`ToolProxy`] and [`UndoStack`] instances and open or close the corresponding [`CanvasDock`].
+/// - Processes keyboard events through [`KeyboardState`] to trigger registered actions in [`ActionFunctionRegistry`] or switch tools via [`GlobalToolBindings`].
 pub struct MainView {
     dock_manager: DockManager,
     action_collection: ActionCollection,
@@ -76,6 +84,7 @@ pub struct MainView {
     canvas_group_anchor: Option<DockGroupId>,
 }
 
+/// Messages handled by [`MainView`].
 pub enum MainViewMessage {
     Dock(DockMessage),
     #[cfg(not(target_os = "android"))]
@@ -96,6 +105,7 @@ pub enum MainViewMessage {
     MenuBar(MenuBarMessage),
 }
 
+/// Messages emitted by the top menu bar in [`MainView`].
 #[derive(Clone)]
 pub enum MenuBarMessage {
     TriggerAction(ActionId),

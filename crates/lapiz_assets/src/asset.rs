@@ -23,6 +23,11 @@ use crate::{
 };
 
 wrapper! {
+    /// A type-erased unique identifier for an asset.
+    ///
+    /// Wraps a [`Uuid`] to identify an asset across bundles without compile-time knowledge of its
+    /// concrete asset type. It can be converted into a strongly typed [`AssetId<T>`] via
+    /// [`into_typed`](UntypedAssetId::into_typed).
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Display)]
     #[display("{0}")]
     pub UntypedAssetId: Uuid
@@ -46,6 +51,13 @@ impl ToSql for UntypedAssetId {
     }
 }
 
+/// A strongly-typed unique identifier for an [`Asset`] of type `T`.
+///
+/// This wraps a [`Uuid`] alongside a [`PhantomData<T>`] marker to enforce type safety
+/// at compile time when referencing and retrieving assets.
+///
+/// An [`AssetId`] can be converted into a type-erased [`UntypedAssetId`] via
+/// [`into_untyped`](AssetId::into_untyped) for storage or dynamic dispatch.
 #[derive(Display)]
 #[display("{id}")]
 pub struct AssetId<T: Asset> {
@@ -118,6 +130,18 @@ impl<T: Asset> AssetId<T> {
     }
 }
 
+/// A piece of data that can be loaded, stored, and managed by the asset subsystem.
+///
+/// Types implementing `Asset` can be referenced by typed [`AssetHandle`]s and [`AssetId`]s,
+/// indexed by the [`AssetIndexDb`], and persisted by matching [`AssetSerializer`](crate::loader::AssetSerializer)s.
+///
+/// # Requirements
+///
+/// Implementing types must satisfy `Send + Sync + 'static` and implement [`DowncastSync`] (typically
+/// provided automatically via `downcast_rs`). Each asset must declare a unique [`TYPE_NAME`](Asset::TYPE_NAME)
+/// used as its identifier in database records and metadata.
+///
+/// All types implementing `Asset` automatically implement the type-erased [`ErasedAsset`] trait.
 pub trait Asset: Send + Sync + 'static + DowncastSync {
     const TYPE_NAME: &'static str;
 }
@@ -134,6 +158,10 @@ impl<T: Asset> ErasedAsset for T {
     }
 }
 
+/// Metadata describing an asset stored in the asset system and index database.
+///
+/// Tracks the asset's identity, concrete type name, containing bundle, relative path,
+/// revision number, last modification timestamp, and in-memory residency status.
 #[derive(Debug, Clone)]
 pub struct AssetMetadata {
     pub asset_id: UntypedAssetId,
@@ -145,6 +173,19 @@ pub struct AssetMetadata {
     pub in_memory: bool,
 }
 
+/// A handle to a loaded or indexed asset of type `T`.
+///
+/// `AssetHandle` serves as the primary gateway for interacting with an individual asset.
+/// It holds a typed [`AssetId<T>`], a reference to the asset's parent [`AssetBundleCache`],
+/// and a connection to the [`AssetIndexDb`].
+///
+/// # Capabilities
+///
+/// - **Retrieval**: Load or fetch the cached in-memory instance via [`get`](AssetHandle::get).
+/// - **Modification**: Update the in-memory asset via [`update`](AssetHandle::update) and persist changes
+///   to disk with automated revision tracking via [`write`](AssetHandle::write).
+/// - **Deletion**: Remove the asset from the in-memory cache and index database via [`delete`](AssetHandle::delete).
+/// - **Tagging**: Inspect, assign, and remove categorization [`TagId`]s associated with the asset.
 pub struct AssetHandle<T: Asset> {
     id: AssetId<T>,
     bundle: Arc<AssetBundleCache>,

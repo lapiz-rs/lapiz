@@ -3,6 +3,10 @@ use lapiz_runtime::Renderer;
 
 use crate::flex::{Catalog, Flex, Status, Style};
 
+/// A compact horizontal bar displayed along the bottom edge of a window or workspace.
+///
+/// `StatusBar` arranges its child status indicators inside a full-width, `22px`-tall [`Flex`] row
+/// with a bordered background and muted text styling.
 pub struct StatusBar<'a, Message> {
     inner: Flex<'a, Message>,
 }

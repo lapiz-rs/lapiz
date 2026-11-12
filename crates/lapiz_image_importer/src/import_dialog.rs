@@ -26,6 +26,7 @@ use crate::{
 
 pub const IMPORT_DIALOG_VIEW_ID: &str = "import_dialog";
 
+/// Modal window view that presents format-specific import options before opening an image as a [`CCanvas`].
 pub struct ImportDialogView {
     window: window::Id,
     windows: Arc<[window::Id]>,
@@ -34,6 +35,7 @@ pub struct ImportDialogView {
     local_file: Option<LocalFile>,
 }
 
+/// UI messages handled by [`ImportDialogView`].
 pub enum ImportDialogMessage {
     Importer(ErasedImportDialogMessage),
     Confirm,

@@ -9,6 +9,7 @@ use iced_core::{
 
 const DRAG_DEADBAND: f32 = 10.0;
 
+/// Contextual layout and pointer data passed to [`DragDropColumn`] event callbacks.
 pub struct DragDropInfo<'a> {
     pub dragged_child_bounds: Rectangle,
     pub dragged_index: usize,
@@ -16,6 +17,16 @@ pub struct DragDropInfo<'a> {
     pub mouse_position: Point,
 }
 
+/// A vertical column container that supports pressing, dragging, and dropping its child elements.
+///
+/// `DragDropColumn` lays out its children vertically with configurable [`spacing`](Self::spacing)
+/// and tracks pointer gestures across a deadband threshold before starting a drag operation.
+///
+/// # Callbacks
+///
+/// - [`on_press`](Self::on_press): Invoked immediately when the primary pointer button is pressed on a child.
+/// - [`on_drag`](Self::on_drag): Invoked once pointer movement exceeds the drag deadband and on subsequent moves.
+/// - [`on_drop`](Self::on_drop): Invoked when the primary pointer button is released after dragging.
 pub struct DragDropColumn<'a, Message, Theme = iced_core::Theme, Renderer = lapiz_runtime::Renderer>
 {
     children: Vec<Element<'a, Message, Theme, Renderer>>,
@@ -64,6 +75,7 @@ where
     }
 }
 
+/// Internal pointer tracking state for [`DragDropColumn`].
 #[derive(Debug, Default)]
 struct State {
     action: Action,
@@ -71,6 +83,7 @@ struct State {
     pointer: Point,
 }
 
+/// Current drag gesture phase of a [`DragDropColumn`].
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 enum Action {
     #[default]

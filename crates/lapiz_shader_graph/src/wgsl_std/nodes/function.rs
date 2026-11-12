@@ -29,9 +29,14 @@ use crate::{
 
 static UNIQUE_COUNTER: AtomicU32 = AtomicU32::new(0);
 
+/// A shader graph node that invokes a reusable [`SerializableGraphFunction`] asset inline.
+///
+/// `GraphFunctionNode` dynamically mirrors the input and output signature of the selected function
+/// graph and compiles the function's body with a unique identifier suffix during code generation.
 #[derive(Default, Clone)]
 pub struct GraphFunctionNode;
 
+/// A selectable reference to a [`SerializableGraphFunction`] asset displayed in [`GraphFunctionNode`].
 #[derive(Clone)]
 pub struct GraphFunctionReference {
     pub handle: AssetHandle<SerializableGraphFunction>,
@@ -50,6 +55,7 @@ impl PartialEq for GraphFunctionReference {
     }
 }
 
+/// Per-instance state for [`GraphFunctionNode`], holding the selected function asset handle and its instantiated [`Graph`].
 pub struct GraphFunctionNodeState {
     pub handle: Option<AssetHandle<SerializableGraphFunction>>,
     /// Instantiated when the handle is set (update or deserialize) and cached
@@ -57,6 +63,7 @@ pub struct GraphFunctionNodeState {
     pub cached_graph: Option<Graph>,
 }
 
+/// UI message emitted by [`GraphFunctionNode`].
 #[derive(Clone)]
 pub enum GraphFunctionNodeMessage {
     FunctionChanged(GraphFunctionReference),

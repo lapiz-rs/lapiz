@@ -35,6 +35,7 @@ use crate::{CCanvas, command::LayerPropertyChangeCommand};
 /// used in the row layout).
 const ROW_INDENT: f32 = 20.0;
 
+/// UI messages emitted by [`LayerStackView`] for layer selection, renaming, drag-and-drop reordering, and property edits.
 #[derive(Debug, Clone)]
 pub enum LayerStackMessage {
     LayerPropertyChanged(LayerPropertyChangeCommand),
@@ -50,6 +51,7 @@ pub enum LayerStackMessage {
     DropPreview(Option<DropInfo>),
 }
 
+/// Resolved drag-and-drop target location and indicator line geometry within [`LayerStackView`].
 #[derive(Debug, Clone)]
 pub struct DropInfo {
     pub parent: LayerId,
@@ -293,6 +295,7 @@ fn resolve_target<'b>(
     resolve_drop_target(canvas, &rows, info.mouse_position, dragged_id)
 }
 
+/// View builder that renders the hierarchical layer stack panel, blend mode/opacity controls, and drag-and-drop list for a [`CCanvas`].
 pub struct LayerStackView<'a, Message: Clone + 'a> {
     canvas: &'a CCanvas,
     blend_functions: &'a BlendFunctionRegistry,
@@ -325,6 +328,7 @@ impl<'a, Message: Clone + 'a> LayerStackView<'a, Message> {
     }
 }
 
+/// Overlay widget that draws a horizontal insertion line for an active [`DropInfo`] preview in [`LayerStackView`].
 pub struct DropIndicatorOverlay {
     drop_preview: Option<DropInfo>,
 }

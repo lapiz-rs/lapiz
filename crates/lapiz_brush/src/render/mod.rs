@@ -64,6 +64,7 @@ pub mod stroke_preview;
 const MAX_SAMPLES_PER_INPUT_BATCH: u32 = 256;
 const MAX_INPUTS_PER_BATCH: usize = 32;
 
+/// Metadata describing an active brush stroke session on a specific canvas and target layer.
 pub struct CanvasBrushStrokeSessionInfo {
     pub stroke_id: u64,
     pub stroke_begin: DateTime<Utc>,
@@ -74,6 +75,19 @@ pub struct CanvasBrushStrokeSessionInfo {
     pub selection_layer_format: TexelType,
 }
 
+/// High-level brush operator that drives a [`BrushPresetInstance`] across interactive canvas strokes.
+///
+/// `CanvasBrushPresetOperator` bridges canvas pointer events with the GPU brush engine:
+///
+/// 1. **Compilation & Caching**: Lazily compiles [`BrushPresetInstance`] into a [`BrushPresetRenderer`]
+///    matching the active target and selection [`TexelType`]s, invalidating the cached renderer
+///    when parameters or layer formats change.
+/// 2. **Input Stabilization**: Transforms window pointer coordinates into canvas pixel space and
+///    feeds [`RawPenInput`] samples through [`InputProcessor`] to produce smoothed [`PenInput`] segments.
+/// 3. **Stroke Execution**: Starts a background GPU stroke worker on [`begin_stroke`](Self::begin_stroke),
+///    streams new segments on [`update_stroke`](Self::update_stroke), generates intermediate
+///    [`BrushStrokePreview`]s on [`preview`](Self::preview), and flushes the final
+///    [`BrushStrokeResult`] on [`end_stroke`](Self::end_stroke).
 pub struct CanvasBrushPresetOperator {
     instance: BrushPresetInstance,
     device: Device,
@@ -313,6 +327,7 @@ struct BrushStrokeWorker {
     input_sample_prepared: PreparedInputSamplingPipelineData,
 }
 
+/// Intermediate stroke preview produced during an active brush stroke for live canvas compositing.
 pub struct BrushStrokePreview {
     pub stroke_id: u64,
     pub canvas_id: CanvasId,
@@ -321,6 +336,7 @@ pub struct BrushStrokePreview {
     pub dirty_tiles: IRect,
 }
 
+/// Completed GPU tile storage produced when a brush stroke finishes and is ready to be committed to the undo stack.
 pub struct BrushStrokeResult {
     pub stroke_id: u64,
     pub canvas_id: CanvasId,
@@ -328,6 +344,17 @@ pub struct BrushStrokeResult {
     pub result: DynamicLayerStorage,
 }
 
+/// GPU execution engine for a [`CompiledBrushPreset`].
+///
+/// `BrushPresetRenderer` orchestrates the three-stage GPU brush pipeline for an individual stroke:
+///
+/// 1. **Input Curve Sampling** ([`BrushInputSamplingPipeline`]): Evaluates the spacing shader graph
+///    along incoming cubic Bezier [`PenInputBatch`] segments to emit discrete [`ComputedPenInput`] dabs.
+/// 2. **Main Dab Evaluation & Rendering** ([`BrushMainPipeline`](crate::render::pipeline::BrushMainPipeline)):
+///    Runs an evaluation pass to compute each dab's pixel bounding box, allocates the required
+///    GPU tiles, and dispatches per-dab compute passes that accumulate into the stroke buffer.
+/// 3. **Postprocessing**: Executes the postprocess [`EffectRenderer`](lapiz_effect::render::EffectRenderer)
+///    over the accumulated stroke buffer to produce either a live preview or the final [`DynamicLayerStorage`].
 pub struct BrushPresetRenderer {
     input_sample: Arc<BrushInputSamplingPipeline>,
     resources: StrokeResources,
@@ -854,6 +881,7 @@ fn prepared_literal<T: GraphValueType>(
     Ok(GraphShaderLiteral::new_boxed(Box::new(prepared), ty))
 }
 
+/// GPU storage buffer payload containing a fixed-capacity batch of [`PenInput`] segments for curve sampling.
 #[derive(Clone, Debug, ShaderType)]
 pub struct PenInputBatch {
     pub n_inputs: u32,
@@ -873,6 +901,7 @@ impl PenInputBatch {
     }
 }
 
+/// GPU storage buffer payload holding the [`ComputedPenInput`] dabs emitted by [`BrushInputSamplingPipeline`].
 #[derive(ShaderType, Debug, Clone)]
 pub struct OutputSamples {
     pub n_samples: u32,
@@ -891,6 +920,7 @@ impl Default for OutputSamples {
     }
 }
 
+/// Persistent GPU state carried across [`BrushInputSamplingPipeline`] dispatches within a single stroke.
 #[derive(ShaderType, Debug, Default, Clone, Copy)]
 pub struct InputSampler {
     pub last_input: PenInput,
@@ -902,6 +932,7 @@ pub struct InputSampler {
     pub stroke_distance: f32,
 }
 
+/// Stabilized pen sample with cubic Bezier control points defining a curve segment from the previous input.
 #[derive(ShaderType, Debug, Default, Clone, Copy)]
 pub struct PenInput {
     pub position: Vec2,
@@ -913,6 +944,7 @@ pub struct PenInput {
     pub bezier_control_next: Vec2,
 }
 
+/// Interpolated per-dab pen state produced by GPU curve sampling and consumed by brush shader graphs.
 #[derive(ShaderType, Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub struct ComputedPenInput {
     pub position: Vec2,
@@ -926,18 +958,21 @@ pub struct ComputedPenInput {
     pub time: Time,
 }
 
+/// Timestamp pair recording the current sample time and the stroke start time.
 #[derive(ShaderType, Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub struct Time {
     pub now: f32,
     pub stroke_begin: f32,
 }
 
+/// Pixel bounding box and cumulative stroke bounds computed for a single brush dab.
 #[derive(Clone, Copy, Debug, ShaderType)]
 pub struct DabBounds {
     pub bounds: IVec4,
     pub accumulator_bounds: IVec4,
 }
 
+/// GPU readback buffer payload containing the evaluated [`DabBounds`] for all dabs in a sample batch.
 #[derive(Debug, ShaderType)]
 pub struct BatchBounds {
     pub n_samples: u32,
@@ -962,6 +997,7 @@ impl Default for BatchBounds {
     }
 }
 
+/// Borrowed GPU buffers and prepared layers representing the built-in host inputs to a brush shader.
 pub struct BuiltinHostValues<'a> {
     pub foreground_color: &'a Buffer,
     pub background_color: &'a Buffer,
@@ -970,6 +1006,7 @@ pub struct BuiltinHostValues<'a> {
     pub target_layer: &'a PreparedLayer,
 }
 
+/// Prepared GPU bind group layout and parameter buffers for the brush spacing stage.
 pub struct StrokeResources {
     resource_layout: wgpu::BindGroupLayout,
     builtin_types: BTreeMap<String, Arc<dyn ErasedGraphValueType>>,

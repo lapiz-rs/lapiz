@@ -22,6 +22,7 @@ use wgpu::{
 
 use crate::{CCanvas, CanvasAppExt as _, CanvasId, event::CanvasUpdated};
 
+/// Undoable command that replaces or clears a set of GPU tiles on a target layer and broadcasts [`CanvasUpdated`].
 pub struct TileReplaceCommand {
     pub reason: Cow<'static, str>,
     pub canvas: CanvasId,
@@ -294,6 +295,7 @@ impl UndoCommand for TileReplaceCommand {
     }
 }
 
+/// Undoable command that inserts a new [`LayerStackNode`] into a canvas's layer hierarchy and selects it.
 pub struct InsertLayerCommand {
     canvas: CanvasId,
     layer: LayerStackNode,
@@ -378,6 +380,7 @@ impl UndoCommand for InsertLayerCommand {
     }
 }
 
+/// Undoable command that creates a group layer and moves a set of child layers into it.
 pub struct GroupLayerCommand {
     pub canvas: CanvasId,
     pub group: LayerStackNode,
@@ -386,6 +389,7 @@ pub struct GroupLayerCommand {
     pub index: usize,
 }
 
+/// Records a layer's original parent and sibling position so layer-reordering commands can be undone.
 pub struct LayerWithPosition {
     pub id: LayerId,
     pub original_parent: LayerId,
@@ -459,6 +463,7 @@ impl UndoCommand for GroupLayerCommand {
     }
 }
 
+/// Undoable command that reparents or reorders one or more layers within the canvas layer stack.
 pub struct MoveLayersCommand {
     canvas: CanvasId,
     layers: Vec<LayerWithPosition>,
@@ -578,6 +583,7 @@ struct DeletedNode {
     original_above: Option<LayerId>,
 }
 
+/// Undoable command that removes one or more layer subtrees from a canvas while preserving at least one child of the root layer.
 pub struct DeleteLayersCommand {
     canvas: CanvasId,
     active_layer_from_to: Option<(LayerId, LayerId)>,
@@ -737,6 +743,7 @@ impl UndoCommand for DeleteLayersCommand {
     }
 }
 
+/// Undoable command that updates the [`LayerProperties`] of a specific layer.
 #[derive(Debug, Clone)]
 pub struct LayerPropertyChangeCommand {
     pub canvas: CanvasId,

@@ -24,9 +24,11 @@ use crate::{
 
 pub const CUBIC_CURVE_MAX_CONTROL_POINTS: usize = 16;
 
+/// Shader graph node that remaps a scalar input through an editable [`CubicCurve`].
 #[derive(Default, Clone)]
 pub struct CurveNode;
 
+/// Per-instance state for [`CurveNode`], storing the 2D control points of its cubic spline.
 #[derive(Serialize, Deserialize)]
 pub struct CurveNodeState {
     pub control_points: Vec<Vec2>,
@@ -40,12 +42,14 @@ impl Default for CurveNodeState {
     }
 }
 
+/// Serializable DTO for persisting curve tension and control points.
 #[derive(Serialize, Deserialize)]
 pub struct SerializableCurveNodeState {
     pub tension: f32,
     pub control_points: Vec<Vec2>,
 }
 
+/// UI message emitted by [`CurveNode`].
 #[derive(Clone)]
 pub enum CurveNodeMessage {
     CurveChanged(CubicCurve),

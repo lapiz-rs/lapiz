@@ -100,6 +100,7 @@ pub fn generate_cmd(
     ))
 }
 
+/// Boolean set operation used when combining a new selection mask with the existing selection layer.
 #[derive(Debug, Clone, Copy)]
 #[repr(u32)]
 pub enum SelectionOperation {
@@ -138,6 +139,7 @@ struct SelectionParams {
     operation_ty: u32,
 }
 
+/// GPU rasterization, FXAA smoothing, and boolean compositing pipeline for canvas selection masks.
 pub struct SelectionPipeline {
     render_layout: BindGroupLayout,
     render_pipeline: RenderPipeline,
@@ -528,6 +530,7 @@ impl SelectionPipeline {
     }
 }
 
+/// GPU uniform containing the canvas-to-widget transform and animation time for [`SelectionPreviewPipeline`].
 #[derive(ShaderType, Debug, Clone, Copy)]
 pub struct CanvasUniform {
     pub pixel_to_widget: Mat3,
@@ -536,6 +539,7 @@ pub struct CanvasUniform {
     pub time: f32,
 }
 
+/// Canvas overlay [`Widget`] that renders an in-progress selection contour polyline.
 pub struct SelectionPreviewLayer<'a> {
     pub line_vertices_ps: Cow<'a, [Vec2]>,
     pub canvas_transform: &'a CanvasTransform,
@@ -587,6 +591,7 @@ struct PreparedSelectionPreviewPipeline {
     n_vertices: u32,
 }
 
+/// Custom shader [`Pipeline`] for drawing animated selection preview outlines on the canvas overlay.
 pub struct SelectionPreviewPipeline {
     layout: BindGroupLayout,
     pipeline: RenderPipeline,
@@ -775,6 +780,7 @@ pub(crate) fn indices_from_vertices(
     geometry
 }
 
+/// `iced_wgpu` [`Primitive`] carrying pixel-space polyline vertices for [`SelectionPreviewPipeline`].
 #[derive(Debug)]
 pub struct SelectionPreviewPrimitive {
     pub line_vertices_ps: Vec<Vec2>,

@@ -18,6 +18,12 @@ use crate::{
     },
 };
 
+/// A registry of shader graph value types ([`GraphValueType`]) and implicit type casters ([`GraphVariableCaster`]).
+///
+/// `GraphTypeRegistry` resolves static and parameterized value types (such as fixed-length arrays
+/// and atomic arrays) by their [`GraphValueTypeId`] and determines whether an output slot of one
+/// type can be implicitly cast to an input slot of another type during connection validation and
+/// WGSL code generation.
 #[derive(Default, Clone)]
 pub struct GraphTypeRegistry {
     types: BTreeMap<GraphValueTypeId, Arc<dyn ErasedGraphValueType>>,
@@ -132,12 +138,18 @@ impl GraphTypeRegistry {
     }
 }
 
+/// Defines an implicit WGSL conversion from one [`GraphValueType`] to another.
+///
+/// Registered in a [`GraphTypeRegistry`], a `GraphVariableCaster` allows slots of [`FromType`](Self::FromType)
+/// to connect directly to slots of [`ToType`](Self::ToType) by wrapping the source WGSL
+/// [`Expression`] in a cast expression during code generation.
 pub trait GraphVariableCaster: Send + Sync + 'static + Clone {
     type FromType: GraphValueType + Default;
     type ToType: GraphValueType + Default;
     fn wgsl_cast(&self, variable: Expression) -> Expression;
 }
 
+/// Object-safe, type-erased counterpart to [`GraphVariableCaster`].
 pub trait ErasedGraphVariableCaster: Send + Sync + 'static + DynClone {
     fn wgsl_cast(&self, variable: Expression) -> Expression;
 }
@@ -150,6 +162,7 @@ impl<T: GraphVariableCaster> ErasedGraphVariableCaster for T {
     }
 }
 
+/// Marker trait for CPU-side literal values associated with a [`GraphValueType`].
 pub trait GraphLiteralValue: DynClone + Send + Sync + 'static + Downcast {}
 
 downcast_rs::impl_downcast!(GraphLiteralValue);
@@ -157,12 +170,18 @@ dyn_clone::clone_trait_object!(GraphLiteralValue);
 
 impl<T: Send + Sync + DynClone + 'static> GraphLiteralValue for T {}
 
+/// Marker trait for GPU-prepared shader resources associated with a [`GraphValueType`].
 pub trait GraphShaderLiteralValue: Send + Sync + 'static + Downcast {}
 
 downcast_rs::impl_downcast!(GraphShaderLiteralValue);
 
 impl<T: Send + Sync + 'static> GraphShaderLiteralValue for T {}
 
+/// A type-erased CPU-side literal value paired with its [`ErasedGraphValueType`] descriptor.
+///
+/// `GraphLiteral` stores the fallback value of an unconnected input slot or external parameter,
+/// supporting typed downcasting, UI updates, WGSL literal expression generation, and preparation
+/// into a GPU-bound [`GraphShaderLiteral`].
 #[derive(Clone)]
 pub struct GraphLiteral {
     value: Box<dyn GraphLiteralValue>,
@@ -275,6 +294,11 @@ impl GraphLiteral {
     }
 }
 
+/// A GPU-prepared literal resource paired with its [`ErasedGraphValueType`] descriptor.
+///
+/// Produced by [`GraphLiteral::prepare_to_shader`], `GraphShaderLiteral` holds the GPU buffers or
+/// texture bindings ready to be bound into a compute pipeline via
+/// [`ErasedGraphValueType::push_shader_binding`].
 pub struct GraphShaderLiteral {
     value: Box<dyn GraphShaderLiteralValue>,
     ty: Arc<dyn ErasedGraphValueType>,
@@ -368,6 +392,7 @@ impl GraphShaderLiteral {
     }
 }
 
+/// A named shader variable with an associated [`ErasedGraphValueType`], used in [`GraphSignature`](crate::graph::GraphSignature)s.
 #[derive(Clone)]
 pub struct GraphVariable {
     identifier: String,

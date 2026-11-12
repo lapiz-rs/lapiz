@@ -3,6 +3,11 @@ use lapiz_runtime::Renderer;
 
 use crate::column;
 
+/// A vertical form layout that stacks labeled control pairs.
+///
+/// Each entry added via [`push`](Self::push) or [`extend`](Self::extend) is arranged as a
+/// tight two-row column containing the label above its corresponding value widget, separated
+/// from adjacent entries by uniform vertical spacing.
 pub struct Form<'a, Message> {
     items: Vec<(
         Element<'a, Message, Theme, Renderer>,

@@ -59,6 +59,12 @@ pub fn create_readback_buffer_and_schedule_copy_buffer(
     buffer
 }
 
+/// Handle to an in-flight asynchronous GPU buffer readback operation.
+///
+/// Wraps a oneshot [`Receiver`] that resolves to the decoded value `T` once the staging
+/// [`Buffer`] has been mapped, copied, and unmapped. Results can be awaited asynchronously,
+/// converted into an Iced [`Task`] via [`AsyncBufferReadback::into_task`], or blocked on
+/// synchronously via [`AsyncBufferReadback::block_on`].
 #[derive(Deref, DerefMut)]
 pub struct AsyncBufferReadback<T> {
     rx: Receiver<anyhow::Result<T>>,

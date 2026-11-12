@@ -28,6 +28,7 @@ use crate::instance::{FilterInstance, FilterParameter};
 
 pub mod graph;
 
+/// A target canvas layer snapshot and pixel bounding rectangle prepared for [`FilterRenderer`] execution.
 pub struct FilterLayer {
     pub id: LayerId,
     pub storage: DynamicLayerStorage,
@@ -43,6 +44,14 @@ struct FilterRendererInner {
     chain: Mutex<Option<oneshot::Receiver<()>>>,
 }
 
+/// Compiles and executes a [`FilterInstance`] across one or more canvas layers on the GPU.
+///
+/// `FilterRenderer` validates that the filter's underlying [`EffectInstance`](lapiz_effect::instance::EffectInstance)
+/// declares exactly one [`LayerType`] input slot and one [`LayerType`] output slot, then compiles its
+/// passes into an [`EffectRenderer`]. During execution, it binds each target [`FilterLayer`] alongside
+/// the prepared [`FilterParameter`] uniforms, runs the compute pipeline sequentially per layer, and
+/// serializes asynchronous invocations through an internal oneshot queue so concurrent parameter updates
+/// never interleave GPU resources.
 #[derive(Clone)]
 pub struct FilterRenderer {
     inner: Arc<FilterRendererInner>,

@@ -12,6 +12,7 @@ use lapiz_utils::wrapper;
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
 wrapper! {
+    /// Identifier for a texture asset referenced in a shader graph, or [`TextureId::NULL`] when unset.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
     #[display("{0:?}")]
     pub TextureId : Option<AssetId<Image>>
@@ -28,6 +29,7 @@ impl Default for TextureId {
     }
 }
 
+/// Metadata and asset handle for an [`Image`] available to shader graph texture selectors.
 #[derive(Clone)]
 pub struct TextureObject {
     pub external_id: AssetId<Image>,
@@ -47,6 +49,7 @@ impl fmt::Display for TextureObject {
     }
 }
 
+/// A lookup table mapping [`TextureId`]s to their loaded [`TextureObject`] handles.
 #[derive(Default, Clone)]
 pub struct GraphTextureStorage {
     textures: HashMap<TextureId, TextureObject>,
@@ -85,6 +88,7 @@ impl GraphTextureStorage {
     }
 }
 
+/// Tracks which [`TextureId`]s are referenced during shader compilation and assigns local binding indices.
 #[derive(Default)]
 pub struct GraphTextureUsageRecorder {
     inner: IndexMap<TextureId, u32>,

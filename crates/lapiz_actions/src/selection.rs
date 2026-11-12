@@ -7,6 +7,7 @@ use lapiz_utils::log_err::LogErr as _;
 
 use crate::{ActionFunction, ActionId};
 
+/// Action that clears the current selection mask on the active canvas.
 #[derive(Default)]
 pub struct DeleteSelectionAction;
 

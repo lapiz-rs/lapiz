@@ -14,6 +14,10 @@ pub mod shape;
 
 lapiz_i18n::define_i18n!("selection_tool");
 
+/// A [`Plugin`] that registers the built-in selection tools into [`Globals`](lapiz_runtime::global::Globals).
+///
+/// Registers [`RectangularSelectionTool`], [`EllipticalSelectionTool`], [`FreehandSelectionTool`],
+/// [`PolygonSelectionTool`], and [`MagicWandSelectionTool`].
 pub struct SelectionPlugin;
 
 impl Plugin for SelectionPlugin {

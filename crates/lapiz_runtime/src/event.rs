@@ -23,6 +23,14 @@ pub mod __private {
 
 pub use lapiz_runtime_derive::Event;
 
+/// A typed, process-wide broadcast event that can be published and subscribed to asynchronously.
+///
+/// Each `Event` type is backed by a static `async_broadcast` channel (typically generated via
+/// `#[derive(Event)]`). Callers publish events with [`broadcast`](Event::broadcast) and subscribe
+/// to an `iced` [`Subscription`] stream of future events with [`listen_to`](Event::listen_to).
+///
+/// If the broadcast buffer fills while active receivers are listening, [`broadcast`](Event::broadcast)
+/// automatically doubles the channel capacity to avoid dropping events.
 pub trait Event: Send + Sync + Clone + 'static + Sized {
     fn channel() -> &'static LazyLock<(Sender<Self>, InactiveReceiver<Self>)>;
 

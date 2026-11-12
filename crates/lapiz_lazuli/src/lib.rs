@@ -23,6 +23,19 @@ struct Inner {
     conn: Connection,
 }
 
+/// A SQLite-backed `.lazuli` project archive storing document metadata, layer hierarchy, and tile data.
+///
+/// `LazuliArchive` serves as the native project persistence format. Internally, it manages a
+/// thread-safe SQLite connection (either backed by a file on disk or held in memory) divided
+/// into four logical tables:
+///
+/// - **`metadata`**: Format schema version ([`Metadata`]).
+/// - **`image`**: Singleton document properties such as dimensions, tile size, ICC profile, and root layer ([`ImageProperties`](crate::image_props::ImageProperties)).
+/// - **`layer_tree`**: Hierarchical layer nodes, ordering, types, and serialized properties ([`LayerNode`](crate::layer_tree::LayerNode)).
+/// - **`tile_data`**: Compressed or raw pixel tile blobs indexed by layer UUID and 2D tile coordinates.
+///
+/// An archive created with [`new_in_memory`](Self::new_in_memory) can later be backed up and
+/// transitioned to a file on disk via [`set_path`](Self::set_path).
 pub struct LazuliArchive {
     inner: Arc<Mutex<Inner>>,
 }

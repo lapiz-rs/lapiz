@@ -14,6 +14,20 @@ use lapiz_runtime::{Renderer, Theme};
 
 use crate::text_input::default;
 
+/// A dropdown selection widget with optional type-to-filter search and custom item views.
+///
+/// `ComboBox` displays the currently selected option (or a placeholder when none is selected)
+/// alongside a dropdown arrow indicator. Clicking the widget opens a floating [`Scrollable`]
+/// menu overlay positioned below or above the control depending on available viewport space.
+///
+/// # Features
+///
+/// - **Custom rendering**: Construct with [`ComboBox::new`] for [`Display`] types or
+///   [`ComboBox::new_with`] to supply a custom element view closure for each option.
+/// - **Search filtering**: Enable [`searchable`](Self::searchable) to turn the open control into
+///   a focused text input that filters visible options as the user types.
+/// - **Keyboard & wheel navigation**: Supports `ArrowUp`/`ArrowDown` to cycle options, `Enter` to
+///   confirm, `Escape` to close, and `Ctrl`/`Cmd` + mouse wheel scrolling when closed.
 pub struct ComboBox<'a, T, Message> {
     options: Vec<(T, Element<'a, Message, Theme, Renderer>)>,
     selected: Option<(T, Element<'a, Message, Theme, Renderer>)>,
@@ -175,6 +189,7 @@ impl<'a, T: Clone + PartialEq + 'a, Message: 'a> From<ComboBox<'a, T, Message>>
     }
 }
 
+/// Internal widget state for [`ComboBox`].
 #[derive(Default)]
 struct State {
     input: text::Input<Renderer>,
@@ -677,6 +692,7 @@ impl<'a, T: Clone + PartialEq, Message: 'a> Widget<Message, Theme, Renderer>
     }
 }
 
+/// Internal list widget that lays out and renders filtered [`ComboBox`] options inside the overlay.
 struct List<'a, 'b, T, Message> {
     options: &'b mut [(T, Element<'a, Message, Theme, Renderer>)],
     visible: Vec<usize>,
@@ -921,6 +937,7 @@ impl<T: Clone, Message> Widget<Message, Theme, Renderer> for List<'_, '_, T, Mes
     }
 }
 
+/// Floating dropdown overlay for an open [`ComboBox`].
 struct MenuOverlay<'a: 'b, 'b, Message> {
     position: Point,
     target_height: f32,

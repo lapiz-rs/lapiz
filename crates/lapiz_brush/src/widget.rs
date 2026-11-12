@@ -3,6 +3,7 @@ use lapiz_shader_graph::graph::function::{GraphFunction, GraphFunctionId};
 
 use crate::asset::BrushPreset;
 
+/// List entry representing a selectable [`BrushPreset`] asset in UI lists.
 pub struct BrushPresetListItem {
     pub brush: AssetHandle<BrushPreset>,
     pub name: String,
@@ -20,6 +21,7 @@ impl BrushPresetListItem {
     }
 }
 
+/// Selection and list model managing a collection of [`BrushPresetListItem`]s.
 pub struct BrushPresetListDelegate {
     items: Vec<BrushPresetListItem>,
     selected: Option<usize>,
@@ -61,6 +63,7 @@ impl BrushPresetListDelegate {
     }
 }
 
+/// List entry representing a selectable shader [`GraphFunction`] in UI lists.
 pub struct BrushFunctionItem {
     pub id: GraphFunctionId,
     pub name: String,
@@ -77,6 +80,7 @@ impl BrushFunctionItem {
     }
 }
 
+/// Selection and list model managing a collection of [`BrushFunctionItem`]s.
 pub struct BrushFunctionListDelegate {
     items: Vec<BrushFunctionItem>,
     selected: Option<usize>,

@@ -3,12 +3,17 @@ use lapiz_runtime::Renderer;
 
 use crate::{button, callback::Callback, flex::Flex};
 
+/// A single button item inside a [`SegmentedControl`].
 struct Segment<'a, Message> {
     content: Element<'a, Message, Theme, Renderer>,
     selected: bool,
     message: Callback<'a, Message>,
 }
 
+/// A horizontal row of connected segment buttons for selecting between mutually exclusive modes or views.
+///
+/// `SegmentedControl` renders its segments inside a bordered surface [`Flex`] row,
+/// highlighting active segments with [`Button::activated`](crate::button::Button::activated) styling.
 pub struct SegmentedControl<'a, Message> {
     segments: Vec<Segment<'a, Message>>,
     width: Length,

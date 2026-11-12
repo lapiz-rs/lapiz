@@ -27,9 +27,11 @@ use crate::{
     },
 };
 
+/// Shader graph node that compares two [`F32Type`] scalars using a relational operator and outputs a [`BoolType`].
 #[derive(Default, Clone)]
 pub struct CompareNode;
 
+/// Relational comparison operator for [`CompareNode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display)]
 #[display(style = "snake_case")]
 pub enum CompareNodeMode {
@@ -54,6 +56,7 @@ impl CompareNodeMode {
     ];
 }
 
+/// UI message emitted by [`CompareNode`].
 #[derive(Clone)]
 pub enum CompareNodeMessage {
     ModeChanged(CompareNodeMode),
@@ -148,6 +151,7 @@ impl GraphNode for CompareNode {
     }
 }
 
+/// Shader graph node that selects between two [`F32Type`] scalars based on a [`BoolType`] condition using WGSL `select`.
 #[derive(Default, Clone)]
 pub struct ScalarSelectNode;
 
@@ -189,6 +193,7 @@ impl StatelessCommonGraphNode for ScalarSelectNode {
     }
 }
 
+/// Shader graph node that selects between two [`Vec2FType`] vectors based on a [`BoolType`] condition using WGSL `select`.
 #[derive(Default, Clone)]
 pub struct VectorSelectNode;
 

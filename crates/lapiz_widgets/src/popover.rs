@@ -8,6 +8,7 @@ use iced_core::{
 };
 use lapiz_runtime::Renderer;
 
+/// Relative corner or edge alignment point for anchoring a [`Popover`] to its trigger widget.
 pub enum Anchor {
     TopLeft,
     TopCenter,
@@ -17,6 +18,11 @@ pub enum Anchor {
     BottomRight,
 }
 
+/// A wrapper widget that displays an optional floating overlay anchored to a trigger element.
+///
+/// `Popover` delegates layout, drawing, and interaction to its `trigger` element, and when
+/// [`content`](Self::content) is `Some`, projects that element into an [`overlay::Overlay`]
+/// offset according to the configured [`Anchor`].
 pub struct Popover<'a, Message> {
     trigger: Element<'a, Message, Theme, Renderer>,
     content: Option<Element<'a, Message, Theme, Renderer>>,
@@ -188,6 +194,7 @@ impl<'a, Message: 'a> From<Popover<'a, Message>> for Element<'a, Message, Theme,
     }
 }
 
+/// Internal overlay implementation that positions and renders [`Popover`] content.
 struct Overlay<'a, 'b, Message> {
     position: Point,
     offset: Vector,

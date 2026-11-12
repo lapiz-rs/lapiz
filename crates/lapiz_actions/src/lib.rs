@@ -31,10 +31,14 @@ pub mod selection;
 pub mod window;
 
 wrapper! {
+    /// Unique identifier for a registered [`ActionFunction`].
     #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Display)]
     pub ActionId : Arc<str>
 }
 
+/// Plugin that initializes the [`ActionFunctionRegistry`] and registers built-in application actions.
+///
+/// Registers file, edit, layer, selection, window, and diagnostic actions during [`Plugin::build`].
 pub struct ActionPlugin;
 
 impl Plugin for ActionPlugin {
@@ -64,6 +68,7 @@ impl Plugin for ActionPlugin {
     }
 }
 
+/// Extension trait for registering [`ActionFunction`] implementations on [`Globals`].
 pub trait ActionAppExt {
     fn add_action_function<A: ActionFunction + Default>(&mut self) -> &mut Self;
 }
@@ -75,6 +80,22 @@ impl ActionAppExt for Globals {
     }
 }
 
+/// An executable command that can be invoked by menu items or keyboard shortcuts.
+///
+/// `ActionFunction` defines the contract for user-triggerable operations across the application,
+/// such as creating layers, opening files, or undoing edits. Each action is identified by a unique
+/// [`ActionId`] and registered in the global [`ActionFunctionRegistry`].
+///
+/// # Lifecycle
+///
+/// 1. **Triggering**: When invoked, [`trigger`](ActionFunction::trigger) executes with mutable
+///    access to [`Globals`] and returns an asynchronous [`Task`] producing `Self::Message`.
+/// 2. **Message Handling**: If the task yields a message (such as a file dialog selection or
+///    clipboard payload), [`handle_message`](ActionFunction::handle_message) is called to complete
+///    the operation and optionally schedule follow-up tasks.
+///
+/// All types implementing `ActionFunction` automatically implement the type-erased
+/// [`ErasedActionFunction`] trait.
 pub trait ActionFunction: Send + Sync + 'static {
     type Message: Send + Sync + 'static;
 
@@ -124,6 +145,10 @@ impl<T: ActionFunction> ErasedActionFunction for T {
     }
 }
 
+/// Global registry mapping [`ActionId`]s to type-erased [`ErasedActionFunction`] instances.
+///
+/// Stored in [`Globals`] and populated during plugin initialization via [`ActionAppExt`].
+/// UI menus and shortcut handlers query this registry to look up and execute actions by ID.
 #[derive(Default)]
 pub struct ActionFunctionRegistry {
     functions: HashMap<ActionId, Arc<dyn ErasedActionFunction>>,

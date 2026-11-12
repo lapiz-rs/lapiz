@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ToolId;
 
+/// Associates a [`ToolId`] with a keyboard [`KeySequence`] shortcut.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolBinding {
     pub tool: ToolId,
@@ -20,6 +21,7 @@ fn is_false(b: &bool) -> bool {
 
 pub type ToolBindingManifestConfig = Config<ToolBindingManifest>;
 
+/// Serializable configuration manifest containing named [`ToolBinding`] shortcut mappings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolBindingManifest {
     pub name: String,
@@ -42,11 +44,13 @@ impl Configuration for ToolBindingManifest {
 
 pub type ToolBoxManifestConfig = Config<ToolBoxManifest>;
 
+/// Serializable configuration manifest defining the layout of [`ToolBarGroup`]s in the toolbox UI.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ToolBoxManifest {
     pub groups: Vec<ToolBarGroup>,
 }
 
+/// A named group of [`ToolId`]s displayed together in the toolbox dock.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ToolBarGroup {
     pub name: String,
