@@ -854,12 +854,14 @@ impl DockManager {
                         let select_ids = ids.clone();
                         let detach_ids = ids.clone();
 
-                        let tabs =
-                            tab_bar(ids.iter().map(|id| self.docks[id].display_name()), selected)
-                                .on_select(move |index| TabEvent::Select(select_ids[index].clone()))
-                                .on_reorder(|from, to| TabEvent::Reorder { from, to })
-                                .on_detach(move |index| TabEvent::Detach(detach_ids[index].clone()))
-                                .on_title_drag(|| TabEvent::TitleBarDrag);
+                        let tabs = tab_bar(
+                            ids.iter().map(|id| self.docks[id].display_name(globals)),
+                            selected,
+                        )
+                        .on_select(move |index| TabEvent::Select(select_ids[index].clone()))
+                        .on_reorder(|from, to| TabEvent::Reorder { from, to })
+                        .on_detach(move |index| TabEvent::Detach(detach_ids[index].clone()))
+                        .on_title_drag(|| TabEvent::TitleBarDrag);
 
                         let Some(active) = group.active() else {
                             return pane_grid::Content::new(Element::new(space()));
@@ -917,11 +919,14 @@ impl DockManager {
             let select_ids = ids.clone();
             let detach_ids = ids.clone();
 
-            let tabs = tab_bar(ids.iter().map(|id| self.docks[id].display_name()), selected)
-                .on_select(move |index| TabEvent::Select(select_ids[index].clone()))
-                .on_reorder(|from, to| TabEvent::Reorder { from, to })
-                .on_detach(move |index| TabEvent::Detach(detach_ids[index].clone()))
-                .on_title_drag(|| TabEvent::TitleBarDrag);
+            let tabs = tab_bar(
+                ids.iter().map(|id| self.docks[id].display_name(globals)),
+                selected,
+            )
+            .on_select(move |index| TabEvent::Select(select_ids[index].clone()))
+            .on_reorder(|from, to| TabEvent::Reorder { from, to })
+            .on_detach(move |index| TabEvent::Detach(detach_ids[index].clone()))
+            .on_title_drag(|| TabEvent::TitleBarDrag);
             let active = group.active()?;
             let tabs = context_menu(
                 tabs,

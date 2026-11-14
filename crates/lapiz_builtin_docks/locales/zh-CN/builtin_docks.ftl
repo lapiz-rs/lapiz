@@ -22,3 +22,4 @@ settings = 设置
 no_tool_options = 此工具没有选项
 canvas_dock = 画布 { $name }
 recent_files_dock = 最近文件
+canvas_dock_untitled = 未命名画布
