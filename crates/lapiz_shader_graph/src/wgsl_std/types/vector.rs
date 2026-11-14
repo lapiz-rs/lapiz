@@ -45,6 +45,7 @@ macro_rules! vector_type {
 
         impl GraphValueType for $name {
             type AssociatedLiteralType = $literal;
+            type MetadataType = ();
             type PreparedShaderType = Buffer;
             type Message = VectorMessage<$scalar>;
 
@@ -59,6 +60,8 @@ macro_rules! vector_type {
             fn default_literal(&self) -> Self::AssociatedLiteralType {
                 $zero
             }
+
+            fn default_metadata(&self) -> Self::MetadataType {}
 
             fn wgsl_type_name(&self) -> Option<&'static str> {
                 Some($wgsl)
@@ -101,6 +104,7 @@ macro_rules! vector_type {
             fn view_literal(
                 &self,
                 data: &Self::AssociatedLiteralType,
+                _metadata: &Self::MetadataType,
                 _assets: &lapiz_assets::store::AssetRegistry,
             ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
                 let controls = (0..$len)
@@ -116,6 +120,7 @@ macro_rules! vector_type {
             fn update_literal(
                 &self,
                 data: &mut Self::AssociatedLiteralType,
+                _metadata: &mut Self::MetadataType,
                 message: Self::Message,
             ) {
                 data[message.index] = message.value;

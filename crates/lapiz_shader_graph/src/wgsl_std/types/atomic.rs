@@ -45,6 +45,7 @@ macro_rules! atomic_type {
 
         impl GraphValueType for $name {
             type AssociatedLiteralType = $value;
+            type MetadataType = ();
             type PreparedShaderType = Buffer;
             type Message = ();
 
@@ -131,6 +132,8 @@ macro_rules! atomic_type {
                 0
             }
 
+            fn default_metadata(&self) -> Self::MetadataType {}
+
             fn wgsl_type_name(&self) -> Option<&'static str> {
                 None
             }
@@ -142,12 +145,13 @@ macro_rules! atomic_type {
             fn view_literal(
                 &self,
                 _data: &Self::AssociatedLiteralType,
+                _metadata: &Self::MetadataType,
                 _assets: &lapiz_assets::store::AssetRegistry,
             ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
                 Element::new(space())
             }
 
-            fn update_literal(&self, _data: &mut Self::AssociatedLiteralType, _message: Self::Message) {}
+            fn update_literal(&self, _data: &mut Self::AssociatedLiteralType, _metadata: &mut Self::MetadataType, _message: Self::Message) {}
 
             fn literal_to_code(&self, _data: &Self::AssociatedLiteralType) -> Option<Expression> {
                 None
@@ -182,6 +186,7 @@ macro_rules! atomic_array_type {
 
         impl GraphValueType for $name {
             type AssociatedLiteralType = Vec<$value>;
+            type MetadataType = ();
             type PreparedShaderType = PreparedAtomicArray;
             type Message = ();
 
@@ -280,6 +285,8 @@ macro_rules! atomic_array_type {
                 vec![0; self.len as usize]
             }
 
+            fn default_metadata(&self) -> Self::MetadataType {}
+
             fn wgsl_type_name(&self) -> Option<&'static str> {
                 None
             }
@@ -291,12 +298,13 @@ macro_rules! atomic_array_type {
             fn view_literal(
                 &self,
                 _data: &Self::AssociatedLiteralType,
+                _metadata: &Self::MetadataType,
                 _assets: &lapiz_assets::store::AssetRegistry,
             ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
                 Element::new(space())
             }
 
-            fn update_literal(&self, _data: &mut Self::AssociatedLiteralType, _message: Self::Message) {}
+            fn update_literal(&self, _data: &mut Self::AssociatedLiteralType, _metadata: &mut Self::MetadataType, _message: Self::Message) {}
 
             fn literal_to_code(&self, _data: &Self::AssociatedLiteralType) -> Option<Expression> {
                 None

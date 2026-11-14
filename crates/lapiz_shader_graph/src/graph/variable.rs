@@ -170,6 +170,13 @@ dyn_clone::clone_trait_object!(GraphLiteralValue);
 
 impl<T: Send + Sync + DynClone + 'static> GraphLiteralValue for T {}
 
+pub trait GraphLiteralMetadata: DynClone + Send + Sync + 'static + Downcast {}
+
+downcast_rs::impl_downcast!(GraphLiteralMetadata);
+dyn_clone::clone_trait_object!(GraphLiteralMetadata);
+
+impl<T: Send + Sync + DynClone + 'static> GraphLiteralMetadata for T {}
+
 /// Marker trait for GPU-prepared shader resources associated with a [`GraphValueType`].
 pub trait GraphShaderLiteralValue: Send + Sync + 'static + Downcast {}
 
@@ -185,31 +192,50 @@ impl<T: Send + Sync + 'static> GraphShaderLiteralValue for T {}
 #[derive(Clone)]
 pub struct GraphLiteral {
     value: Box<dyn GraphLiteralValue>,
+    metadata: Box<dyn GraphLiteralMetadata>,
     ty: Arc<dyn ErasedGraphValueType>,
 }
 
 impl GraphLiteral {
-    pub fn new<T: GraphValueType + Default>(value: T::AssociatedLiteralType) -> Self {
+    pub fn new<T: GraphValueType + Default>(
+        value: T::AssociatedLiteralType,
+        metadata: T::MetadataType,
+    ) -> Self {
         Self {
             value: Box::new(value),
+            metadata: Box::new(metadata),
             ty: Arc::new(T::default()),
         }
     }
 
-    pub fn new_non_default<T: GraphValueType>(value: T::AssociatedLiteralType, ty: T) -> Self {
+    pub fn new_non_default<T: GraphValueType>(
+        value: T::AssociatedLiteralType,
+        metadata: T::MetadataType,
+        ty: T,
+    ) -> Self {
         Self {
             value: Box::new(value),
+            metadata: Box::new(metadata),
             ty: Arc::new(ty),
         }
     }
 
-    pub fn new_boxed(value: Box<dyn GraphLiteralValue>, ty: Arc<dyn ErasedGraphValueType>) -> Self {
-        Self { value, ty }
+    pub fn new_boxed(
+        value: Box<dyn GraphLiteralValue>,
+        metadata: Box<dyn GraphLiteralMetadata>,
+        ty: Arc<dyn ErasedGraphValueType>,
+    ) -> Self {
+        Self {
+            value,
+            metadata,
+            ty,
+        }
     }
 
     pub fn new_boxed_default(ty: Arc<dyn ErasedGraphValueType>) -> Self {
         Self {
             value: ty.default_literal(),
+            metadata: ty.default_metadata(),
             ty,
         }
     }
@@ -251,12 +277,36 @@ impl GraphLiteral {
         self.value.downcast_mut::<T>()
     }
 
+    pub fn metadata_as_ref<T: GraphLiteralMetadata>(&self) -> &T {
+        self.metadata
+            .downcast_ref::<T>()
+            .expect("Failed to downcast Literal metadata")
+    }
+
+    pub fn metadata_as_mut<T: GraphLiteralMetadata>(&mut self) -> &mut T {
+        self.metadata
+            .downcast_mut::<T>()
+            .expect("Failed to downcast Literal metadata")
+    }
+
+    pub fn metadata_try_as_ref<T: GraphLiteralMetadata>(&self) -> Option<&T> {
+        self.metadata.downcast_ref::<T>()
+    }
+
+    pub fn metadata_try_as_mut<T: GraphLiteralMetadata>(&mut self) -> Option<&mut T> {
+        self.metadata.downcast_mut::<T>()
+    }
+
     pub fn ty(&self) -> &Arc<dyn ErasedGraphValueType> {
         &self.ty
     }
 
     pub fn value(&self) -> &dyn GraphLiteralValue {
         self.value.as_ref()
+    }
+
+    pub fn metadata(&self) -> &dyn GraphLiteralMetadata {
+        self.metadata.as_ref()
     }
 
     pub fn set<T: GraphLiteralValue>(&mut self, value: T) {
@@ -275,8 +325,25 @@ impl GraphLiteral {
         }
     }
 
+    pub fn set_metadata<T: GraphLiteralMetadata>(&mut self, metadata: T) {
+        if let Some(x) = self.metadata.downcast_mut() {
+            *x = metadata;
+        } else {
+            log::error!("Setting a Literal metadata with a different type");
+        }
+    }
+
+    pub fn setmetadata_boxed(&mut self, metadata: Box<dyn GraphLiteralMetadata>) {
+        if metadata.as_ref().type_id() == self.metadata.as_ref().type_id() {
+            self.metadata = metadata;
+        } else {
+            log::error!("Setting a Literal metadata with a different type");
+        }
+    }
+
     pub fn update(&mut self, message: ErasedGraphLiteralUpdateMessage) {
-        self.ty.update_literal(self.value.as_mut(), message);
+        self.ty
+            .update_literal(self.value.as_mut(), self.metadata.as_mut(), message);
     }
 
     pub fn to_code(&self) -> Option<Expression> {

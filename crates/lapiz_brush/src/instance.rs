@@ -131,9 +131,7 @@ impl BrushPresetInstance {
                             })
                             .ok()
                     })
-                    .unwrap_or_else(|| {
-                        GraphLiteral::new_boxed(slot.ty.default_literal(), slot.ty.clone())
-                    });
+                    .unwrap_or_else(|| GraphLiteral::new_boxed_default(slot.ty.clone()));
                 parameters.insert(
                     *id,
                     BrushParameter {
@@ -253,7 +251,7 @@ impl BrushPresetInstance {
                     .entry(*id)
                     .or_insert_with(|| BrushParameter {
                         name: slot.name.clone(),
-                        value: GraphLiteral::new_boxed(slot.ty.default_literal(), slot.ty.clone()),
+                        value: GraphLiteral::new_boxed_default(slot.ty.clone()),
                     });
                 parameter.name = slot.name.clone();
             }

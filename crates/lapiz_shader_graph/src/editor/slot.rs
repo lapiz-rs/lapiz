@@ -178,7 +178,7 @@ pub fn input_slot<'a>(
             SlotSide::Left,
             slot.data
                 .ty()
-                .view_literal(slot_id, slot.data.value(), assets),
+                .view_literal(slot_id, slot.data.value(), slot.data.metadata(), assets),
         ),
     }
 }

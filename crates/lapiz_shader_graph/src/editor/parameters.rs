@@ -91,6 +91,7 @@ impl<'a, Message> Component<'a, Message, GraphTheme, GraphRenderer>
                     .view_literal(
                         GraphInputSlotId::new(Uuid::nil()),
                         value.value(),
+                        value.metadata(),
                         self.assets,
                     )
                     .map(move |message| {

@@ -83,6 +83,7 @@ pub struct ComputedPenInputValueType;
 
 impl GraphValueType for ComputedPenInputValueType {
     type AssociatedLiteralType = ComputedPenInput;
+    type MetadataType = ();
     type PreparedShaderType = Buffer;
     type Message = ();
 
@@ -144,6 +145,8 @@ impl GraphValueType for ComputedPenInputValueType {
         ComputedPenInput::default()
     }
 
+    fn default_metadata(&self) -> Self::MetadataType {}
+
     fn wgsl_type_name(&self) -> Option<&'static str> {
         None
     }
@@ -153,11 +156,12 @@ impl GraphValueType for ComputedPenInputValueType {
     fn view_literal(
         &self,
         _: &ComputedPenInput,
+        _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> GraphElement<'static, ()> {
         Void.into()
     }
-    fn update_literal(&self, _: &mut ComputedPenInput, _: ()) {}
+    fn update_literal(&self, _: &mut ComputedPenInput, _metadata: &mut Self::MetadataType, _: ()) {}
     fn literal_to_code(&self, _: &ComputedPenInput) -> Option<Expression> {
         None
     }

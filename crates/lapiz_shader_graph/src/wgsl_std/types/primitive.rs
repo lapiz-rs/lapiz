@@ -9,7 +9,7 @@ use lapiz_render::{
     bind_group_layout_entries::DynamicBindGroupLayoutEntries,
 };
 use lapiz_utils::random_oklch_hue_chroma;
-use lapiz_widgets::{checkbox, spin_slider};
+use lapiz_widgets::{checkbox, context_menu, label, menu, row, spin_box, spin_slider};
 use serde::Deserialize as _;
 use wesl::syntax::{
     BinaryExpression, BinaryOperator, Expression, Ident, LiteralExpression, Span, Spanned,
@@ -27,15 +27,40 @@ use crate::{
     save::GraphValueTypeId,
 };
 
+#[derive(Clone)]
+pub struct F32Metadata {
+    pub min: f32,
+    pub max: f32,
+    pub allow_beyond_range: bool,
+}
+
+impl Default for F32Metadata {
+    fn default() -> Self {
+        Self {
+            min: 0.0,
+            max: 1.0,
+            allow_beyond_range: true,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum F32Message {
+    Value(f32),
+    Min(f32),
+    Max(f32),
+    AllowBeyondRange(bool),
+}
+
 /// Shader graph value type representing a 32-bit floating-point scalar (`f32`).
 #[derive(Default, Clone)]
 pub struct F32Type;
 
 impl GraphValueType for F32Type {
     type AssociatedLiteralType = f32;
+    type MetadataType = F32Metadata;
     type PreparedShaderType = Buffer;
-
-    type Message = f32;
+    type Message = F32Message;
 
     fn hue_chroma(&self) -> (f32, f32) {
         random_oklch_hue_chroma!(F32Type)
@@ -47,6 +72,10 @@ impl GraphValueType for F32Type {
 
     fn default_literal(&self) -> Self::AssociatedLiteralType {
         0.0
+    }
+
+    fn default_metadata(&self) -> Self::MetadataType {
+        F32Metadata::default()
     }
 
     fn wgsl_type_name(&self) -> Option<&'static str> {
@@ -85,16 +114,51 @@ impl GraphValueType for F32Type {
     fn view_literal(
         &self,
         data: &Self::AssociatedLiteralType,
+        metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
-        spin_slider(0.0..=1.0, *data)
-            .on_change(identity)
-            .step(0.01)
-            .into()
+        context_menu(
+            spin_slider(metadata.min..=metadata.max, *data)
+                .allow_beyond_range(metadata.allow_beyond_range)
+                .on_change(F32Message::Value)
+                .step(0.01),
+            menu()
+                .element(
+                    "min",
+                    row![
+                        label("Min"),
+                        spin_box(&metadata.min, -1e5..metadata.max, F32Message::Min),
+                    ]
+                )
+                .element(
+                    "max",
+                    row![
+                        label("Max"),
+                        spin_box(&metadata.max, metadata.min..1e5, F32Message::Max),
+                    ]
+                )
+                .element(
+                    "allow_beyond_range",
+                    checkbox(metadata.allow_beyond_range)
+                        .on_toggle(F32Message::AllowBeyondRange)
+                        .label("Allow Beyond Range"),
+                ),
+        )
+        .into()
     }
 
-    fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message) {
-        *data = message;
+    fn update_literal(
+        &self,
+        data: &mut Self::AssociatedLiteralType,
+        metadata: &mut Self::MetadataType,
+        message: Self::Message,
+    ) {
+        match message {
+            F32Message::Value(value) => *data = value,
+            F32Message::Min(min) => metadata.min = min,
+            F32Message::Max(max) => metadata.max = max,
+            F32Message::AllowBeyondRange(allow) => metadata.allow_beyond_range = allow,
+        }
     }
 
     fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {
@@ -124,6 +188,7 @@ pub struct I32Type;
 
 impl GraphValueType for I32Type {
     type AssociatedLiteralType = i32;
+    type MetadataType = ();
     type PreparedShaderType = Buffer;
 
     type Message = i32;
@@ -139,6 +204,8 @@ impl GraphValueType for I32Type {
     fn default_literal(&self) -> Self::AssociatedLiteralType {
         0
     }
+
+    fn default_metadata(&self) -> Self::MetadataType {}
 
     fn wgsl_type_name(&self) -> Option<&'static str> {
         Some("i32")
@@ -180,12 +247,18 @@ impl GraphValueType for I32Type {
     fn view_literal(
         &self,
         data: &Self::AssociatedLiteralType,
+        _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
         spin_slider(-10..=10, *data).on_change(identity).into()
     }
 
-    fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message) {
+    fn update_literal(
+        &self,
+        data: &mut Self::AssociatedLiteralType,
+        _metadata: &mut Self::MetadataType,
+        message: Self::Message,
+    ) {
         *data = message;
     }
 
@@ -212,6 +285,7 @@ pub struct U32Type;
 
 impl GraphValueType for U32Type {
     type AssociatedLiteralType = u32;
+    type MetadataType = ();
     type PreparedShaderType = Buffer;
     type Message = u32;
 
@@ -226,6 +300,8 @@ impl GraphValueType for U32Type {
     fn default_literal(&self) -> Self::AssociatedLiteralType {
         0
     }
+
+    fn default_metadata(&self) -> Self::MetadataType {}
 
     fn wgsl_type_name(&self) -> Option<&'static str> {
         Some("u32")
@@ -267,12 +343,18 @@ impl GraphValueType for U32Type {
     fn view_literal(
         &self,
         data: &Self::AssociatedLiteralType,
+        _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
         spin_slider(0..=10, *data).on_change(identity).into()
     }
 
-    fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message) {
+    fn update_literal(
+        &self,
+        data: &mut Self::AssociatedLiteralType,
+        _metadata: &mut Self::MetadataType,
+        message: Self::Message,
+    ) {
         *data = message;
     }
 
@@ -299,6 +381,7 @@ pub struct BoolType;
 
 impl GraphValueType for BoolType {
     type AssociatedLiteralType = bool;
+    type MetadataType = ();
     type PreparedShaderType = Buffer;
 
     type Message = bool;
@@ -314,6 +397,8 @@ impl GraphValueType for BoolType {
     fn default_literal(&self) -> Self::AssociatedLiteralType {
         false
     }
+
+    fn default_metadata(&self) -> Self::MetadataType {}
 
     fn wgsl_type_name(&self) -> Option<&'static str> {
         Some("bool")
@@ -383,12 +468,18 @@ impl GraphValueType for BoolType {
     fn view_literal(
         &self,
         data: &Self::AssociatedLiteralType,
+        _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
         checkbox(*data).on_toggle(identity).into()
     }
 
-    fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message) {
+    fn update_literal(
+        &self,
+        data: &mut Self::AssociatedLiteralType,
+        _metadata: &mut Self::MetadataType,
+        message: Self::Message,
+    ) {
         *data = message;
     }
 

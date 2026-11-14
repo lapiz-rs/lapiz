@@ -111,6 +111,7 @@ impl<'de> Deserialize<'de> for TextureReference {
 
 impl GraphValueType for TextureType {
     type AssociatedLiteralType = TextureReference;
+    type MetadataType = ();
     type PreparedShaderType = wgpu::TextureView;
     type Message = TextureChanged;
 
@@ -232,6 +233,8 @@ impl GraphValueType for TextureType {
         TextureReference::NULL
     }
 
+    fn default_metadata(&self) -> Self::MetadataType {}
+
     fn wgsl_type_name(&self) -> Option<&'static str> {
         None
     }
@@ -239,6 +242,7 @@ impl GraphValueType for TextureType {
     fn view_literal(
         &self,
         data: &Self::AssociatedLiteralType,
+        _metadata: &Self::MetadataType,
         assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
         let options = assets.all_handles_of::<Image>().unwrap_or_default();
@@ -255,7 +259,12 @@ impl GraphValueType for TextureType {
         .into()
     }
 
-    fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message) {
+    fn update_literal(
+        &self,
+        data: &mut Self::AssociatedLiteralType,
+        _metadata: &mut Self::MetadataType,
+        message: Self::Message,
+    ) {
         data.texture = Some(message.0);
     }
 
@@ -333,6 +342,7 @@ impl PreparedLayer {
 
 impl GraphValueType for LayerType {
     type AssociatedLiteralType = LayerReference;
+    type MetadataType = ();
     type PreparedShaderType = PreparedLayer;
     type Message = ();
 
@@ -735,6 +745,8 @@ impl GraphValueType for LayerType {
         LayerReference
     }
 
+    fn default_metadata(&self) -> Self::MetadataType {}
+
     fn wgsl_type_name(&self) -> Option<&'static str> {
         None
     }
@@ -742,12 +754,19 @@ impl GraphValueType for LayerType {
     fn view_literal(
         &self,
         _data: &Self::AssociatedLiteralType,
+        _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
         Element::new(space())
     }
 
-    fn update_literal(&self, _data: &mut Self::AssociatedLiteralType, _message: Self::Message) {}
+    fn update_literal(
+        &self,
+        _data: &mut Self::AssociatedLiteralType,
+        _metadata: &mut Self::MetadataType,
+        _message: Self::Message,
+    ) {
+    }
 }
 
 /// Shader graph value type representing a fixed-length storage buffer array (`array<T>`) of a primitive, vector, or compound element type.
@@ -779,6 +798,7 @@ pub struct PreparedArray {
 
 impl GraphValueType for ArrayType {
     type AssociatedLiteralType = ArrayLiteral;
+    type MetadataType = ();
     type PreparedShaderType = PreparedArray;
     type Message = ArrayLiteralUpdateMessage;
 
@@ -941,6 +961,8 @@ impl GraphValueType for ArrayType {
         }
     }
 
+    fn default_metadata(&self) -> Self::MetadataType {}
+
     fn wgsl_type_name(&self) -> Option<&'static str> {
         None
     }
@@ -948,8 +970,9 @@ impl GraphValueType for ArrayType {
     fn view_literal<'a>(
         &self,
         data: &'a Self::AssociatedLiteralType,
+        _metadata: &'a Self::MetadataType,
         assets: &AssetRegistry,
-    ) -> Element<'a, Self::Message, GraphTheme, GraphRenderer> {
+    ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
         let elements = data
             .elements
             .iter()
@@ -959,7 +982,7 @@ impl GraphValueType for ArrayType {
                     label(index.to_string()).width(24).muted(),
                     element
                         .ty()
-                        .view_literal(GraphInputSlotId::new(Uuid::nil()), element.value(), assets,)
+                        .view_literal(GraphInputSlotId::new(Uuid::nil()), element.value(), element.metadata(), assets)
                         .map(move |message| ArrayLiteralUpdateMessage { index, message }),
                 ]
                 .gap(4.0)
@@ -969,7 +992,12 @@ impl GraphValueType for ArrayType {
         Flex::column(elements).gap(4.0).into()
     }
 
-    fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message) {
+    fn update_literal(
+        &self,
+        data: &mut Self::AssociatedLiteralType,
+        _metadata: &mut Self::MetadataType,
+        message: Self::Message,
+    ) {
         data.elements
             .get_mut(message.index)
             .expect("array literal update index is valid")
@@ -1029,7 +1057,7 @@ impl GraphValueType for ArrayType {
             .map(|value| {
                 self.element_type
                     .deserialize_literal(value, assets)
-                    .map(|value| GraphLiteral::new_boxed(value, self.element_type.clone()))
+                    .map(|value| GraphLiteral::new_boxed(value, self.element_type.default_metadata(), self.element_type.clone()))
             })
             .collect::<Result<_>>()?;
         Ok(ArrayLiteral { elements })

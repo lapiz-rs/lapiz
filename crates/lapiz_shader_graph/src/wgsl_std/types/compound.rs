@@ -39,6 +39,7 @@ pub enum ColorMessage {
 
 impl GraphValueType for ColorType {
     type AssociatedLiteralType = Vec4;
+    type MetadataType = ();
     type PreparedShaderType = Buffer;
 
     type Message = ColorMessage;
@@ -58,6 +59,8 @@ impl GraphValueType for ColorType {
     fn default_literal(&self) -> Self::AssociatedLiteralType {
         Vec4::ZERO
     }
+
+    fn default_metadata(&self) -> Self::MetadataType {}
 
     fn wgsl_type_name(&self) -> Option<&'static str> {
         Some("vec4f")
@@ -93,6 +96,7 @@ impl GraphValueType for ColorType {
     fn view_literal(
         &self,
         data: &Self::AssociatedLiteralType,
+        _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
         column![
@@ -114,7 +118,12 @@ impl GraphValueType for ColorType {
         .into()
     }
 
-    fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message) {
+    fn update_literal(
+        &self,
+        data: &mut Self::AssociatedLiteralType,
+        _metadata: &mut Self::MetadataType,
+        message: Self::Message,
+    ) {
         match message {
             ColorMessage::R(r) => data.x = r,
             ColorMessage::G(g) => data.y = g,
@@ -165,6 +174,7 @@ pub enum RectMessage {
 
 impl GraphValueType for RectType {
     type AssociatedLiteralType = Rect;
+    type MetadataType = ();
     type PreparedShaderType = Buffer;
 
     type Message = RectMessage;
@@ -184,6 +194,8 @@ impl GraphValueType for RectType {
     fn default_literal(&self) -> Self::AssociatedLiteralType {
         Rect::default()
     }
+
+    fn default_metadata(&self) -> Self::MetadataType {}
 
     fn wgsl_type_name(&self) -> Option<&'static str> {
         Some("render::math::Rect")
@@ -226,6 +238,7 @@ impl GraphValueType for RectType {
     fn view_literal(
         &self,
         data: &Self::AssociatedLiteralType,
+        _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
         column![
@@ -239,7 +252,12 @@ impl GraphValueType for RectType {
         .into()
     }
 
-    fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message) {
+    fn update_literal(
+        &self,
+        data: &mut Self::AssociatedLiteralType,
+        _metadata: &mut Self::MetadataType,
+        message: Self::Message,
+    ) {
         match message {
             RectMessage::MinX(x) => data.min.x = x,
             RectMessage::MinY(y) => data.min.y = y,

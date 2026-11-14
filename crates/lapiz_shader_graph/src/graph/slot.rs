@@ -27,7 +27,9 @@ use crate::{
     GraphElement,
     graph::{
         node::{GraphNodeCodeGenContext, GraphNodeId},
-        variable::{GraphLiteral, GraphLiteralValue, GraphShaderLiteralValue},
+        variable::{
+            GraphLiteral, GraphLiteralMetadata, GraphLiteralValue, GraphShaderLiteralValue,
+        },
     },
     save::GraphValueTypeId,
 };
@@ -156,6 +158,7 @@ pub enum GraphShaderStage {
 ///   [`handle_output_values`](Self::handle_output_values).
 pub trait GraphValueType: Send + Sync + 'static + DynClone {
     type AssociatedLiteralType: GraphLiteralValue;
+    type MetadataType: GraphLiteralMetadata;
     // TODO Better naming
     // This means the resources that is uploaded to gpu and can be binded in pipelines.
     type PreparedShaderType: GraphShaderLiteralValue;
@@ -237,6 +240,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
     }
 
     fn default_literal(&self) -> Self::AssociatedLiteralType;
+    fn default_metadata(&self) -> Self::MetadataType;
     fn wgsl_type_name(&self) -> Option<&'static str>;
     fn wgsl_array_element_stride(&self) -> Option<u64> {
         None
@@ -245,10 +249,16 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
     fn view_literal<'a>(
         &self,
         data: &'a Self::AssociatedLiteralType,
+        metadata: &'a Self::MetadataType,
         // TODO should this change to GraphResources?
         assets: &AssetRegistry,
-    ) -> GraphElement<'a, Self::Message>;
-    fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message);
+    ) -> GraphElement<'static, Self::Message>;
+    fn update_literal(
+        &self,
+        data: &mut Self::AssociatedLiteralType,
+        metadata: &mut Self::MetadataType,
+        message: Self::Message,
+    );
     fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression>;
 
     fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
@@ -364,6 +374,7 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
     }
 
     fn default_literal(&self) -> Box<dyn GraphLiteralValue>;
+    fn default_metadata(&self) -> Box<dyn GraphLiteralMetadata>;
     fn wgsl_type_name(&self) -> Option<&'static str>;
     fn wgsl_array_element_stride(&self) -> Option<u64> {
         None
@@ -372,11 +383,13 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
         &self,
         slot_id: GraphInputSlotId,
         data: &'a dyn GraphLiteralValue,
+        metadata: &'a dyn GraphLiteralMetadata,
         assets: &AssetRegistry,
-    ) -> GraphElement<'a, ErasedGraphLiteralUpdateMessage>;
+    ) -> GraphElement<'static, ErasedGraphLiteralUpdateMessage>;
     fn update_literal(
         &self,
         data: &mut dyn GraphLiteralValue,
+        metadata: &mut dyn GraphLiteralMetadata,
         message: ErasedGraphLiteralUpdateMessage,
     );
     fn literal_to_code(&self, data: &dyn GraphLiteralValue) -> Option<Expression>;
@@ -503,6 +516,10 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         Box::new(self.default_literal())
     }
 
+    fn default_metadata(&self) -> Box<dyn GraphLiteralMetadata> {
+        Box::new(self.default_metadata())
+    }
+
     fn wgsl_type_name(&self) -> Option<&'static str> {
         GraphValueType::wgsl_type_name(self)
     }
@@ -515,11 +532,15 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         &self,
         slot_id: GraphInputSlotId,
         data: &'a dyn GraphLiteralValue,
+        metadata: &'a dyn GraphLiteralMetadata,
         assets: &AssetRegistry,
-    ) -> GraphElement<'a, ErasedGraphLiteralUpdateMessage> {
+    ) -> GraphElement<'static, ErasedGraphLiteralUpdateMessage> {
         self.view_literal(
             data.downcast_ref::<T::AssociatedLiteralType>()
                 .expect("failed to downcast graph literal"),
+            metadata
+                .downcast_ref::<T::MetadataType>()
+                .expect("failed to downcast graph literal metadata"),
             assets,
         )
         .map(move |message| ErasedGraphLiteralUpdateMessage {
@@ -531,6 +552,7 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
     fn update_literal(
         &self,
         data: &mut dyn GraphLiteralValue,
+        metadata: &mut dyn GraphLiteralMetadata,
         message: ErasedGraphLiteralUpdateMessage,
     ) {
         let data = data
@@ -540,7 +562,11 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
             Ok(message) => message,
             Err(_) => panic!("failed to downcast graph literal message"),
         };
-        self.update_literal(data, *message);
+        let metadata = metadata
+            .downcast_mut::<T::MetadataType>()
+            .expect("failed to downcast graph literal metadata");
+
+        self.update_literal(data, metadata, *message);
     }
 
     fn literal_to_code(&self, data: &dyn GraphLiteralValue) -> Option<Expression> {
