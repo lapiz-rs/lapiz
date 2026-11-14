@@ -102,6 +102,7 @@ impl<Message, Theme> Widget<Message, Theme, lapiz_runtime::Renderer> for CanvasW
         renderer.draw_primitive(
             layout.bounds(),
             CanvasPrimitive {
+                canvas_id: self.canvas.id(),
                 image_size: self.canvas.image.size(),
                 root_layer: *self.canvas.image.layer_stack().root_id(),
                 selection_layer: self.canvas.image.selection_layer(),
