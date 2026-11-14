@@ -221,7 +221,7 @@ scalar_metadata_editor!(F32Metadata, F32Message, f32, -1e5, 1e5, 1e-5, 1e5);
 pub struct F32Type;
 
 impl GraphValueType for F32Type {
-    type AssociatedLiteralType = f32;
+    type ValueType = f32;
     type MetadataType = F32Metadata;
     type PreparedShaderType = Buffer;
     type Message = F32Message;
@@ -234,7 +234,7 @@ impl GraphValueType for F32Type {
         GraphValueTypeId::new("f32")
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType {
+    fn default_literal(&self) -> Self::ValueType {
         0.0
     }
 
@@ -277,7 +277,7 @@ impl GraphValueType for F32Type {
 
     fn view_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -286,7 +286,7 @@ impl GraphValueType for F32Type {
 
     fn update_literal(
         &self,
-        data: &mut Self::AssociatedLiteralType,
+        data: &mut Self::ValueType,
         metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
@@ -306,13 +306,13 @@ impl GraphValueType for F32Type {
         }
     }
 
-    fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {
+    fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression> {
         Some((*data).into())
     }
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         Ok(toml::Value::try_from(data)?)
@@ -322,8 +322,8 @@ impl GraphValueType for F32Type {
         &self,
         value: toml::Value,
         _assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
-        Ok(Self::AssociatedLiteralType::deserialize(value)?)
+    ) -> Result<Self::ValueType> {
+        Ok(Self::ValueType::deserialize(value)?)
     }
 }
 
@@ -424,7 +424,7 @@ integer_metadata!(U32Metadata, U32Message, u32, 0, 10);
 pub struct I32Type;
 
 impl GraphValueType for I32Type {
-    type AssociatedLiteralType = i32;
+    type ValueType = i32;
     type MetadataType = I32Metadata;
     type PreparedShaderType = Buffer;
     type Message = I32Message;
@@ -437,7 +437,7 @@ impl GraphValueType for I32Type {
         GraphValueTypeId::new("i32")
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType {
+    fn default_literal(&self) -> Self::ValueType {
         0
     }
 
@@ -478,13 +478,13 @@ impl GraphValueType for I32Type {
         prepare_uniform_storage(data, device, "graph i32 literal")
     }
 
-    fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {
+    fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression> {
         Some((*data).into())
     }
 
     fn view_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -493,7 +493,7 @@ impl GraphValueType for I32Type {
 
     fn update_literal(
         &self,
-        data: &mut Self::AssociatedLiteralType,
+        data: &mut Self::ValueType,
         metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
@@ -502,7 +502,7 @@ impl GraphValueType for I32Type {
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         Ok(toml::Value::try_from(data)?)
@@ -512,8 +512,8 @@ impl GraphValueType for I32Type {
         &self,
         value: toml::Value,
         _assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
-        Ok(Self::AssociatedLiteralType::deserialize(value)?)
+    ) -> Result<Self::ValueType> {
+        Ok(Self::ValueType::deserialize(value)?)
     }
 }
 
@@ -522,7 +522,7 @@ impl GraphValueType for I32Type {
 pub struct U32Type;
 
 impl GraphValueType for U32Type {
-    type AssociatedLiteralType = u32;
+    type ValueType = u32;
     type MetadataType = U32Metadata;
     type PreparedShaderType = Buffer;
     type Message = U32Message;
@@ -535,7 +535,7 @@ impl GraphValueType for U32Type {
         GraphValueTypeId::new("u32")
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType {
+    fn default_literal(&self) -> Self::ValueType {
         0
     }
 
@@ -576,13 +576,13 @@ impl GraphValueType for U32Type {
         prepare_uniform_storage(data, device, "graph u32 literal")
     }
 
-    fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {
+    fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression> {
         Some((*data).into())
     }
 
     fn view_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -591,7 +591,7 @@ impl GraphValueType for U32Type {
 
     fn update_literal(
         &self,
-        data: &mut Self::AssociatedLiteralType,
+        data: &mut Self::ValueType,
         metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
@@ -600,7 +600,7 @@ impl GraphValueType for U32Type {
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         Ok(toml::Value::try_from(data)?)
@@ -610,8 +610,8 @@ impl GraphValueType for U32Type {
         &self,
         value: toml::Value,
         _assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
-        Ok(Self::AssociatedLiteralType::deserialize(value)?)
+    ) -> Result<Self::ValueType> {
+        Ok(Self::ValueType::deserialize(value)?)
     }
 }
 
@@ -620,7 +620,7 @@ impl GraphValueType for U32Type {
 pub struct BoolType;
 
 impl GraphValueType for BoolType {
-    type AssociatedLiteralType = bool;
+    type ValueType = bool;
     type MetadataType = ();
     type PreparedShaderType = Buffer;
 
@@ -634,7 +634,7 @@ impl GraphValueType for BoolType {
         GraphValueTypeId::new("bool")
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType {
+    fn default_literal(&self) -> Self::ValueType {
         false
     }
 
@@ -701,13 +701,13 @@ impl GraphValueType for BoolType {
         prepare_uniform_storage(&u32::from(*data), device, "graph bool literal")
     }
 
-    fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {
+    fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression> {
         Some((*data).into())
     }
 
     fn view_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -716,7 +716,7 @@ impl GraphValueType for BoolType {
 
     fn update_literal(
         &self,
-        data: &mut Self::AssociatedLiteralType,
+        data: &mut Self::ValueType,
         _metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
@@ -725,7 +725,7 @@ impl GraphValueType for BoolType {
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         Ok(toml::Value::try_from(data)?)
@@ -735,7 +735,7 @@ impl GraphValueType for BoolType {
         &self,
         value: toml::Value,
         _assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
-        Ok(Self::AssociatedLiteralType::deserialize(value)?)
+    ) -> Result<Self::ValueType> {
+        Ok(Self::ValueType::deserialize(value)?)
     }
 }

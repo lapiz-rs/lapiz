@@ -39,7 +39,7 @@ pub type ColorMetadata = ComponentMetadata<F32Metadata, 4>;
 pub type ColorMessage = ComponentMessage<F32Message>;
 
 impl GraphValueType for ColorType {
-    type AssociatedLiteralType = Vec4;
+    type ValueType = Vec4;
     type MetadataType = ColorMetadata;
     type PreparedShaderType = Buffer;
 
@@ -57,7 +57,7 @@ impl GraphValueType for ColorType {
         Some(<Vec<Vec4> as ShaderType>::METADATA.stride().get())
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType {
+    fn default_literal(&self) -> Self::ValueType {
         Vec4::ZERO
     }
 
@@ -97,7 +97,7 @@ impl GraphValueType for ColorType {
 
     fn view_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -106,7 +106,7 @@ impl GraphValueType for ColorType {
 
     fn update_literal(
         &self,
-        data: &mut Self::AssociatedLiteralType,
+        data: &mut Self::ValueType,
         metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
@@ -115,7 +115,7 @@ impl GraphValueType for ColorType {
         *data = Vec4::from_array(components);
     }
 
-    fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {
+    fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression> {
         let (x, y, z, w) = (
             Expression::from(data.x),
             Expression::from(data.y),
@@ -127,7 +127,7 @@ impl GraphValueType for ColorType {
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         Ok(toml::Value::try_from(data)?)
@@ -137,8 +137,8 @@ impl GraphValueType for ColorType {
         &self,
         value: toml::Value,
         _assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
-        Ok(Self::AssociatedLiteralType::deserialize(value)?)
+    ) -> Result<Self::ValueType> {
+        Ok(Self::ValueType::deserialize(value)?)
     }
 }
 
@@ -152,7 +152,7 @@ pub type RectMetadata = ComponentMetadata<F32Metadata, 4>;
 pub type RectMessage = ComponentMessage<F32Message>;
 
 impl GraphValueType for RectType {
-    type AssociatedLiteralType = Rect;
+    type ValueType = Rect;
     type MetadataType = RectMetadata;
     type PreparedShaderType = Buffer;
 
@@ -170,7 +170,7 @@ impl GraphValueType for RectType {
         Some(<Vec<Rect> as ShaderType>::METADATA.stride().get())
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType {
+    fn default_literal(&self) -> Self::ValueType {
         Rect::default()
     }
 
@@ -218,7 +218,7 @@ impl GraphValueType for RectType {
 
     fn view_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -230,7 +230,7 @@ impl GraphValueType for RectType {
 
     fn update_literal(
         &self,
-        data: &mut Self::AssociatedLiteralType,
+        data: &mut Self::ValueType,
         metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
@@ -239,7 +239,7 @@ impl GraphValueType for RectType {
         [data.min.x, data.min.y, data.max.x, data.max.y] = components;
     }
 
-    fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {
+    fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression> {
         let (min_x, min_y, max_x, max_y) = (
             Expression::from(data.min.x),
             Expression::from(data.min.y),
@@ -253,7 +253,7 @@ impl GraphValueType for RectType {
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         Ok(toml::Value::try_from(data)?)
@@ -263,7 +263,7 @@ impl GraphValueType for RectType {
         &self,
         value: toml::Value,
         _assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
-        Ok(Self::AssociatedLiteralType::deserialize(value)?)
+    ) -> Result<Self::ValueType> {
+        Ok(Self::ValueType::deserialize(value)?)
     }
 }

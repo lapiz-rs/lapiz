@@ -198,7 +198,7 @@ pub struct GraphLiteral {
 
 impl GraphLiteral {
     pub fn new<T: GraphValueType + Default>(
-        value: T::AssociatedLiteralType,
+        value: T::ValueType,
         metadata: T::MetadataType,
     ) -> Self {
         Self {
@@ -209,7 +209,7 @@ impl GraphLiteral {
     }
 
     pub fn new_non_default<T: GraphValueType>(
-        value: T::AssociatedLiteralType,
+        value: T::ValueType,
         metadata: T::MetadataType,
         ty: T,
     ) -> Self {

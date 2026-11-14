@@ -82,7 +82,7 @@ pub const MAIN_ACCUMULATE_BUFFER: &str = "main_accumulate";
 pub struct ComputedPenInputValueType;
 
 impl GraphValueType for ComputedPenInputValueType {
-    type AssociatedLiteralType = ComputedPenInput;
+    type ValueType = ComputedPenInput;
     type MetadataType = ();
     type PreparedShaderType = Buffer;
     type Message = ();
@@ -168,7 +168,7 @@ impl GraphValueType for ComputedPenInputValueType {
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         Ok(toml::Value::try_from(data)?)
@@ -178,8 +178,8 @@ impl GraphValueType for ComputedPenInputValueType {
         &self,
         value: toml::Value,
         _assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
-        Ok(Self::AssociatedLiteralType::deserialize(value)?)
+    ) -> Result<Self::ValueType> {
+        Ok(Self::ValueType::deserialize(value)?)
     }
 }
 

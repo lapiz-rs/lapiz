@@ -44,7 +44,7 @@ macro_rules! atomic_type {
         pub struct $name;
 
         impl GraphValueType for $name {
-            type AssociatedLiteralType = $value;
+            type ValueType = $value;
             type MetadataType = ();
             type PreparedShaderType = Buffer;
             type Message = ();
@@ -128,7 +128,7 @@ macro_rules! atomic_type {
                 Ok(quote_statement! { @if(!EVAL) { atomicAdd(&#output, #value); } }.to_string())
             }
 
-            fn default_literal(&self) -> Self::AssociatedLiteralType {
+            fn default_literal(&self) -> Self::ValueType {
                 0
             }
 
@@ -144,22 +144,22 @@ macro_rules! atomic_type {
 
             fn view_literal(
                 &self,
-                _data: &Self::AssociatedLiteralType,
+                _data: &Self::ValueType,
                 _metadata: &Self::MetadataType,
                 _assets: &lapiz_assets::store::AssetRegistry,
             ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
                 Element::new(space())
             }
 
-            fn update_literal(&self, _data: &mut Self::AssociatedLiteralType, _metadata: &mut Self::MetadataType, _message: Self::Message) {}
+            fn update_literal(&self, _data: &mut Self::ValueType, _metadata: &mut Self::MetadataType, _message: Self::Message) {}
 
-            fn literal_to_code(&self, _data: &Self::AssociatedLiteralType) -> Option<Expression> {
+            fn literal_to_code(&self, _data: &Self::ValueType) -> Option<Expression> {
                 None
             }
 
             fn serialize_literal(
                 &self,
-                data: &Self::AssociatedLiteralType,
+                data: &Self::ValueType,
                 _assets: &lapiz_assets::store::AssetRegistry,
             ) -> Result<toml::Value> {
                 Ok(toml::Value::try_from(data)?)
@@ -169,8 +169,8 @@ macro_rules! atomic_type {
                 &self,
                 value: toml::Value,
                 _assets: &lapiz_assets::store::AssetRegistry,
-            ) -> Result<Self::AssociatedLiteralType> {
-                Ok(Self::AssociatedLiteralType::deserialize(value)?)
+            ) -> Result<Self::ValueType> {
+                Ok(Self::ValueType::deserialize(value)?)
             }
         }
     };
@@ -185,7 +185,7 @@ macro_rules! atomic_array_type {
         }
 
         impl GraphValueType for $name {
-            type AssociatedLiteralType = Vec<$value>;
+            type ValueType = Vec<$value>;
             type MetadataType = ();
             type PreparedShaderType = PreparedAtomicArray;
             type Message = ();
@@ -281,7 +281,7 @@ macro_rules! atomic_array_type {
                 )
             }
 
-            fn default_literal(&self) -> Self::AssociatedLiteralType {
+            fn default_literal(&self) -> Self::ValueType {
                 vec![0; self.len as usize]
             }
 
@@ -297,22 +297,22 @@ macro_rules! atomic_array_type {
 
             fn view_literal(
                 &self,
-                _data: &Self::AssociatedLiteralType,
+                _data: &Self::ValueType,
                 _metadata: &Self::MetadataType,
                 _assets: &lapiz_assets::store::AssetRegistry,
             ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
                 Element::new(space())
             }
 
-            fn update_literal(&self, _data: &mut Self::AssociatedLiteralType, _metadata: &mut Self::MetadataType, _message: Self::Message) {}
+            fn update_literal(&self, _data: &mut Self::ValueType, _metadata: &mut Self::MetadataType, _message: Self::Message) {}
 
-            fn literal_to_code(&self, _data: &Self::AssociatedLiteralType) -> Option<Expression> {
+            fn literal_to_code(&self, _data: &Self::ValueType) -> Option<Expression> {
                 None
             }
 
             fn serialize_literal(
                 &self,
-                data: &Self::AssociatedLiteralType,
+                data: &Self::ValueType,
                 _assets: &lapiz_assets::store::AssetRegistry,
             ) -> Result<toml::Value> {
                 Ok(toml::Value::try_from(data)?)
@@ -322,8 +322,8 @@ macro_rules! atomic_array_type {
                 &self,
                 value: toml::Value,
                 _assets: &lapiz_assets::store::AssetRegistry,
-            ) -> Result<Self::AssociatedLiteralType> {
-                Ok(Self::AssociatedLiteralType::deserialize(value)?)
+            ) -> Result<Self::ValueType> {
+                Ok(Self::ValueType::deserialize(value)?)
             }
         }
     };

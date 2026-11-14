@@ -110,7 +110,7 @@ impl<'de> Deserialize<'de> for TextureReference {
 }
 
 impl GraphValueType for TextureType {
-    type AssociatedLiteralType = TextureReference;
+    type ValueType = TextureReference;
     type MetadataType = ();
     type PreparedShaderType = wgpu::TextureView;
     type Message = TextureChanged;
@@ -171,7 +171,7 @@ impl GraphValueType for TextureType {
 
     fn prepare_to_shader(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         device: &Device,
         queue: &Queue,
     ) -> Result<Self::PreparedShaderType> {
@@ -202,7 +202,7 @@ impl GraphValueType for TextureType {
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         let mut table = Map::new();
@@ -216,7 +216,7 @@ impl GraphValueType for TextureType {
         &self,
         deserializer: toml::Value,
         assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
+    ) -> Result<Self::ValueType> {
         let Some(asset) = deserializer.get("asset") else {
             return Ok(TextureReference::NULL);
         };
@@ -229,7 +229,7 @@ impl GraphValueType for TextureType {
         })
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType {
+    fn default_literal(&self) -> Self::ValueType {
         TextureReference::NULL
     }
 
@@ -241,7 +241,7 @@ impl GraphValueType for TextureType {
 
     fn view_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _metadata: &Self::MetadataType,
         assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -261,14 +261,14 @@ impl GraphValueType for TextureType {
 
     fn update_literal(
         &self,
-        data: &mut Self::AssociatedLiteralType,
+        data: &mut Self::ValueType,
         _metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
         data.texture = Some(message.0);
     }
 
-    fn literal_to_code(&self, _data: &Self::AssociatedLiteralType) -> Option<Expression> {
+    fn literal_to_code(&self, _data: &Self::ValueType) -> Option<Expression> {
         None
     }
 }
@@ -341,7 +341,7 @@ impl PreparedLayer {
 }
 
 impl GraphValueType for LayerType {
-    type AssociatedLiteralType = LayerReference;
+    type ValueType = LayerReference;
     type MetadataType = ();
     type PreparedShaderType = PreparedLayer;
     type Message = ();
@@ -556,7 +556,7 @@ impl GraphValueType for LayerType {
 
     fn prepare_to_shader(
         &self,
-        _data: &Self::AssociatedLiteralType,
+        _data: &Self::ValueType,
         device: &Device,
         queue: &Queue,
     ) -> Result<Self::PreparedShaderType> {
@@ -641,13 +641,13 @@ impl GraphValueType for LayerType {
         Ok(())
     }
 
-    fn literal_to_code(&self, _data: &Self::AssociatedLiteralType) -> Option<Expression> {
+    fn literal_to_code(&self, _data: &Self::ValueType) -> Option<Expression> {
         None
     }
 
     fn serialize_literal(
         &self,
-        _data: &Self::AssociatedLiteralType,
+        _data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         Ok(toml::Value::Table(Default::default()))
@@ -657,7 +657,7 @@ impl GraphValueType for LayerType {
         &self,
         _deserializer: toml::Value,
         _assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
+    ) -> Result<Self::ValueType> {
         Ok(LayerReference)
     }
 
@@ -741,7 +741,7 @@ impl GraphValueType for LayerType {
         Some(helpers)
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType {
+    fn default_literal(&self) -> Self::ValueType {
         LayerReference
     }
 
@@ -753,7 +753,7 @@ impl GraphValueType for LayerType {
 
     fn view_literal(
         &self,
-        _data: &Self::AssociatedLiteralType,
+        _data: &Self::ValueType,
         _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -762,7 +762,7 @@ impl GraphValueType for LayerType {
 
     fn update_literal(
         &self,
-        _data: &mut Self::AssociatedLiteralType,
+        _data: &mut Self::ValueType,
         _metadata: &mut Self::MetadataType,
         _message: Self::Message,
     ) {
@@ -797,7 +797,7 @@ pub struct PreparedArray {
 }
 
 impl GraphValueType for ArrayType {
-    type AssociatedLiteralType = ArrayLiteral;
+    type ValueType = ArrayLiteral;
     type MetadataType = ();
     type PreparedShaderType = PreparedArray;
     type Message = ArrayLiteralUpdateMessage;
@@ -889,7 +889,7 @@ impl GraphValueType for ArrayType {
 
     fn prepare_to_shader(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         device: &Device,
         queue: &Queue,
     ) -> Result<Self::PreparedShaderType> {
@@ -952,7 +952,7 @@ impl GraphValueType for ArrayType {
         })
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType {
+    fn default_literal(&self) -> Self::ValueType {
         ArrayLiteral {
             elements: vec![
                 GraphLiteral::new_boxed_default(self.element_type.clone());
@@ -969,7 +969,7 @@ impl GraphValueType for ArrayType {
 
     fn view_literal<'a>(
         &self,
-        data: &'a Self::AssociatedLiteralType,
+        data: &'a Self::ValueType,
         _metadata: &'a Self::MetadataType,
         assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -999,7 +999,7 @@ impl GraphValueType for ArrayType {
 
     fn update_literal(
         &self,
-        data: &mut Self::AssociatedLiteralType,
+        data: &mut Self::ValueType,
         _metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
@@ -1009,13 +1009,13 @@ impl GraphValueType for ArrayType {
             .update(message.message);
     }
 
-    fn literal_to_code(&self, _data: &Self::AssociatedLiteralType) -> Option<Expression> {
+    fn literal_to_code(&self, _data: &Self::ValueType) -> Option<Expression> {
         None
     }
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         if data.elements.len() != self.len as usize {
@@ -1045,7 +1045,7 @@ impl GraphValueType for ArrayType {
         &self,
         deserializer: toml::Value,
         assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
+    ) -> Result<Self::ValueType> {
         let values = match deserializer {
             toml::Value::Array(values) => values,
             _ => bail!("Array literal must be an array"),

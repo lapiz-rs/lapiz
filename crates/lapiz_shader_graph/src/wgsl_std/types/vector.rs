@@ -89,7 +89,7 @@ impl<M: Clone, const N: usize> ComponentMetadata<M, N> {
     pub(crate) fn update<T>(
         &mut self,
         ty: &T,
-        data: &mut [T::AssociatedLiteralType; N],
+        data: &mut [T::ValueType; N],
         message: ComponentMessage<T::Message>,
     ) where
         T: GraphValueType<MetadataType = M>,
@@ -134,7 +134,7 @@ macro_rules! vector_type {
         pub struct $name;
 
         impl GraphValueType for $name {
-            type AssociatedLiteralType = $literal;
+            type ValueType = $literal;
             type MetadataType = ComponentMetadata<<$component as GraphValueType>::MetadataType, $len>;
             type PreparedShaderType = Buffer;
             type Message = ComponentMessage<<$component as GraphValueType>::Message>;
@@ -147,7 +147,7 @@ macro_rules! vector_type {
                 GraphValueTypeId::new($id)
             }
 
-            fn default_literal(&self) -> Self::AssociatedLiteralType {
+            fn default_literal(&self) -> Self::ValueType {
                 $zero
             }
 
@@ -186,7 +186,7 @@ macro_rules! vector_type {
 
             fn prepare_to_shader(
                 &self,
-                data: &Self::AssociatedLiteralType,
+                data: &Self::ValueType,
                 device: &Device,
                 _queue: &Queue,
             ) -> Result<Buffer> {
@@ -195,7 +195,7 @@ macro_rules! vector_type {
 
             fn view_literal(
                 &self,
-                data: &Self::AssociatedLiteralType,
+                data: &Self::ValueType,
                 metadata: &Self::MetadataType,
                 _assets: &AssetRegistry,
             ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
@@ -205,7 +205,7 @@ macro_rules! vector_type {
 
             fn update_literal(
                 &self,
-                data: &mut Self::AssociatedLiteralType,
+                data: &mut Self::ValueType,
                 metadata: &mut Self::MetadataType,
                 message: Self::Message,
             ) {
@@ -214,7 +214,7 @@ macro_rules! vector_type {
                 *data = <$literal>::from_array(components);
             }
 
-            fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {
+            fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression> {
                 let constructor = FunctionCall {
                     ty: TypeExpression::from(Ident::new($wgsl.to_string())),
                     arguments: (0..$len)
@@ -229,7 +229,7 @@ macro_rules! vector_type {
 
             fn serialize_literal(
                 &self,
-                data: &Self::AssociatedLiteralType,
+                data: &Self::ValueType,
                 _assets: &lapiz_assets::store::AssetRegistry,
             ) -> Result<toml::Value> {
                 Ok(toml::Value::try_from(data)?)
@@ -239,8 +239,8 @@ macro_rules! vector_type {
                 &self,
                 value: toml::Value,
                 _assets: &lapiz_assets::store::AssetRegistry,
-            ) -> Result<Self::AssociatedLiteralType> {
-                Ok(Self::AssociatedLiteralType::deserialize(value)?)
+            ) -> Result<Self::ValueType> {
+                Ok(Self::ValueType::deserialize(value)?)
             }
         }
     };

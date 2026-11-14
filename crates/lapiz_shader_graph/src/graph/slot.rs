@@ -157,7 +157,7 @@ pub enum GraphShaderStage {
 ///   [`handle_input_values`](Self::handle_input_values) and
 ///   [`handle_output_values`](Self::handle_output_values).
 pub trait GraphValueType: Send + Sync + 'static + DynClone {
-    type AssociatedLiteralType: GraphLiteralValue;
+    type ValueType: GraphLiteralValue;
     type MetadataType: GraphLiteralMetadata;
     // TODO Better naming
     // This means the resources that is uploaded to gpu and can be binded in pipelines.
@@ -184,7 +184,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
     ) -> Result<(u32, DynamicBindGroupEntries<'a>)>;
     fn prepare_to_shader(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         device: &Device,
         queue: &Queue,
     ) -> Result<Self::PreparedShaderType>;
@@ -239,7 +239,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         Ok(())
     }
 
-    fn default_literal(&self) -> Self::AssociatedLiteralType;
+    fn default_literal(&self) -> Self::ValueType;
     fn default_metadata(&self) -> Self::MetadataType;
     fn wgsl_type_name(&self) -> Option<&'static str>;
     fn wgsl_array_element_stride(&self) -> Option<u64> {
@@ -248,18 +248,18 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
     fn hue_chroma(&self) -> (f32, f32);
     fn view_literal<'a>(
         &self,
-        data: &'a Self::AssociatedLiteralType,
+        data: &'a Self::ValueType,
         metadata: &'a Self::MetadataType,
         // TODO should this change to GraphResources?
         assets: &AssetRegistry,
     ) -> GraphElement<'static, Self::Message>;
     fn update_literal(
         &self,
-        data: &mut Self::AssociatedLiteralType,
+        data: &mut Self::ValueType,
         metadata: &mut Self::MetadataType,
         message: Self::Message,
     );
-    fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression>;
+    fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression>;
 
     fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
         None
@@ -267,14 +267,14 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         assets: &AssetRegistry,
     ) -> Result<toml::Value>;
     fn deserialize_literal(
         &self,
         deserializer: toml::Value,
         assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType>;
+    ) -> Result<Self::ValueType>;
 }
 
 /// Marker trait for cloneable, downcastable UI messages that update a [`GraphValueType`]'s literal value.
@@ -455,7 +455,7 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
     ) -> Result<Box<dyn GraphShaderLiteralValue>> {
         Ok(Box::new(GraphValueType::prepare_to_shader(
             self,
-            data.downcast_ref::<T::AssociatedLiteralType>()
+            data.downcast_ref::<T::ValueType>()
                 .expect("failed to downcast graph literal"),
             device,
             queue,
@@ -536,7 +536,7 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         assets: &AssetRegistry,
     ) -> GraphElement<'static, ErasedGraphLiteralUpdateMessage> {
         self.view_literal(
-            data.downcast_ref::<T::AssociatedLiteralType>()
+            data.downcast_ref::<T::ValueType>()
                 .expect("failed to downcast graph literal"),
             metadata
                 .downcast_ref::<T::MetadataType>()
@@ -556,7 +556,7 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         message: ErasedGraphLiteralUpdateMessage,
     ) {
         let data = data
-            .downcast_mut::<T::AssociatedLiteralType>()
+            .downcast_mut::<T::ValueType>()
             .expect("failed to downcast graph literal");
         let message = match message.inner.downcast::<T::Message>() {
             Ok(message) => message,
@@ -571,7 +571,7 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
 
     fn literal_to_code(&self, data: &dyn GraphLiteralValue) -> Option<Expression> {
         self.literal_to_code(
-            data.downcast_ref::<T::AssociatedLiteralType>()
+            data.downcast_ref::<T::ValueType>()
                 .expect("failed to downcast graph literal"),
         )
     }
@@ -582,7 +582,7 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         self.serialize_literal(
-            data.downcast_ref::<T::AssociatedLiteralType>()
+            data.downcast_ref::<T::ValueType>()
                 .expect("failed to downcast graph literal"),
             assets,
         )
