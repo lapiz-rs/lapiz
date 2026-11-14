@@ -185,8 +185,13 @@ impl Dock for CanvasDock {
         DockId::new(construct_canvas_dock_id(self.canvas).into())
     }
 
-    fn display_name(&self) -> String {
-        t!("canvas_dock", name = self.canvas.to_string())
+    fn display_name(&self, globals: &Globals) -> String {
+        globals
+            .canvas(&self.canvas)
+            .and_then(|canvas| canvas.file_path())
+            .and_then(|path| path.file_name())
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| t!("canvas_dock_untitled"))
     }
 
     fn view<'a>(

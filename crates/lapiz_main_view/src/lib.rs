@@ -153,7 +153,11 @@ impl MainView {
             .into()
     }
 
-    fn menu_bar(&self, current_theme: &Theme) -> MenuBar<'static, MenuBarMessage> {
+    fn menu_bar(
+        &self,
+        current_theme: &Theme,
+        globals: &Globals,
+    ) -> MenuBar<'static, MenuBarMessage> {
         fn build_menu(
             items: &[MenuBarItem],
             collection: &ActionCollection,
@@ -236,15 +240,15 @@ impl MainView {
         {
             let mut docks = self.dock_manager.registered_docks().collect::<Vec<_>>();
             docks.sort_by(|dock_a, dock_b| {
-                let name_a = dock_a.display_name();
-                let name_b = dock_b.display_name();
+                let name_a = dock_a.display_name(globals);
+                let name_b = dock_b.display_name(globals);
                 name_a.cmp(&name_b)
             });
             let dock_menu = docks
                 .into_iter()
                 .fold(menu().min_width(220.0), |menu, dock| {
                     let id = dock.id();
-                    let name = dock.display_name();
+                    let name = dock.display_name(globals);
                     menu.oneshot_element(
                         name.clone(),
                         Checkbox::new(self.dock_manager.is_dock_open(&id))
@@ -365,7 +369,7 @@ impl WindowView for MainView {
         let title_content = row![
             label("LAPIZ").window_title(),
             Element::new(
-                self.menu_bar(&globals.global::<ApplicationTheme>().0)
+                self.menu_bar(&globals.global::<ApplicationTheme>().0, globals)
                     .height(Length::Fill),
             )
             .map(MainViewMessage::MenuBar)

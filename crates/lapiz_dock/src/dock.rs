@@ -23,7 +23,7 @@ pub trait Dock: 'static {
     type Message: Send + 'static;
 
     fn id(&self) -> DockId;
-    fn display_name(&self) -> String {
+    fn display_name(&self, _globals: &Globals) -> String {
         t!(&self.id())
     }
     fn view<'a>(
@@ -49,7 +49,7 @@ pub trait Dock: 'static {
 /// Type-erased [`Dock`] trait used for heterogeneous storage in [`DockManager`](crate::DockManager).
 pub trait ErasedDock: 'static {
     fn id(&self) -> DockId;
-    fn display_name(&self) -> String;
+    fn display_name(&self, globals: &Globals) -> String;
     fn view<'a>(
         &'a self,
         window_id: window::Id,
@@ -71,8 +71,8 @@ impl<T: Dock> ErasedDock for T {
         self.id()
     }
 
-    fn display_name(&self) -> String {
-        self.display_name()
+    fn display_name(&self, globals: &Globals) -> String {
+        self.display_name(globals)
     }
 
     fn view<'a>(

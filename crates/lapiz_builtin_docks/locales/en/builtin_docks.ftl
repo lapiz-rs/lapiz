@@ -23,3 +23,4 @@ settings = Settings
 no_tool_options = No options for this tool
 canvas_dock = Canvas { $name }
 recent_files_dock = Recent Files
+canvas_dock_untitled = Untitled
