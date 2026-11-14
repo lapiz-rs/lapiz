@@ -2,14 +2,14 @@ use anyhow::Result;
 use bevy_math::Rect;
 use encase::ShaderType;
 use glam::Vec4;
-use iced_core::{Element, Length};
+use iced_core::Element;
 use lapiz_assets::store::AssetRegistry;
+use lapiz_i18n::t;
 use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
     bind_group_layout_entries::DynamicBindGroupLayoutEntries,
 };
 use lapiz_utils::random_oklch_hue_chroma;
-use lapiz_widgets::{column, spin_slider};
 use serde::Deserialize as _;
 use wesl::syntax::{
     Expression, FunctionCall, Ident, ModulePath, PathOrigin, Span, Spanned, TypeExpression,
@@ -17,7 +17,12 @@ use wesl::syntax::{
 use wesl_quote::quote_expression;
 use wgpu::{Buffer, Device, Queue};
 
-use super::{prepare_uniform_storage, push_buffer_binding, push_storage_layout};
+use super::{
+    prepare_uniform_storage,
+    primitive::{F32Message, F32Metadata, F32Type},
+    push_buffer_binding, push_storage_layout,
+    vector::{ComponentMessage, ComponentMetadata},
+};
 use crate::{
     GraphRenderer, GraphTheme,
     graph::slot::{GraphShaderStage, GraphValueType},
@@ -28,18 +33,14 @@ use crate::{
 #[derive(Default, Clone)]
 pub struct ColorType;
 
-/// UI message updating a single channel of a [`ColorType`] literal.
-#[derive(Debug, Clone)]
-pub enum ColorMessage {
-    R(f32),
-    G(f32),
-    B(f32),
-    A(f32),
-}
+/// Per-channel range and editing settings in RGBA order.
+pub type ColorMetadata = ComponentMetadata<F32Metadata, 4>;
+
+pub type ColorMessage = ComponentMessage<F32Message>;
 
 impl GraphValueType for ColorType {
     type AssociatedLiteralType = Vec4;
-    type MetadataType = ();
+    type MetadataType = ColorMetadata;
     type PreparedShaderType = Buffer;
 
     type Message = ColorMessage;
@@ -60,7 +61,9 @@ impl GraphValueType for ColorType {
         Vec4::ZERO
     }
 
-    fn default_metadata(&self) -> Self::MetadataType {}
+    fn default_metadata(&self) -> Self::MetadataType {
+        ColorMetadata::new(F32Metadata::zero_to_one())
+    }
 
     fn wgsl_type_name(&self) -> Option<&'static str> {
         Some("vec4f")
@@ -92,44 +95,24 @@ impl GraphValueType for ColorType {
         prepare_uniform_storage(data, device, "graph vec4f literal")
     }
 
-    // TODO: Replace this with color selector component
     fn view_literal(
         &self,
         data: &Self::AssociatedLiteralType,
-        _metadata: &Self::MetadataType,
+        metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
-        column![
-            spin_slider(0.0..=1.0, data.x)
-                .on_change(ColorMessage::R)
-                .allow_beyond_range(false),
-            spin_slider(0.0..=1.0, data.y)
-                .on_change(ColorMessage::G)
-                .allow_beyond_range(false),
-            spin_slider(0.0..=1.0, data.z)
-                .on_change(ColorMessage::B)
-                .allow_beyond_range(false),
-            spin_slider(0.0..=1.0, data.w)
-                .on_change(ColorMessage::A)
-                .allow_beyond_range(false),
-        ]
-        .width(Length::Fill)
-        .padding(2)
-        .into()
+        metadata.view(&data.to_array(), ["R", "G", "B", "A"].map(str::to_owned))
     }
 
     fn update_literal(
         &self,
         data: &mut Self::AssociatedLiteralType,
-        _metadata: &mut Self::MetadataType,
+        metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
-        match message {
-            ColorMessage::R(r) => data.x = r,
-            ColorMessage::G(g) => data.y = g,
-            ColorMessage::B(b) => data.z = b,
-            ColorMessage::A(a) => data.w = a,
-        }
+        let mut components = data.to_array();
+        metadata.update(&F32Type, &mut components, message);
+        *data = Vec4::from_array(components);
     }
 
     fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {
@@ -163,18 +146,14 @@ impl GraphValueType for ColorType {
 #[derive(Default, Clone)]
 pub struct RectType;
 
-/// UI message updating one of the minimum or maximum coordinates of a [`RectType`] literal.
-#[derive(Debug, Clone)]
-pub enum RectMessage {
-    MinX(f32),
-    MinY(f32),
-    MaxX(f32),
-    MaxY(f32),
-}
+/// Per-coordinate settings in min-x, min-y, max-x, max-y order.
+pub type RectMetadata = ComponentMetadata<F32Metadata, 4>;
+
+pub type RectMessage = ComponentMessage<F32Message>;
 
 impl GraphValueType for RectType {
     type AssociatedLiteralType = Rect;
-    type MetadataType = ();
+    type MetadataType = RectMetadata;
     type PreparedShaderType = Buffer;
 
     type Message = RectMessage;
@@ -195,7 +174,9 @@ impl GraphValueType for RectType {
         Rect::default()
     }
 
-    fn default_metadata(&self) -> Self::MetadataType {}
+    fn default_metadata(&self) -> Self::MetadataType {
+        RectMetadata::new(F32Metadata::zero_to_one())
+    }
 
     fn wgsl_type_name(&self) -> Option<&'static str> {
         Some("render::math::Rect")
@@ -238,32 +219,24 @@ impl GraphValueType for RectType {
     fn view_literal(
         &self,
         data: &Self::AssociatedLiteralType,
-        _metadata: &Self::MetadataType,
+        metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
-        column![
-            spin_slider(0.0..=1.0, data.min.x).on_change(RectMessage::MinX),
-            spin_slider(0.0..=1.0, data.min.y).on_change(RectMessage::MinY),
-            spin_slider(0.0..=1.0, data.max.x).on_change(RectMessage::MaxX),
-            spin_slider(0.0..=1.0, data.max.y).on_change(RectMessage::MaxY),
-        ]
-        .width(Length::Fill)
-        .padding(2)
-        .into()
+        metadata.view(
+            &[data.min.x, data.min.y, data.max.x, data.max.y],
+            [t!("min_x"), t!("min_y"), t!("max_x"), t!("max_y")],
+        )
     }
 
     fn update_literal(
         &self,
         data: &mut Self::AssociatedLiteralType,
-        _metadata: &mut Self::MetadataType,
+        metadata: &mut Self::MetadataType,
         message: Self::Message,
     ) {
-        match message {
-            RectMessage::MinX(x) => data.min.x = x,
-            RectMessage::MinY(y) => data.min.y = y,
-            RectMessage::MaxX(x) => data.max.x = x,
-            RectMessage::MaxY(y) => data.max.y = y,
-        }
+        let mut components = [data.min.x, data.min.y, data.max.x, data.max.y];
+        metadata.update(&F32Type, &mut components, message);
+        [data.min.x, data.min.y, data.max.x, data.max.y] = components;
     }
 
     fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression> {

@@ -982,7 +982,12 @@ impl GraphValueType for ArrayType {
                     label(index.to_string()).width(24).muted(),
                     element
                         .ty()
-                        .view_literal(GraphInputSlotId::new(Uuid::nil()), element.value(), element.metadata(), assets)
+                        .view_literal(
+                            GraphInputSlotId::new(Uuid::nil()),
+                            element.value(),
+                            element.metadata(),
+                            assets
+                        )
                         .map(move |message| ArrayLiteralUpdateMessage { index, message }),
                 ]
                 .gap(4.0)
@@ -1057,7 +1062,13 @@ impl GraphValueType for ArrayType {
             .map(|value| {
                 self.element_type
                     .deserialize_literal(value, assets)
-                    .map(|value| GraphLiteral::new_boxed(value, self.element_type.default_metadata(), self.element_type.clone()))
+                    .map(|value| {
+                        GraphLiteral::new_boxed(
+                            value,
+                            self.element_type.default_metadata(),
+                            self.element_type.clone(),
+                        )
+                    })
             })
             .collect::<Result<_>>()?;
         Ok(ArrayLiteral { elements })
