@@ -189,7 +189,11 @@ impl Graph {
                     GraphInputSlotData {
                         node_id: ser_node.id,
                         name: default.name,
-                        data: GraphLiteral::new_boxed(literal_value, value_type_obj.default_metadata(), value_type_obj.clone()),
+                        data: GraphLiteral::new_boxed(
+                            literal_value,
+                            value_type_obj.default_metadata(),
+                            value_type_obj.clone(),
+                        ),
                         connected: slot.connected,
                     },
                 );

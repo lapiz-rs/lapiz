@@ -290,7 +290,12 @@ impl ToolFunction for BrushTool {
                     parameter
                         .value
                         .ty()
-                        .view_literal(slot_id, parameter.value.value(), parameter.value.metadata(), globals.assets())
+                        .view_literal(
+                            slot_id,
+                            parameter.value.value(),
+                            parameter.value.metadata(),
+                            globals.assets()
+                        )
                         .map(move |message| BrushToolMessage::UpdateParameter { id: *id, message }),
                 ]
                 .gap(4.0)

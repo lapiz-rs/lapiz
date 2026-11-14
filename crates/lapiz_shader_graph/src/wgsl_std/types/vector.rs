@@ -1,3 +1,5 @@
+use std::array::from_fn;
+
 use anyhow::Result;
 use encase::ShaderType;
 use glam::{IVec2, IVec3, IVec4, UVec2, UVec3, UVec4, Vec2, Vec3, Vec4};
@@ -35,7 +37,7 @@ pub struct ComponentMetadata<M, const N: usize> {
 impl<M: Default, const N: usize> Default for ComponentMetadata<M, N> {
     fn default() -> Self {
         Self {
-            components: std::array::from_fn(|_| M::default()),
+            components: from_fn(|_| M::default()),
             edit_together: false,
         }
     }
@@ -44,7 +46,7 @@ impl<M: Default, const N: usize> Default for ComponentMetadata<M, N> {
 impl<M: Clone, const N: usize> ComponentMetadata<M, N> {
     pub fn new(component: M) -> Self {
         Self {
-            components: std::array::from_fn(|_| component.clone()),
+            components: from_fn(|_| component.clone()),
             edit_together: false,
         }
     }
@@ -199,7 +201,7 @@ macro_rules! vector_type {
                 metadata: &Self::MetadataType,
                 _assets: &AssetRegistry,
             ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
-                let names = std::array::from_fn(|index| ["X", "Y", "Z", "W"][index].to_string());
+                let names = from_fn(|index| ["X", "Y", "Z", "W"][index].to_string());
                 metadata.view(&data.to_array(), names)
             }
 
