@@ -204,6 +204,7 @@ impl WindowView for FilterPanel {
                             .view_literal(
                                 GraphInputSlotId::new(id.0),
                                 parameter.value.value(),
+                                parameter.value.metadata(),
                                 globals.assets(),
                             )
                             .map(move |message| {

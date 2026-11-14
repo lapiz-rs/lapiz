@@ -164,7 +164,7 @@ pub enum SlotSide {
 pub fn input_slot<'a>(
     slot_id: GraphInputSlotId,
     slot_name: impl IntoFragment<'a>,
-    slot: &GraphInputSlotData,
+    slot: &'a GraphInputSlotData,
     assets: &AssetRegistry,
 ) -> Element<'a, ErasedGraphLiteralUpdateMessage, GraphTheme, GraphRenderer> {
     let (hue, chroma) = slot.data.ty().hue_chroma();
@@ -178,7 +178,7 @@ pub fn input_slot<'a>(
             SlotSide::Left,
             slot.data
                 .ty()
-                .view_literal(slot_id, slot.data.value(), assets),
+                .view_literal(slot_id, slot.data.value(), slot.data.metadata(), assets),
         ),
     }
 }

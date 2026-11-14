@@ -82,7 +82,8 @@ pub const MAIN_ACCUMULATE_BUFFER: &str = "main_accumulate";
 pub struct ComputedPenInputValueType;
 
 impl GraphValueType for ComputedPenInputValueType {
-    type AssociatedLiteralType = ComputedPenInput;
+    type ValueType = ComputedPenInput;
+    type MetadataType = ();
     type PreparedShaderType = Buffer;
     type Message = ();
 
@@ -144,6 +145,8 @@ impl GraphValueType for ComputedPenInputValueType {
         ComputedPenInput::default()
     }
 
+    fn default_metadata(&self) -> Self::MetadataType {}
+
     fn wgsl_type_name(&self) -> Option<&'static str> {
         None
     }
@@ -153,18 +156,19 @@ impl GraphValueType for ComputedPenInputValueType {
     fn view_literal(
         &self,
         _: &ComputedPenInput,
+        _metadata: &Self::MetadataType,
         _assets: &AssetRegistry,
     ) -> GraphElement<'static, ()> {
         Void.into()
     }
-    fn update_literal(&self, _: &mut ComputedPenInput, _: ()) {}
+    fn update_literal(&self, _: &mut ComputedPenInput, _metadata: &mut Self::MetadataType, _: ()) {}
     fn literal_to_code(&self, _: &ComputedPenInput) -> Option<Expression> {
         None
     }
 
     fn serialize_literal(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &Self::ValueType,
         _assets: &AssetRegistry,
     ) -> Result<toml::Value> {
         Ok(toml::Value::try_from(data)?)
@@ -174,8 +178,8 @@ impl GraphValueType for ComputedPenInputValueType {
         &self,
         value: toml::Value,
         _assets: &AssetRegistry,
-    ) -> Result<Self::AssociatedLiteralType> {
-        Ok(Self::AssociatedLiteralType::deserialize(value)?)
+    ) -> Result<Self::ValueType> {
+        Ok(Self::ValueType::deserialize(value)?)
     }
 }
 
@@ -783,11 +787,11 @@ impl GraphNode for BlendColorNode {
         vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             combo_box(
                 BlendMode::ALL
@@ -877,11 +881,11 @@ impl GraphNode for BlendWithInputNode {
         vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             combo_box(
                 BlendMode::ALL
@@ -965,11 +969,11 @@ impl GraphNode for BlendWithLayerNode {
         vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             combo_box(
                 BlendMode::ALL

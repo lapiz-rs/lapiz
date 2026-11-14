@@ -397,11 +397,11 @@ impl GraphNode for RepeatInputNode {
         ctx.require_output_slot_as_graph_input(0, local.name.clone());
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         let locals = repeat_variable_references(&self.locals.lock());
         let selected = state
             .variable
@@ -502,11 +502,11 @@ impl GraphNode for RepeatOutputNode {
         ctx.require_input_slot_as_graph_output(0, local.name.clone());
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         let locals = repeat_variable_references(&self.locals.lock());
         let selected = state
             .variable
@@ -744,11 +744,11 @@ impl GraphNode for RepeatNode {
             .collect()
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         let trigger = button(label("Edit")).on_press(RepeatNodeMessage::ToggleEditor);
         let content = state
             .schema_draft

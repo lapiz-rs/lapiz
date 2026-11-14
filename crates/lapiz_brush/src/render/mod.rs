@@ -873,7 +873,7 @@ fn base_builtins(state: &BrushEffectState) -> HashMap<String, GraphShaderLiteral
 
 fn prepared_literal<T: GraphValueType>(
     ty: Arc<T>,
-    value: &T::AssociatedLiteralType,
+    value: &T::ValueType,
     device: &Device,
     queue: &Queue,
 ) -> Result<GraphShaderLiteral> {

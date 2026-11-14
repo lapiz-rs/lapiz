@@ -88,11 +88,11 @@ impl GraphNode for CurveNode {
         vec![GraphDefaultOutputSlot::new::<F32Type>("y".into())]
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             curve_edit(CubicCurve::new(state.control_points.clone()))
                 .width(Length::Fill)

@@ -209,11 +209,11 @@ impl GraphNode for ScalarMathNode {
         vec![GraphDefaultOutputSlot::new::<F32Type>("result".into())]
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             combo_box(
                 ScalarMathNodeMode::ALL
@@ -565,11 +565,11 @@ impl GraphNode for VectorMathNode {
         }
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             combo_box(
                 VectorMathNodeMode::ALL
@@ -762,11 +762,11 @@ impl GraphNode for RectMathNode {
         vec![GraphDefaultOutputSlot::new::<RectType>("result".into())]
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             combo_box(
                 RectMathNodeMode::ALL

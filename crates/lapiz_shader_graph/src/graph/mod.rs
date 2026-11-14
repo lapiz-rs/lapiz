@@ -465,10 +465,7 @@ impl Graph {
             let new_input_slot = GraphInputSlotData {
                 node_id,
                 name: new_input_def.name,
-                data: GraphLiteral::new_boxed(
-                    new_input_def.ty.default_literal(),
-                    new_input_def.ty.clone(),
-                ),
+                data: GraphLiteral::new_boxed_default(new_input_def.ty.clone()),
                 connected: None,
             };
             self.slots.inputs.insert(new_input_id, new_input_slot);
@@ -682,7 +679,7 @@ fn create_input_slots(
             GraphInputSlotData {
                 node_id,
                 name: slot.name,
-                data: GraphLiteral::new_boxed(slot.ty.default_literal(), slot.ty.clone()),
+                data: GraphLiteral::new_boxed_default(slot.ty.clone()),
                 connected: None,
             },
         );

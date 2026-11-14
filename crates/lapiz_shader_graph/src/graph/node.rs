@@ -87,7 +87,7 @@ pub trait GraphNode: Send + Sync + 'static + DynClone {
     fn view<'a>(
         &self,
         state: &'a Self::State,
-        ctx: GraphNodeViewContext<'_>,
+        ctx: GraphNodeViewContext<'a>,
     ) -> GraphElement<'a, Self::Message>;
     fn update(
         &self,
@@ -158,7 +158,7 @@ pub trait ErasedGraphNode: Send + Sync + 'static + DynClone + Downcast {
         &self,
         node_id: GraphNodeId,
         state: &'a (dyn Any + Send + Sync),
-        ctx: GraphNodeViewContext<'_>,
+        ctx: GraphNodeViewContext<'a>,
     ) -> GraphElement<'a, ErasedGraphNodeMessage>;
     fn update(
         &self,
@@ -245,7 +245,7 @@ impl<T: GraphNode> ErasedGraphNode for T {
         &self,
         node_id: GraphNodeId,
         state: &'a (dyn Any + Send + Sync),
-        ctx: GraphNodeViewContext<'_>,
+        ctx: GraphNodeViewContext<'a>,
     ) -> GraphElement<'a, ErasedGraphNodeMessage> {
         self.view(
             state
@@ -362,7 +362,7 @@ impl StatefulGraphNode {
     pub fn view<'a>(
         &'a self,
         node_id: GraphNodeId,
-        ctx: GraphNodeViewContext<'_>,
+        ctx: GraphNodeViewContext<'a>,
     ) -> GraphElement<'a, ErasedGraphNodeMessage> {
         self.data.view(node_id, self.state.as_ref(), ctx)
     }
@@ -470,8 +470,8 @@ impl GraphNodeData {
     pub fn view<'a>(
         &'a self,
         node_id: GraphNodeId,
-        slots: &GraphSlots,
-        resources: &GraphResources,
+        slots: &'a GraphSlots,
+        resources: &'a GraphResources,
     ) -> GraphElement<'a, ErasedGraphNodeMessage> {
         self.data.view(
             node_id,
@@ -514,7 +514,7 @@ pub struct GraphNodeViewContext<'a> {
     pub resources: &'a GraphResources,
 }
 
-impl GraphNodeViewContext<'_> {
+impl<'a> GraphNodeViewContext<'a> {
     pub fn get_input(&self, index: usize) -> Option<&GraphInputSlotData> {
         self.slots.get_input(self.inputs.get(index)?)
     }
@@ -523,7 +523,7 @@ impl GraphNodeViewContext<'_> {
         self.slots.get_output(self.outputs.get(index)?)
     }
 
-    pub fn view_input_slot<'a, Message: 'static>(
+    pub fn view_input_slot<Message: 'static>(
         &self,
         index: usize,
         map_literal: impl Fn(ErasedGraphLiteralUpdateMessage) -> Message + Copy + 'static,
@@ -533,7 +533,7 @@ impl GraphNodeViewContext<'_> {
         Some(input_slot(slot_id, t!(&slot.name), slot, &self.resources.assets).map(map_literal))
     }
 
-    pub fn view_output_slot<'a, Message: 'static>(
+    pub fn view_output_slot<Message: 'static>(
         &self,
         index: usize,
     ) -> Option<GraphElement<'a, Message>> {
@@ -542,7 +542,7 @@ impl GraphNodeViewContext<'_> {
         Some(output_slot(slot_id, t!(&slot.name), slot))
     }
 
-    pub fn view_all_inputs<'a, Message: 'static>(
+    pub fn view_all_inputs<Message: 'static>(
         &self,
         map_literal: impl Fn(ErasedGraphLiteralUpdateMessage) -> Message + Copy + 'static,
     ) -> Vec<GraphElement<'a, Message>> {
@@ -555,7 +555,7 @@ impl GraphNodeViewContext<'_> {
             .collect()
     }
 
-    pub fn view_all_outputs<'a, Message: 'static>(&self) -> Vec<GraphElement<'a, Message>> {
+    pub fn view_all_outputs<Message: 'static>(&self) -> Vec<GraphElement<'a, Message>> {
         self.outputs
             .iter()
             .filter_map(|id| {
@@ -565,7 +565,7 @@ impl GraphNodeViewContext<'_> {
             .collect()
     }
 
-    pub fn view_all_slots<'a, Message: 'static>(
+    pub fn view_all_slots<Message: 'static>(
         &self,
         map_literal: impl Fn(ErasedGraphLiteralUpdateMessage) -> Message + Copy + 'static,
     ) -> GraphElement<'a, Message> {
@@ -585,7 +585,7 @@ impl GraphNodeViewContext<'_> {
             .into()
     }
 
-    pub fn view_all_slots_with_header<'a, Message: 'static>(
+    pub fn view_all_slots_with_header<Message: 'static>(
         &self,
         header: impl Into<GraphElement<'a, Message>>,
         map_literal: impl Fn(ErasedGraphLiteralUpdateMessage) -> Message + Copy + 'static,
