@@ -82,11 +82,11 @@ impl GraphNode for GraphInputNode {
         ctx.require_output_slot_as_graph_input(0, state.name.clone());
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         let types = ctx
             .resources
             .type_registry
@@ -193,11 +193,11 @@ impl GraphNode for GraphOutputNode {
         ctx.require_input_slot_as_graph_output(0, state.name.clone());
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         let types = ctx
             .resources
             .type_registry

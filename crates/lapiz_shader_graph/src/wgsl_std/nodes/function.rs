@@ -180,11 +180,11 @@ impl GraphNode for GraphFunctionNode {
             .collect()
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         let functions = ctx
             .resources
             .assets

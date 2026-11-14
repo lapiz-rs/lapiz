@@ -67,11 +67,11 @@ fn generate_graph_node_impl(
                 <Self as #crate_path::graph::node::StatelessCommonGraphNode>::create_outputs(self, ctx)
             }
 
-            fn view(
+            fn view<'a>(
                 &self,
-                _state: &Self::State,
-                ctx: #crate_path::graph::node::GraphNodeViewContext<'_>,
-            ) -> #crate_path::GraphElement<'static, Self::Message> {
+                _state: &'a Self::State,
+                ctx: #crate_path::graph::node::GraphNodeViewContext<'a>,
+            ) -> #crate_path::GraphElement<'a, Self::Message> {
                 ctx.view_all_slots(::std::convert::identity)
             }
 

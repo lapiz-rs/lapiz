@@ -945,11 +945,11 @@ impl GraphValueType for ArrayType {
         None
     }
 
-    fn view_literal(
+    fn view_literal<'a>(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &'a Self::AssociatedLiteralType,
         assets: &AssetRegistry,
-    ) -> Element<'static, Self::Message, GraphTheme, GraphRenderer> {
+    ) -> Element<'a, Self::Message, GraphTheme, GraphRenderer> {
         let elements = data
             .elements
             .iter()

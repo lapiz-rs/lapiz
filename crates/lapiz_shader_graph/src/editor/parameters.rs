@@ -21,7 +21,7 @@ use crate::{
 
 /// A UI component for viewing, adding, renaming, removing, and editing named [`GraphLiteral`] parameters.
 pub struct ParametersEditor<'a, Message> {
-    parameters: Vec<(Cow<'a, str>, GraphLiteral)>,
+    parameters: Vec<(Cow<'a, str>, &'a GraphLiteral)>,
     type_registry: &'a GraphTypeRegistry,
     assets: &'a AssetRegistry,
     on_change: Box<dyn Fn(ParametersEditorMessage) -> Message + 'a>,
@@ -37,7 +37,7 @@ impl<'a, Message> ParametersEditor<'a, Message> {
         Self {
             parameters: parameters
                 .into_iter()
-                .map(|(name, value)| (Cow::Borrowed(name), value.clone()))
+                .map(|(name, value)| (Cow::Borrowed(name), value))
                 .collect(),
             type_registry,
             assets,

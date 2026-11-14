@@ -680,7 +680,7 @@ impl GraphNode for CustomExpressionNode {
     fn view<'a>(
         &self,
         state: &'a Self::State,
-        ctx: GraphNodeViewContext<'_>,
+        ctx: GraphNodeViewContext<'a>,
     ) -> GraphElement<'a, Self::Message> {
         let trigger = button(label("Edit")).on_press(CustomExpressionNodeMessage::ToggleEditor);
         let content = state

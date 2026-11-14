@@ -242,12 +242,12 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         None
     }
     fn hue_chroma(&self) -> (f32, f32);
-    fn view_literal(
+    fn view_literal<'a>(
         &self,
-        data: &Self::AssociatedLiteralType,
+        data: &'a Self::AssociatedLiteralType,
         // TODO should this change to GraphResources?
         assets: &AssetRegistry,
-    ) -> GraphElement<'static, Self::Message>;
+    ) -> GraphElement<'a, Self::Message>;
     fn update_literal(&self, data: &mut Self::AssociatedLiteralType, message: Self::Message);
     fn literal_to_code(&self, data: &Self::AssociatedLiteralType) -> Option<Expression>;
 
@@ -368,12 +368,12 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
     fn wgsl_array_element_stride(&self) -> Option<u64> {
         None
     }
-    fn view_literal(
+    fn view_literal<'a>(
         &self,
         slot_id: GraphInputSlotId,
-        data: &dyn GraphLiteralValue,
+        data: &'a dyn GraphLiteralValue,
         assets: &AssetRegistry,
-    ) -> GraphElement<'static, ErasedGraphLiteralUpdateMessage>;
+    ) -> GraphElement<'a, ErasedGraphLiteralUpdateMessage>;
     fn update_literal(
         &self,
         data: &mut dyn GraphLiteralValue,
@@ -511,12 +511,12 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         GraphValueType::wgsl_array_element_stride(self)
     }
 
-    fn view_literal(
+    fn view_literal<'a>(
         &self,
         slot_id: GraphInputSlotId,
-        data: &dyn GraphLiteralValue,
+        data: &'a dyn GraphLiteralValue,
         assets: &AssetRegistry,
-    ) -> GraphElement<'static, ErasedGraphLiteralUpdateMessage> {
+    ) -> GraphElement<'a, ErasedGraphLiteralUpdateMessage> {
         self.view_literal(
             data.downcast_ref::<T::AssociatedLiteralType>()
                 .expect("failed to downcast graph literal"),

@@ -783,11 +783,11 @@ impl GraphNode for BlendColorNode {
         vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             combo_box(
                 BlendMode::ALL
@@ -877,11 +877,11 @@ impl GraphNode for BlendWithInputNode {
         vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             combo_box(
                 BlendMode::ALL
@@ -965,11 +965,11 @@ impl GraphNode for BlendWithLayerNode {
         vec![GraphDefaultOutputSlot::new::<ColorType>("color".into())]
     }
 
-    fn view(
+    fn view<'a>(
         &self,
-        state: &Self::State,
-        ctx: GraphNodeViewContext<'_>,
-    ) -> GraphElement<'static, Self::Message> {
+        state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
         ctx.view_all_slots_with_header(
             combo_box(
                 BlendMode::ALL

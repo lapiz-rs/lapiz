@@ -377,8 +377,8 @@ impl<'a> DrawableNode<'a> {
     pub fn new(
         node_id: GraphNodeId,
         node: &'a GraphNodeData,
-        slots: &GraphSlots,
-        resources: &GraphResources,
+        slots: &'a GraphSlots,
+        resources: &'a GraphResources,
     ) -> Self {
         let (header_hue, header_chroma) = node.data.header_hue_chroma();
         let header = container(

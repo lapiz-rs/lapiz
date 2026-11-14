@@ -232,7 +232,7 @@ impl GraphNode for PassInputNode {
     fn view<'a>(
         &self,
         state: &'a Self::State,
-        ctx: GraphNodeViewContext<'_>,
+        ctx: GraphNodeViewContext<'a>,
     ) -> GraphElement<'a, Self::Message> {
         let selected = state
             .available_sources
@@ -460,7 +460,7 @@ impl GraphNode for PassOutputNode {
     fn view<'a>(
         &self,
         state: &'a Self::State,
-        ctx: GraphNodeViewContext<'_>,
+        ctx: GraphNodeViewContext<'a>,
     ) -> GraphElement<'a, Self::Message> {
         let selected = state
             .available_targets
