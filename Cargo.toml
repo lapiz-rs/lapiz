@@ -31,6 +31,7 @@ members = [
     "crates/lapiz_main_view",
     "crates/lapiz_math",
     "crates/lapiz_new_canvas_dialog",
+    "crates/lapiz_ps_brush_engine",
     "crates/lapiz_render",
     "crates/lapiz_report",
     "crates/lapiz_runtime",
