@@ -104,7 +104,10 @@ impl Section {
     }
 }
 
-pub(super) fn section_toggle(section: Section, brush: &PhotoshopBrushPreset) -> EditorElement<'static> {
+pub(super) fn section_toggle(
+    section: Section,
+    brush: &PhotoshopBrushPreset,
+) -> EditorElement<'static> {
     match section.enabled(brush) {
         Some(enabled) => checkbox(enabled)
             .size(14)
@@ -589,8 +592,8 @@ impl PhotoshopBrushEditor {
                     .into()
             })
             .collect::<Vec<_>>();
-        let images: EditorElement<'_> = if image_buttons.is_empty() {
-            label(t!("ps_brush_no_images")).muted().into()
+        let images = if image_buttons.is_empty() {
+            EditorElement::from(label(t!("ps_brush_no_images")).muted())
         } else {
             scrollable(Flex::row(image_buttons).wrap().gap(4.0).width(Length::Fill))
                 .height(110)
@@ -877,17 +880,18 @@ fn control(
         DynamicsControl::Direction,
         DynamicsControl::Rotation,
     ];
-    let choice: EditorElement<'_> = if enabled {
-        ComboBox::new_with(
-            options,
-            Some(value),
-            move |value| {
-                PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(brush, value)))
-            },
-            |value| label(control_label(*value)).into(),
+    let choice = if enabled {
+        EditorElement::from(
+            ComboBox::new_with(
+                options,
+                Some(value),
+                move |value| {
+                    PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(brush, value)))
+                },
+                |value| label(control_label(*value)).into(),
+            )
+            .width(Length::Fill),
         )
-        .width(Length::Fill)
-        .into()
     } else {
         button(label(control_label(value)))
             .width(Length::Fill)
@@ -927,17 +931,18 @@ fn blend_mode(
     enabled: bool,
     set: fn(&mut PhotoshopBrushPreset, BlendMode),
 ) -> EditorElement<'static> {
-    let choice: EditorElement<'_> = if enabled {
-        ComboBox::new_with(
-            BlendMode::ALL.to_vec(),
-            Some(value),
-            move |value| {
-                PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(brush, value)))
-            },
-            |mode| label(t!(mode.shader_func())).into(),
+    let choice = if enabled {
+        EditorElement::from(
+            ComboBox::new_with(
+                BlendMode::ALL.to_vec(),
+                Some(value),
+                move |value| {
+                    PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(brush, value)))
+                },
+                |mode| label(t!(mode.shader_func())).into(),
+            )
+            .width(Length::Fill),
         )
-        .width(Length::Fill)
-        .into()
     } else {
         button(label(t!(value.shader_func())))
             .width(Length::Fill)
