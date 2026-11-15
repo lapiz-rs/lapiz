@@ -51,19 +51,19 @@ impl Section {
 
     pub(super) fn label(self) -> String {
         t!(match self {
-            Self::BrushTip => "ps_brush_tip",
-            Self::ShapeDynamics => "ps_brush_shape",
-            Self::Scattering => "ps_brush_scattering",
-            Self::Texture => "ps_brush_texture",
-            Self::DualBrush => "ps_brush_dual",
-            Self::ColorDynamics => "ps_brush_color",
-            Self::Transfer => "ps_brush_transfer",
-            Self::BrushPose => "ps_brush_pose",
-            Self::Noise => "ps_brush_noise",
-            Self::WetEdges => "ps_brush_wet_edges",
-            Self::BuildUp => "ps_brush_build_up",
-            Self::Smoothing => "ps_brush_smoothing",
-            Self::ProtectTexture => "ps_brush_protect_texture",
+            Self::BrushTip => "photoshop_brush_tip",
+            Self::ShapeDynamics => "photoshop_brush_shape",
+            Self::Scattering => "photoshop_brush_scattering",
+            Self::Texture => "photoshop_brush_texture",
+            Self::DualBrush => "photoshop_brush_dual",
+            Self::ColorDynamics => "photoshop_brush_color",
+            Self::Transfer => "photoshop_brush_transfer",
+            Self::BrushPose => "photoshop_brush_pose",
+            Self::Noise => "photoshop_brush_noise",
+            Self::WetEdges => "photoshop_brush_wet_edges",
+            Self::BuildUp => "photoshop_brush_build_up",
+            Self::Smoothing => "photoshop_brush_smoothing",
+            Self::ProtectTexture => "photoshop_brush_protect_texture",
         })
     }
 
@@ -152,20 +152,20 @@ impl PhotoshopBrushEditor {
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_size_jitter",
+                    "photoshop_brush_size_jitter",
                     shape_dynamics.size_jitter_percent
                 ),
                 control_field!(brush, enabled, shape_dynamics.size_control),
                 percent_field!(
                     brush,
                     enabled && brush.shape_dynamics.size_control != DynamicsControl::Off,
-                    "ps_brush_minimum_diameter",
+                    "photoshop_brush_minimum_diameter",
                     shape_dynamics.minimum_diameter_percent
                 ),
                 number_field!(
                     brush,
                     enabled && brush.shape_dynamics.size_control == DynamicsControl::PenTilt,
-                    "ps_brush_tilt_scale",
+                    "photoshop_brush_tilt_scale",
                     shape_dynamics.tilt_scale_percent,
                     0.0..=200.0,
                     "%"
@@ -173,34 +173,34 @@ impl PhotoshopBrushEditor {
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_angle_jitter",
+                    "photoshop_brush_angle_jitter",
                     shape_dynamics.angle_jitter_percent
                 ),
                 control_field!(brush, enabled, shape_dynamics.angle_control),
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_roundness_jitter",
+                    "photoshop_brush_roundness_jitter",
                     shape_dynamics.roundness_jitter_percent
                 ),
                 control_field!(brush, enabled, shape_dynamics.roundness_control),
                 percent_field!(
                     brush,
                     enabled && brush.shape_dynamics.roundness_control != DynamicsControl::Off,
-                    "ps_brush_minimum_roundness",
+                    "photoshop_brush_minimum_roundness",
                     shape_dynamics.minimum_roundness_percent
                 ),
                 row![
                     toggle_field!(
                         brush,
                         enabled,
-                        "ps_brush_flip_x_jitter",
+                        "photoshop_brush_flip_x_jitter",
                         shape_dynamics.flip_x_jitter
                     ),
                     toggle_field!(
                         brush,
                         enabled,
-                        "ps_brush_flip_y_jitter",
+                        "photoshop_brush_flip_y_jitter",
                         shape_dynamics.flip_y_jitter
                     ),
                 ]
@@ -208,7 +208,7 @@ impl PhotoshopBrushEditor {
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_projection",
+                    "photoshop_brush_projection",
                     shape_dynamics.brush_projection
                 ),
             ]
@@ -218,15 +218,20 @@ impl PhotoshopBrushEditor {
                 number_field!(
                     brush,
                     enabled,
-                    "ps_brush_scatter",
+                    "photoshop_brush_scatter",
                     scattering.scatter_percent,
                     0.0..=1000.0,
                     "%"
                 ),
-                toggle_field!(brush, enabled, "ps_brush_both_axes", scattering.both_axes),
+                toggle_field!(
+                    brush,
+                    enabled,
+                    "photoshop_brush_both_axes",
+                    scattering.both_axes
+                ),
                 control_field!(brush, enabled, scattering.scatter_control),
                 unsigned(
-                    "ps_brush_count",
+                    "photoshop_brush_count",
                     brush.scattering.count,
                     1..=16,
                     enabled,
@@ -235,7 +240,7 @@ impl PhotoshopBrushEditor {
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_count_jitter",
+                    "photoshop_brush_count_jitter",
                     scattering.count_jitter_percent
                 ),
                 control_field!(brush, enabled, scattering.count_control),
@@ -248,38 +253,38 @@ impl PhotoshopBrushEditor {
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_apply_per_tip",
+                    "photoshop_brush_apply_per_tip",
                     color_dynamics.apply_per_tip
                 ),
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_foreground_background_jitter",
+                    "photoshop_brush_foreground_background_jitter",
                     color_dynamics.foreground_background_jitter_percent
                 ),
                 control_field!(brush, enabled, color_dynamics.foreground_background_control),
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_hue_jitter",
+                    "photoshop_brush_hue_jitter",
                     color_dynamics.hue_jitter_percent
                 ),
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_saturation_jitter",
+                    "photoshop_brush_saturation_jitter",
                     color_dynamics.saturation_jitter_percent
                 ),
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_brightness_jitter",
+                    "photoshop_brush_brightness_jitter",
                     color_dynamics.brightness_jitter_percent
                 ),
                 number_field!(
                     brush,
                     enabled,
-                    "ps_brush_purity",
+                    "photoshop_brush_purity",
                     color_dynamics.purity_percent,
                     -100.0..=100.0,
                     "%"
@@ -291,53 +296,53 @@ impl PhotoshopBrushEditor {
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_opacity_jitter",
+                    "photoshop_brush_opacity_jitter",
                     transfer.opacity_jitter_percent
                 ),
                 control_field!(brush, enabled, transfer.opacity_control),
                 percent_field!(
                     brush,
                     enabled && brush.transfer.opacity_control != DynamicsControl::Off,
-                    "ps_brush_minimum",
+                    "photoshop_brush_minimum",
                     transfer.minimum_opacity_percent
                 ),
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_flow_jitter",
+                    "photoshop_brush_flow_jitter",
                     transfer.flow_jitter_percent
                 ),
                 control_field!(brush, enabled, transfer.flow_control),
                 percent_field!(
                     brush,
                     enabled && brush.transfer.flow_control != DynamicsControl::Off,
-                    "ps_brush_minimum",
+                    "photoshop_brush_minimum",
                     transfer.minimum_flow_percent
                 ),
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_wetness_jitter",
+                    "photoshop_brush_wetness_jitter",
                     transfer.wetness_jitter_percent
                 ),
                 control_field!(brush, enabled, transfer.wetness_control),
                 percent_field!(
                     brush,
                     enabled && brush.transfer.wetness_control != DynamicsControl::Off,
-                    "ps_brush_minimum",
+                    "photoshop_brush_minimum",
                     transfer.minimum_wetness_percent
                 ),
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_mix_jitter",
+                    "photoshop_brush_mix_jitter",
                     transfer.mix_jitter_percent
                 ),
                 control_field!(brush, enabled, transfer.mix_control),
                 percent_field!(
                     brush,
                     enabled && brush.transfer.mix_control != DynamicsControl::Off,
-                    "ps_brush_minimum",
+                    "photoshop_brush_minimum",
                     transfer.minimum_mix_percent
                 ),
             ]
@@ -347,7 +352,7 @@ impl PhotoshopBrushEditor {
                 number_field!(
                     brush,
                     enabled,
-                    "ps_brush_tilt_x",
+                    "photoshop_brush_tilt_x",
                     brush_pose.tilt_x_percent,
                     -100.0..=100.0,
                     "%"
@@ -355,13 +360,13 @@ impl PhotoshopBrushEditor {
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_override_tilt_x",
+                    "photoshop_brush_override_tilt_x",
                     brush_pose.override_tilt_x
                 ),
                 number_field!(
                     brush,
                     enabled,
-                    "ps_brush_tilt_y",
+                    "photoshop_brush_tilt_y",
                     brush_pose.tilt_y_percent,
                     -100.0..=100.0,
                     "%"
@@ -369,13 +374,13 @@ impl PhotoshopBrushEditor {
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_override_tilt_y",
+                    "photoshop_brush_override_tilt_y",
                     brush_pose.override_tilt_y
                 ),
                 number_field!(
                     brush,
                     enabled,
-                    "ps_brush_rotation",
+                    "photoshop_brush_rotation",
                     brush_pose.rotation_degrees,
                     0.0..=360.0,
                     "°"
@@ -383,63 +388,68 @@ impl PhotoshopBrushEditor {
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_override_rotation",
+                    "photoshop_brush_override_rotation",
                     brush_pose.override_rotation
                 ),
                 percent_field!(
                     brush,
                     enabled,
-                    "ps_brush_pressure",
+                    "photoshop_brush_pressure",
                     brush_pose.pressure_percent
                 ),
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_override_pressure",
+                    "photoshop_brush_override_pressure",
                     brush_pose.override_pressure
                 ),
             ]
             .gap(10.0)
             .into(),
             Section::Smoothing => column![
-                label(t!("ps_brush_compiler_limit")).muted(),
-                percent_field!(brush, enabled, "ps_brush_amount", smoothing.amount_percent),
+                label(t!("photoshop_brush_compiler_limit")).muted(),
+                percent_field!(
+                    brush,
+                    enabled,
+                    "photoshop_brush_amount",
+                    smoothing.amount_percent
+                ),
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_pulled_string",
+                    "photoshop_brush_pulled_string",
                     smoothing.pulled_string_mode
                 ),
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_catch_up",
+                    "photoshop_brush_catch_up",
                     smoothing.stroke_catch_up
                 ),
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_catch_up_end",
+                    "photoshop_brush_catch_up_end",
                     smoothing.catch_up_on_stroke_end
                 ),
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_adjust_zoom",
+                    "photoshop_brush_adjust_zoom",
                     smoothing.adjust_for_zoom
                 ),
                 toggle_field!(
                     brush,
                     enabled,
-                    "ps_brush_pressure_smoothing",
+                    "photoshop_brush_pressure_smoothing",
                     smoothing.pressure_smoothing
                 ),
             ]
             .gap(10.0)
             .into(),
-            Section::Noise => label(t!("ps_brush_toggle_hint")).muted().into(),
+            Section::Noise => label(t!("photoshop_brush_toggle_hint")).muted().into(),
             Section::WetEdges | Section::BuildUp | Section::ProtectTexture => {
-                label(t!("ps_brush_compiler_limit")).muted().into()
+                label(t!("photoshop_brush_compiler_limit")).muted().into()
             }
         }
     }
@@ -449,30 +459,30 @@ impl PhotoshopBrushEditor {
         let dynamics_enabled = enabled && brush.texture.texture_each_tip;
         column![
             image_selector(
-                "ps_brush_pattern",
+                "photoshop_brush_pattern",
                 brush.texture.pattern,
                 assets,
                 enabled,
                 |brush, id| brush.texture.pattern = Some(id)
             ),
-            toggle_field!(brush, enabled, "ps_brush_invert", texture.invert),
+            toggle_field!(brush, enabled, "photoshop_brush_invert", texture.invert),
             number_field!(
                 brush,
                 enabled,
-                "ps_brush_scale",
+                "photoshop_brush_scale",
                 texture.scale_percent,
                 1.0..=1000.0,
                 "%"
             ),
             integer(
-                "ps_brush_brightness",
+                "photoshop_brush_brightness",
                 brush.texture.brightness,
                 -150..=150,
                 enabled,
                 |brush, value| brush.texture.brightness = value
             ),
             integer(
-                "ps_brush_contrast",
+                "photoshop_brush_contrast",
                 brush.texture.contrast,
                 -50..=100,
                 enabled,
@@ -481,24 +491,29 @@ impl PhotoshopBrushEditor {
             toggle_field!(
                 brush,
                 enabled,
-                "ps_brush_each_tip",
+                "photoshop_brush_each_tip",
                 texture.texture_each_tip
             ),
             blend_mode(brush.texture.blend_mode, enabled, |brush, value| brush
                 .texture
                 .blend_mode =
                 value),
-            percent_field!(brush, enabled, "ps_brush_depth", texture.depth_percent),
+            percent_field!(
+                brush,
+                enabled,
+                "photoshop_brush_depth",
+                texture.depth_percent
+            ),
             percent_field!(
                 brush,
                 dynamics_enabled && brush.texture.depth_control != DynamicsControl::Off,
-                "ps_brush_minimum_depth",
+                "photoshop_brush_minimum_depth",
                 texture.minimum_depth_percent
             ),
             percent_field!(
                 brush,
                 dynamics_enabled,
-                "ps_brush_depth_jitter",
+                "photoshop_brush_depth_jitter",
                 texture.depth_jitter_percent
             ),
             control_field!(brush, dynamics_enabled, texture.depth_control),
@@ -515,18 +530,18 @@ impl PhotoshopBrushEditor {
                 .dual_brush
                 .blend_mode =
                 value),
-            toggle_field!(brush, enabled, "ps_brush_flip", dual_brush.flip),
+            toggle_field!(brush, enabled, "photoshop_brush_flip", dual_brush.flip),
             self.view_tip(TipTarget::Secondary, assets, enabled),
             toggle_field!(
                 brush,
                 enabled,
-                "ps_brush_use_scatter",
+                "photoshop_brush_use_scatter",
                 dual_brush.scatter_enabled
             ),
             number_field!(
                 brush,
                 scatter_enabled,
-                "ps_brush_scatter",
+                "photoshop_brush_scatter",
                 dual_brush.scatter_percent,
                 0.0..=1000.0,
                 "%"
@@ -534,12 +549,12 @@ impl PhotoshopBrushEditor {
             toggle_field!(
                 brush,
                 scatter_enabled,
-                "ps_brush_both_axes",
+                "photoshop_brush_both_axes",
                 dual_brush.both_axes
             ),
             control_field!(brush, scatter_enabled, dual_brush.scatter_control),
             unsigned(
-                "ps_brush_count",
+                "photoshop_brush_count",
                 brush.dual_brush.count,
                 1..=16,
                 scatter_enabled,
@@ -548,7 +563,7 @@ impl PhotoshopBrushEditor {
             percent_field!(
                 brush,
                 scatter_enabled,
-                "ps_brush_count_jitter",
+                "photoshop_brush_count_jitter",
                 dual_brush.count_jitter_percent
             ),
             control_field!(brush, scatter_enabled, dual_brush.count_control),
@@ -568,7 +583,7 @@ impl PhotoshopBrushEditor {
             BrushTip::Sampled(tip) => Some(tip.image),
             _ => None,
         };
-        let round = button(label(t!("ps_brush_computed")))
+        let round = button(label(t!("photoshop_brush_computed")))
             .activated(matches!(tip, BrushTip::Computed(_)))
             .on_press_maybe(enabled.then(|| {
                 PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| {
@@ -593,7 +608,7 @@ impl PhotoshopBrushEditor {
             })
             .collect::<Vec<_>>();
         let images = if image_buttons.is_empty() {
-            EditorElement::from(label(t!("ps_brush_no_images")).muted())
+            EditorElement::from(label(t!("photoshop_brush_no_images")).muted())
         } else {
             scrollable(Flex::row(image_buttons).wrap().gap(4.0).width(Length::Fill))
                 .height(110)
@@ -624,7 +639,7 @@ impl PhotoshopBrushEditor {
             round,
             images,
             number(
-                "ps_brush_size",
+                "photoshop_brush_size",
                 size,
                 0.1..=1000.0,
                 " px",
@@ -637,22 +652,32 @@ impl PhotoshopBrushEditor {
                 }
             ),
             row![
-                toggle("ps_brush_flip_x", flip_x, enabled, move |brush, value| {
-                    match target.get_mut(brush) {
-                        BrushTip::Computed(tip) => tip.flip_x = value,
-                        BrushTip::Sampled(tip) => tip.flip_x = value,
+                toggle(
+                    "photoshop_brush_flip_x",
+                    flip_x,
+                    enabled,
+                    move |brush, value| {
+                        match target.get_mut(brush) {
+                            BrushTip::Computed(tip) => tip.flip_x = value,
+                            BrushTip::Sampled(tip) => tip.flip_x = value,
+                        }
                     }
-                }),
-                toggle("ps_brush_flip_y", flip_y, enabled, move |brush, value| {
-                    match target.get_mut(brush) {
-                        BrushTip::Computed(tip) => tip.flip_y = value,
-                        BrushTip::Sampled(tip) => tip.flip_y = value,
+                ),
+                toggle(
+                    "photoshop_brush_flip_y",
+                    flip_y,
+                    enabled,
+                    move |brush, value| {
+                        match target.get_mut(brush) {
+                            BrushTip::Computed(tip) => tip.flip_y = value,
+                            BrushTip::Sampled(tip) => tip.flip_y = value,
+                        }
                     }
-                }),
+                ),
             ]
             .gap(16.0),
             number(
-                "ps_brush_angle",
+                "photoshop_brush_angle",
                 angle,
                 -180.0..=180.0,
                 "°",
@@ -665,7 +690,7 @@ impl PhotoshopBrushEditor {
                 }
             ),
             number(
-                "ps_brush_roundness",
+                "photoshop_brush_roundness",
                 roundness,
                 0.0..=100.0,
                 "%",
@@ -681,7 +706,7 @@ impl PhotoshopBrushEditor {
         .gap(10.0);
         if let BrushTip::Computed(tip) = tip {
             fields = fields.push(number(
-                "ps_brush_hardness",
+                "photoshop_brush_hardness",
                 tip.hardness_percent,
                 0.0..=100.0,
                 "%",
@@ -695,7 +720,7 @@ impl PhotoshopBrushEditor {
         }
         fields
             .push(toggle(
-                "ps_brush_spacing_enabled",
+                "photoshop_brush_spacing_enabled",
                 spacing_enabled,
                 enabled,
                 move |brush, value| match target.get_mut(brush) {
@@ -704,7 +729,7 @@ impl PhotoshopBrushEditor {
                 },
             ))
             .push(number(
-                "ps_brush_spacing",
+                "photoshop_brush_spacing",
                 spacing,
                 0.1..=1000.0,
                 "%",
@@ -898,10 +923,10 @@ fn control(
             .into()
     };
     let mut content =
-        column![row![label(t!("ps_brush_control")).width(120), choice].gap(8.0)].gap(6.0);
+        column![row![label(t!("photoshop_brush_control")).width(120), choice].gap(8.0)].gap(6.0);
     if let DynamicsControl::Fade { steps } = value {
         content = content.push(unsigned(
-            "ps_brush_fade_steps",
+            "photoshop_brush_fade_steps",
             steps,
             1..=10000,
             enabled,
@@ -915,14 +940,14 @@ fn control(
 
 fn control_label(value: DynamicsControl) -> String {
     t!(match value {
-        DynamicsControl::Off => "ps_brush_off",
-        DynamicsControl::Fade { .. } => "ps_brush_fade",
-        DynamicsControl::PenPressure => "ps_brush_pen_pressure",
-        DynamicsControl::PenTilt => "ps_brush_pen_tilt",
-        DynamicsControl::StylusWheel => "ps_brush_stylus_wheel",
-        DynamicsControl::InitialDirection => "ps_brush_initial_direction",
-        DynamicsControl::Direction => "ps_brush_direction",
-        DynamicsControl::Rotation => "ps_brush_rotation",
+        DynamicsControl::Off => "photoshop_brush_off",
+        DynamicsControl::Fade { .. } => "photoshop_brush_fade",
+        DynamicsControl::PenPressure => "photoshop_brush_pen_pressure",
+        DynamicsControl::PenTilt => "photoshop_brush_pen_tilt",
+        DynamicsControl::StylusWheel => "photoshop_brush_stylus_wheel",
+        DynamicsControl::InitialDirection => "photoshop_brush_initial_direction",
+        DynamicsControl::Direction => "photoshop_brush_direction",
+        DynamicsControl::Rotation => "photoshop_brush_rotation",
     })
 }
 
@@ -948,7 +973,7 @@ fn blend_mode(
             .width(Length::Fill)
             .into()
     };
-    row![label(t!("ps_brush_mode")).width(120), choice]
+    row![label(t!("photoshop_brush_mode")).width(120), choice]
         .gap(8.0)
         .into()
 }
@@ -971,7 +996,7 @@ fn image_selector(
             .into();
     }
     if options.is_empty() {
-        return label(t!("ps_brush_no_images")).muted().into();
+        return label(t!("photoshop_brush_no_images")).muted().into();
     }
     column![
         label(t!(key)).muted(),

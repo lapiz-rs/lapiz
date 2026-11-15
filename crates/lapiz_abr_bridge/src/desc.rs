@@ -7,7 +7,7 @@ use lapiz_abr::descriptor::{
 };
 use lapiz_assets::asset::AssetId;
 use lapiz_image::blend_modes::BlendMode;
-use lapiz_ps_brush_engine::parameter::{self, PhotoshopBrushPreset};
+use lapiz_photoshop_brush_engine::parameter::{self, PhotoshopBrushPreset};
 use lapiz_render::texture::Image;
 use uuid::Uuid;
 

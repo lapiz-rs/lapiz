@@ -89,7 +89,7 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
     }
 
     fn label() -> String {
-        t!("ps_brush_engine")
+        t!("photoshop_brush_engine")
     }
 
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>> {
@@ -186,7 +186,7 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
 
         let mut settings = column![label(self.section.label()).strong()];
         if self.section.enabled(&self.brush) == Some(false) {
-            settings = settings.push(label(t!("ps_brush_section_disabled")).muted());
+            settings = settings.push(label(t!("photoshop_brush_section_disabled")).muted());
         }
         settings = settings.push(self.view_section(globals.assets()));
         let settings = panel(scrollable(settings.gap(14.0).padding(16)).height(Length::Fill))
@@ -230,8 +230,8 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
             }
             PhotoshopBrushEditorMessage::Save => {
                 self.status = Some(match self.save() {
-                    Ok(()) => t!("ps_brush_saved"),
-                    Err(error) => format!("{}: {error:#}", t!("ps_brush_save_error")),
+                    Ok(()) => t!("photoshop_brush_saved"),
+                    Err(error) => format!("{}: {error:#}", t!("photoshop_brush_save_error")),
                 });
             }
             PhotoshopBrushEditorMessage::RefreshPreview(revision) => {
@@ -295,16 +295,16 @@ impl PhotoshopBrushEditor {
 
     fn view_preview(&self) -> EditorElement<'_> {
         let status = if self.preview_error.is_some() {
-            t!("ps_brush_preview_error")
+            t!("photoshop_brush_preview_error")
         } else if self.preview_revision != Some(self.revision) {
-            t!("ps_brush_preview_pending")
+            t!("photoshop_brush_preview_pending")
         } else {
-            t!("ps_brush_preview")
+            t!("photoshop_brush_preview")
         };
         let mut content = column![
             row![
                 label(status).strong(),
-                button(label(t!("ps_brush_refresh")))
+                button(label(t!("photoshop_brush_refresh")))
                     .on_press(PhotoshopBrushEditorMessage::RefreshPreview(self.revision)),
             ]
             .gap(8.0)
@@ -320,8 +320,8 @@ impl PhotoshopBrushEditor {
                     .style(|theme| inset(theme).background(Color::from_rgb8(48, 48, 48))),
             );
         } else {
-            content =
-                content.push(panel(label(t!("ps_brush_preview_pending")).muted()).height(130));
+            content = content
+                .push(panel(label(t!("photoshop_brush_preview_pending")).muted()).height(130));
         }
         panel(content.gap(6.0))
             .inset()

@@ -40,7 +40,7 @@ use lapiz_assets::{
     source::{AssetSource, AssetSourceRegistryExt as _},
     tag::{AssetTags, TagFile},
 };
-use lapiz_ps_brush_engine::asset::PhotoshopBrushSerializer;
+use lapiz_photoshop_brush_engine::asset::PhotoshopBrushSerializer;
 use lapiz_render::texture::Image;
 use lapiz_runtime::{Runtime, plugin::Plugin};
 use uuid::Uuid;
@@ -79,7 +79,7 @@ impl AssetSource for AbrAssetBundleSource {
 /// - **Samples (`samp`)**: Converted into [`Image`] mask assets (`samp-<id>.lig`).
 /// - **Patterns (`patt`)**: Converted into [`Image`] texture assets (`patt-<id>.lig`).
 /// - **Descriptors (`desc`)**: Converted into
-///   [`PhotoshopBrush`](lapiz_ps_brush_engine::parameter::PhotoshopBrush) assets
+///   [`PhotoshopBrushPreset`](lapiz_photoshop_brush_engine::parameter::PhotoshopBrushPreset) assets
 ///   (`desc-<id>.labr`) referencing the converted sample and pattern [`AssetId`]s.
 ///
 /// Asset IDs are deterministically derived as UUID v5 values namespaced by the bundle's [`BundleId`].

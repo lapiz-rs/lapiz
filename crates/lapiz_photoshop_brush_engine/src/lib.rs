@@ -9,7 +9,7 @@ pub mod convert;
 pub mod editor;
 pub mod parameter;
 
-lapiz_i18n::define_i18n!("ps_brush");
+lapiz_i18n::define_i18n!("photoshop_brush");
 
 pub struct PhotoshopBrushPlugin;
 
