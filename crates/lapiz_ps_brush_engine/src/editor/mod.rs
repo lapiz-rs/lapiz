@@ -61,7 +61,6 @@ pub enum PhotoshopBrushEditorMessage {
     NameChanged(String),
     Edit(Box<dyn FnOnce(&mut PhotoshopBrush) + Send>),
     Save,
-    ExportGraph,
     RefreshPreview(u64),
     PreviewReady(u64, Result<Handle>),
 }
@@ -165,8 +164,6 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
             }))
             .primary()
             .on_press_maybe(self.dirty.then_some(PhotoshopBrushEditorMessage::Save)),
-            button(label(t!("ps_brush_export_graph")))
-                .on_press(PhotoshopBrushEditorMessage::ExportGraph),
         ]
         .gap(8.0);
 
@@ -238,12 +235,6 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
                     Err(error) => format!("{}: {error:#}", t!("ps_brush_save_error")),
                 });
             }
-            PhotoshopBrushEditorMessage::ExportGraph => {
-                self.status = Some(match self.export_graph(globals) {
-                    Ok(()) => t!("ps_brush_exported"),
-                    Err(error) => format!("{}: {error:#}", t!("ps_brush_export_error")),
-                });
-            }
             PhotoshopBrushEditorMessage::RefreshPreview(revision) => {
                 if revision == self.revision {
                     self.preview_error = None;
@@ -301,11 +292,6 @@ impl PhotoshopBrushEditor {
         handle.write()?;
         self.dirty = false;
         Ok(())
-    }
-
-    fn export_graph(&self, globals: &mut Globals) -> Result<()> {
-        let preset = self.brush.compile()?;
-        globals.set_current_brush_preset(&preset)
     }
 
     fn view_preview(&self) -> EditorElement<'_> {
