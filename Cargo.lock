@@ -3998,9 +3998,18 @@ dependencies = [
 name = "lapiz_ps_brush_engine"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "iced_core",
  "lapiz_assets",
+ "lapiz_brush",
+ "lapiz_effect",
  "lapiz_image",
  "lapiz_render",
+ "lapiz_shader_graph",
+ "toml 1.1.6+spec-1.1.0",
+ "uuid",
+ "wesl",
+ "wesl-quote",
 ]
 
 [[package]]
