@@ -7,6 +7,9 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+lapiz_assets.workspace = true
+lapiz_image.workspace = true
+lapiz_render.workspace = true
 
 [lints]
 workspace = true

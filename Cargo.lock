@@ -3995,6 +3995,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lapiz_ps_brush_engine"
+version = "0.1.0"
+dependencies = [
+ "lapiz_assets",
+ "lapiz_image",
+ "lapiz_render",
+]
+
+[[package]]
 name = "lapiz_render"
 version = "0.1.0"
 dependencies = [
