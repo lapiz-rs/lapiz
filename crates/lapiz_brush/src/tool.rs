@@ -37,7 +37,7 @@ pub struct CurrentBrushPreset(pub CanvasBrushPresetOperator);
 impl Global for CurrentBrushPreset {}
 
 impl CurrentBrushPreset {
-    pub fn set(&mut self, preset: &BrushPreset, globals: &Globals) -> Result<()> {
+    pub fn new(preset: &BrushPreset, globals: &Globals) -> Result<Self> {
         let instance = BrushPresetInstance::new(preset, globals.assets().clone())?;
         let operator = CanvasBrushPresetOperator::new(
             instance,
@@ -49,8 +49,7 @@ impl CurrentBrushPreset {
             "Set current brush preset {}",
             operator.instance().metadata().name,
         );
-        self.0 = operator;
-        Ok(())
+        Ok(Self(operator))
     }
 }
 
@@ -66,7 +65,9 @@ impl CurrentBrushPresetExt for Globals {
     }
 
     fn set_current_brush_preset(&mut self, preset: &BrushPreset) -> Result<()> {
-        self.update_global::<CurrentBrushPreset, _>(|brush, globals| brush.set(preset, globals))
+        let brush = CurrentBrushPreset::new(preset, self)?;
+        self.insert_global(brush);
+        Ok(())
     }
 }
 
