@@ -13,14 +13,14 @@ use lapiz_assets::{
     store::AssetRegistry,
 };
 use lapiz_brush::{
-    asset::{BrushPreset, BrushPresetSerializer},
+    asset::BrushPreset,
     editor::{BrushEditorEngine, BrushEditorEngineId, BrushPresetEntry},
     instance::BrushPresetInstance,
     render::{
         graph::CanvasResources,
         stroke_preview::{create_stroke_preview, predefined_curve_samples},
     },
-    tool::BrushglobalsExt as _,
+    tool::CurrentBrushPresetExt as _,
 };
 use lapiz_i18n::t;
 use lapiz_render::{
@@ -305,22 +305,7 @@ impl PhotoshopBrushEditor {
 
     fn export_graph(&self, globals: &mut Globals) -> Result<()> {
         let preset = self.brush.compile()?;
-        let assets = globals.assets().clone();
-        let bundle = assets
-            .bundles()
-            .find(|bundle| !bundle.is_readonly())
-            .map(|bundle| bundle.metadata().bundle_id)
-            .context("A writable asset bundle is required for exporting")?;
-        let path = format!(
-            "brush_{}.{}",
-            Uuid::new_v4(),
-            BrushPresetSerializer::file_extension()
-        );
-        let id = assets.add_asset(bundle, path, Arc::new(preset))?;
-        let handle = assets.handle(id)?;
-        handle.write()?;
-        globals.set_current_brush_preset(handle);
-        Ok(())
+        globals.set_current_brush_preset(&preset)
     }
 
     fn view_preview(&self) -> EditorElement<'_> {

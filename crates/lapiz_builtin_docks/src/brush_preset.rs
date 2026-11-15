@@ -4,10 +4,11 @@ use iced_core::{Element, Length, Theme, window};
 use iced_runtime::Task;
 use lapiz_assets::AssetAppExt as _;
 use lapiz_brush::{
-    asset::BrushPreset, tool::BrushglobalsExt as _, widget::BrushPresetListDelegate,
+    asset::BrushPreset, tool::CurrentBrushPresetExt as _, widget::BrushPresetListDelegate,
 };
 use lapiz_dock::dock::{Dock, DockId};
 use lapiz_runtime::{Renderer, global::Globals};
+use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{button, flex::Flex, label, scrollable};
 
 pub static BRUSH_PRESETS_DOCK_ID: LazyLock<DockId> =
@@ -71,8 +72,10 @@ impl Dock for BrushPresetDock {
             BrushPresetDockMessage::SelectBrush(index) => {
                 self.brushes.select(index);
                 let handle = self.brushes.get(index).map(|item| item.brush.clone());
-                if let Some(handle) = handle {
-                    globals.set_current_brush_preset(handle);
+                if let Some(handle) = handle
+                    && let Ok(preset) = handle.get().logged_err()
+                {
+                    globals.set_current_brush_preset(preset.as_ref()).log_err();
                 }
                 Task::none()
             }

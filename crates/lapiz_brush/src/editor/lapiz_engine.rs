@@ -161,7 +161,7 @@ impl BrushEditorEngine for LapizBrushEngineEditor {
         _globals: &mut Globals,
     ) -> Result<()> {
         let handle = assets.handle(asset)?;
-        let mut instance = BrushPresetInstance::from_asset(&handle, assets.clone())?;
+        let mut instance = BrushPresetInstance::new(handle.get()?.as_ref(), assets.clone())?;
         let mut editor_states = BrushEffectEditorStates::new(assets);
 
         for slot in [BrushEffectSlot::Spacing, BrushEffectSlot::Main] {
