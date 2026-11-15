@@ -4,7 +4,7 @@ use iced_core::Length;
 use lapiz_assets::{asset::AssetId, store::AssetRegistry};
 use lapiz_i18n::t;
 use lapiz_image::blend_modes::BlendMode;
-use lapiz_render::texture::{Image, ImageListItem};
+use lapiz_render::texture::{Image, thumbnail::ImageThumbnail};
 use lapiz_widgets::{
     button, checkbox, column, combo_box::ComboBox, flex::Flex, label, row, scrollable, space,
     spin_slider::SpinSlider,
@@ -577,7 +577,7 @@ impl PhotoshopBrushEditor {
             .into_iter()
             .map(|handle| {
                 let id = handle.id();
-                button(ImageListItem::new(handle))
+                button(ImageThumbnail::new(handle))
                     .width(175)
                     .height(44)
                     .activated(selected_image == Some(id))
@@ -958,18 +958,12 @@ fn image_selector(
     let options = assets.all_handles_of::<Image>().unwrap_or_default();
     let selected = selected.and_then(|id| options.iter().find(|handle| handle.id() == id).cloned());
     if !enabled {
-        return column![
-            label(t!(key)).muted(),
-            button(label(
-                selected
-                    .and_then(|handle| handle.get().ok())
-                    .map(|image| image.metadata.name.clone())
-                    .unwrap_or_default()
-            ))
-            .width(Length::Fill),
-        ]
-        .gap(3.0)
-        .into();
+        let selected = selected
+            .map(|handle| EditorElement::from(ImageThumbnail::new(handle)))
+            .unwrap_or_else(|| label("").into());
+        return column![label(t!(key)).muted(), button(selected).width(Length::Fill),]
+            .gap(3.0)
+            .into();
     }
     if options.is_empty() {
         return label(t!("ps_brush_no_images")).muted().into();
@@ -983,7 +977,7 @@ fn image_selector(
                 let id = handle.id();
                 PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(brush, id)))
             },
-            |handle| ImageListItem::new(handle.clone()).into()
+            |handle| ImageThumbnail::new(handle.clone()).into()
         )
         .width(Length::Fill),
     ]
