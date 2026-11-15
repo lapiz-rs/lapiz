@@ -3252,21 +3252,15 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "iced_core",
  "image",
  "lapiz_abr",
  "lapiz_assets",
- "lapiz_brush",
- "lapiz_effect",
  "lapiz_image",
+ "lapiz_ps_brush_engine",
  "lapiz_render",
  "lapiz_runtime",
- "lapiz_shader_graph",
  "log",
- "toml 1.1.6+spec-1.1.0",
  "uuid",
- "wesl",
- "wesl-quote",
  "xxhash-rust",
 ]
 

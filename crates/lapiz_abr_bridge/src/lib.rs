@@ -36,10 +36,11 @@ use lapiz_abr::Abr;
 use lapiz_assets::{
     asset::{AssetId, ErasedAsset, UntypedAssetId},
     bundle::{AssetBundle, AssetBundleMetadata, BundleId, BundleManifest, ErasedAssetBundle},
-    loader::ErasedAssetSerializer,
+    loader::{AssetSerializer, ErasedAssetSerializer},
     source::{AssetSource, AssetSourceRegistryExt as _},
     tag::{AssetTags, TagFile},
 };
+use lapiz_ps_brush_engine::asset::PhotoshopBrushSerializer;
 use lapiz_render::texture::Image;
 use lapiz_runtime::{Runtime, plugin::Plugin};
 use uuid::Uuid;
@@ -77,9 +78,9 @@ impl AssetSource for AbrAssetBundleSource {
 ///
 /// - **Samples (`samp`)**: Converted into [`Image`] mask assets (`samp-<id>.lig`).
 /// - **Patterns (`patt`)**: Converted into [`Image`] texture assets (`patt-<id>.lig`).
-/// - **Descriptors (`desc`)**: Compiled into [`BrushPreset`](lapiz_brush::asset::BrushPreset) assets
-///   (`desc-<id>.lapiz`) with generated spacing, main dab, and postprocess shader graphs referencing
-///   the converted sample and pattern [`AssetId`]s.
+/// - **Descriptors (`desc`)**: Converted into
+///   [`PhotoshopBrush`](lapiz_ps_brush_engine::parameter::PhotoshopBrush) assets
+///   (`desc-<id>.labr`) referencing the converted sample and pattern [`AssetId`]s.
 ///
 /// Asset IDs are deterministically derived as UUID v5 values namespaced by the bundle's [`BundleId`].
 pub struct AbrAssetBundle {
@@ -151,7 +152,10 @@ impl AbrAssetBundle {
 
         for brush in &abr.descriptors {
             let asset_id = UntypedAssetId::new(Uuid::new_v5(&bundle_id.0, brush.name.as_bytes()));
-            let path = PathBuf::from(format!("desc-{asset_id}.lapiz"));
+            let path = PathBuf::from(format!(
+                "desc-{asset_id}.{}",
+                <PhotoshopBrushSerializer as AssetSerializer>::file_extension()
+            ));
             match desc::parse_desc(brush, &sample_assets, &pattern_assets) {
                 Ok(asset) => {
                     manifest.assets.insert(asset_id, path.clone());
