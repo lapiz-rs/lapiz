@@ -4,7 +4,7 @@ use lapiz_render::texture::Image;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct PhotoshopBrush {
+pub struct PhotoshopBrushPreset {
     pub name: String,
     pub brush_tip: BrushTip,
     pub shape_dynamics: ShapeDynamics,
@@ -178,7 +178,7 @@ pub struct Smoothing {
     pub pressure_smoothing: bool,
 }
 
-impl Default for PhotoshopBrush {
+impl Default for PhotoshopBrushPreset {
     fn default() -> Self {
         Self {
             name: "[Unnamed Brush]".into(),

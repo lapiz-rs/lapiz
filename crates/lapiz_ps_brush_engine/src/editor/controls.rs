@@ -12,7 +12,7 @@ use lapiz_widgets::{
 
 use super::{EditorElement, PhotoshopBrushEditor, PhotoshopBrushEditorMessage};
 use crate::parameter::{
-    BrushTip, ComputedBrushTip, DynamicsControl, PhotoshopBrush, SampledBrushTip,
+    BrushTip, ComputedBrushTip, DynamicsControl, PhotoshopBrushPreset, SampledBrushTip,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,7 +67,7 @@ impl Section {
         })
     }
 
-    pub(super) fn enabled(self, brush: &PhotoshopBrush) -> Option<bool> {
+    pub(super) fn enabled(self, brush: &PhotoshopBrushPreset) -> Option<bool> {
         Some(match self {
             Self::BrushTip => return None,
             Self::ShapeDynamics => brush.shape_dynamics.enabled,
@@ -85,7 +85,7 @@ impl Section {
         })
     }
 
-    pub(super) fn set_enabled(self, brush: &mut PhotoshopBrush, enabled: bool) {
+    pub(super) fn set_enabled(self, brush: &mut PhotoshopBrushPreset, enabled: bool) {
         match self {
             Self::BrushTip => {}
             Self::ShapeDynamics => brush.shape_dynamics.enabled = enabled,
@@ -104,7 +104,7 @@ impl Section {
     }
 }
 
-pub(super) fn section_toggle(section: Section, brush: &PhotoshopBrush) -> EditorElement<'static> {
+pub(super) fn section_toggle(section: Section, brush: &PhotoshopBrushPreset) -> EditorElement<'static> {
     match section.enabled(brush) {
         Some(enabled) => checkbox(enabled)
             .size(14)
@@ -722,21 +722,21 @@ enum TipTarget {
 }
 
 impl TipTarget {
-    fn get(self, brush: &PhotoshopBrush) -> &BrushTip {
+    fn get(self, brush: &PhotoshopBrushPreset) -> &BrushTip {
         match self {
             Self::Primary => &brush.brush_tip,
             Self::Secondary => &brush.dual_brush.brush_tip,
         }
     }
 
-    fn get_mut(self, brush: &mut PhotoshopBrush) -> &mut BrushTip {
+    fn get_mut(self, brush: &mut PhotoshopBrushPreset) -> &mut BrushTip {
         match self {
             Self::Primary => &mut brush.brush_tip,
             Self::Secondary => &mut brush.dual_brush.brush_tip,
         }
     }
 
-    fn select_computed(self, brush: &mut PhotoshopBrush) {
+    fn select_computed(self, brush: &mut PhotoshopBrushPreset) {
         let tip = self.get_mut(brush);
         if let BrushTip::Sampled(sampled) = tip {
             *tip = BrushTip::Computed(ComputedBrushTip {
@@ -752,7 +752,7 @@ impl TipTarget {
         }
     }
 
-    fn select_image(self, brush: &mut PhotoshopBrush, image: AssetId<Image>) {
+    fn select_image(self, brush: &mut PhotoshopBrushPreset, image: AssetId<Image>) {
         let tip = self.get_mut(brush);
         match tip {
             BrushTip::Sampled(tip) => tip.image = image,
@@ -778,7 +778,7 @@ fn number(
     range: RangeInclusive<f32>,
     suffix: &str,
     enabled: bool,
-    set: impl Fn(&mut PhotoshopBrush, f32) + Copy + Send + 'static,
+    set: impl Fn(&mut PhotoshopBrushPreset, f32) + Copy + Send + 'static,
 ) -> EditorElement<'static> {
     column![
         label(t!(key)).muted(),
@@ -802,7 +802,7 @@ fn unsigned(
     value: u32,
     range: RangeInclusive<u32>,
     enabled: bool,
-    set: impl Fn(&mut PhotoshopBrush, u32) + Copy + Send + 'static,
+    set: impl Fn(&mut PhotoshopBrushPreset, u32) + Copy + Send + 'static,
 ) -> EditorElement<'static> {
     row![
         label(t!(key)).width(Length::Fill),
@@ -826,7 +826,7 @@ fn integer(
     value: i32,
     range: RangeInclusive<i32>,
     enabled: bool,
-    set: impl Fn(&mut PhotoshopBrush, i32) + Copy + Send + 'static,
+    set: impl Fn(&mut PhotoshopBrushPreset, i32) + Copy + Send + 'static,
 ) -> EditorElement<'static> {
     column![
         label(t!(key)).muted(),
@@ -848,7 +848,7 @@ fn toggle(
     key: &str,
     value: bool,
     enabled: bool,
-    set: impl Fn(&mut PhotoshopBrush, bool) + Copy + Send + 'static,
+    set: impl Fn(&mut PhotoshopBrushPreset, bool) + Copy + Send + 'static,
 ) -> EditorElement<'static> {
     checkbox(value)
         .label(t!(key))
@@ -861,7 +861,7 @@ fn toggle(
 fn control(
     value: DynamicsControl,
     enabled: bool,
-    set: fn(&mut PhotoshopBrush, DynamicsControl),
+    set: fn(&mut PhotoshopBrushPreset, DynamicsControl),
 ) -> EditorElement<'static> {
     let steps = match value {
         DynamicsControl::Fade { steps } => steps,
@@ -925,7 +925,7 @@ fn control_label(value: DynamicsControl) -> String {
 fn blend_mode(
     value: BlendMode,
     enabled: bool,
-    set: fn(&mut PhotoshopBrush, BlendMode),
+    set: fn(&mut PhotoshopBrushPreset, BlendMode),
 ) -> EditorElement<'static> {
     let choice: EditorElement<'_> = if enabled {
         ComboBox::new_with(
@@ -953,7 +953,7 @@ fn image_selector(
     selected: Option<AssetId<Image>>,
     assets: &AssetRegistry,
     enabled: bool,
-    set: fn(&mut PhotoshopBrush, AssetId<Image>),
+    set: fn(&mut PhotoshopBrushPreset, AssetId<Image>),
 ) -> EditorElement<'static> {
     let options = assets.all_handles_of::<Image>().unwrap_or_default();
     let selected = selected.and_then(|id| options.iter().find(|handle| handle.id() == id).cloned());

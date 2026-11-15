@@ -7,7 +7,7 @@ use lapiz_abr::descriptor::{
 };
 use lapiz_assets::asset::AssetId;
 use lapiz_image::blend_modes::BlendMode;
-use lapiz_ps_brush_engine::parameter::{self, PhotoshopBrush};
+use lapiz_ps_brush_engine::parameter::{self, PhotoshopBrushPreset};
 use lapiz_render::texture::Image;
 use uuid::Uuid;
 
@@ -133,7 +133,7 @@ pub fn parse_desc(
     brush: &Descriptor,
     sample_assets: &HashMap<Uuid, AssetId<Image>>,
     pattern_assets: &HashMap<Uuid, AssetId<Image>>,
-) -> Result<PhotoshopBrush> {
+) -> Result<PhotoshopBrushPreset> {
     let paint_options = match &brush.tool_options {
         Some(ToolOptions::Paint(options)) => Some(options),
         _ => None,
@@ -191,7 +191,7 @@ pub fn parse_desc(
     let dual_scatter = dual.scatter_dynamics.as_ref();
     let dual_count = dual.count_dynamics.as_ref();
 
-    let mut result = PhotoshopBrush {
+    let mut result = PhotoshopBrushPreset {
         name: brush.name.clone(),
         brush_tip: parse_tip(&brush.brush, sample_assets).context("brush tip")?,
         shape_dynamics: parameter::ShapeDynamics {

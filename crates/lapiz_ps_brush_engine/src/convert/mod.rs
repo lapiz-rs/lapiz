@@ -13,13 +13,13 @@ use crate::{
             BrushPose, BrushTexture, ColorAdjustment, DualBrush, DualBrushTip, Dynamics, Scatter,
         },
     },
-    parameter::{self, BrushTip, DynamicsControl, PhotoshopBrush},
+    parameter::{self, BrushTip, DynamicsControl, PhotoshopBrushPreset},
 };
 
 mod graph;
 mod wgsl;
 
-impl PhotoshopBrush {
+impl PhotoshopBrushPreset {
     pub fn compile(&self) -> Result<BrushPreset> {
         ensure!(
             !self.wet_edges,

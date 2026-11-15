@@ -36,15 +36,15 @@ use lapiz_widgets::{
 use uuid::Uuid;
 
 use self::controls::Section;
-use crate::{asset::PhotoshopBrushSerializer, parameter::PhotoshopBrush};
+use crate::{asset::PhotoshopBrushSerializer, parameter::PhotoshopBrushPreset};
 
 pub mod controls;
 
 type EditorElement<'a> = Element<'a, PhotoshopBrushEditorMessage, Theme, Renderer>;
 
 pub struct PhotoshopBrushEditor {
-    brush: PhotoshopBrush,
-    handle: Option<AssetHandle<PhotoshopBrush>>,
+    brush: PhotoshopBrushPreset,
+    handle: Option<AssetHandle<PhotoshopBrushPreset>>,
     section: Section,
     dirty: bool,
     revision: u64,
@@ -58,7 +58,7 @@ pub enum PhotoshopBrushEditorMessage {
     SelectSection(Section),
     ToggleSection(Section, bool),
     NameChanged(String),
-    Edit(Box<dyn FnOnce(&mut PhotoshopBrush) + Send>),
+    Edit(Box<dyn FnOnce(&mut PhotoshopBrushPreset) + Send>),
     Save,
     RefreshPreview(u64),
     PreviewReady(u64, Result<Handle>),
@@ -67,7 +67,7 @@ pub enum PhotoshopBrushEditorMessage {
 impl Default for PhotoshopBrushEditor {
     fn default() -> Self {
         Self {
-            brush: PhotoshopBrush::default(),
+            brush: PhotoshopBrushPreset::default(),
             handle: None,
             section: Section::BrushTip,
             dirty: false,
@@ -81,7 +81,7 @@ impl Default for PhotoshopBrushEditor {
 }
 
 impl BrushEditorEngine for PhotoshopBrushEditor {
-    type Brush = PhotoshopBrush;
+    type Brush = PhotoshopBrushPreset;
     type Message = PhotoshopBrushEditorMessage;
 
     fn id() -> BrushEditorEngineId {
@@ -94,7 +94,7 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
 
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>> {
         assets
-            .all_handles_of::<PhotoshopBrush>()?
+            .all_handles_of::<PhotoshopBrushPreset>()?
             .into_iter()
             .map(|handle| {
                 Ok(BrushPresetEntry {
@@ -137,7 +137,7 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
             Uuid::new_v4(),
             PhotoshopBrushSerializer::file_extension()
         );
-        let id = assets.add_asset(bundle, path, Arc::new(PhotoshopBrush::default()))?;
+        let id = assets.add_asset(bundle, path, Arc::new(PhotoshopBrushPreset::default()))?;
         self.load_brush(id, assets, globals)?;
         self.dirty = true;
         Ok(id)

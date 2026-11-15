@@ -6,9 +6,9 @@ use std::{
 use anyhow::Result;
 use lapiz_assets::{asset::Asset, loader::AssetSerializer};
 
-use crate::parameter::PhotoshopBrush;
+use crate::parameter::PhotoshopBrushPreset;
 
-impl Asset for PhotoshopBrush {
+impl Asset for PhotoshopBrushPreset {
     const TYPE_NAME: &'static str = "photoshop_brush";
 }
 
@@ -16,7 +16,7 @@ impl Asset for PhotoshopBrush {
 pub struct PhotoshopBrushSerializer;
 
 impl AssetSerializer for PhotoshopBrushSerializer {
-    type Asset = PhotoshopBrush;
+    type Asset = PhotoshopBrushPreset;
 
     fn file_extension() -> &'static str {
         "labr"
