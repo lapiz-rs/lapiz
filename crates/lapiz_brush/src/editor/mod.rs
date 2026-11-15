@@ -1,8 +1,8 @@
 use std::{any::Any, collections::HashMap, sync::Arc};
 
 use anyhow::{Context as _, Result};
-use iced_core::{Element, Length, Size, Theme, window};
-use iced_futures::Subscription;
+use iced_core::{Element, Event, Length, Size, Theme, window};
+use iced_futures::{Subscription, event::listen_with};
 use iced_runtime::{
     Task,
     window::{close, drag, minimize, open, toggle_maximize},
@@ -22,7 +22,10 @@ use lapiz_utils::{log_err::LogErr as _, wrapper};
 use lapiz_widgets::{button, column, flex::Flex, label, panel, row, scrollable, title_bar};
 use uuid::Uuid;
 
-use crate::{asset::BrushPreset, editor::lapiz_engine::LapizBrushEngineEditor};
+use crate::{
+    asset::BrushPreset, editor::lapiz_engine::LapizBrushEngineEditor,
+    tool::CurrentBrushPresetExt as _,
+};
 
 pub mod lapiz_engine;
 
@@ -211,6 +214,7 @@ pub enum BrushEditorMessage {
         session: BrushEditorSessionId,
         message: Box<dyn Any + Send>,
     },
+    WindowUnfocused(window::Id),
     Close,
     Maximize,
     Minimize,
@@ -378,6 +382,20 @@ impl WindowView for BrushEditor {
                 self.refresh_brush_names(globals);
                 task.map(move |message| BrushEditorMessage::EngineMessage { session, message })
             }
+            BrushEditorMessage::WindowUnfocused(window) => {
+                if window == self.main_window
+                    && let Some(selected) = self.selected.as_ref()
+                {
+                    let result = selected
+                        .engine
+                        .compile_brush(globals)
+                        .and_then(|preset| globals.set_current_brush_preset(&preset));
+                    if let Err(error) = result {
+                        log::error!("Failed to apply brush preset on editor focus loss: {error:#}");
+                    }
+                }
+                Task::none()
+            }
             BrushEditorMessage::Close => close(self.main_window),
             BrushEditorMessage::Maximize => toggle_maximize(self.main_window),
             BrushEditorMessage::Minimize => minimize(self.main_window, true),
@@ -386,7 +404,13 @@ impl WindowView for BrushEditor {
     }
 
     fn subscription(&self, globals: &Globals) -> Subscription<Self::Message> {
-        match self.selected.as_ref() {
+        let external = listen_with(|event, _status, window| match event {
+            Event::Window(window::Event::Unfocused) => {
+                Some(BrushEditorMessage::WindowUnfocused(window))
+            }
+            _ => None,
+        });
+        let engine = match self.selected.as_ref() {
             Some(selected) => {
                 let session = selected.session;
                 selected
@@ -399,7 +423,9 @@ impl WindowView for BrushEditor {
                     })
             }
             None => Subscription::none(),
-        }
+        };
+
+        Subscription::batch([external, engine])
     }
 
     fn close(self, _: &mut Globals) -> Task<()> {

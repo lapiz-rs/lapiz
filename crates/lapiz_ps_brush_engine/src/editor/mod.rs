@@ -20,7 +20,6 @@ use lapiz_brush::{
         graph::CanvasResources,
         stroke_preview::{create_stroke_preview, predefined_curve_samples},
     },
-    tool::CurrentBrushPresetExt as _,
 };
 use lapiz_i18n::t;
 use lapiz_render::{
