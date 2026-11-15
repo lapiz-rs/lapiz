@@ -217,8 +217,9 @@ impl<Message> Widget<Message, Theme, Renderer> for Flex<'_, Message> {
         renderer: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
+        let limits = limits.width(self.width).height(self.height);
         let horizontal = self.is_horizontal();
-        let measured = self.measure_children(tree, renderer, limits);
+        let measured = self.measure_children(tree, renderer, &limits);
         let intrinsic = self.intrinsic_size(&measured, horizontal);
         let resolved = limits.resolve(self.width, self.height, intrinsic);
 
@@ -246,7 +247,7 @@ impl<Message> Widget<Message, Theme, Renderer> for Flex<'_, Message> {
         } else {
             resolved
         };
-        let children = self.place_children(tree, renderer, &taffy, &leaves);
+        let children = self.place_children(tree, renderer, &taffy, &leaves, measured);
         layout::Node::with_children(size, children)
     }
 
@@ -429,7 +430,7 @@ impl<Message> Flex<'_, Message> {
         renderer: &Renderer,
         limits: &layout::Limits,
     ) -> Vec<layout::Node> {
-        let loose = limits.loose();
+        let loose = limits.shrink(self.padding).loose();
         self.children
             .iter_mut()
             .zip(&mut tree.children)
@@ -548,19 +549,25 @@ impl<Message> Flex<'_, Message> {
         renderer: &Renderer,
         taffy: &TaffyTree<()>,
         leaves: &[taffy::NodeId],
+        measured: Vec<layout::Node>,
     ) -> Vec<layout::Node> {
         self.children
             .iter_mut()
             .zip(&mut tree.children)
             .zip(leaves.iter().copied())
-            .map(|((child, state), leaf)| {
+            .zip(measured)
+            .map(|(((child, state), leaf), measured)| {
                 let result = *taffy.layout(leaf).unwrap();
                 let size = Size::new(result.size.width, result.size.height);
-                let exact = layout::Limits::new(size, size);
-                child
-                    .as_widget_mut()
-                    .layout(state, renderer, &exact)
-                    .move_to(Point::new(result.location.x, result.location.y))
+                // Matching dimensions preserve the measured subtree and its widget state.
+                let node = if measured.size() == size {
+                    measured
+                } else {
+                    let exact = layout::Limits::new(size, size);
+                    child.as_widget_mut().layout(state, renderer, &exact)
+                };
+
+                node.move_to(Point::new(result.location.x, result.location.y))
             })
             .collect()
     }
