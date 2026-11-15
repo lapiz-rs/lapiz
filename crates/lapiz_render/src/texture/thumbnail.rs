@@ -12,7 +12,7 @@ use iced_core::{
     image::Handle,
     layout,
     pointer::mouse,
-    renderer,
+    renderer, shell,
     widget::{Operation, Tree, tree},
 };
 use lapiz_assets::asset::{AssetHandle, AssetId};
@@ -23,7 +23,6 @@ use super::{Image, read_or_create_cached_thumbnail};
 
 type ThumbnailElement<'a, Message> = Element<'a, Message, Theme, Renderer>;
 
-/// Displays an image asset's thumbnail and name, loading them in the background when visible.
 pub struct ImageThumbnail<'a, Message> {
     handle: AssetHandle<Image>,
     content: ThumbnailElement<'a, Message>,
@@ -33,14 +32,6 @@ impl<'a, Message: 'a> ImageThumbnail<'a, Message> {
     pub fn new(handle: AssetHandle<Image>) -> Self {
         let content = State::new(handle.id()).view();
         Self { handle, content }
-    }
-
-    fn load(handle: &AssetHandle<Image>) -> Result<(String, Handle)> {
-        let name = handle.get()?.metadata.name.clone();
-        let path = read_or_create_cached_thumbnail(handle)?;
-        let thumbnail = open(path)?.into_rgba8();
-        let handle = Handle::from_rgba(thumbnail.width(), thumbnail.height(), thumbnail.into_raw());
-        Ok((name, handle))
     }
 }
 
@@ -75,7 +66,7 @@ impl State {
     }
 }
 
-struct ThumbnailWaker(iced_core::shell::Waker);
+struct ThumbnailWaker(shell::Waker);
 
 impl Wake for ThumbnailWaker {
     fn wake(self: Arc<Self>) {
@@ -146,7 +137,20 @@ impl<'a, Message: 'a> Widget<Message, Theme, Renderer> for ImageThumbnail<'a, Me
             let state = tree.state.downcast_mut::<State>();
             if state.task.is_none() && state.result.is_none() {
                 let handle = self.handle.clone();
-                state.task = Some(smol::unblock(move || Self::load(&handle)).boxed());
+                state.task = Some(
+                    smol::unblock(move || {
+                        let name = handle.get()?.metadata.name.clone();
+                        let path = read_or_create_cached_thumbnail(&handle)?;
+                        let thumbnail = open(path)?.into_rgba8();
+                        let handle = Handle::from_rgba(
+                            thumbnail.width(),
+                            thumbnail.height(),
+                            thumbnail.into_raw(),
+                        );
+                        Ok((name, handle))
+                    })
+                    .boxed(),
+                );
             }
 
             if let Some(task) = &mut state.task {
