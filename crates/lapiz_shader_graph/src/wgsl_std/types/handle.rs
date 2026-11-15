@@ -17,7 +17,7 @@ use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
     bind_group_layout_entries::{DynamicBindGroupLayoutEntries, binding_types},
     readback::{create_readback_buffer_and_schedule_copy_buffer, readback_buffer_on_submit_async},
-    texture::{GpuImage, Image, ImageListItem},
+    texture::{GpuImage, Image, thumbnail::ImageThumbnail},
     util::DevicePollExt as _,
 };
 use lapiz_utils::random_oklch_hue_chroma;
@@ -252,7 +252,7 @@ impl GraphValueType for TextureType {
             .and_then(|handle| options.iter().find(|option| *option == handle).cloned());
 
         ComboBox::new_with(options, selected, TextureChanged, |handle| {
-            ImageListItem::new(handle.clone()).into()
+            ImageThumbnail::new(handle.clone()).into()
         })
         .placeholder(t!("select_texture"))
         .width(iced_core::Length::Fill)

@@ -4014,6 +4014,8 @@ dependencies = [
  "log",
  "parse-display",
  "serde",
+ "smol",
+ "tempfile",
  "thiserror 2.0.20",
  "toml 1.1.6+spec-1.1.0",
  "tracing",

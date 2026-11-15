@@ -5,15 +5,12 @@ use std::{
 };
 
 use anyhow::Result;
-use iced_core::{Element, image::Handle};
 use image::{DynamicImage, ImageFormat, imageops::FilterType};
 use lapiz_assets::{
     asset::{Asset, AssetHandle, AssetId},
     loader::AssetSerializer,
 };
 use lapiz_dirs::cache_dir;
-use lapiz_runtime::{Renderer, Theme};
-use lapiz_widgets::{label, row};
 use serde::{Deserialize, Serialize};
 use toml::de;
 use wgpu::{
@@ -22,6 +19,8 @@ use wgpu::{
     wgt::{TextureDataOrder, TextureDescriptor},
 };
 use zip::{ZipArchive, result::ZipError};
+
+pub mod thumbnail;
 
 pub fn image_thumbnail_path(id: &AssetId<Image>) -> PathBuf {
     cache_dir()
@@ -37,50 +36,15 @@ pub fn read_or_create_cached_thumbnail(handle: &AssetHandle<Image>) -> Result<Pa
 
     let img = handle.get()?;
     let thumbnail = img.image.resize_to_fill(64, 64, FilterType::Lanczos3);
-    fs::create_dir_all(
-        path.parent()
-            .expect("thumbnail path has a parent directory"),
-    )?;
-    thumbnail.save_with_format(&path, ImageFormat::Png)?;
+    let parent = path
+        .parent()
+        .expect("thumbnail path has a parent directory");
+    fs::create_dir_all(parent)?;
+    let mut temp = tempfile::NamedTempFile::new_in(parent)?;
+    thumbnail.write_to(temp.as_file_mut(), ImageFormat::Png)?;
+    temp.persist(&path)?;
 
     Ok(path)
-}
-
-/// UI widget adapter that renders an [`AssetHandle<Image>`] as a thumbnail row with its display name.
-pub struct ImageListItem {
-    handle: AssetHandle<Image>,
-}
-
-impl ImageListItem {
-    pub fn new(handle: AssetHandle<Image>) -> Self {
-        Self { handle }
-    }
-}
-
-impl<'a, Message: 'a> From<ImageListItem> for Element<'a, Message, Theme, Renderer> {
-    fn from(value: ImageListItem) -> Self {
-        let path = read_or_create_cached_thumbnail(&value.handle).unwrap_or_else(|error| {
-            log::warn!(
-                "Failed to create thumbnail for image {}: {error}",
-                value.handle.id()
-            );
-            image_thumbnail_path(&value.handle.id())
-        });
-        row![
-            lapiz_widgets::image(Handle::from_path(path))
-                .width(32)
-                .height(32),
-            label(
-                value
-                    .handle
-                    .get()
-                    .map(|h| h.metadata.name.clone())
-                    .unwrap_or_default()
-            )
-        ]
-        .gap(4.0)
-        .into()
-    }
 }
 
 /// A CPU-resident image [`Asset`] containing decoded pixel data, format information, and [`ImageMetadata`].
