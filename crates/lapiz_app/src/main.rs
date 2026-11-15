@@ -41,6 +41,7 @@ pub(crate) fn run(#[cfg(target_os = "android")] android_app: AndroidApp) {
         .add_plugin(lapiz_canvas::CanvasPlugin)
         .add_plugin(lapiz_input::InputPlugin)
         .add_plugin(lapiz_brush::BrushPlugin)
+        .add_plugin(lapiz_photoshop_brush_engine::PhotoshopBrushPlugin)
         .add_plugin(lapiz_filter::FilterPlugin)
         .add_plugin(lapiz_bucket_tool::BucketPlugin)
         .add_plugin(lapiz_eye_dropper::EyeDropperPlugin)

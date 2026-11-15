@@ -63,7 +63,7 @@ pub fn load_cached_stroke_preview_or_generate(
 
     info!("Generating stroke preview for brush {}", brush.id());
 
-    let instance = BrushPresetInstance::from_asset(brush, assets.clone())
+    let instance = BrushPresetInstance::new(brush.get()?.as_ref(), assets.clone())
         .map_err(|error| anyhow::anyhow!("Failed to create brush preset instance: {error:#}"))?;
 
     let texture = create_stroke_preview(

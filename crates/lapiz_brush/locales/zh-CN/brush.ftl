@@ -1,4 +1,6 @@
 new_brush = 新建笔刷
+new_engine_brush = 新建{ $engine }
+lapiz_brush_engine = Lapiz 笔刷
 new_function = 新建函数
 brushes = 笔刷
 functions = 函数

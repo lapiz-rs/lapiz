@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
-use lapiz_assets::{AssetAppExt as _, asset::AssetHandle};
+use lapiz_assets::AssetAppExt as _;
 use lapiz_canvas::{
     CanvasAppExt as _, CanvasUndoStackAppExt as _, command::TileReplaceCommand,
     event::CanvasUpdated,
@@ -22,7 +23,6 @@ use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_undo::QueuedUndoCommand;
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{column, flex::Flex, icon, label, panel};
-use log::error;
 
 use crate::{
     asset::BrushPreset,
@@ -36,39 +36,38 @@ pub struct CurrentBrushPreset(pub CanvasBrushPresetOperator);
 
 impl Global for CurrentBrushPreset {}
 
-/// Global resource holding the [`AssetHandle`] of the currently selected [`BrushPreset`].
-#[derive(Clone)]
-pub struct CurrentBrushPresetHandle(pub AssetHandle<BrushPreset>);
-
-impl Global for CurrentBrushPresetHandle {}
-
-/// Extension trait on [`Globals`] for switching the active [`BrushPreset`].
-pub trait BrushglobalsExt {
-    fn set_current_brush_preset(&mut self, handle: AssetHandle<BrushPreset>);
-}
-
-impl BrushglobalsExt for Globals {
-    fn set_current_brush_preset(&mut self, handle: AssetHandle<BrushPreset>) {
-        let instance = match BrushPresetInstance::from_asset(&handle, self.assets().clone()) {
-            Ok(instance) => instance,
-            Err(error) => {
-                error!("{error:#}");
-                return;
-            }
-        };
+impl CurrentBrushPreset {
+    pub fn new(preset: &BrushPreset, globals: &Globals) -> Result<Self> {
+        let instance = BrushPresetInstance::new(preset, globals.assets().clone())?;
         let operator = CanvasBrushPresetOperator::new(
             instance,
-            self.render_device().clone(),
-            self.render_queue().clone(),
+            globals.render_device().clone(),
+            globals.render_queue().clone(),
             InputProcessor::new(256, Box::new(BasicStabilizer)),
         );
         log::info!(
-            "Loaded brush preset {} {:?}",
+            "Set current brush preset {}",
             operator.instance().metadata().name,
-            operator.instance().asset_id()
         );
-        self.insert_global(CurrentBrushPreset(operator));
-        self.insert_global(CurrentBrushPresetHandle(handle));
+        Ok(Self(operator))
+    }
+}
+
+pub trait CurrentBrushPresetExt {
+    fn current_brush_preset(&self) -> Option<&CanvasBrushPresetOperator>;
+    fn set_current_brush_preset(&mut self, preset: &BrushPreset) -> Result<()>;
+}
+
+impl CurrentBrushPresetExt for Globals {
+    fn current_brush_preset(&self) -> Option<&CanvasBrushPresetOperator> {
+        self.get_global::<CurrentBrushPreset>()
+            .map(|brush| &brush.0)
+    }
+
+    fn set_current_brush_preset(&mut self, preset: &BrushPreset) -> Result<()> {
+        let brush = CurrentBrushPreset::new(preset, self)?;
+        self.insert_global(brush);
+        Ok(())
     }
 }
 

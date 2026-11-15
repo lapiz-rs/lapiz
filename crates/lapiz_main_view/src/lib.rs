@@ -10,7 +10,7 @@ use lapiz_actions::{
     ActionFunctionRegistry, ActionId,
     manifest::{ActionBindingManifestConfig, ActionCollection, MenuBarItem, MenuBarManifestConfig},
 };
-use lapiz_brush::tool::CurrentBrushPresetHandle;
+use lapiz_brush::tool::CurrentBrushPresetExt as _;
 use lapiz_builtin_docks::canvas::{CanvasDock, construct_canvas_dock_id};
 use lapiz_canvas::{
     CanvasAppExt as _, CanvasToolProxyAppExt as _,
@@ -387,9 +387,8 @@ impl WindowView for MainView {
         let title = title_bar(title_content);
 
         let preset_name = globals
-            .get_global::<CurrentBrushPresetHandle>()
-            .and_then(|handle| handle.0.get().ok())
-            .map(|preset| preset.metadata.name.clone())
+            .current_brush_preset()
+            .map(|preset| preset.instance().metadata().name.clone())
             .unwrap_or_else(|| String::from("NO PRESET"));
         let mut status_cells = vec![Self::status_cell(icon::brush(), preset_name)];
         if let Some(canvas) = globals.current_canvas() {

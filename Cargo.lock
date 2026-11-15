@@ -3252,21 +3252,15 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "iced_core",
  "image",
  "lapiz_abr",
  "lapiz_assets",
- "lapiz_brush",
- "lapiz_effect",
  "lapiz_image",
+ "lapiz_photoshop_brush_engine",
  "lapiz_render",
  "lapiz_runtime",
- "lapiz_shader_graph",
  "log",
- "toml 1.1.6+spec-1.1.0",
  "uuid",
- "wesl",
- "wesl-quote",
  "xxhash-rust",
 ]
 
@@ -3366,6 +3360,7 @@ dependencies = [
  "lapiz_input",
  "lapiz_main_view",
  "lapiz_new_canvas_dialog",
+ "lapiz_photoshop_brush_engine",
  "lapiz_render",
  "lapiz_report",
  "lapiz_runtime",
@@ -3992,6 +3987,34 @@ dependencies = [
  "moxcms 0.9.1",
  "rust-embed",
  "tempfile",
+]
+
+[[package]]
+name = "lapiz_photoshop_brush_engine"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "glam 0.30.10",
+ "iced_core",
+ "iced_futures",
+ "iced_runtime",
+ "lapiz_assets",
+ "lapiz_brush",
+ "lapiz_effect",
+ "lapiz_i18n",
+ "lapiz_image",
+ "lapiz_render",
+ "lapiz_runtime",
+ "lapiz_shader_graph",
+ "lapiz_widgets",
+ "rust-embed",
+ "serde",
+ "smol",
+ "toml 1.1.6+spec-1.1.0",
+ "uuid",
+ "wesl",
+ "wesl-quote",
 ]
 
 [[package]]

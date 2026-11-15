@@ -3,7 +3,6 @@ use std::{
     sync::LazyLock,
 };
 
-use lapiz_abr::descriptor::class::DynamicsControl;
 use lapiz_image::blend_modes::BlendMode;
 #[allow(
     clippy::wildcard_imports,
@@ -12,7 +11,10 @@ use lapiz_image::blend_modes::BlendMode;
 use wesl::syntax::*;
 use wesl_quote::{quote_expression, quote_statement};
 
-use crate::desc::graph::{ComputedMainTip, MainGraphOptions, SampledMainTip};
+use crate::{
+    convert::graph::{ComputedMainTip, MainGraphOptions, SampledMainTip},
+    parameter::DynamicsControl,
+};
 
 pub const USER_SIZE: &str = "user_size";
 pub const USER_OPACITY: &str = "user_opacity";
@@ -45,7 +47,6 @@ pub const STROKE_BEGIN_INPUT: &str = "stroke_begin";
 #[derive(Clone, Copy)]
 pub struct Dynamics {
     pub control: DynamicsControl,
-    pub fade_steps: i32,
     pub jitter: f32,
     pub minimum: f32,
 }
@@ -124,7 +125,6 @@ pub struct ColorAdjustment {
     pub foreground_color: Option<[f32; 3]>,
 }
 
-// TODO: This is really ugly, can we avoid this?
 static USER_SIZE_IDENT: LazyLock<Ident> = LazyLock::new(|| Ident::new(USER_SIZE.to_string()));
 static USER_OPACITY_IDENT: LazyLock<Ident> = LazyLock::new(|| Ident::new(USER_OPACITY.to_string()));
 static USER_FLOW_IDENT: LazyLock<Ident> = LazyLock::new(|| Ident::new(USER_FLOW.to_string()));
@@ -292,9 +292,9 @@ fn dynamics_control(dynamics: Dynamics, pose: BrushPose) -> Expression {
     let dab_index = (*DAB_INDEX_IDENT).clone();
     match dynamics.control {
         DynamicsControl::Off => quote_expression!(1.0),
-        DynamicsControl::Fade if dynamics.fade_steps <= 0 => quote_expression!(0.0),
-        DynamicsControl::Fade => {
-            let fade_steps = dynamics.fade_steps as f32;
+        DynamicsControl::Fade { steps: 0 } => quote_expression!(0.0),
+        DynamicsControl::Fade { steps } => {
+            let fade_steps = steps as f32;
             quote_expression!(
                 1.0 - clamp(f32(#dab_index) / #fade_steps, 0.0, 1.0)
             )
@@ -543,7 +543,7 @@ fn tip_angle_expression(angle: f32, dynamics: Option<Dynamics>, pose: BrushPose)
         ),
         DynamicsControl::Direction => (quote_expression!(#direction), quote_expression!(1.0)),
         DynamicsControl::Rotation => (quote_expression!(#azimuth + 0.0), quote_expression!(1.0)),
-        DynamicsControl::Fade | DynamicsControl::StylusWheel => unreachable!(),
+        DynamicsControl::Fade { .. } | DynamicsControl::StylusWheel => unreachable!(),
     };
     let jitter = dynamics.jitter;
     let random = dab_random(59.719);

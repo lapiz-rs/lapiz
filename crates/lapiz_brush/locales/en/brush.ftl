@@ -1,4 +1,6 @@
 new_brush = New Brush
+new_engine_brush = New { $engine }
+lapiz_brush_engine = Lapiz Brush
 new_function = New Function
 brushes = Brushes
 functions = Functions

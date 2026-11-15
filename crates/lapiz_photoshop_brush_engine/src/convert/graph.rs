@@ -42,7 +42,7 @@ use lapiz_shader_graph::{
 use toml::map::Map;
 use uuid::Uuid;
 
-use crate::desc::wgsl::{
+use crate::convert::wgsl::{
     AZIMUTH_INPUT, BrushPose, BrushTexture, ColorAdjustment, DAB_INDEX_INPUT, DIRECTION_INPUT,
     DUAL_TIP_TEXTURE_INPUT, DualBrush, Dynamics, INITIAL_DIRECTION_INPUT,
     MAIN_BACKGROUND_COLOR_INPUT, MAIN_BOUNDS_OUTPUT, MAIN_COLOR_OUTPUT, MAIN_CURRENT_COLOR_INPUT,
@@ -137,10 +137,9 @@ pub struct ComputedMainTip {
     pub spacing: f32,
 }
 
-/// Resolved geometry parameters and mask texture [`AssetId`] for a sampled brush tip in the main effect graph.
+/// Resolved geometry parameters for a sampled brush tip in the main effect graph.
 #[derive(Clone, Copy)]
 pub struct SampledMainTip {
-    pub sample_asset: AssetId<Image>,
     pub diameter: f32,
     pub angle: f32,
     pub roundness: f32,
