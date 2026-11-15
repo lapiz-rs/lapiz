@@ -2,6 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context as _, Result};
 use futures::stream;
+use glam::Vec4;
 use iced_core::{Color, Element, Length, Theme, image::Handle};
 use iced_futures::Subscription;
 use iced_runtime::Task;
@@ -14,9 +15,21 @@ use lapiz_assets::{
 use lapiz_brush::{
     asset::{BrushPreset, BrushPresetSerializer},
     editor::{BrushEditorEngine, BrushEditorEngineId, BrushPresetEntry},
+    instance::BrushPresetInstance,
+    render::{
+        graph::CanvasResources,
+        stroke_preview::{create_stroke_preview, predefined_curve_samples},
+    },
     tool::BrushglobalsExt as _,
 };
 use lapiz_i18n::t;
+use lapiz_render::{
+    readback::{
+        create_readback_buffer_and_schedule_copy_texture, readback_buffer_raw_on_submit_async,
+    },
+    render_context::RenderContextAppExt as _,
+    util::DevicePollExt as _,
+};
 use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_widgets::{
     button, column, flex::Flex, image, label, panel, panel::inset, row, scrollable, text_input,
@@ -27,7 +40,6 @@ use self::controls::Section;
 use crate::{asset::PhotoshopBrushSerializer, parameter::PhotoshopBrush};
 
 pub mod controls;
-mod preview;
 
 type EditorElement<'a> = Element<'a, PhotoshopBrushEditorMessage, Theme, Renderer>;
 
@@ -237,7 +249,7 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
                     self.preview_error = None;
                     self.preview_revision = None;
 
-                    match preview::render(&self.brush, globals) {
+                    match self.render_preview(globals) {
                         Ok(task) => {
                             return task.map(move |result| {
                                 PhotoshopBrushEditorMessage::PreviewReady(revision, result)
@@ -346,5 +358,53 @@ impl PhotoshopBrushEditor {
             .padding(10)
             .width(Length::Fill)
             .into()
+    }
+
+    fn render_preview(&self, globals: &Globals) -> Result<Task<Result<Handle>>> {
+        let brush = &self.brush;
+        let preset = brush.compile()?;
+        let instance = BrushPresetInstance::new(&preset, globals.assets().clone())?;
+        let (width, height) = (512, 128);
+        let task = create_stroke_preview(
+            &instance,
+            &predefined_curve_samples(width, height),
+            width,
+            height,
+            globals,
+            &CanvasResources {
+                foreground_color: Vec4::ONE,
+                background_color: Vec4::ZERO,
+            },
+        )?;
+        let device = globals.render_device().clone();
+        let queue = globals.render_queue().clone();
+
+        Ok(task.then(move |texture| {
+            let mut encoder = device.create_command_encoder(&Default::default());
+            let staging =
+                create_readback_buffer_and_schedule_copy_texture(&device, &mut encoder, &texture);
+            let mut readback = Some(readback_buffer_raw_on_submit_async(
+                &mut encoder,
+                &staging,
+                ..,
+            ));
+            let submission = queue.submit([encoder.finish()]);
+            let device = device.clone();
+            let width = texture.width();
+            let height = texture.height();
+
+            Task::future(async move { device.poll_indefinitely_for(submission) }).then(
+                move |result| {
+                    if let Err(error) = result {
+                        return Task::done(Err(error.into()));
+                    }
+                    let readback = readback.take().expect("preview readback completes once");
+                    Task::future(async move {
+                        let bytes = readback.into_inner().await??;
+                        Ok(Handle::from_rgba(width, height, bytes))
+                    })
+                },
+            )
+        }))
     }
 }
