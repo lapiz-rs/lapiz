@@ -41,6 +41,7 @@ pub trait BrushEditorEngine: 'static {
     type Brush: Asset;
 
     fn id() -> BrushEditorEngineId;
+    fn label() -> String;
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>>;
     fn load_brush(
         &mut self,
@@ -149,15 +150,25 @@ impl<T: BrushEditorEngine> ErasedBrushEditorEngine for T {
 
 #[derive(Default)]
 pub struct BrushEngineEditorRegistry {
-    factories: HashMap<BrushEditorEngineId, Box<dyn Fn() -> Box<dyn ErasedBrushEditorEngine>>>,
+    factories: HashMap<BrushEditorEngineId, BrushEditorEngineRegistration>,
+}
+
+struct BrushEditorEngineRegistration {
+    label: String,
+    create: Box<dyn Fn() -> Box<dyn ErasedBrushEditorEngine>>,
 }
 
 impl Global for BrushEngineEditorRegistry {}
 
 impl BrushEngineEditorRegistry {
     pub fn register<T: BrushEditorEngine + Default>(&mut self) {
-        self.factories
-            .insert(T::id(), Box::new(move || Box::new(T::default())));
+        self.factories.insert(
+            T::id(),
+            BrushEditorEngineRegistration {
+                label: T::label(),
+                create: Box::new(|| Box::new(T::default())),
+            },
+        );
     }
 
     fn create(&self, id: BrushEditorEngineId) -> Result<Box<dyn ErasedBrushEditorEngine>> {
@@ -165,7 +176,7 @@ impl BrushEngineEditorRegistry {
             .factories
             .get(&id)
             .with_context(|| format!("Brush editor engine {} must be registered", id.0))?;
-        Ok(factory())
+        Ok((factory.create)())
     }
 }
 
@@ -238,7 +249,7 @@ impl WindowView for BrushEditor {
             .factories
             .iter()
             .flat_map(|(engine_id, factory)| {
-                let brushes = factory()
+                let brushes = (factory.create)()
                     .query_brushes(assets)
                     .logged_err()
                     .unwrap_or_default();
@@ -286,10 +297,28 @@ impl WindowView for BrushEditor {
             })
             .collect::<Vec<_>>();
 
+        let mut create_buttons = column![
+            button(label(t!("new_brush")))
+                .on_press(BrushEditorMessage::NewBrush(LapizBrushEngineEditor::id())),
+        ]
+        .gap(4.0);
+        let mut additional_engines = globals
+            .global::<BrushEngineEditorRegistry>()
+            .factories
+            .iter()
+            .filter(|(id, _)| **id != LapizBrushEngineEditor::id())
+            .collect::<Vec<_>>();
+        additional_engines.sort_by_key(|(id, _)| id.0);
+        for (id, registration) in additional_engines {
+            create_buttons = create_buttons.push(
+                button(label(t!("new_engine_brush", engine = &registration.label)))
+                    .on_press(BrushEditorMessage::NewBrush(*id)),
+            );
+        }
+
         let sidebar = panel(
             column![
-                button(label(t!("new_brush")))
-                    .on_press(BrushEditorMessage::NewBrush(LapizBrushEngineEditor::id())),
+                create_buttons,
                 label(t!("brushes")).strong(),
                 scrollable(Flex::column(brush_list).gap(2.0))
                     .width(Length::Fill)

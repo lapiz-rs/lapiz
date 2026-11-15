@@ -136,6 +136,10 @@ impl BrushEditorEngine for LapizBrushEngineEditor {
         BrushEditorEngineId::new("lapiz_brush_engine")
     }
 
+    fn label() -> String {
+        t!("lapiz_brush_engine")
+    }
+
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>> {
         Ok(assets
             .all_handles_of::<BrushPreset>()?
