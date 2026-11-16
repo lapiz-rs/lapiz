@@ -332,8 +332,9 @@ impl PhotoshopBrushEditor {
 
     fn render_preview(&self, globals: &Globals) -> Result<Task<Result<Handle>>> {
         let brush = &self.brush;
+        let asset_id = self.handle.as_ref().map(|h| h.id().into_untyped());
         let preset = brush.compile()?;
-        let instance = BrushPresetInstance::new(&preset, globals.assets().clone())?;
+        let instance = BrushPresetInstance::new(&preset, asset_id, globals.assets().clone())?;
         let (width, height) = (512, 128);
         let task = create_stroke_preview(
             &instance,

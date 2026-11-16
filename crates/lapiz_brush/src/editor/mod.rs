@@ -223,6 +223,7 @@ pub struct BrushEditor {
 
 struct SelectedBrushEditor {
     index: usize,
+    asset_id: UntypedAssetId,
     session: BrushEditorSessionId,
     engine: Box<dyn ErasedBrushEditorEngine>,
 }
@@ -392,13 +393,18 @@ impl WindowView for BrushEditor {
                 task.map(move |message| BrushEditorMessage::EngineMessage { session, message })
             }
             BrushEditorMessage::WindowUnfocused(window) => {
+                let current_brush = globals
+                    .current_brush_preset()
+                    .and_then(|b| b.instance().asset_id());
+
+                // recompiles the brush preset if it's currently selected
                 if window == self.main_window
                     && let Some(selected) = self.selected.as_ref()
+                    && current_brush == Some(selected.asset_id)
                 {
-                    let result = selected
-                        .engine
-                        .compile_brush(globals)
-                        .and_then(|preset| globals.set_current_brush_preset(&preset));
+                    let result = selected.engine.compile_brush(globals).and_then(|preset| {
+                        globals.set_current_brush_preset(&preset, Some(selected.asset_id))
+                    });
                     if let Err(error) = result {
                         log::error!("Failed to apply brush preset on editor focus loss: {error:#}");
                     }
@@ -463,6 +469,7 @@ impl BrushEditor {
 
         self.selected = Some(SelectedBrushEditor {
             index,
+            asset_id: entry.id,
             session: BrushEditorSessionId::new(Uuid::new_v4()),
             engine,
         });
@@ -484,6 +491,7 @@ impl BrushEditor {
         self.brushes.push((engine_id, entry));
         self.selected = Some(SelectedBrushEditor {
             index,
+            asset_id: id,
             session: BrushEditorSessionId::new(Uuid::new_v4()),
             engine,
         });

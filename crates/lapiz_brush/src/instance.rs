@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{Context as _, Result, bail};
 use indexmap::IndexMap;
-use lapiz_assets::store::AssetRegistry;
+use lapiz_assets::{asset::UntypedAssetId, store::AssetRegistry};
 use lapiz_effect::{
     asset::{
         EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassInputSlotId,
@@ -75,6 +75,7 @@ pub struct CompiledBrushPreset {
 /// map, serializes back into a [`BrushPreset`] asset via [`as_asset`](Self::as_asset), and compiles
 /// the graphs into a [`CompiledBrushPreset`] via [`compile`](Self::compile).
 pub struct BrushPresetInstance {
+    asset_id: Option<UntypedAssetId>,
     metadata: BrushPresetMetadata,
 
     spacing_effect: EffectInstance,
@@ -84,7 +85,11 @@ pub struct BrushPresetInstance {
 }
 
 impl BrushPresetInstance {
-    pub fn new(preset: &BrushPreset, assets: AssetRegistry) -> Result<Self> {
+    pub fn new(
+        preset: &BrushPreset,
+        asset_id: Option<UntypedAssetId>,
+        assets: AssetRegistry,
+    ) -> Result<Self> {
         let spacing_effect = EffectInstance::from_asset(
             &preset.spacing_effect,
             spacing_effect_resources(assets.clone()),
@@ -130,6 +135,7 @@ impl BrushPresetInstance {
         }
 
         Ok(Self {
+            asset_id,
             metadata: preset.metadata.clone(),
             spacing_effect,
             main_effect,
@@ -160,6 +166,14 @@ impl BrushPresetInstance {
             postprocess_effect: self.postprocess_effect.as_asset()?,
             parameters,
         })
+    }
+
+    pub fn asset_id(&self) -> Option<UntypedAssetId> {
+        self.asset_id
+    }
+
+    pub fn set_asset_id(&mut self, asset_id: Option<UntypedAssetId>) {
+        self.asset_id = asset_id;
     }
 
     pub fn metadata(&self) -> &BrushPresetMetadata {

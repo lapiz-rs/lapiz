@@ -86,7 +86,9 @@ impl Dock for BrushPresetDock {
                 let Ok(brush) = engine.compile_brush(globals).logged_err() else {
                     return Task::none();
                 };
-                globals.set_current_brush_preset(&brush).log_err();
+                globals
+                    .set_current_brush_preset(&brush, Some(brush_entry.id))
+                    .log_err();
                 Task::none()
             }
         }
