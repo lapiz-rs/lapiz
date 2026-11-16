@@ -8,6 +8,7 @@ use iced_core::{
         paragraph::{self, Plain},
     },
     widget::{self, Tree, tree},
+    window,
 };
 use lapiz_runtime::Renderer;
 
@@ -661,6 +662,11 @@ impl<Message> iced_core::Widget<Message, Theme, Renderer> for TabBar<'_, Message
         let state = tree.state.downcast_mut::<TabRowState>();
 
         match event {
+            Event::Window(window::Event::Unfocused) => {
+                state.action = TabAction::Idle;
+                state.hovered = None;
+                shell.request_redraw();
+            }
             Event::Pointer(pointer::Event::PointerMoved { position, .. }) => {
                 let hovered = bounds
                     .contains(*position)

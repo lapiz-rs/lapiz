@@ -4,6 +4,7 @@ use iced_core::{
     pointer::mouse,
     renderer,
     widget::{Operation, Tree, tree},
+    window,
 };
 use lapiz_runtime::Renderer;
 
@@ -202,6 +203,10 @@ impl<Message> Widget<Message, Theme, Renderer> for Splitter<'_, Message> {
         let state = tree.state.downcast_mut::<State>();
         let handle = self.handle_bounds(layout.bounds());
         match event {
+            Event::Window(window::Event::Unfocused) => {
+                state.dragging = false;
+                shell.request_redraw();
+            }
             Event::Pointer(event) if event.is_primary_press() && cursor.is_over(handle) => {
                 state.dragging = true;
                 shell.capture_event();

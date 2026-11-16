@@ -5,7 +5,8 @@ use iced_core::{
     layout::{self, Limits},
     pointer::{self, mouse},
     renderer,
-    widget::Tree,
+    widget::{Tree, tree},
+    window,
 };
 use iced_wgpu::primitive::Renderer as _;
 use lapiz_image::{texel::TexelType, tile::GpuTileStorage};
@@ -26,7 +27,69 @@ pub struct CanvasWidget<'a, Message> {
     pub monitor_name: String,
 }
 
+#[derive(Default)]
+struct CanvasState {
+    pressed: Option<(Point, pointer::button::Source)>,
+}
+
+impl CanvasState {
+    fn route(
+        &mut self,
+        event: &Event,
+        bounds: Rectangle,
+        cursor: mouse::Cursor,
+    ) -> Option<pointer::Event> {
+        if matches!(event, Event::Window(window::Event::Unfocused)) {
+            return self
+                .pressed
+                .take()
+                .map(|(position, button)| pointer::Event::PointerReleased { position, button });
+        }
+
+        let Event::Pointer(event) = event else {
+            return None;
+        };
+        let is_over = match event {
+            pointer::Event::PointerEntered { position, .. }
+            | pointer::Event::PointerMoved { position, .. }
+            | pointer::Event::PointerPressed { position, .. }
+            | pointer::Event::PointerReleased { position, .. } => bounds.contains(*position),
+            pointer::Event::PointerLeft { .. } | pointer::Event::WheelScrolled { .. } => {
+                cursor.land().is_over(bounds)
+            }
+        };
+        if !is_over && self.pressed.is_none() {
+            return None;
+        }
+
+        match event {
+            pointer::Event::PointerPressed { position, button } if event.is_primary_press() => {
+                self.pressed = Some((*position, button.clone()));
+            }
+            pointer::Event::PointerMoved { position, .. } => {
+                if let Some((last_position, _)) = &mut self.pressed {
+                    *last_position = *position;
+                }
+            }
+            pointer::Event::PointerReleased { .. } if event.is_primary_release() => {
+                self.pressed = None;
+            }
+            _ => {}
+        }
+
+        Some(event.clone())
+    }
+}
+
 impl<Message, Theme> Widget<Message, Theme, lapiz_runtime::Renderer> for CanvasWidget<'_, Message> {
+    fn tag(&self) -> tree::Tag {
+        tree::Tag::of::<CanvasState>()
+    }
+
+    fn state(&self) -> tree::State {
+        tree::State::new(CanvasState::default())
+    }
+
     fn size(&self) -> Size<Length> {
         Size::new(Length::Fill, Length::Fill)
     }
@@ -42,7 +105,7 @@ impl<Message, Theme> Widget<Message, Theme, lapiz_runtime::Renderer> for CanvasW
 
     fn update(
         &mut self,
-        _: &mut Tree,
+        tree: &mut Tree,
         event: &Event,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
@@ -59,28 +122,21 @@ impl<Message, Theme> Widget<Message, Theme, lapiz_runtime::Renderer> for CanvasW
             shell.publish((self.on_widget_rect_change)(widget_rect));
         }
 
-        let Event::Pointer(event) = event else {
-            return;
-        };
-
-        let is_over = match event {
-            pointer::Event::PointerEntered { position, .. }
-            | pointer::Event::PointerMoved { position, .. }
-            | pointer::Event::PointerPressed { position, .. }
-            | pointer::Event::PointerReleased { position, .. } => bounds.contains(*position),
-            pointer::Event::PointerLeft { .. } | pointer::Event::WheelScrolled { .. } => {
-                cursor.land().is_over(bounds)
-            }
-        };
-
-        if !is_over {
+        let state = tree.state.downcast_mut::<CanvasState>();
+        if state.pressed.is_none() && shell.is_event_captured() {
             return;
         }
+        let is_pointer = matches!(event, Event::Pointer(_));
+        let Some(event) = state.route(event, bounds, cursor) else {
+            return;
+        };
 
         if self.is_focusing {
             shell.publish((self.on_pointer_event)(event.clone()));
-            shell.capture_event();
-        } else if let pointer::Event::PointerPressed { position, .. } = event
+            if is_pointer {
+                shell.capture_event();
+            }
+        } else if let pointer::Event::PointerPressed { position, .. } = &event
             && event.is_primary_press()
         {
             shell.publish((self.on_focus)(*position));
