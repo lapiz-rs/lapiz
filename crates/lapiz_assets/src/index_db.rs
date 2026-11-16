@@ -365,8 +365,6 @@ ON CONFLICT(id) DO UPDATE SET
             }
         }
 
-        // Replace all scanned relationships before validating the final graph.
-        // Parent tags may belong to a bundle scanned later in the batch.
         for bundle in bundles {
             for child_id in bundle.tag_parents.keys() {
                 tx.execute(
@@ -384,7 +382,6 @@ ON CONFLICT(id) DO UPDATE SET
                 for (child_id, parents) in &bundle.tag_parents {
                     for parent_id in parents {
                         if insert.execute(params![parent_id, child_id])? == 0 {
-                            // Keep the file reference so reloading the parent bundle restores it.
                             log::warn!(
                                 "Skipped missing parent tag {parent_id} for child tag {child_id}"
                             );
@@ -561,7 +558,15 @@ FROM tags
 WHERE id = ?1 AND is_deleted = 0;
             "#,
             params![tag_id],
-            tag_from_row,
+            |row| {
+                Ok(Tag {
+                    id: row.get(0)?,
+                    bundle_id: row.get(1)?,
+                    relative_path: row.get(2)?,
+                    name: row.get(3)?,
+                    asset_ty: row.get(4)?,
+                })
+            },
         )?;
         Ok(tag)
     }
@@ -587,75 +592,121 @@ WHERE is_deleted = ?3
 ORDER BY name ASC, id ASC;
             "#,
         )?;
-        let rows = stmt.query_map(
-            params![filter_kind, asset_ty, filter.is_deleted],
-            tag_from_row,
-        )?;
+        let rows = stmt.query_map(params![filter_kind, asset_ty, filter.is_deleted], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                bundle_id: row.get(1)?,
+                relative_path: row.get(2)?,
+                name: row.get(3)?,
+                asset_ty: row.get(4)?,
+            })
+        })?;
 
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
     pub fn get_child_tags(&self, parent_id: &TagId) -> Result<Vec<Tag>> {
-        self.query_related_tags(
-            "SELECT t.id, t.bundle_id, t.relative_path, t.name, t.asset_ty
-             FROM tags t JOIN tag_children c ON c.child_id = t.id
-             JOIN tags p ON p.id = c.parent_id
-             WHERE p.id = ?1 AND p.is_deleted = 0 AND t.is_deleted = 0
-             ORDER BY t.name, t.id",
-            params![parent_id],
-        )
-    }
-
-    pub fn get_parent_tags(&self, child_id: &TagId) -> Result<Vec<Tag>> {
-        self.query_related_tags(
-            "SELECT t.id, t.bundle_id, t.relative_path, t.name, t.asset_ty
-             FROM tags t JOIN tag_children c ON c.parent_id = t.id
-             JOIN tags child ON child.id = c.child_id
-             WHERE child.id = ?1 AND child.is_deleted = 0 AND t.is_deleted = 0
-             ORDER BY t.name, t.id",
-            params![child_id],
-        )
-    }
-
-    /// Active tags with no active parent, including children of deleted tags.
-    pub fn get_root_tags(&self) -> Result<Vec<Tag>> {
-        self.query_related_tags(
-            "SELECT t.id, t.bundle_id, t.relative_path, t.name, t.asset_ty
-             FROM tags t
-             WHERE t.is_deleted = 0 AND NOT EXISTS (
-                 SELECT 1 FROM tag_children c JOIN tags p ON p.id = c.parent_id
-                 WHERE c.child_id = t.id AND p.is_deleted = 0
-             ) ORDER BY t.name, t.id",
-            [],
-        )
-    }
-
-    fn query_related_tags(&self, sql: &str, params: impl rusqlite::Params) -> Result<Vec<Tag>> {
         let conn = self.conn.lock();
-        let mut statement = conn.prepare(sql)?;
-        let rows = statement.query_map(params, tag_from_row)?;
+        let mut statement = conn.prepare(
+            r#"
+SELECT
+    t.id,
+    t.bundle_id,
+    t.relative_path,
+    t.name,
+    t.asset_ty
+FROM tags t
+JOIN tag_children c ON c.child_id = t.id
+JOIN tags p ON p.id = c.parent_id
+WHERE p.id = ?1
+    AND p.is_deleted = 0
+    AND t.is_deleted = 0
+ORDER BY
+    t.name,
+    t.id
+"#,
+        )?;
+        let rows = statement.query_map(params![parent_id], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                bundle_id: row.get(1)?,
+                relative_path: row.get(2)?,
+                name: row.get(3)?,
+                asset_ty: row.get(4)?,
+            })
+        })?;
+
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// Update the index only. Use AssetRegistry to persist the relationship to disk.
+    pub fn get_parent_tags(&self, child_id: &TagId) -> Result<Vec<Tag>> {
+        let conn = self.conn.lock();
+        let mut statement = conn.prepare(
+            r#"
+SELECT
+    t.id,
+    t.bundle_id,
+    t.relative_path,
+    t.name,
+    t.asset_ty
+FROM tags t
+JOIN tag_children c ON c.parent_id = t.id
+JOIN tags child ON child.id = c.child_id
+WHERE child.id = ?1
+    AND child.is_deleted = 0
+    AND t.is_deleted = 0
+ORDER BY
+    t.name,
+    t.id
+            "#,
+        )?;
+        let rows = statement.query_map(params![child_id], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                bundle_id: row.get(1)?,
+                relative_path: row.get(2)?,
+                name: row.get(3)?,
+                asset_ty: row.get(4)?,
+            })
+        })?;
+
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn get_root_tags(&self) -> Result<Vec<Tag>> {
+        let conn = self.conn.lock();
+        let mut statement = conn.prepare(
+            r#"
+SELECT
+    t.id,
+    t.bundle_id,
+    t.relative_path,
+    t.name,
+    t.asset_ty
+FROM tags t
+WHERE t.is_deleted = 0 AND NOT EXISTS (
+    SELECT 1 FROM tag_children c
+    JOIN tags p ON p.id = c.parent_id
+    WHERE c.child_id = t.id
+        AND p.is_deleted = 0
+)
+ORDER BY t.name, t.id
+            "#,
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                bundle_id: row.get(1)?,
+                relative_path: row.get(2)?,
+                name: row.get(3)?,
+                asset_ty: row.get(4)?,
+            })
+        })?;
+
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn add_child_tag(&self, parent_id: &TagId, child_id: &TagId) -> Result<()> {
-        self.update_tag_parent(parent_id, child_id, true, || Ok(()))
-    }
-
-    /// Update the index only. Use AssetRegistry to persist the relationship to disk.
-    pub fn remove_child_tag(&self, parent_id: &TagId, child_id: &TagId) -> Result<()> {
-        self.update_tag_parent(parent_id, child_id, false, || Ok(()))
-    }
-
-    // Keep validation and persistence under the same lock so concurrent edits cannot
-    // overwrite another parent's addition. A failed file write rolls back the index.
-    pub(crate) fn update_tag_parent(
-        &self,
-        parent_id: &TagId,
-        child_id: &TagId,
-        add: bool,
-        persist: impl FnOnce() -> Result<()>,
-    ) -> Result<()> {
         let mut conn = self.conn.lock();
         let tx = conn.transaction()?;
         for id in [parent_id, child_id] {
@@ -668,34 +719,57 @@ ORDER BY name ASC, id ASC;
                 bail!("Tag not found for tag ID: {id}");
             }
         }
-        if add {
-            // Traverse only this child's descendants, including soft-deleted nodes.
-            let has_cycle = tx.query_row(
-                "WITH RECURSIVE descendants(id) AS (
-                    SELECT ?1
-                    UNION
-                    SELECT c.child_id FROM tag_children c
-                    JOIN descendants d ON c.parent_id = d.id
-                 ) SELECT EXISTS(SELECT 1 FROM descendants WHERE id = ?2)",
-                params![child_id, parent_id],
+
+        let has_cycle = tx.query_row(
+            r#"
+WITH RECURSIVE descendants(id) AS (
+    SELECT ?1
+    UNION
+    SELECT c.child_id FROM tag_children c
+    JOIN descendants d ON c.parent_id = d.id
+)
+SELECT EXISTS(
+    SELECT 1 FROM descendants WHERE id = ?2
+)
+            "#,
+            params![child_id, parent_id],
+            |row| row.get::<_, bool>(0),
+        )?;
+        if has_cycle {
+            bail!("Tag hierarchy would contain a cycle");
+        }
+        tx.execute(
+            "INSERT INTO tag_children (parent_id, child_id) VALUES (?1, ?2)",
+            params![parent_id, child_id],
+        )?;
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn remove_child_tag(&self, parent_id: &TagId, child_id: &TagId) -> Result<()> {
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+
+        for id in [parent_id, child_id] {
+            let exists = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM tags WHERE id = ?1 AND is_deleted = 0)",
+                params![id],
                 |row| row.get::<_, bool>(0),
             )?;
-            if has_cycle {
-                bail!("Tag hierarchy would contain a cycle");
+            if !exists {
+                bail!("Tag not found for tag ID: {id}");
             }
-            tx.execute(
-                "INSERT INTO tag_children (parent_id, child_id) VALUES (?1, ?2)",
-                params![parent_id, child_id],
-            )?;
-        } else if tx.execute(
+        }
+
+        let is_child_of_parent = tx.execute(
             "DELETE FROM tag_children WHERE parent_id = ?1 AND child_id = ?2",
             params![parent_id, child_id],
-        )? == 0
-        {
+        )?;
+        if is_child_of_parent == 0 {
             bail!("Tag {child_id} is not a child of tag {parent_id}");
         }
-        persist()?;
-        // If commit fails after persistence, startup sync reconciles the index.
+
         tx.commit()?;
         Ok(())
     }
@@ -743,10 +817,10 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0);
             r#"
 DELETE FROM asset_revisions
 WHERE asset_id = ?1
-  AND EXISTS (
-      SELECT 1 FROM assets
-      WHERE asset_id = ?1 AND is_deleted = 1
-  );
+    AND EXISTS (
+        SELECT 1 FROM assets
+        WHERE asset_id = ?1 AND is_deleted = 1
+    );
             "#,
             params![asset.asset_id],
         )?;
@@ -1113,17 +1187,6 @@ WHERE bundle_id = ?1;
     }
 }
 
-fn tag_from_row(row: &Row<'_>) -> rusqlite::Result<Tag> {
-    Ok(Tag {
-        id: row.get(0)?,
-        bundle_id: row.get(1)?,
-        relative_path: row.get(2)?,
-        name: row.get(3)?,
-        asset_ty: row.get(4)?,
-    })
-}
-
-/// Kahn's topological sort visits each node and edge once, including deleted tags.
 fn validate_tag_hierarchy(conn: &Connection) -> Result<()> {
     let mut children = HashMap::<TagId, Vec<TagId>>::new();
     let mut indegree = HashMap::<TagId, usize>::new();
