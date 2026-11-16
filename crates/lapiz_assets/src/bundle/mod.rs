@@ -69,7 +69,6 @@ pub(crate) struct BundleSnapshot {
     pub manifest: BundleManifest,
     pub assets: Vec<AssetMetadata>,
     pub tags: Vec<Tag>,
-    /// Direct parents for each scanned tag, including tags with no parents.
     pub tag_parents: HashMap<TagId, BTreeSet<TagId>>,
     pub asset_tags: HashMap<UntypedAssetId, AssetTags>,
 }

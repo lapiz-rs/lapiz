@@ -71,7 +71,6 @@ impl Plugin for AssetsPlugin {
                 .iter()
                 .map(|bundle| bundle.metadata().map(|metadata| metadata.bundle_id))
                 .collect::<Result<HashSet<_>>>()?;
-            // Remove stale parents before resolving references and checking cycles.
             registry
                 .index_db()
                 .remove_unloaded_bundles(&loaded_bundle_ids)?;

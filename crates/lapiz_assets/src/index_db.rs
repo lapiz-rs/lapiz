@@ -8,7 +8,7 @@ use std::{
 use anyhow::{Result, anyhow, bail};
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
-use rusqlite::{Connection, OptionalExtension as _, Row, params};
+use rusqlite::{Connection, OptionalExtension as _, params};
 use uuid::Uuid;
 
 use crate::{
