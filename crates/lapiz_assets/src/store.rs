@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use chrono::Utc;
 use dashmap::DashMap;
 use indexmap::IndexSet;
@@ -14,11 +14,11 @@ use crate::{
     asset::{Asset, AssetHandle, AssetId, AssetMetadata, ErasedAsset as _},
     bundle::{
         AssetBundle, AssetBundleCache, BundleId, BundleManifest, BundleSnapshot, ErasedAssetBundle,
-        read_tag_file, read_tagged_assets_file, scan_bundle_assets,
+        read_tag_file, read_tagged_assets_file, read_tagged_tags_file, scan_bundle_assets,
     },
     index_db::{AssetFilter, AssetIndexDb, TagFilter, UntypedAssetFilter},
     loader::AssetSerializerRegistry,
-    tag::{Tag, TagId, TaggedAssets},
+    tag::{PositionInTag, Tag, TagId, TaggedAssets},
 };
 
 /// Central service managing asset bundles, in-memory caches, serialization, and index queries.
@@ -236,59 +236,42 @@ impl AssetRegistry {
             )
         })?;
         self.inner.index_db.update_tag(tag.clone())?;
-        let tag_children = self.inner.index_db.get_child_tags(&tag.id)?;
-        bundle.write_tag(tag, tag_children.into_iter().map(|t| t.id).collect())?;
+        bundle.write_tag(tag)?;
         Ok(())
     }
 
-    pub fn add_child_to_tag(&self, parent: &Tag, child_id: &TagId) -> Result<()> {
-        self.inner.index_db.add_child_tag(&parent.id, child_id)?;
-
-        let mut children = self
-            .inner
-            .index_db
-            .get_child_tags(&parent.id)?
-            .into_iter()
-            .map(|t| t.id)
-            .collect::<IndexSet<_>>();
-        children.insert(*child_id);
+    pub fn add_tag_to_tag_at(
+        &self,
+        parent: &Tag,
+        child_id: &TagId,
+        position: PositionInTag<TagId>,
+    ) -> Result<()> {
+        let parent = self.inner.index_db.get_tag(parent.id)?;
+        self.inner.index_db.get_tag(*child_id)?;
+        let bundle = self.bundle(&parent.bundle_id)?;
+        let mut children = bundle.read_tagged_tags(&parent.id)?;
+        children.insert(*child_id, position)?;
         self.inner
-            .bundles
-            .get(&parent.bundle_id)
-            .ok_or_else(|| {
-                anyhow!(
-                    "Asset bundle not found for bundle ID: {} (tag ID: {})",
-                    parent.bundle_id,
-                    parent.id
-                )
-            })?
-            .write_tag(parent, children)?;
-        Ok(())
+            .index_db
+            .validate_tagged_tags(&parent.id, &children)?;
+
+        bundle.write_tagged_tags(&parent.id, &children)?;
+        self.inner.index_db.edit_tagged_tags(&parent.id, &children)
     }
 
     pub fn remove_child_from_tag(&self, parent: &Tag, child_id: &TagId) -> Result<()> {
-        self.inner.index_db.remove_child_tag(&parent.id, child_id)?;
-
-        let mut children = self
-            .inner
-            .index_db
-            .get_child_tags(&parent.id)?
-            .into_iter()
-            .map(|t| t.id)
-            .collect::<IndexSet<_>>();
-        children.shift_remove(child_id);
+        let parent = self.inner.index_db.get_tag(parent.id)?;
+        let bundle = self.bundle(&parent.bundle_id)?;
+        let mut children = bundle.read_tagged_tags(&parent.id)?;
+        if !children.tags.shift_remove(child_id) {
+            bail!("Tag {child_id} is not a child of tag {}", parent.id);
+        }
         self.inner
-            .bundles
-            .get(&parent.bundle_id)
-            .ok_or_else(|| {
-                anyhow!(
-                    "Asset bundle not found for bundle ID: {} (tag ID: {})",
-                    parent.bundle_id,
-                    parent.id
-                )
-            })?
-            .write_tag(parent, children)?;
-        Ok(())
+            .index_db
+            .validate_tagged_tags(&parent.id, &children)?;
+
+        bundle.write_tagged_tags(&parent.id, &children)?;
+        self.inner.index_db.edit_tagged_tags(&parent.id, &children)
     }
 
     pub fn delete_tag(&self, tag_id: &TagId) -> Result<()> {
@@ -324,7 +307,9 @@ fn scan_tags(
 
     for path in manifest.tags.values() {
         let tag = read_tag_file(assets_root, path, &bundle_id, bundle)?;
-        tag_children.insert(tag.id, tag.children);
+        let children =
+            read_tagged_tags_file(assets_root, path, &bundle_id, bundle)?.unwrap_or_default();
+        tag_children.insert(tag.id, children.tags);
         tags.push(Tag {
             id: tag.id,
             bundle_id,
@@ -368,7 +353,7 @@ mod tests {
         asset::UntypedAssetId,
         bundle::directory::AssetDirectory,
         loader::AssetSerializer,
-        tag::{PositionInTag, TagFile},
+        tag::{PositionInTag, TagFile, TaggedTags},
     };
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -585,10 +570,21 @@ mod tests {
 
             let child = TagFile::new("Child".to_string(), None);
             let missing_child = TagId::new(Uuid::new_v4());
-            let mut parent = TagFile::new("Parent".to_string(), None);
-            parent.children = IndexSet::from([child.id, missing_child]);
-            let mut other_parent = TagFile::new("Other parent".to_string(), None);
-            other_parent.children.insert(child.id);
+            let parent = TagFile::new("Parent".to_string(), None);
+            let other_parent = TagFile::new("Other parent".to_string(), None);
+            let members = TaggedTags {
+                tags: IndexSet::from([child.id, missing_child]),
+            };
+            fs::write(
+                parents_root.join("parent.tagged_tags"),
+                toml::to_string(&members)?,
+            )?;
+            fs::write(
+                parents_root.join("other.tagged_tags"),
+                toml::to_string(&TaggedTags {
+                    tags: IndexSet::from([child.id]),
+                })?,
+            )?;
             fs::write(parents_root.join("parent.tag"), toml::to_string(&parent)?)?;
             fs::write(
                 parents_root.join("other.tag"),
@@ -608,11 +604,17 @@ mod tests {
                 registry.index_db().get_child_tags(&parent.id)?[0].id,
                 child.id
             );
-            assert_eq!(registry.index_db().get_parent_tags(&child.id)?.len(), 2);
+            assert_eq!(
+                registry.index_db().get_child_tags(&other_parent.id)?[0].id,
+                child.id
+            );
             assert!(registry.index_db().get_child_tags(&child.id)?.is_empty());
 
             registry.add_bundle(AssetDirectory::new(&child_root)?)?;
-            assert_eq!(registry.index_db().get_parent_tags(&child.id)?.len(), 2);
+            assert_eq!(
+                registry.index_db().get_child_tags(&other_parent.id)?[0].id,
+                child.id
+            );
 
             let mut updated_parent = registry.index_db().get_tag(parent.id)?;
             updated_parent.name = "Updated parent".to_string();
@@ -620,20 +622,22 @@ mod tests {
             let written =
                 toml::from_str::<TagFile>(&fs::read_to_string(parents_root.join("parent.tag"))?)?;
             assert_eq!(written.name, updated_parent.name);
-            assert_eq!(written.children, IndexSet::from([child.id]));
+            assert_eq!(
+                fs::read_to_string(parents_root.join("parent.tagged_tags"))?,
+                toml::to_string(&members)?
+            );
 
-            registry
-                .index_db()
-                .remove_child_tag(&parent.id, &child.id)?;
+            registry.remove_child_from_tag(&updated_parent, &child.id)?;
             registry.write_tag(&updated_parent)?;
             registry.add_bundle(AssetDirectory::new(&parents_root)?)?;
             assert!(registry.index_db().get_child_tags(&parent.id)?.is_empty());
             assert_eq!(
-                registry.index_db().get_parent_tags(&child.id)?[0].id,
-                other_parent.id
+                registry.index_db().get_child_tags(&other_parent.id)?[0].id,
+                child.id
             );
 
             drop(registry);
+            fs::remove_file(root.join("index.sqlite3"))?;
             let registry = registry_with_bundles(
                 &root,
                 vec![
@@ -643,8 +647,20 @@ mod tests {
             )?;
             assert!(registry.index_db().get_child_tags(&parent.id)?.is_empty());
             assert_eq!(
-                registry.index_db().get_parent_tags(&child.id)?[0].id,
-                other_parent.id
+                registry.index_db().get_child_tags(&other_parent.id)?[0].id,
+                child.id
+            );
+            let persisted = toml::from_str::<TaggedTags>(&fs::read_to_string(
+                parents_root.join("parent.tagged_tags"),
+            )?)?;
+            assert_eq!(persisted.tags, IndexSet::from([missing_child]));
+            fs::remove_file(parents_root.join("other.tagged_tags"))?;
+            registry.add_bundle(AssetDirectory::new(&parents_root)?)?;
+            assert!(
+                registry
+                    .index_db()
+                    .get_child_tags(&other_parent.id)?
+                    .is_empty()
             );
 
             drop(registry);
@@ -654,14 +670,19 @@ mod tests {
     }
 
     #[test]
-    fn add_child_to_tag_updates_index_and_file() -> Result<()> {
+    fn tagged_tags_insert_and_move_without_rewriting_tag_files() -> Result<()> {
         let root = temp_root("add-child-to-tag");
         let bundle_root = root.join("tags");
         fs::create_dir_all(&bundle_root)?;
         let existing_child = TagFile::new("Existing child".to_string(), None);
         let child = TagFile::new("Child".to_string(), None);
-        let mut parent = TagFile::new("Parent".to_string(), None);
-        parent.children.insert(existing_child.id);
+        let parent = TagFile::new("Parent".to_string(), None);
+        fs::write(
+            bundle_root.join("parent.tagged_tags"),
+            toml::to_string(&TaggedTags {
+                tags: IndexSet::from([existing_child.id]),
+            })?,
+        )?;
         for (path, tag) in [
             ("parent.tag", &parent),
             ("existing.tag", &existing_child),
@@ -675,10 +696,27 @@ mod tests {
         let parent = registry.index_db().get_tag(parent.id)?;
         let child = registry.index_db().get_tag(child.id)?;
 
-        registry.add_child_to_tag(&parent, &child.id)?;
-        assert!(registry.add_child_to_tag(&parent, &child.id).is_err());
-        assert!(registry.add_child_to_tag(&child, &parent.id).is_err());
-        assert!(registry.add_child_to_tag(&parent, &parent.id).is_err());
+        let parent_content = fs::read_to_string(bundle_root.join("parent.tag"))?;
+        registry.add_tag_to_tag_at(&parent, &child.id, PositionInTag::First)?;
+        assert_eq!(
+            registry.index_db().get_child_tags(&parent.id)?[0].id,
+            child.id
+        );
+        registry.add_tag_to_tag_at(&parent, &child.id, PositionInTag::After(existing_child.id))?;
+        assert!(
+            registry
+                .add_tag_to_tag_at(&child, &parent.id, PositionInTag::Last)
+                .is_err()
+        );
+        assert!(
+            registry
+                .add_tag_to_tag_at(&parent, &parent.id, PositionInTag::Last)
+                .is_err()
+        );
+        assert_eq!(
+            fs::read_to_string(bundle_root.join("parent.tag"))?,
+            parent_content
+        );
 
         let children = IndexSet::from([existing_child.id, child.id]);
         assert_eq!(
@@ -690,16 +728,11 @@ mod tests {
                 .collect::<Vec<_>>(),
             children.iter().copied().collect::<Vec<_>>()
         );
+        let written = toml::from_str::<TaggedTags>(&fs::read_to_string(
+            bundle_root.join("parent.tagged_tags"),
+        )?)?;
         assert_eq!(
-            registry.index_db().get_parent_tags(&child.id)?[0].id,
-            parent.id
-        );
-        let written =
-            toml::from_str::<TagFile>(&fs::read_to_string(bundle_root.join("parent.tag"))?)?;
-        assert_eq!(written.id, parent.id);
-        assert_eq!(written.name, parent.name);
-        assert_eq!(
-            written.children.into_iter().collect::<Vec<_>>(),
+            written.tags.into_iter().collect::<Vec<_>>(),
             children.into_iter().collect::<Vec<_>>()
         );
         assert_eq!(
@@ -710,8 +743,8 @@ mod tests {
         registry.add_bundle(AssetDirectory::new(&bundle_root)?)?;
         assert_eq!(registry.index_db().get_child_tags(&parent.id)?.len(), 2);
         assert_eq!(
-            registry.index_db().get_parent_tags(&child.id)?[0].id,
-            parent.id
+            registry.index_db().get_child_tags(&parent.id)?[1].id,
+            child.id
         );
 
         drop(registry);
@@ -720,14 +753,19 @@ mod tests {
     }
 
     #[test]
-    fn remove_child_from_tag_updates_index_and_file() -> Result<()> {
+    fn tagged_tags_removal_persists_empty_sidecar() -> Result<()> {
         let root = temp_root("remove-child-from-tag");
         let bundle_root = root.join("tags");
         fs::create_dir_all(&bundle_root)?;
         let retained_child = TagFile::new("Retained child".to_string(), None);
         let child = TagFile::new("Child".to_string(), None);
-        let mut parent = TagFile::new("Parent".to_string(), None);
-        parent.children = IndexSet::from([retained_child.id, child.id]);
+        let parent = TagFile::new("Parent".to_string(), None);
+        fs::write(
+            bundle_root.join("parent.tagged_tags"),
+            toml::to_string(&TaggedTags {
+                tags: IndexSet::from([retained_child.id, child.id]),
+            })?,
+        )?;
         for (path, tag) in [
             ("parent.tag", &parent),
             ("retained.tag", &retained_child),
@@ -751,13 +789,11 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![retained_child.id]
         );
-        assert!(registry.index_db().get_parent_tags(&child.id)?.is_empty());
-        let written =
-            toml::from_str::<TagFile>(&fs::read_to_string(bundle_root.join("parent.tag"))?)?;
-        assert_eq!(written.id, parent.id);
-        assert_eq!(written.name, parent.name);
+        let written = toml::from_str::<TaggedTags>(&fs::read_to_string(
+            bundle_root.join("parent.tagged_tags"),
+        )?)?;
         assert_eq!(
-            written.children.into_iter().collect::<Vec<_>>(),
+            written.tags.into_iter().collect::<Vec<_>>(),
             vec![retained_child.id]
         );
         assert_eq!(
@@ -770,15 +806,228 @@ mod tests {
             registry.index_db().get_child_tags(&parent.id)?[0].id,
             retained_child.id
         );
-        assert!(registry.index_db().get_parent_tags(&child.id)?.is_empty());
-
         registry.remove_child_from_tag(&parent, &retained_child.id)?;
-        let written =
-            toml::from_str::<TagFile>(&fs::read_to_string(bundle_root.join("parent.tag"))?)?;
-        assert!(written.children.is_empty());
+        let written = toml::from_str::<TaggedTags>(&fs::read_to_string(
+            bundle_root.join("parent.tagged_tags"),
+        )?)?;
+        assert!(written.tags.is_empty());
         registry.add_bundle(AssetDirectory::new(&bundle_root)?)?;
         assert!(registry.index_db().get_child_tags(&parent.id)?.is_empty());
 
+        drop(registry);
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn tagged_tag_errors_preserve_sidecar_and_index() -> Result<()> {
+        let root = temp_root("tagged-tags-errors");
+        let bundle_root = root.join("tags");
+        fs::create_dir_all(&bundle_root)?;
+        let parent = TagFile::new("Parent".into(), None);
+        let child = TagFile::new("Child".into(), None);
+        let other = TagFile::new("Other".into(), None);
+        for (path, tag) in [
+            ("parent.tag", &parent),
+            ("child.tag", &child),
+            ("other.tag", &other),
+        ] {
+            fs::write(bundle_root.join(path), toml::to_string(tag)?)?;
+        }
+        let registry =
+            registry_with_bundles(&root, vec![Arc::new(AssetDirectory::new(&bundle_root)?)])?;
+        let parent = registry.index_db().get_tag(parent.id)?;
+        let child = registry.index_db().get_tag(child.id)?;
+        registry.add_tag_to_tag_at(&parent, &child.id, PositionInTag::Last)?;
+        let sidecar = bundle_root.join("parent.tagged_tags");
+        let original = fs::read_to_string(&sidecar)?;
+        let missing = TagId::new(Uuid::new_v4());
+        for (id, position) in [
+            (parent.id, PositionInTag::Last),
+            (missing, PositionInTag::Last),
+            (other.id, PositionInTag::Before(missing)),
+            (other.id, PositionInTag::After(missing)),
+        ] {
+            assert!(registry.add_tag_to_tag_at(&parent, &id, position).is_err());
+            assert_eq!(fs::read_to_string(&sidecar)?, original);
+            assert_eq!(
+                registry.index_db().get_child_tags(&parent.id)?[0].id,
+                child.id
+            );
+        }
+        assert!(
+            registry
+                .add_tag_to_tag_at(&child, &parent.id, PositionInTag::Last)
+                .is_err()
+        );
+        assert!(!bundle_root.join("child.tagged_tags").exists());
+        assert!(registry.remove_child_from_tag(&parent, &other.id).is_err());
+        registry.delete_tag(&other.id)?;
+        assert!(
+            registry
+                .add_tag_to_tag_at(&parent, &other.id, PositionInTag::Last)
+                .is_err()
+        );
+        assert_eq!(fs::read_to_string(&sidecar)?, original);
+
+        fs::write(&sidecar, "tags = [")?;
+        assert!(
+            registry
+                .add_tag_to_tag_at(&parent, &child.id, PositionInTag::First)
+                .is_err()
+        );
+        assert!(registry.remove_child_from_tag(&parent, &child.id).is_err());
+        assert_eq!(fs::read_to_string(&sidecar)?, "tags = [");
+        assert_eq!(
+            registry.index_db().get_child_tags(&parent.id)?[0].id,
+            child.id
+        );
+        assert!(
+            registry
+                .add_bundle(AssetDirectory::new(&bundle_root)?)
+                .is_err()
+        );
+        assert_eq!(
+            registry.index_db().get_child_tags(&parent.id)?[0].id,
+            child.id
+        );
+
+        fs::remove_file(&sidecar)?;
+        fs::create_dir(&sidecar)?;
+        assert!(
+            registry
+                .add_tag_to_tag_at(&parent, &child.id, PositionInTag::Last)
+                .is_err()
+        );
+        assert_eq!(
+            registry.index_db().get_child_tags(&parent.id)?[0].id,
+            child.id
+        );
+        drop(registry);
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn readonly_tagged_tags_survive_index_rebuilds_without_changing_archive() -> Result<()> {
+        use std::{collections::BTreeMap, fs::File};
+
+        use zip::{ZipWriter, write::SimpleFileOptions};
+
+        use crate::bundle::standard::{StandardAssetBundle, StandardAssetBundleMetadata};
+
+        let root = temp_root("readonly-tagged-tags");
+        let archive_path = root.join("tags.lazurite");
+        let parent = TagFile::new("Parent".into(), None);
+        let child = TagFile::new("Child".into(), None);
+        let bundle_id = BundleId::new(Uuid::new_v4());
+        let manifest = BundleManifest {
+            assets: BTreeMap::new(),
+            tags: BTreeMap::from([
+                (parent.id, "tags/parent.tag".into()),
+                (child.id, "tags/child.tag".into()),
+            ]),
+        };
+        let mut archive = ZipWriter::new(File::create(&archive_path)?);
+        for (path, content) in [
+            (
+                "metadata.toml",
+                toml::to_string(&StandardAssetBundleMetadata {
+                    bundle_id,
+                    name: "Tags".into(),
+                })?,
+            ),
+            ("manifest.toml", toml::to_string(&manifest)?),
+            ("tags/parent.tag", toml::to_string(&parent)?),
+            ("tags/child.tag", toml::to_string(&child)?),
+            (
+                "tags/parent.tagged_tags",
+                toml::to_string(&TaggedTags {
+                    tags: IndexSet::from([child.id]),
+                })?,
+            ),
+        ] {
+            archive.start_file(path, SimpleFileOptions::default())?;
+            archive.write_all(content.as_bytes())?;
+        }
+        archive.finish()?;
+        let original = fs::read(&archive_path)?;
+        let registry = registry_with_bundles(
+            &root,
+            vec![Arc::new(StandardAssetBundle::new(&archive_path)?)],
+        )?;
+        let parent = registry.index_db().get_tag(parent.id)?;
+        assert_eq!(
+            registry.index_db().get_child_tags(&parent.id)?[0].id,
+            child.id
+        );
+
+        let sidecar = registry
+            .bundle(&bundle_id)?
+            .absolute_modified_path("tags/parent.tagged_tags");
+        fs::create_dir_all(sidecar.parent().unwrap())?;
+        fs::write(&sidecar, "tags = [")?;
+        assert!(registry.remove_child_from_tag(&parent, &child.id).is_err());
+        fs::remove_file(&sidecar)?;
+        // A blocked override directory must not change the indexed hierarchy.
+        fs::remove_dir(sidecar.parent().unwrap())?;
+        fs::write(sidecar.parent().unwrap(), "blocked")?;
+        assert!(registry.remove_child_from_tag(&parent, &child.id).is_err());
+        assert_eq!(
+            registry.index_db().get_child_tags(&parent.id)?[0].id,
+            child.id
+        );
+        fs::remove_file(sidecar.parent().unwrap())?;
+
+        registry.remove_child_from_tag(&parent, &child.id)?;
+        assert!(
+            toml::from_str::<TaggedTags>(&fs::read_to_string(&sidecar)?)?
+                .tags
+                .is_empty()
+        );
+        assert_eq!(fs::read(&archive_path)?, original);
+        drop(registry);
+        fs::remove_file(root.join("index.sqlite3"))?;
+        let registry = registry_with_bundles(
+            &root,
+            vec![Arc::new(StandardAssetBundle::new(&archive_path)?)],
+        )?;
+        assert!(registry.index_db().get_child_tags(&parent.id)?.is_empty());
+        registry.add_tag_to_tag_at(&parent, &child.id, PositionInTag::First)?;
+        drop(registry);
+        fs::remove_file(root.join("index.sqlite3"))?;
+        let registry = registry_with_bundles(
+            &root,
+            vec![Arc::new(StandardAssetBundle::new(&archive_path)?)],
+        )?;
+        assert_eq!(
+            registry.index_db().get_child_tags(&parent.id)?[0].id,
+            child.id
+        );
+        assert_eq!(fs::read(&archive_path)?, original);
+        drop(registry);
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn tag_children_without_sidecar_are_empty() -> Result<()> {
+        let root = temp_root("tagged-tags-no-sidecar");
+        let bundle_root = root.join("tags");
+        fs::create_dir_all(&bundle_root)?;
+        let parent = TagFile::new("Parent".into(), None);
+        let child = TagFile::new("Child".into(), None);
+        let mut content = toml::Value::try_from(&parent)?;
+        content
+            .as_table_mut()
+            .unwrap()
+            .insert("children".into(), toml::Value::try_from(vec![child.id])?);
+        fs::write(bundle_root.join("parent.tag"), toml::to_string(&content)?)?;
+        fs::write(bundle_root.join("child.tag"), toml::to_string(&child)?)?;
+        let registry =
+            registry_with_bundles(&root, vec![Arc::new(AssetDirectory::new(&bundle_root)?)])?;
+        assert!(registry.index_db().get_child_tags(&parent.id)?.is_empty());
+        assert!(!bundle_root.join("parent.tagged_tags").exists());
         drop(registry);
         fs::remove_dir_all(root)?;
         Ok(())
@@ -789,10 +1038,20 @@ mod tests {
         let root = temp_root("tag-children-cycle");
         let bundle_root = root.join("tags");
         fs::create_dir_all(&bundle_root)?;
-        let mut parent = TagFile::new("Parent".to_string(), None);
-        let mut child = TagFile::new("Child".to_string(), None);
-        parent.children.insert(child.id);
-        child.children.insert(parent.id);
+        let parent = TagFile::new("Parent".to_string(), None);
+        let child = TagFile::new("Child".to_string(), None);
+        fs::write(
+            bundle_root.join("parent.tagged_tags"),
+            toml::to_string(&TaggedTags {
+                tags: IndexSet::from([child.id]),
+            })?,
+        )?;
+        fs::write(
+            bundle_root.join("child.tagged_tags"),
+            toml::to_string(&TaggedTags {
+                tags: IndexSet::from([parent.id]),
+            })?,
+        )?;
         fs::write(bundle_root.join("parent.tag"), toml::to_string(&parent)?)?;
         fs::write(bundle_root.join("child.tag"), toml::to_string(&child)?)?;
 

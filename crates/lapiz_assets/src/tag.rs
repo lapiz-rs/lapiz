@@ -1,3 +1,5 @@
+use std::{fmt, hash::Hash};
+
 use anyhow::{Result, bail};
 use indexmap::IndexSet;
 use lapiz_utils::wrapper;
@@ -51,8 +53,6 @@ pub struct TagFile {
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_ty: Option<String>,
-    #[serde(default, skip_serializing_if = "IndexSet::is_empty")]
-    pub children: IndexSet<TagId>,
 }
 
 impl TagFile {
@@ -61,7 +61,6 @@ impl TagFile {
             id: TagId::new(Uuid::new_v4()),
             name,
             asset_ty,
-            children: IndexSet::new(),
         }
     }
 }
@@ -76,47 +75,111 @@ pub struct TaggedAssets {
 
 pub const TAGGED_ASSETS_EXT: &str = "tagged_assets";
 
+pub type AssetPositionInTag = PositionInTag<UntypedAssetId>;
+pub type TagPositionInTag = PositionInTag<TagId>;
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum PositionInTag {
+pub enum PositionInTag<T> {
     First,
     #[default]
     Last,
-    After(UntypedAssetId),
-    Before(UntypedAssetId),
+    After(T),
+    Before(T),
     Absolute(u32),
 }
 
 impl TaggedAssets {
-    pub fn insert(&mut self, asset_id: UntypedAssetId, position: PositionInTag) -> Result<()> {
+    pub fn insert(&mut self, asset_id: UntypedAssetId, position: AssetPositionInTag) -> Result<()> {
+        position.insert_into(&mut self.assets, asset_id)
+    }
+}
+
+impl<T: Copy + Eq + Hash + fmt::Display> PositionInTag<T> {
+    fn insert_into(self, members: &mut IndexSet<T>, member: T) -> Result<()> {
+        let position = self;
         let reference = match position {
             PositionInTag::Before(id) | PositionInTag::After(id) => Some(id),
             _ => None,
         };
         if let Some(reference) = reference {
-            if !self.assets.contains(&reference) {
-                bail!("Reference asset {reference} is not assigned to this tag");
+            if !members.contains(&reference) {
+                bail!("Reference member {reference} is not assigned to this tag");
             }
-            if reference == asset_id {
+            if reference == member {
                 return Ok(());
             }
         }
 
-        self.assets.shift_remove(&asset_id);
+        members.shift_remove(&member);
         let index = match position {
             PositionInTag::First => 0,
-            PositionInTag::Last => self.assets.len(),
-            PositionInTag::Before(id) => self.assets.get_index_of(&id).unwrap(),
-            PositionInTag::After(id) => self.assets.get_index_of(&id).unwrap() + 1,
-            PositionInTag::Absolute(index) => (index as usize).min(self.assets.len()),
+            PositionInTag::Last => members.len(),
+            PositionInTag::Before(id) => members.get_index_of(&id).unwrap(),
+            PositionInTag::After(id) => members.get_index_of(&id).unwrap() + 1,
+            PositionInTag::Absolute(index) => (index as usize).min(members.len()),
         };
-        self.assets.shift_insert(index, asset_id);
+        members.shift_insert(index, member);
         Ok(())
+    }
+}
+
+/// Ordered child tags stored beside `name.tag` as `name.tagged_tags`.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct TaggedTags {
+    pub tags: IndexSet<TagId>,
+}
+
+pub const TAGGED_TAGS_EXT: &str = "tagged_tags";
+
+impl TaggedTags {
+    pub fn insert(&mut self, tag_id: TagId, position: PositionInTag<TagId>) -> Result<()> {
+        position.insert_into(&mut self.tags, tag_id)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tag_positions_insert_and_move_without_changing_other_members() -> Result<()> {
+        let [a, b, c, d] = [1, 2, 3, 4].map(|id| TagId::new(Uuid::from_u128(id)));
+        for (tag, position, expected) in [
+            (d, PositionInTag::First, vec![d, a, b, c]),
+            (d, PositionInTag::Last, vec![a, b, c, d]),
+            (d, PositionInTag::Before(b), vec![a, d, b, c]),
+            (d, PositionInTag::After(b), vec![a, b, d, c]),
+            (d, PositionInTag::Absolute(1), vec![a, d, b, c]),
+            (d, PositionInTag::Absolute(u32::MAX), vec![a, b, c, d]),
+            (c, PositionInTag::First, vec![c, a, b]),
+            (a, PositionInTag::Last, vec![b, c, a]),
+            (a, PositionInTag::Before(c), vec![b, a, c]),
+            (c, PositionInTag::After(a), vec![a, c, b]),
+            (b, PositionInTag::Before(b), vec![a, b, c]),
+            (b, PositionInTag::After(b), vec![a, b, c]),
+        ] {
+            let mut members = TaggedTags {
+                tags: IndexSet::from([a, b, c]),
+            };
+            members.insert(tag, position)?;
+            assert_eq!(
+                members.tags.into_iter().collect::<Vec<_>>(),
+                expected,
+                "{position:?}"
+            );
+        }
+        let mut members = TaggedTags {
+            tags: IndexSet::from([a, b, c]),
+        };
+        for position in [PositionInTag::Before(d), PositionInTag::After(d)] {
+            assert!(members.insert(a, position).is_err());
+            assert_eq!(members.tags, IndexSet::from([a, b, c]));
+        }
+        let mut members = TaggedTags::default();
+        members.insert(a, PositionInTag::default())?;
+        assert_eq!(members.tags, IndexSet::from([a]));
+        Ok(())
+    }
 
     #[test]
     fn asset_positions_insert_and_move_without_changing_other_members() -> Result<()> {
@@ -170,7 +233,10 @@ mod tests {
             members.insert(a, position)?;
             assert_eq!(members.assets.into_iter().collect::<Vec<_>>(), vec![a]);
         }
-        assert_eq!(PositionInTag::default(), PositionInTag::Last);
+        assert_eq!(
+            PositionInTag::<UntypedAssetId>::default(),
+            PositionInTag::Last
+        );
         Ok(())
     }
 }
