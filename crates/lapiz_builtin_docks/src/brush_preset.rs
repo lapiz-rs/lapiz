@@ -7,7 +7,6 @@ use lapiz_brush::{
     asset::BrushPreset,
     editor::{BrushEditorEngineId, BrushEngineEditorRegistry, UntypedBrushPresetEntry},
     tool::CurrentBrushPresetExt as _,
-    widget::BrushPresetListDelegate,
 };
 use lapiz_dock::dock::{Dock, DockId};
 use lapiz_runtime::{Renderer, global::Globals};

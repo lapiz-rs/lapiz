@@ -18,7 +18,6 @@ pub mod input_processing;
 pub mod instance;
 pub mod render;
 pub mod tool;
-pub mod widget;
 
 wesl::wesl_pkg!(pub brush);
 
