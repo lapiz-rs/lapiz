@@ -153,12 +153,12 @@ impl<T: BrushEditorEngine> ErasedBrushEditorEngine for T {
 
 #[derive(Default)]
 pub struct BrushEngineEditorRegistry {
-    factories: HashMap<BrushEditorEngineId, BrushEditorEngineRegistration>,
+    pub factories: HashMap<BrushEditorEngineId, BrushEditorEngineRegistration>,
 }
 
-struct BrushEditorEngineRegistration {
-    label: String,
-    create: Box<dyn Fn() -> Box<dyn ErasedBrushEditorEngine>>,
+pub struct BrushEditorEngineRegistration {
+    pub label: String,
+    pub create: Box<dyn Fn() -> Box<dyn ErasedBrushEditorEngine>>,
 }
 
 impl Global for BrushEngineEditorRegistry {}
@@ -174,12 +174,32 @@ impl BrushEngineEditorRegistry {
         );
     }
 
-    fn create(&self, id: BrushEditorEngineId) -> Result<Box<dyn ErasedBrushEditorEngine>> {
+    pub fn create(&self, id: BrushEditorEngineId) -> Result<Box<dyn ErasedBrushEditorEngine>> {
         let factory = self
             .factories
             .get(&id)
             .with_context(|| format!("Brush editor engine {} must be registered", id.0))?;
         Ok((factory.create)())
+    }
+
+    pub fn all_brushes(
+        &self,
+        assets: &AssetRegistry,
+    ) -> Vec<(BrushEditorEngineId, UntypedBrushPresetEntry)> {
+        let mut brushes = self
+            .factories
+            .iter()
+            .flat_map(|(engine_id, factory)| {
+                let brushes = (factory.create)()
+                    .query_brushes(assets)
+                    .logged_err()
+                    .unwrap_or_default();
+
+                brushes.into_iter().map(|entry| (*engine_id, entry))
+            })
+            .collect::<Vec<_>>();
+        brushes.sort_by(|(_, brush_a), (_, brush_b)| brush_a.name.cmp(&brush_b.name));
+        brushes
     }
 }
 
@@ -249,18 +269,7 @@ impl WindowView for BrushEditor {
 
         let engines = globals.global::<BrushEngineEditorRegistry>();
         let assets = globals.assets();
-        let brushes = engines
-            .factories
-            .iter()
-            .flat_map(|(engine_id, factory)| {
-                let brushes = (factory.create)()
-                    .query_brushes(assets)
-                    .logged_err()
-                    .unwrap_or_default();
-
-                brushes.into_iter().map(|entry| (*engine_id, entry))
-            })
-            .collect();
+        let brushes = engines.all_brushes(assets);
 
         Ok((
             Self {
