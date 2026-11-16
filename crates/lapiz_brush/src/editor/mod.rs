@@ -458,6 +458,22 @@ impl WindowView for BrushEditor {
 
 impl BrushEditor {
     fn select_brush(&mut self, index: usize, globals: &mut Globals) -> Result<()> {
+        // recompiles the previously selected brush preset if it's currently selected
+        if let Some(old_selected) = self.selected.take()
+            && let Some(current_brush) = globals
+                .current_brush_preset()
+                .and_then(|b| b.instance().asset_id())
+            && old_selected.asset_id == current_brush
+        {
+            old_selected
+                .engine
+                .compile_brush(globals)
+                .and_then(|preset| {
+                    globals.set_current_brush_preset(&preset, Some(old_selected.asset_id))
+                })
+                .log_err();
+        }
+
         let Some((engine_id, entry)) = self.brushes.get(index) else {
             return Ok(());
         };
