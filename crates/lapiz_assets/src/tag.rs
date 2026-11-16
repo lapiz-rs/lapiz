@@ -52,7 +52,7 @@ pub struct TagFile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_ty: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
-    pub parents: BTreeSet<TagId>,
+    pub children: BTreeSet<TagId>,
 }
 
 impl TagFile {
@@ -61,7 +61,7 @@ impl TagFile {
             id: TagId::new(Uuid::new_v4()),
             name,
             asset_ty,
-            parents: BTreeSet::new(),
+            children: BTreeSet::new(),
         }
     }
 }
@@ -72,7 +72,7 @@ impl From<Tag> for TagFile {
             id: tag.id,
             name: tag.name,
             asset_ty: tag.asset_ty,
-            parents: BTreeSet::new(),
+            children: BTreeSet::new(),
         }
     }
 }

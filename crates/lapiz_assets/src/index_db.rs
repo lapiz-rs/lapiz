@@ -366,24 +366,24 @@ ON CONFLICT(id) DO UPDATE SET
         }
 
         for bundle in bundles {
-            for child_id in bundle.tag_parents.keys() {
+            for parent_id in bundle.tag_children.keys() {
                 tx.execute(
-                    "DELETE FROM tag_children WHERE child_id = ?1",
-                    params![child_id],
+                    "DELETE FROM tag_children WHERE parent_id = ?1",
+                    params![parent_id],
                 )?;
             }
         }
         {
             let mut insert = tx.prepare(
                 "INSERT INTO tag_children (parent_id, child_id)
-                 SELECT ?1, ?2 WHERE EXISTS (SELECT 1 FROM tags WHERE id = ?1)",
+                 SELECT ?1, ?2 WHERE EXISTS (SELECT 1 FROM tags WHERE id = ?2)",
             )?;
             for bundle in bundles {
-                for (child_id, parents) in &bundle.tag_parents {
-                    for parent_id in parents {
+                for (parent_id, children) in &bundle.tag_children {
+                    for child_id in children {
                         if insert.execute(params![parent_id, child_id])? == 0 {
                             log::warn!(
-                                "Skipped missing parent tag {parent_id} for child tag {child_id}"
+                                "Skipped missing child tag {child_id} for parent tag {parent_id}"
                             );
                         }
                     }

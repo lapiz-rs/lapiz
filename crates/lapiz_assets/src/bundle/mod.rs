@@ -69,7 +69,7 @@ pub(crate) struct BundleSnapshot {
     pub manifest: BundleManifest,
     pub assets: Vec<AssetMetadata>,
     pub tags: Vec<Tag>,
-    pub tag_parents: HashMap<TagId, BTreeSet<TagId>>,
+    pub tag_children: HashMap<TagId, BTreeSet<TagId>>,
     pub asset_tags: HashMap<UntypedAssetId, AssetTags>,
 }
 
@@ -261,9 +261,9 @@ impl AssetBundleCache {
         )
     }
 
-    pub fn write_tag(&self, tag: &Tag, parents: BTreeSet<TagId>) -> Result<()> {
+    pub fn write_tag(&self, tag: &Tag, children: BTreeSet<TagId>) -> Result<()> {
         let tag_file = TagFile {
-            parents,
+            children,
             ..TagFile::from(tag.clone())
         };
 
@@ -772,7 +772,7 @@ mod tests {
                 },
                 assets: Vec::new(),
                 tags: Vec::new(),
-                tag_parents: HashMap::new(),
+                tag_children: HashMap::new(),
                 asset_tags: HashMap::new(),
             },
             Arc::new(AssetSerializerRegistry::default()),
@@ -803,8 +803,8 @@ mod tests {
             name: "New".to_string(),
             asset_ty: None,
         };
-        let parents = BTreeSet::from([base_tag]);
-        cache.write_tag(&tag, parents.clone())?;
+        let children = BTreeSet::from([base_tag]);
+        cache.write_tag(&tag, children.clone())?;
 
         let modified_tag_path =
             modified_bundle_absolute_path(&root, &bundle_id).join(&tag.relative_path);
@@ -812,7 +812,7 @@ mod tests {
         assert_eq!(written_tag.id, tag.id);
         assert_eq!(written_tag.name, tag.name);
         assert_eq!(written_tag.asset_ty, tag.asset_ty);
-        assert_eq!(written_tag.parents, parents);
+        assert_eq!(written_tag.children, children);
 
         fs::remove_dir_all(root)?;
         Ok(())
