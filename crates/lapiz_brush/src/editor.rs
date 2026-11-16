@@ -162,7 +162,7 @@ impl WindowView for BrushEditor {
                 let session = selected.session;
                 selected
                     .engine
-                    .view_editor(globals)
+                    .editor_view(globals)
                     .map(move |message| BrushEditorMessage::EngineMessage { session, message })
             }
             None => row![label(t!("select_a_brush")).muted(), label("")]
@@ -202,7 +202,7 @@ impl WindowView for BrushEditor {
                 else {
                     return Task::none();
                 };
-                let task = selected.engine.update_editor(message, globals);
+                let task = selected.engine.editor_update(message, globals);
                 self.refresh_brush_names(globals);
                 task.map(move |message| BrushEditorMessage::EngineMessage { session, message })
             }
@@ -244,7 +244,7 @@ impl WindowView for BrushEditor {
                 let session = selected.session;
                 selected
                     .engine
-                    .subscription_editor(globals)
+                    .editor_subscription(globals)
                     .with(session)
                     .map(|(session, message)| BrushEditorMessage::EngineMessage {
                         session,

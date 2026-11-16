@@ -147,7 +147,7 @@ impl BrushEngine for PhotoshopBrushEngine {
         self.brush.compile()
     }
 
-    fn view_editor<'a>(&'a self, globals: &'a Globals) -> EditorElement<'a> {
+    fn editor_view<'a>(&'a self, globals: &'a Globals) -> EditorElement<'a> {
         let name_input = Element::from(
             text_input("", &self.brush.name)
                 .on_input(|name| name)
@@ -207,7 +207,7 @@ impl BrushEngine for PhotoshopBrushEngine {
         content.into()
     }
 
-    fn update_editor(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
+    fn editor_update(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
         match message {
             PhotoshopBrushEngineMessage::SelectSection(section) => self.section = section,
             PhotoshopBrushEngineMessage::ToggleSection(section, enabled) => {
@@ -265,7 +265,7 @@ impl BrushEngine for PhotoshopBrushEngine {
         Task::none()
     }
 
-    fn subscription_editor(&self, _globals: &Globals) -> Subscription<Self::Message> {
+    fn editor_subscription(&self, _globals: &Globals) -> Subscription<Self::Message> {
         Subscription::run_with(self.revision, |revision| {
             let revision = *revision;
             stream::once(async move {

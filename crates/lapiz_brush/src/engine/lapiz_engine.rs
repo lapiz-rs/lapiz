@@ -223,7 +223,7 @@ impl BrushEngine for LapizBrushEngineEditor {
             .as_asset(globals.assets())
     }
 
-    fn view_editor<'a>(&'a self, _globals: &'a Globals) -> Element<'a, Self::Message, Theme, Renderer> {
+    fn editor_view<'a>(&'a self, _globals: &'a Globals) -> Element<'a, Self::Message, Theme, Renderer> {
         match self.selected.as_ref() {
             Some(selected) => row![self.view_selected(selected), self.view_parameters(selected)]
                 .gap(8.0)
@@ -236,7 +236,7 @@ impl BrushEngine for LapizBrushEngineEditor {
         }
     }
 
-    fn update_editor(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
+    fn editor_update(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
         match message {
             LapizBrushEngineEditorMessage::BrushNameChanged(name) => {
                 self.name_buffer = name.clone();
