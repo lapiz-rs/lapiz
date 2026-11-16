@@ -48,9 +48,16 @@ pub trait BrushEngine: 'static {
         globals: &mut Globals,
     ) -> Result<AssetId<Self::Brush>>;
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset>;
-    fn view<'a>(&'a self, globals: &'a Globals) -> Element<'a, Self::Message, Theme, Renderer>;
-    fn update(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message>;
-    fn subscription(&self, _globals: &Globals) -> Subscription<Self::Message> {
+    fn view_editor<'a>(
+        &'a self,
+        globals: &'a Globals,
+    ) -> Element<'a, Self::Message, Theme, Renderer>;
+    fn update_editor(
+        &mut self,
+        message: Self::Message,
+        globals: &mut Globals,
+    ) -> Task<Self::Message>;
+    fn subscription_editor(&self, _globals: &Globals) -> Subscription<Self::Message> {
         Subscription::none()
     }
 }
@@ -69,16 +76,16 @@ pub trait ErasedBrushEngine: 'static {
         globals: &mut Globals,
     ) -> Result<UntypedAssetId>;
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset>;
-    fn view<'a>(
+    fn view_editor<'a>(
         &'a self,
         globals: &'a Globals,
     ) -> Element<'a, Box<dyn Any + Send>, Theme, Renderer>;
-    fn update(
+    fn update_editor(
         &mut self,
         message: Box<dyn Any + Send>,
         globals: &mut Globals,
     ) -> Task<Box<dyn Any + Send>>;
-    fn subscription(&self, globals: &Globals) -> Subscription<Box<dyn Any + Send>>;
+    fn subscription_editor(&self, globals: &Globals) -> Subscription<Box<dyn Any + Send>>;
 }
 
 impl<T: BrushEngine> ErasedBrushEngine for T {
@@ -115,15 +122,15 @@ impl<T: BrushEngine> ErasedBrushEngine for T {
         BrushEngine::compile_brush(self, globals)
     }
 
-    fn view<'a>(
+    fn view_editor<'a>(
         &'a self,
         globals: &'a Globals,
     ) -> Element<'a, Box<dyn Any + Send>, Theme, Renderer> {
-        BrushEngine::view(self, globals)
+        BrushEngine::view_editor(self, globals)
             .map(|message| Box::new(message) as Box<dyn Any + Send>)
     }
 
-    fn update(
+    fn update_editor(
         &mut self,
         message: Box<dyn Any + Send>,
         globals: &mut Globals,
@@ -131,12 +138,12 @@ impl<T: BrushEngine> ErasedBrushEngine for T {
         let message = *message
             .downcast::<T::Message>()
             .expect("invalid brush editor message type");
-        BrushEngine::update(self, message, globals)
+        BrushEngine::update_editor(self, message, globals)
             .map(|message| Box::new(message) as Box<dyn Any + Send>)
     }
 
-    fn subscription(&self, globals: &Globals) -> Subscription<Box<dyn Any + Send>> {
-        BrushEngine::subscription(self, globals)
+    fn subscription_editor(&self, globals: &Globals) -> Subscription<Box<dyn Any + Send>> {
+        BrushEngine::subscription_editor(self, globals)
             .map(|message| Box::new(message) as Box<dyn Any + Send>)
     }
 }
