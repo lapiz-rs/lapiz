@@ -51,6 +51,7 @@ struct PenInputSampler {
     next_dab_index: u32,
     distance_to_next_dab: f32,
     stroke_distance: f32,
+    next_input: u32,
 }
 
 struct PenInput {

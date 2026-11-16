@@ -127,15 +127,17 @@ fn sample_input(new_input: PenInput) {
         }
     }
 
+    if output_samples.n_samples > 0u {
+        input_sampler.last_sample = output_samples.samples[output_samples.n_samples - 1u];
+    }
     if target_arc <= total_arc {
         output_samples.is_overflow = 1u;
+        input_sampler.distance_to_next_dab = target_arc;
+        return;
     }
     input_sampler.distance_to_next_dab = target_arc - total_arc;
     input_sampler.stroke_distance += total_arc;
     input_sampler.last_input = new_input;
-    if output_samples.n_samples > 0u {
-        input_sampler.last_sample = output_samples.samples[output_samples.n_samples - 1u];
-    }
 }
 
 @compute
@@ -144,10 +146,12 @@ fn main() {
     output_samples.n_samples = 0u;
     output_samples.is_overflow = 0u;
 
-    for (var i = 0u; i < input_batch.n_inputs; i++) {
+    for (var i = input_sampler.next_input; i < input_batch.n_inputs; i++) {
         sample_input(input_batch.inputs[i]);
         if output_samples.is_overflow != 0u {
+            input_sampler.next_input = i;
             return;
         }
     }
+    input_sampler.next_input = 0u;
 }
