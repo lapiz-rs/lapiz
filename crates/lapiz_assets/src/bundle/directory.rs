@@ -18,7 +18,7 @@ use crate::{
     bundle::{AssetBundle, AssetBundleMetadata, BundleId, BundleManifest, ErasedAssetBundle},
     loader::ErasedAssetSerializer,
     source::AssetSource,
-    tag::{ASSET_TAGS_EXT, AssetTags, TAG_EXT, TagFile},
+    tag::{TAG_EXT, TAGGED_ASSETS_EXT, TagFile, TaggedAssets},
 };
 
 /// An [`AssetSource`] that discovers loose asset bundles in the `builtin_assets` directory.
@@ -151,8 +151,8 @@ impl AssetBundle for AssetDirectory {
         Ok(())
     }
 
-    fn read_asset_tags(&self, path: &Path) -> Result<Option<AssetTags>> {
-        let path = self.root.join(path).with_added_extension(ASSET_TAGS_EXT);
+    fn read_tagged_assets(&self, path: &Path) -> Result<Option<TaggedAssets>> {
+        let path = self.root.join(path).with_extension(TAGGED_ASSETS_EXT);
         if !path.exists() {
             return Ok(None);
         }
@@ -160,12 +160,12 @@ impl AssetBundle for AssetDirectory {
         Ok(Some(toml::from_str(&read_to_string(path)?)?))
     }
 
-    fn write_asset_tags(&self, path: &Path, tags: &AssetTags) -> Result<()> {
-        let path = self.root.join(path).with_added_extension(ASSET_TAGS_EXT);
+    fn write_tagged_assets(&self, path: &Path, assets: &TaggedAssets) -> Result<()> {
+        let path = self.root.join(path).with_extension(TAGGED_ASSETS_EXT);
         if let Some(parent) = path.parent() {
             create_dir_all(parent)?;
         }
-        File::create(path)?.write_all(toml::to_string(tags)?.as_bytes())?;
+        File::create(path)?.write_all(toml::to_string(assets)?.as_bytes())?;
         Ok(())
     }
 }
@@ -186,7 +186,7 @@ fn scan_dir_dfs(
         if path.is_dir() {
             scan_dir_dfs(&path, root, bundle_id, manifest)?;
         } else {
-            if path.extension() == Some(OsStr::new(ASSET_TAGS_EXT)) {
+            if path.extension() == Some(OsStr::new(TAGGED_ASSETS_EXT)) {
                 continue;
             }
 
@@ -225,15 +225,17 @@ fn asset_id_from_relative_path(bundle_id: &BundleId, path: &Path) -> UntypedAsse
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeSet, env, fs, path::Path};
+    use std::{env, fs, path::Path};
 
     use anyhow::Result;
+    use indexmap::IndexSet;
     use uuid::Uuid;
 
     use super::{AssetDirectory, asset_id_from_relative_path};
     use crate::{
+        asset::UntypedAssetId,
         bundle::{AssetBundle as _, BundleId},
-        tag::{AssetTags, TagId},
+        tag::TaggedAssets,
     };
 
     #[test]
@@ -251,44 +253,46 @@ mod tests {
     }
 
     #[test]
-    fn asset_tags_are_read_written_and_overwritten() -> Result<()> {
-        let root = env::temp_dir().join(format!("lapiz-asset-tags-{}", Uuid::new_v4()));
+    fn tagged_assets_round_trip_order_and_empty_override() -> Result<()> {
+        let root = env::temp_dir().join(format!("lapiz-tagged-assets-{}", Uuid::new_v4()));
         fs::create_dir_all(&root)?;
         let bundle = AssetDirectory::new(&root)?;
-        let asset_path = Path::new("brushes/sample.lapiz");
-        let first_tag = TagId::new(Uuid::from_u128(1));
-        let second_tag = TagId::new(Uuid::from_u128(2));
+        let tag_path = Path::new("tags/sample.tag");
+        let first = UntypedAssetId::new(Uuid::from_u128(2));
+        let second = UntypedAssetId::new(Uuid::from_u128(1));
 
-        assert!(bundle.read_asset_tags(asset_path)?.is_none());
-
-        bundle.write_asset_tags(
-            asset_path,
-            &AssetTags {
-                tags: BTreeSet::from([first_tag]),
+        assert!(bundle.read_tagged_assets(tag_path)?.is_none());
+        bundle.write_tagged_assets(
+            tag_path,
+            &TaggedAssets {
+                assets: IndexSet::from([first, second]),
             },
         )?;
         assert_eq!(
-            bundle.read_asset_tags(asset_path)?.unwrap().tags,
-            BTreeSet::from([first_tag])
+            bundle
+                .read_tagged_assets(tag_path)?
+                .unwrap()
+                .assets
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![first, second]
         );
-        assert!(root.join("brushes/sample.lapiz.tags").is_file());
-        let manifest = bundle.manifest()?;
-        assert!(manifest.assets.is_empty());
-        assert!(manifest.tags.is_empty());
+        assert!(root.join("tags/sample.tagged_assets").is_file());
 
-        bundle.write_asset_tags(
-            asset_path,
-            &AssetTags {
-                tags: BTreeSet::from([second_tag]),
-            },
-        )?;
-        assert_eq!(
-            bundle.read_asset_tags(asset_path)?.unwrap().tags,
-            BTreeSet::from([second_tag])
+        let rescanned = AssetDirectory::new(&root)?.manifest()?;
+        assert!(rescanned.assets.is_empty());
+        assert!(rescanned.tags.is_empty());
+
+        bundle.write_tagged_assets(tag_path, &TaggedAssets::default())?;
+        assert!(
+            bundle
+                .read_tagged_assets(tag_path)?
+                .unwrap()
+                .assets
+                .is_empty()
         );
-
-        bundle.write_asset_tags(asset_path, &AssetTags::default())?;
-        assert!(bundle.read_asset_tags(asset_path)?.unwrap().tags.is_empty());
+        fs::write(root.join("tags/sample.tagged_assets"), "invalid toml[")?;
+        assert!(bundle.read_tagged_assets(tag_path).is_err());
 
         fs::remove_dir_all(root)?;
         Ok(())

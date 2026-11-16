@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeSet,
     fmt, fs,
     hash::{Hash, Hasher},
     marker::PhantomData,
@@ -10,6 +9,7 @@ use std::{
 use anyhow::{Result, anyhow, bail};
 use chrono::{DateTime, Utc};
 use downcast_rs::DowncastSync;
+use indexmap::IndexSet;
 use lapiz_utils::wrapper;
 use parse_display::Display;
 use rusqlite::types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
@@ -18,8 +18,8 @@ use uuid::Uuid;
 
 use crate::{
     bundle::{AssetBundleCache, BundleId},
-    index_db::AssetIndexDb,
-    tag::TagId,
+    store::AssetRegistry,
+    tag::{AssetPosition, TagId},
 };
 
 wrapper! {
@@ -133,7 +133,7 @@ impl<T: Asset> AssetId<T> {
 /// A piece of data that can be loaded, stored, and managed by the asset subsystem.
 ///
 /// Types implementing `Asset` can be referenced by typed [`AssetHandle`]s and [`AssetId`]s,
-/// indexed by the [`AssetIndexDb`], and persisted by matching [`AssetSerializer`](crate::loader::AssetSerializer)s.
+/// indexed by the [`AssetIndexDb`](crate::index_db::AssetIndexDb), and persisted by matching [`AssetSerializer`](crate::loader::AssetSerializer)s.
 ///
 /// # Requirements
 ///
@@ -177,7 +177,7 @@ pub struct AssetMetadata {
 ///
 /// `AssetHandle` serves as the primary gateway for interacting with an individual asset.
 /// It holds a typed [`AssetId<T>`], a reference to the asset's parent [`AssetBundleCache`],
-/// and a connection to the [`AssetIndexDb`].
+/// and its [`AssetRegistry`] for index queries and tag membership changes.
 ///
 /// # Capabilities
 ///
@@ -189,7 +189,7 @@ pub struct AssetMetadata {
 pub struct AssetHandle<T: Asset> {
     id: AssetId<T>,
     bundle: Arc<AssetBundleCache>,
-    index_db: Arc<AssetIndexDb>,
+    registry: AssetRegistry,
 }
 
 impl<T: Asset> Clone for AssetHandle<T> {
@@ -197,7 +197,7 @@ impl<T: Asset> Clone for AssetHandle<T> {
         Self {
             id: self.id,
             bundle: Arc::clone(&self.bundle),
-            index_db: Arc::clone(&self.index_db),
+            registry: self.registry.clone(),
         }
     }
 }
@@ -220,12 +220,12 @@ impl<T: Asset> AssetHandle<T> {
     pub(crate) fn new(
         id: AssetId<T>,
         bundle: Arc<AssetBundleCache>,
-        index_db: Arc<AssetIndexDb>,
+        registry: AssetRegistry,
     ) -> Self {
         Self {
             id,
             bundle,
-            index_db,
+            registry,
         }
     }
 
@@ -262,7 +262,7 @@ impl<T: Asset> AssetHandle<T> {
     pub fn update(&self, asset: T) -> Result<()> {
         self.bundle
             .update_asset(self.untyped_id(), Arc::new(asset))?;
-        self.index_db.update_asset(&self.untyped_id())?;
+        self.registry.index_db().update_asset(&self.untyped_id())?;
 
         Ok(())
     }
@@ -277,7 +277,7 @@ impl<T: Asset> AssetHandle<T> {
             .write_asset(&self.untyped_id(), metadata.revision)?;
         let last_modified =
             fs::metadata(self.bundle.absolute_modified_path(&new_path))?.modified()?;
-        self.index_db.write_asset(
+        self.registry.index_db().write_asset(
             &self.untyped_id(),
             new_path.to_str().unwrap(),
             last_modified.into(),
@@ -288,39 +288,55 @@ impl<T: Asset> AssetHandle<T> {
     pub fn delete(&self) -> Result<()> {
         let id = self.untyped_id();
         self.bundle.delete_cached_asset(&id)?;
-        self.index_db.delete_asset(&id)?;
+        self.registry.index_db().delete_asset(&id)?;
         Ok(())
     }
 
-    pub fn read_tags(&self) -> Result<BTreeSet<TagId>> {
-        Ok(self.bundle.read_asset_tags(&self.untyped_id())?.tags)
+    pub fn read_tags(&self) -> Result<IndexSet<TagId>> {
+        self.registry.index_db().get_asset_tags(&self.untyped_id())
     }
 
-    pub fn add_tag(&self, tag_id: &TagId) -> Result<()> {
-        let asset_id = self.untyped_id();
-        let mut tags = self.read_tags()?;
-        if !tags.insert(*tag_id) {
-            bail!("Tag {tag_id} is already assigned to asset {asset_id}");
+    pub fn add_to_position_of_tag(&self, tag_id: &TagId, position: AssetPosition) -> Result<()> {
+        let metadata = self.metadata()?;
+        let tag = self.registry.index_db().get_tag(*tag_id)?;
+        if let Some(expected_ty) = &tag.asset_ty
+            && metadata.ty != *expected_ty
+        {
+            bail!(
+                "Tag {tag_id} cannot be added to asset {} of type {}; expected {expected_ty}",
+                self.untyped_id(),
+                metadata.ty
+            );
         }
 
-        let tags = tags.into_iter().collect::<Vec<_>>();
-        self.bundle.write_asset_tags(&asset_id, &tags)?;
-        self.index_db.add_tag_to_asset(&asset_id, tag_id)
+        let bundle = self.registry.bundle(&tag.bundle_id)?;
+        let mut assets = bundle.read_tagged_assets(tag_id)?;
+        assets.insert(self.untyped_id(), position)?;
+
+        bundle.write_tagged_assets(tag_id, &assets)?;
+        self.registry
+            .index_db()
+            .edit_tagged_assets(tag_id, &assets)?;
+        Ok(())
     }
 
     pub fn remove_tag(&self, tag_id: &TagId) -> Result<()> {
-        let asset_id = self.untyped_id();
-        let mut tags = self.read_tags()?;
-        if !tags.remove(tag_id) {
-            bail!("Tag {tag_id} is not assigned to asset {asset_id}");
+        let tag = self.registry.index_db().get_tag(*tag_id)?;
+        let bundle = self.registry.bundle(&tag.bundle_id)?;
+        let mut assets = bundle.read_tagged_assets(tag_id)?;
+        if !assets.assets.shift_remove(&self.untyped_id()) {
+            bail!(
+                "Asset {} is not assigned to tag {}",
+                self.untyped_id(),
+                tag.name
+            );
         }
 
-        let tags = tags.into_iter().collect::<Vec<_>>();
-        self.bundle.write_asset_tags(&asset_id, &tags)?;
-        self.index_db.remove_tag_from_asset(&asset_id, tag_id)
+        bundle.write_tagged_assets(tag_id, &assets)?;
+        self.registry.index_db().edit_tagged_assets(tag_id, &assets)
     }
 
     pub fn metadata(&self) -> Result<AssetMetadata> {
-        self.index_db.get_asset(&self.untyped_id())
+        self.registry.index_db().get_asset(&self.untyped_id())
     }
 }

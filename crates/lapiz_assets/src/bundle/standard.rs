@@ -16,7 +16,7 @@ use crate::{
     bundle::{AssetBundle, AssetBundleMetadata, BundleId, BundleManifest, ErasedAssetBundle},
     loader::ErasedAssetSerializer,
     source::AssetSource,
-    tag::{ASSET_TAGS_EXT, AssetTags, TagFile},
+    tag::{TAGGED_ASSETS_EXT, TagFile, TaggedAssets},
 };
 
 /// An [`AssetSource`] that scans an asset root for packaged standard `.lazurite` bundles.
@@ -160,9 +160,9 @@ impl AssetBundle for StandardAssetBundle {
         bail!("Unsupported writing to standard asset bundle")
     }
 
-    fn read_asset_tags(&self, path: &Path) -> Result<Option<AssetTags>> {
+    fn read_tagged_assets(&self, path: &Path) -> Result<Option<TaggedAssets>> {
         let path = path
-            .with_added_extension(ASSET_TAGS_EXT)
+            .with_extension(TAGGED_ASSETS_EXT)
             .to_string_lossy()
             .replace('\\', "/");
         let mut archive = self.archive.write();
@@ -175,7 +175,51 @@ impl AssetBundle for StandardAssetBundle {
         Ok(Some(toml::from_str(&content)?))
     }
 
-    fn write_asset_tags(&self, _: &Path, _: &AssetTags) -> Result<()> {
+    fn write_tagged_assets(&self, _: &Path, _: &TaggedAssets) -> Result<()> {
         bail!("Unsupported writing to standard asset bundle")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, io::Write as _};
+
+    use indexmap::IndexSet;
+    use uuid::Uuid;
+    use zip::{ZipWriter, write::SimpleFileOptions};
+
+    use super::*;
+
+    #[test]
+    fn archive_reads_tag_sidecars_and_reports_invalid_content() -> Result<()> {
+        let path = env::temp_dir().join(format!("lapiz-tagged-assets-{}.lazurite", Uuid::new_v4()));
+        let first = UntypedAssetId::new(Uuid::from_u128(2));
+        let second = UntypedAssetId::new(Uuid::from_u128(1));
+        let members = TaggedAssets {
+            assets: IndexSet::from([first, second]),
+        };
+        let mut archive = ZipWriter::new(File::create(&path)?);
+        archive.start_file("tags/test.tagged_assets", SimpleFileOptions::default())?;
+        archive.write_all(toml::to_string(&members)?.as_bytes())?;
+        archive.start_file("tags/invalid.tagged_assets", SimpleFileOptions::default())?;
+        archive.write_all(b"assets = [")?;
+        archive.finish()?;
+
+        let bundle = StandardAssetBundle::new(&path)?;
+        let decoded =
+            AssetBundle::read_tagged_assets(&bundle, Path::new("tags\\test.tag"))?.unwrap();
+        assert_eq!(
+            decoded.assets.into_iter().collect::<Vec<_>>(),
+            vec![first, second]
+        );
+        assert!(AssetBundle::read_tagged_assets(&bundle, Path::new("tags/missing.tag"))?.is_none());
+        assert!(AssetBundle::read_tagged_assets(&bundle, Path::new("tags/invalid.tag")).is_err());
+        assert!(
+            AssetBundle::write_tagged_assets(&bundle, Path::new("tags/test.tag"), &members)
+                .is_err()
+        );
+        drop(bundle);
+        fs::remove_file(path)?;
+        Ok(())
     }
 }
