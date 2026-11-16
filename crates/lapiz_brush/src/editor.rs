@@ -20,8 +20,8 @@ use uuid::Uuid;
 
 use crate::{
     engine::{
-        BrushEditorEngine as _, BrushEditorEngineId, BrushEditorSessionId,
-        BrushEngineEditorRegistry, ErasedBrushEditorEngine, UntypedBrushPresetEntry,
+        BrushEngine as _, BrushEngineId, BrushEngineSessionId,
+        BrushEngineRegistry, ErasedBrushEngine, UntypedBrushPresetEntry,
         lapiz_engine::LapizBrushEngineEditor,
     },
     tool::CurrentBrushPresetExt as _,
@@ -31,22 +31,22 @@ use crate::{
 pub struct BrushEditor {
     windows: Arc<[window::Id]>,
     main_window: window::Id,
-    brushes: Vec<(BrushEditorEngineId, UntypedBrushPresetEntry)>,
+    brushes: Vec<(BrushEngineId, UntypedBrushPresetEntry)>,
     selected: Option<SelectedBrushEditor>,
 }
 
 struct SelectedBrushEditor {
     index: usize,
     asset_id: UntypedAssetId,
-    session: BrushEditorSessionId,
-    engine: Box<dyn ErasedBrushEditorEngine>,
+    session: BrushEngineSessionId,
+    engine: Box<dyn ErasedBrushEngine>,
 }
 
 pub enum BrushEditorMessage {
     SelectBrush(usize),
-    NewBrush(BrushEditorEngineId),
+    NewBrush(BrushEngineId),
     EngineMessage {
-        session: BrushEditorSessionId,
+        session: BrushEngineSessionId,
         message: Box<dyn Any + Send>,
     },
     WindowUnfocused(window::Id),
@@ -82,7 +82,7 @@ impl WindowView for BrushEditor {
             ..Default::default()
         });
 
-        let engines = globals.global::<BrushEngineEditorRegistry>();
+        let engines = globals.global::<BrushEngineRegistry>();
         let assets = globals.assets();
         let brushes = engines.all_brushes(assets);
 
@@ -131,7 +131,7 @@ impl WindowView for BrushEditor {
         ]
         .gap(4.0);
         let mut additional_engines = globals
-            .global::<BrushEngineEditorRegistry>()
+            .global::<BrushEngineRegistry>()
             .factories
             .iter()
             .filter(|(id, _)| **id != LapizBrushEngineEditor::id())
@@ -292,7 +292,7 @@ impl BrushEditor {
             return Ok(());
         };
         let mut engine = globals
-            .global::<BrushEngineEditorRegistry>()
+            .global::<BrushEngineRegistry>()
             .create(*engine_id)?;
         let assets = globals.assets().clone();
         engine.load_brush(entry.id, &assets, globals)?;
@@ -300,15 +300,15 @@ impl BrushEditor {
         self.selected = Some(SelectedBrushEditor {
             index,
             asset_id: entry.id,
-            session: BrushEditorSessionId::new(Uuid::new_v4()),
+            session: BrushEngineSessionId::new(Uuid::new_v4()),
             engine,
         });
         Ok(())
     }
 
-    fn new_brush(&mut self, engine_id: BrushEditorEngineId, globals: &mut Globals) -> Result<()> {
+    fn new_brush(&mut self, engine_id: BrushEngineId, globals: &mut Globals) -> Result<()> {
         let mut engine = globals
-            .global::<BrushEngineEditorRegistry>()
+            .global::<BrushEngineRegistry>()
             .create(engine_id)?;
         let assets = globals.assets().clone();
         let id = engine.new_brush(&assets, globals)?;
@@ -322,7 +322,7 @@ impl BrushEditor {
         self.selected = Some(SelectedBrushEditor {
             index,
             asset_id: id,
-            session: BrushEditorSessionId::new(Uuid::new_v4()),
+            session: BrushEngineSessionId::new(Uuid::new_v4()),
             engine,
         });
         Ok(())

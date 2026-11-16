@@ -14,7 +14,7 @@ use lapiz_assets::{
 };
 use lapiz_brush::{
     asset::BrushPreset,
-    engine::{BrushEditorEngine, BrushEditorEngineId, BrushPresetEntry},
+    engine::{BrushEngine, BrushEngineId, BrushPresetEntry},
     instance::BrushPresetInstance,
     render::{
         graph::CanvasResources,
@@ -40,9 +40,9 @@ use crate::{asset::PhotoshopBrushSerializer, parameter::PhotoshopBrushPreset};
 
 pub mod controls;
 
-type EditorElement<'a> = Element<'a, PhotoshopBrushEditorMessage, Theme, Renderer>;
+type EditorElement<'a> = Element<'a, PhotoshopBrushEngineMessage, Theme, Renderer>;
 
-pub struct PhotoshopBrushEditor {
+pub struct PhotoshopBrushEngine {
     brush: PhotoshopBrushPreset,
     handle: Option<AssetHandle<PhotoshopBrushPreset>>,
     section: Section,
@@ -54,7 +54,7 @@ pub struct PhotoshopBrushEditor {
     status: Option<String>,
 }
 
-pub enum PhotoshopBrushEditorMessage {
+pub enum PhotoshopBrushEngineMessage {
     SelectSection(Section),
     ToggleSection(Section, bool),
     NameChanged(String),
@@ -64,7 +64,7 @@ pub enum PhotoshopBrushEditorMessage {
     PreviewReady(u64, Result<Handle>),
 }
 
-impl Default for PhotoshopBrushEditor {
+impl Default for PhotoshopBrushEngine {
     fn default() -> Self {
         Self {
             brush: PhotoshopBrushPreset::default(),
@@ -80,12 +80,12 @@ impl Default for PhotoshopBrushEditor {
     }
 }
 
-impl BrushEditorEngine for PhotoshopBrushEditor {
+impl BrushEngine for PhotoshopBrushEngine {
     type Brush = PhotoshopBrushPreset;
-    type Message = PhotoshopBrushEditorMessage;
+    type Message = PhotoshopBrushEngineMessage;
 
-    fn id() -> BrushEditorEngineId {
-        BrushEditorEngineId::new("photoshop_brush_engine")
+    fn id() -> BrushEngineId {
+        BrushEngineId::new("photoshop_brush_engine")
     }
 
     fn label() -> String {
@@ -153,7 +153,7 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
                 .on_input(|name| name)
                 .width(Length::Fill),
         )
-        .map(PhotoshopBrushEditorMessage::NameChanged);
+        .map(PhotoshopBrushEngineMessage::NameChanged);
         let toolbar = row![
             name_input,
             button(label(if self.dirty {
@@ -162,7 +162,7 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
                 t!("save")
             }))
             .primary()
-            .on_press_maybe(self.dirty.then_some(PhotoshopBrushEditorMessage::Save)),
+            .on_press_maybe(self.dirty.then_some(PhotoshopBrushEngineMessage::Save)),
         ]
         .gap(8.0);
 
@@ -174,7 +174,7 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
                     .width(Length::Fill)
                     .transparent()
                     .activated(self.section == section)
-                    .on_press(PhotoshopBrushEditorMessage::SelectSection(section)),
+                    .on_press(PhotoshopBrushEngineMessage::SelectSection(section)),
             ]
             .gap(6.0)
             .into()
@@ -209,32 +209,32 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
 
     fn update(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
         match message {
-            PhotoshopBrushEditorMessage::SelectSection(section) => self.section = section,
-            PhotoshopBrushEditorMessage::ToggleSection(section, enabled) => {
+            PhotoshopBrushEngineMessage::SelectSection(section) => self.section = section,
+            PhotoshopBrushEngineMessage::ToggleSection(section, enabled) => {
                 section.set_enabled(&mut self.brush, enabled);
                 self.section = section;
                 self.dirty = true;
                 self.status = None;
                 self.invalidate_preview();
             }
-            PhotoshopBrushEditorMessage::NameChanged(name) => {
+            PhotoshopBrushEngineMessage::NameChanged(name) => {
                 self.brush.name = name;
                 self.dirty = true;
                 self.status = None;
             }
-            PhotoshopBrushEditorMessage::Edit(edit) => {
+            PhotoshopBrushEngineMessage::Edit(edit) => {
                 edit(&mut self.brush);
                 self.dirty = true;
                 self.status = None;
                 self.invalidate_preview();
             }
-            PhotoshopBrushEditorMessage::Save => {
+            PhotoshopBrushEngineMessage::Save => {
                 self.status = Some(match self.save() {
                     Ok(()) => t!("photoshop_brush_saved"),
                     Err(error) => format!("{}: {error:#}", t!("photoshop_brush_save_error")),
                 });
             }
-            PhotoshopBrushEditorMessage::RefreshPreview(revision) => {
+            PhotoshopBrushEngineMessage::RefreshPreview(revision) => {
                 if revision == self.revision {
                     self.preview_error = None;
                     self.preview_revision = None;
@@ -242,14 +242,14 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
                     match self.render_preview(globals) {
                         Ok(task) => {
                             return task.map(move |result| {
-                                PhotoshopBrushEditorMessage::PreviewReady(revision, result)
+                                PhotoshopBrushEngineMessage::PreviewReady(revision, result)
                             });
                         }
                         Err(error) => self.preview_error = Some(format!("{error:#}")),
                     }
                 }
             }
-            PhotoshopBrushEditorMessage::PreviewReady(revision, result) => {
+            PhotoshopBrushEngineMessage::PreviewReady(revision, result) => {
                 if revision == self.revision {
                     match result {
                         Ok(handle) => {
@@ -270,13 +270,13 @@ impl BrushEditorEngine for PhotoshopBrushEditor {
             let revision = *revision;
             stream::once(async move {
                 smol::Timer::after(Duration::from_millis(200)).await;
-                PhotoshopBrushEditorMessage::RefreshPreview(revision)
+                PhotoshopBrushEngineMessage::RefreshPreview(revision)
             })
         })
     }
 }
 
-impl PhotoshopBrushEditor {
+impl PhotoshopBrushEngine {
     fn invalidate_preview(&mut self) {
         self.revision = self.revision.wrapping_add(1);
         self.preview_error = None;
@@ -305,7 +305,7 @@ impl PhotoshopBrushEditor {
             row![
                 label(status).strong(),
                 button(label(t!("photoshop_brush_refresh")))
-                    .on_press(PhotoshopBrushEditorMessage::RefreshPreview(self.revision)),
+                    .on_press(PhotoshopBrushEngineMessage::RefreshPreview(self.revision)),
             ]
             .gap(8.0)
         ];

@@ -4,7 +4,7 @@ use iced_core::{Element, Length, Theme, window};
 use iced_runtime::Task;
 use lapiz_assets::AssetAppExt as _;
 use lapiz_brush::{
-    engine::{BrushEditorEngineId, BrushEngineEditorRegistry, UntypedBrushPresetEntry},
+    engine::{BrushEngineRegistry, BrushEngineId, UntypedBrushPresetEntry},
     tool::CurrentBrushPresetExt as _,
 };
 use lapiz_dock::dock::{Dock, DockId};
@@ -18,7 +18,7 @@ pub static BRUSH_PRESETS_DOCK_ID: LazyLock<DockId> =
 /// Workspace [`Dock`] that displays loaded [`BrushPreset`] assets and updates the active brush preset when selected.
 pub struct BrushPresetDock {
     selected: Option<usize>,
-    brushes: Vec<(BrushEditorEngineId, UntypedBrushPresetEntry)>,
+    brushes: Vec<(BrushEngineId, UntypedBrushPresetEntry)>,
 }
 
 /// Messages handled by [`BrushPresetDock`].
@@ -29,7 +29,7 @@ pub enum BrushPresetDockMessage {
 
 impl BrushPresetDock {
     pub fn new(globals: &Globals) -> Self {
-        let engines = globals.global::<BrushEngineEditorRegistry>();
+        let engines = globals.global::<BrushEngineRegistry>();
         let assets = globals.assets();
         let brushes = engines.all_brushes(assets);
         Self {
@@ -75,7 +75,7 @@ impl Dock for BrushPresetDock {
             BrushPresetDockMessage::SelectBrush(index) => {
                 self.selected = Some(index);
 
-                let engines = globals.global::<BrushEngineEditorRegistry>();
+                let engines = globals.global::<BrushEngineRegistry>();
                 let (engine_id, brush_entry) = &self.brushes[index];
                 let mut engine = engines.create(*engine_id).unwrap();
                 let assets = globals.assets().clone();

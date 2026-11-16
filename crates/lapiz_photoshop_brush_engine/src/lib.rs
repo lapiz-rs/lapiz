@@ -1,8 +1,8 @@
 use lapiz_assets::AssetAppExt as _;
-use lapiz_brush::engine::BrushEngineEditorRegistry;
+use lapiz_brush::engine::BrushEngineRegistry;
 use lapiz_runtime::{Runtime, plugin::Plugin};
 
-use crate::{asset::PhotoshopBrushSerializer, editor::PhotoshopBrushEditor};
+use crate::{asset::PhotoshopBrushSerializer, editor::PhotoshopBrushEngine};
 
 pub mod asset;
 pub mod convert;
@@ -20,7 +20,7 @@ impl Plugin for PhotoshopBrushPlugin {
         let globals = app.globals_mut();
         globals.add_asset_serializer::<PhotoshopBrushSerializer>();
         globals
-            .global_mut::<BrushEngineEditorRegistry>()
-            .register::<PhotoshopBrushEditor>();
+            .global_mut::<BrushEngineRegistry>()
+            .register::<PhotoshopBrushEngine>();
     }
 }

@@ -32,7 +32,7 @@ use uuid::Uuid;
 
 use crate::{
     asset::{BrushPreset, BrushPresetMetadata},
-    engine::{BrushEditorEngine, BrushEditorEngineId, BrushPresetEntry},
+    engine::{BrushEngine, BrushEngineId, BrushPresetEntry},
     instance::{
         BrushParameter, BrushPresetInstance, main_effect_resources, postprocess_effect_resources,
         spacing_effect_resources,
@@ -128,12 +128,12 @@ impl Default for LapizBrushEngineEditor {
     }
 }
 
-impl BrushEditorEngine for LapizBrushEngineEditor {
+impl BrushEngine for LapizBrushEngineEditor {
     type Message = LapizBrushEngineEditorMessage;
     type Brush = BrushPreset;
 
-    fn id() -> BrushEditorEngineId {
-        BrushEditorEngineId::new("lapiz_brush_engine")
+    fn id() -> BrushEngineId {
+        BrushEngineId::new("lapiz_brush_engine")
     }
 
     fn label() -> String {

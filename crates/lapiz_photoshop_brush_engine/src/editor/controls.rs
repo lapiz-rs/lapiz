@@ -10,7 +10,7 @@ use lapiz_widgets::{
     spin_slider::SpinSlider,
 };
 
-use super::{EditorElement, PhotoshopBrushEditor, PhotoshopBrushEditorMessage};
+use super::{EditorElement, PhotoshopBrushEngine, PhotoshopBrushEngineMessage};
 use crate::parameter::{
     BrushTip, ComputedBrushTip, DynamicsControl, PhotoshopBrushPreset, SampledBrushTip,
 };
@@ -111,7 +111,7 @@ pub(super) fn section_toggle(
     match section.enabled(brush) {
         Some(enabled) => checkbox(enabled)
             .size(14)
-            .on_toggle(move |value| PhotoshopBrushEditorMessage::ToggleSection(section, value))
+            .on_toggle(move |value| PhotoshopBrushEngineMessage::ToggleSection(section, value))
             .into(),
         None => space().width(14).into(),
     }
@@ -142,7 +142,7 @@ macro_rules! control_field {
     };
 }
 
-impl PhotoshopBrushEditor {
+impl PhotoshopBrushEngine {
     pub(super) fn view_section(&self, assets: &AssetRegistry) -> EditorElement<'_> {
         let brush = &self.brush;
         let enabled = self.section.enabled(brush).unwrap_or(true);
@@ -586,7 +586,7 @@ impl PhotoshopBrushEditor {
         let round = button(label(t!("photoshop_brush_computed")))
             .activated(matches!(tip, BrushTip::Computed(_)))
             .on_press_maybe(enabled.then(|| {
-                PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| {
+                PhotoshopBrushEngineMessage::Edit(Box::new(move |brush| {
                     target.select_computed(brush)
                 }))
             }));
@@ -600,7 +600,7 @@ impl PhotoshopBrushEditor {
                     .height(44)
                     .activated(selected_image == Some(id))
                     .on_press_maybe(enabled.then(|| {
-                        PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| {
+                        PhotoshopBrushEngineMessage::Edit(Box::new(move |brush| {
                             target.select_image(brush, id)
                         }))
                     }))
@@ -816,7 +816,7 @@ fn number(
             .allow_beyond_range(false)
             .disabled(!enabled)
             .on_change(
-                move |value| PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(
+                move |value| PhotoshopBrushEngineMessage::Edit(Box::new(move |brush| set(
                     brush, value
                 )))
             ),
@@ -840,7 +840,7 @@ fn unsigned(
             .disabled(!enabled)
             .width(180)
             .on_change(
-                move |value| PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(
+                move |value| PhotoshopBrushEngineMessage::Edit(Box::new(move |brush| set(
                     brush, value
                 )))
             ),
@@ -863,7 +863,7 @@ fn integer(
             .allow_beyond_range(false)
             .disabled(!enabled)
             .on_change(
-                move |value| PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(
+                move |value| PhotoshopBrushEngineMessage::Edit(Box::new(move |brush| set(
                     brush, value
                 )))
             ),
@@ -881,7 +881,7 @@ fn toggle(
     checkbox(value)
         .label(t!(key))
         .on_toggle_maybe(enabled.then_some(move |value| {
-            PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(brush, value)))
+            PhotoshopBrushEngineMessage::Edit(Box::new(move |brush| set(brush, value)))
         }))
         .into()
 }
@@ -911,7 +911,7 @@ fn control(
                 options,
                 Some(value),
                 move |value| {
-                    PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(brush, value)))
+                    PhotoshopBrushEngineMessage::Edit(Box::new(move |brush| set(brush, value)))
                 },
                 |value| label(control_label(*value)).into(),
             )
@@ -962,7 +962,7 @@ fn blend_mode(
                 BlendMode::ALL.to_vec(),
                 Some(value),
                 move |value| {
-                    PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(brush, value)))
+                    PhotoshopBrushEngineMessage::Edit(Box::new(move |brush| set(brush, value)))
                 },
                 |mode| label(t!(mode.shader_func())).into(),
             )
@@ -1005,7 +1005,7 @@ fn image_selector(
             selected,
             move |handle| {
                 let id = handle.id();
-                PhotoshopBrushEditorMessage::Edit(Box::new(move |brush| set(brush, id)))
+                PhotoshopBrushEngineMessage::Edit(Box::new(move |brush| set(brush, id)))
             },
             |handle| ImageThumbnail::new(handle.clone()).into()
         )

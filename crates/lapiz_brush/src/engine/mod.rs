@@ -21,19 +21,19 @@ pub mod lapiz_engine;
 
 wrapper! {
     #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-    pub BrushEditorEngineId : &'static str
+    pub BrushEngineId : &'static str
 }
 
 wrapper! {
     #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-    pub BrushEditorSessionId : Uuid
+    pub BrushEngineSessionId : Uuid
 }
 
-pub trait BrushEditorEngine: 'static {
+pub trait BrushEngine: 'static {
     type Message: Send + 'static;
     type Brush: Asset;
 
-    fn id() -> BrushEditorEngineId;
+    fn id() -> BrushEngineId;
     fn label() -> String;
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>>;
     fn load_brush(
@@ -55,7 +55,7 @@ pub trait BrushEditorEngine: 'static {
     }
 }
 
-pub trait ErasedBrushEditorEngine: 'static {
+pub trait ErasedBrushEngine: 'static {
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>>;
     fn load_brush(
         &mut self,
@@ -81,9 +81,9 @@ pub trait ErasedBrushEditorEngine: 'static {
     fn subscription(&self, globals: &Globals) -> Subscription<Box<dyn Any + Send>>;
 }
 
-impl<T: BrushEditorEngine> ErasedBrushEditorEngine for T {
+impl<T: BrushEngine> ErasedBrushEngine for T {
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>> {
-        BrushEditorEngine::query_brushes(self, assets).map(|entries| {
+        BrushEngine::query_brushes(self, assets).map(|entries| {
             entries
                 .into_iter()
                 .map(|entry| UntypedBrushPresetEntry {
@@ -100,7 +100,7 @@ impl<T: BrushEditorEngine> ErasedBrushEditorEngine for T {
         assets: &AssetRegistry,
         globals: &mut Globals,
     ) -> Result<()> {
-        BrushEditorEngine::load_brush(self, asset.into_typed(), assets, globals)
+        BrushEngine::load_brush(self, asset.into_typed(), assets, globals)
     }
 
     fn new_brush(
@@ -108,18 +108,18 @@ impl<T: BrushEditorEngine> ErasedBrushEditorEngine for T {
         assets: &AssetRegistry,
         globals: &mut Globals,
     ) -> Result<UntypedAssetId> {
-        BrushEditorEngine::new_brush(self, assets, globals).map(|id| id.into_untyped())
+        BrushEngine::new_brush(self, assets, globals).map(|id| id.into_untyped())
     }
 
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset> {
-        BrushEditorEngine::compile_brush(self, globals)
+        BrushEngine::compile_brush(self, globals)
     }
 
     fn view<'a>(
         &'a self,
         globals: &'a Globals,
     ) -> Element<'a, Box<dyn Any + Send>, Theme, Renderer> {
-        BrushEditorEngine::view(self, globals)
+        BrushEngine::view(self, globals)
             .map(|message| Box::new(message) as Box<dyn Any + Send>)
     }
 
@@ -131,40 +131,40 @@ impl<T: BrushEditorEngine> ErasedBrushEditorEngine for T {
         let message = *message
             .downcast::<T::Message>()
             .expect("invalid brush editor message type");
-        BrushEditorEngine::update(self, message, globals)
+        BrushEngine::update(self, message, globals)
             .map(|message| Box::new(message) as Box<dyn Any + Send>)
     }
 
     fn subscription(&self, globals: &Globals) -> Subscription<Box<dyn Any + Send>> {
-        BrushEditorEngine::subscription(self, globals)
+        BrushEngine::subscription(self, globals)
             .map(|message| Box::new(message) as Box<dyn Any + Send>)
     }
 }
 
 #[derive(Default)]
-pub struct BrushEngineEditorRegistry {
-    pub factories: HashMap<BrushEditorEngineId, BrushEditorEngineRegistration>,
+pub struct BrushEngineRegistry {
+    pub factories: HashMap<BrushEngineId, BrushEngineRegistration>,
 }
 
-pub struct BrushEditorEngineRegistration {
+pub struct BrushEngineRegistration {
     pub label: String,
-    pub create: Box<dyn Fn() -> Box<dyn ErasedBrushEditorEngine>>,
+    pub create: Box<dyn Fn() -> Box<dyn ErasedBrushEngine>>,
 }
 
-impl Global for BrushEngineEditorRegistry {}
+impl Global for BrushEngineRegistry {}
 
-impl BrushEngineEditorRegistry {
-    pub fn register<T: BrushEditorEngine + Default>(&mut self) {
+impl BrushEngineRegistry {
+    pub fn register<T: BrushEngine + Default>(&mut self) {
         self.factories.insert(
             T::id(),
-            BrushEditorEngineRegistration {
+            BrushEngineRegistration {
                 label: T::label(),
                 create: Box::new(|| Box::new(T::default())),
             },
         );
     }
 
-    pub fn create(&self, id: BrushEditorEngineId) -> Result<Box<dyn ErasedBrushEditorEngine>> {
+    pub fn create(&self, id: BrushEngineId) -> Result<Box<dyn ErasedBrushEngine>> {
         let factory = self
             .factories
             .get(&id)
@@ -175,7 +175,7 @@ impl BrushEngineEditorRegistry {
     pub fn all_brushes(
         &self,
         assets: &AssetRegistry,
-    ) -> Vec<(BrushEditorEngineId, UntypedBrushPresetEntry)> {
+    ) -> Vec<(BrushEngineId, UntypedBrushPresetEntry)> {
         let mut brushes = self
             .factories
             .iter()
