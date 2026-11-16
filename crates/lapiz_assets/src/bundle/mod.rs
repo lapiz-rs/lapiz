@@ -263,8 +263,10 @@ impl AssetBundleCache {
 
     pub fn write_tag(&self, tag: &Tag, children: BTreeSet<TagId>) -> Result<()> {
         let tag_file = TagFile {
+            id: tag.id,
+            name: tag.name.clone(),
+            asset_ty: tag.asset_ty.clone(),
             children,
-            ..TagFile::from(tag.clone())
         };
 
         if self.bundle.is_readonly() {

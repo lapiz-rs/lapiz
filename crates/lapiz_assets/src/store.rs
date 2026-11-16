@@ -237,6 +237,56 @@ impl AssetRegistry {
         Ok(())
     }
 
+    pub fn add_child_to_tag(&self, parent: &Tag, child_id: &TagId) -> Result<()> {
+        self.inner.index_db.add_child_tag(&parent.id, child_id)?;
+
+        let mut children = self
+            .inner
+            .index_db
+            .get_child_tags(&parent.id)?
+            .into_iter()
+            .map(|t| t.id)
+            .collect::<BTreeSet<_>>();
+        children.insert(*child_id);
+        self.inner
+            .bundles
+            .get(&parent.bundle_id)
+            .ok_or_else(|| {
+                anyhow!(
+                    "Asset bundle not found for bundle ID: {} (tag ID: {})",
+                    parent.bundle_id,
+                    parent.id
+                )
+            })?
+            .write_tag(parent, children)?;
+        Ok(())
+    }
+
+    pub fn remove_child_from_tag(&self, parent: &Tag, child_id: &TagId) -> Result<()> {
+        self.inner.index_db.remove_child_tag(&parent.id, child_id)?;
+
+        let mut children = self
+            .inner
+            .index_db
+            .get_child_tags(&parent.id)?
+            .into_iter()
+            .map(|t| t.id)
+            .collect::<BTreeSet<_>>();
+        children.remove(child_id);
+        self.inner
+            .bundles
+            .get(&parent.bundle_id)
+            .ok_or_else(|| {
+                anyhow!(
+                    "Asset bundle not found for bundle ID: {} (tag ID: {})",
+                    parent.bundle_id,
+                    parent.id
+                )
+            })?
+            .write_tag(parent, children)?;
+        Ok(())
+    }
+
     pub fn delete_tag(&self, tag_id: &TagId) -> Result<()> {
         self.inner.index_db.delete_tag(tag_id)
     }
@@ -510,6 +560,131 @@ mod tests {
             drop(registry);
             fs::remove_dir_all(root)?;
         }
+        Ok(())
+    }
+
+    #[test]
+    fn add_child_to_tag_updates_index_and_file() -> Result<()> {
+        let root = temp_root("add-child-to-tag");
+        let bundle_root = root.join("tags");
+        fs::create_dir_all(&bundle_root)?;
+        let existing_child = TagFile::new("Existing child".to_string(), None);
+        let child = TagFile::new("Child".to_string(), None);
+        let mut parent = TagFile::new("Parent".to_string(), None);
+        parent.children.insert(existing_child.id);
+        for (path, tag) in [
+            ("parent.tag", &parent),
+            ("existing.tag", &existing_child),
+            ("child.tag", &child),
+        ] {
+            fs::write(bundle_root.join(path), toml::to_string(tag)?)?;
+        }
+        let child_content = fs::read_to_string(bundle_root.join("child.tag"))?;
+        let registry =
+            registry_with_bundles(&root, vec![Arc::new(AssetDirectory::new(&bundle_root)?)])?;
+        let parent = registry.index_db().get_tag(parent.id)?;
+        let child = registry.index_db().get_tag(child.id)?;
+
+        registry.add_child_to_tag(&parent, &child.id)?;
+        assert!(registry.add_child_to_tag(&parent, &child.id).is_err());
+        assert!(registry.add_child_to_tag(&child, &parent.id).is_err());
+        assert!(registry.add_child_to_tag(&parent, &parent.id).is_err());
+
+        let children = BTreeSet::from([existing_child.id, child.id]);
+        assert_eq!(
+            registry
+                .index_db()
+                .get_child_tags(&parent.id)?
+                .into_iter()
+                .map(|tag| tag.id)
+                .collect::<BTreeSet<_>>(),
+            children
+        );
+        assert_eq!(
+            registry.index_db().get_parent_tags(&child.id)?[0].id,
+            parent.id
+        );
+        let written =
+            toml::from_str::<TagFile>(&fs::read_to_string(bundle_root.join("parent.tag"))?)?;
+        assert_eq!(written.id, parent.id);
+        assert_eq!(written.name, parent.name);
+        assert_eq!(written.children, children);
+        assert_eq!(
+            fs::read_to_string(bundle_root.join("child.tag"))?,
+            child_content
+        );
+
+        registry.add_bundle(AssetDirectory::new(&bundle_root)?)?;
+        assert_eq!(registry.index_db().get_child_tags(&parent.id)?.len(), 2);
+        assert_eq!(
+            registry.index_db().get_parent_tags(&child.id)?[0].id,
+            parent.id
+        );
+
+        drop(registry);
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn remove_child_from_tag_updates_index_and_file() -> Result<()> {
+        let root = temp_root("remove-child-from-tag");
+        let bundle_root = root.join("tags");
+        fs::create_dir_all(&bundle_root)?;
+        let retained_child = TagFile::new("Retained child".to_string(), None);
+        let child = TagFile::new("Child".to_string(), None);
+        let mut parent = TagFile::new("Parent".to_string(), None);
+        parent.children = BTreeSet::from([retained_child.id, child.id]);
+        for (path, tag) in [
+            ("parent.tag", &parent),
+            ("retained.tag", &retained_child),
+            ("child.tag", &child),
+        ] {
+            fs::write(bundle_root.join(path), toml::to_string(tag)?)?;
+        }
+        let child_content = fs::read_to_string(bundle_root.join("child.tag"))?;
+        let registry =
+            registry_with_bundles(&root, vec![Arc::new(AssetDirectory::new(&bundle_root)?)])?;
+        let parent = registry.index_db().get_tag(parent.id)?;
+
+        registry.remove_child_from_tag(&parent, &child.id)?;
+        assert!(registry.remove_child_from_tag(&parent, &child.id).is_err());
+        assert_eq!(
+            registry
+                .index_db()
+                .get_child_tags(&parent.id)?
+                .into_iter()
+                .map(|tag| tag.id)
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([retained_child.id])
+        );
+        assert!(registry.index_db().get_parent_tags(&child.id)?.is_empty());
+        let written =
+            toml::from_str::<TagFile>(&fs::read_to_string(bundle_root.join("parent.tag"))?)?;
+        assert_eq!(written.id, parent.id);
+        assert_eq!(written.name, parent.name);
+        assert_eq!(written.children, BTreeSet::from([retained_child.id]));
+        assert_eq!(
+            fs::read_to_string(bundle_root.join("child.tag"))?,
+            child_content
+        );
+
+        registry.add_bundle(AssetDirectory::new(&bundle_root)?)?;
+        assert_eq!(
+            registry.index_db().get_child_tags(&parent.id)?[0].id,
+            retained_child.id
+        );
+        assert!(registry.index_db().get_parent_tags(&child.id)?.is_empty());
+
+        registry.remove_child_from_tag(&parent, &retained_child.id)?;
+        let written =
+            toml::from_str::<TagFile>(&fs::read_to_string(bundle_root.join("parent.tag"))?)?;
+        assert!(written.children.is_empty());
+        registry.add_bundle(AssetDirectory::new(&bundle_root)?)?;
+        assert!(registry.index_db().get_child_tags(&parent.id)?.is_empty());
+
+        drop(registry);
+        fs::remove_dir_all(root)?;
         Ok(())
     }
 

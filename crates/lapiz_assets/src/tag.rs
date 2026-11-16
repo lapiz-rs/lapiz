@@ -66,17 +66,6 @@ impl TagFile {
     }
 }
 
-impl From<Tag> for TagFile {
-    fn from(tag: Tag) -> Self {
-        Self {
-            id: tag.id,
-            name: tag.name,
-            asset_ty: tag.asset_ty,
-            children: BTreeSet::new(),
-        }
-    }
-}
-
 pub const TAG_EXT: &str = "tag";
 
 /// On-disk sidecar representation (`.tags`) storing tag associations for an asset.
