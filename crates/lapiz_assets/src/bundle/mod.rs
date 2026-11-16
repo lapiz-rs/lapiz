@@ -244,13 +244,6 @@ impl AssetBundleCache {
         Ok(asset)
     }
 
-    pub fn add_tag(&self, tag: &Tag) -> Result<()> {
-        let path = PathBuf::from(&tag.relative_path).clean();
-        self.bundle.add_tag(&path, &TagFile::from(tag.clone()))?;
-        self.manifest.write().tags.insert(tag.id, path);
-        Ok(())
-    }
-
     pub fn read_tag(&self, id: &TagId) -> Result<TagFile> {
         let path = self
             .manifest
@@ -268,30 +261,24 @@ impl AssetBundleCache {
         )
     }
 
-    pub fn write_tag(&self, id: &TagId, tag: &TagFile) -> Result<()> {
-        if tag.id != *id {
-            return Err(anyhow!("Tag ID mismatch: expected {id}, got {}", tag.id));
-        }
-
-        let path = self
-            .manifest
-            .read()
-            .tags
-            .get(id)
-            .cloned()
-            .ok_or_else(|| anyhow!("Tag path not found for tag ID: {id}"))?;
+    pub fn write_tag(&self, tag: &Tag, parents: BTreeSet<TagId>) -> Result<()> {
+        let tag_file = TagFile {
+            parents,
+            ..TagFile::from(tag.clone())
+        };
 
         if self.bundle.is_readonly() {
-            let modified_path = self.absolute_modified_path(&path);
+            let modified_path = self.absolute_modified_path(&tag.relative_path);
 
             if let Some(parent) = modified_path.parent() {
                 create_dir_all(parent)?;
             }
 
-            let content = toml::to_string(tag)?;
+            let content = toml::to_string(&tag_file)?;
             fs::write(modified_path, content)?;
         } else {
-            self.bundle.add_tag(&path, tag)?;
+            self.bundle
+                .add_tag(Path::new(&tag.relative_path), &tag_file)?;
         }
 
         Ok(())

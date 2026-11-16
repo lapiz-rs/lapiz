@@ -69,10 +69,10 @@ impl TagFile {
 impl From<Tag> for TagFile {
     fn from(tag: Tag) -> Self {
         Self {
-            parents: BTreeSet::new(),
             id: tag.id,
             name: tag.name,
             asset_ty: tag.asset_ty,
+            parents: BTreeSet::new(),
         }
     }
 }
