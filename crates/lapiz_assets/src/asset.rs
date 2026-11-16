@@ -19,7 +19,7 @@ use uuid::Uuid;
 use crate::{
     bundle::{AssetBundleCache, BundleId},
     store::AssetRegistry,
-    tag::{AssetPosition, TagId},
+    tag::{PositionInTag, TagId},
 };
 
 wrapper! {
@@ -296,7 +296,7 @@ impl<T: Asset> AssetHandle<T> {
         self.registry.index_db().get_asset_tags(&self.untyped_id())
     }
 
-    pub fn add_to_position_of_tag(&self, tag_id: &TagId, position: AssetPosition) -> Result<()> {
+    pub fn add_to_tag_at(&self, tag_id: &TagId, position: PositionInTag) -> Result<()> {
         let metadata = self.metadata()?;
         let tag = self.registry.index_db().get_tag(*tag_id)?;
         if let Some(expected_ty) = &tag.asset_ty

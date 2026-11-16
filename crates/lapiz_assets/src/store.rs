@@ -368,7 +368,7 @@ mod tests {
         asset::UntypedAssetId,
         bundle::directory::AssetDirectory,
         loader::AssetSerializer,
-        tag::{AssetPosition, TagFile},
+        tag::{PositionInTag, TagFile},
     };
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -449,9 +449,9 @@ mod tests {
                 handle.read_tags()?.into_iter().collect::<Vec<_>>(),
                 vec![tag.id]
             );
-            handle.add_to_position_of_tag(&tag.id, AssetPosition::First)?;
+            handle.add_to_tag_at(&tag.id, PositionInTag::First)?;
             assert_eq!(tag_asset_ids(&registry, tag.id)?, vec![a, c, b]);
-            handle.add_to_position_of_tag(&tag.id, AssetPosition::After(b))?;
+            handle.add_to_tag_at(&tag.id, PositionInTag::After(b))?;
             assert_eq!(tag_asset_ids(&registry, tag.id)?, vec![c, b, a]);
             let mut updated = registry.index_db().get_tag(tag.id)?;
             updated.name = "Renamed".into();
@@ -460,7 +460,7 @@ mod tests {
             handle.remove_tag(&tag.id)?;
             assert!(handle.read_tags()?.is_empty());
             assert!(handle.remove_tag(&tag.id).is_err());
-            handle.add_to_position_of_tag(&tag.id, AssetPosition::default())?;
+            handle.add_to_tag_at(&tag.id, PositionInTag::default())?;
             let persisted = toml::from_str::<TaggedAssets>(&fs::read_to_string(
                 tags_root.join("test.tagged_assets"),
             )?)?;
@@ -511,21 +511,21 @@ mod tests {
             .into_untyped();
         let a_handle = registry.handle(a.into_typed::<TestAsset>())?;
         let b_handle = registry.handle(b.into_typed::<TestAsset>())?;
-        a_handle.add_to_position_of_tag(&tag.id, AssetPosition::Last)?;
-        b_handle.add_to_position_of_tag(&tag.id, AssetPosition::First)?;
+        a_handle.add_to_tag_at(&tag.id, PositionInTag::Last)?;
+        b_handle.add_to_tag_at(&tag.id, PositionInTag::First)?;
         let sidecar = bundle_root.join("test.tagged_assets");
         let original = fs::read_to_string(&sidecar)?;
         let missing = UntypedAssetId::new(Uuid::new_v4());
         for (asset, tag_id, position) in [
-            (a, tag.id, AssetPosition::Before(missing)),
-            (a, tag.id, AssetPosition::After(missing)),
-            (missing, tag.id, AssetPosition::Last),
-            (a, TagId::new(Uuid::new_v4()), AssetPosition::Last),
+            (a, tag.id, PositionInTag::Before(missing)),
+            (a, tag.id, PositionInTag::After(missing)),
+            (missing, tag.id, PositionInTag::Last),
+            (a, TagId::new(Uuid::new_v4()), PositionInTag::Last),
         ] {
             assert!(
                 registry
                     .handle(asset.into_typed::<TestAsset>())
-                    .and_then(|handle| handle.add_to_position_of_tag(&tag_id, position))
+                    .and_then(|handle| handle.add_to_tag_at(&tag_id, position))
                     .is_err()
             );
             assert_eq!(fs::read_to_string(&sidecar)?, original);
@@ -537,7 +537,7 @@ mod tests {
         registry.write_tag(&metadata)?;
         assert!(
             a_handle
-                .add_to_position_of_tag(&tag.id, AssetPosition::First)
+                .add_to_tag_at(&tag.id, PositionInTag::First)
                 .is_err()
         );
         assert_eq!(fs::read_to_string(&sidecar)?, original);
@@ -549,7 +549,7 @@ mod tests {
         fs::write(&sidecar, "assets = [")?;
         assert!(
             a_handle
-                .add_to_position_of_tag(&tag.id, AssetPosition::Last)
+                .add_to_tag_at(&tag.id, PositionInTag::Last)
                 .is_err()
         );
         assert_eq!(fs::read_to_string(&sidecar)?, "assets = [");
