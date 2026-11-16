@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeSet, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     fs::File,
     marker::PhantomData,
     path::Path,
@@ -29,6 +29,7 @@ pub enum ItemStatus {
 /// Allows constraining queries by assigned [`TagId`], containing [`BundleId`], and deletion status.
 pub struct AssetFilter<T: Asset> {
     tag: Option<TagId>,
+    include_descendants: bool,
     bundle: Option<BundleId>,
     is_deleted: bool,
     _marker: PhantomData<T>,
@@ -38,6 +39,7 @@ impl<T: Asset> Default for AssetFilter<T> {
     fn default() -> Self {
         Self {
             tag: Default::default(),
+            include_descendants: false,
             bundle: Default::default(),
             is_deleted: false,
             _marker: PhantomData,
@@ -60,6 +62,12 @@ impl<T: Asset> AssetFilter<T> {
         self
     }
 
+    /// Include assets assigned to any descendant of the selected tag.
+    pub fn with_descendants(mut self, include: bool) -> Self {
+        self.include_descendants = include;
+        self
+    }
+
     pub fn with_deleted(mut self, is_deleted: bool) -> Self {
         self.is_deleted = is_deleted;
         self
@@ -69,6 +77,7 @@ impl<T: Asset> AssetFilter<T> {
         UntypedAssetFilter {
             ty: Some(T::TYPE_NAME.to_string()),
             tag: self.tag,
+            include_descendants: self.include_descendants,
             bundle: self.bundle,
             is_deleted: self.is_deleted,
         }
@@ -80,6 +89,7 @@ impl<T: Asset> AssetFilter<T> {
 pub struct UntypedAssetFilter {
     pub ty: Option<String>,
     pub tag: Option<TagId>,
+    pub include_descendants: bool,
     pub bundle: Option<BundleId>,
     pub is_deleted: bool,
 }
@@ -144,6 +154,7 @@ impl AssetIndexDb {
         {
             conn.execute_batch(
                 r#"
+DROP TABLE IF EXISTS tag_children;
 DROP TABLE IF EXISTS asset_tags;
 DROP TABLE tags;
                 "#,
@@ -206,6 +217,19 @@ CREATE TABLE IF NOT EXISTS asset_tags (
     FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS tag_children (
+    parent_id TEXT NOT NULL,
+    child_id TEXT NOT NULL,
+
+    PRIMARY KEY (parent_id, child_id),
+    FOREIGN KEY (parent_id) REFERENCES tags(id) ON DELETE CASCADE,
+    FOREIGN KEY (child_id) REFERENCES tags(id) ON DELETE CASCADE,
+    CHECK (parent_id <> child_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tag_children_child
+    ON tag_children(child_id);
             "#,
         )?;
 
@@ -340,6 +364,33 @@ ON CONFLICT(id) DO UPDATE SET
                 )?;
             }
         }
+
+        for bundle in bundles {
+            for parent_id in bundle.tag_children.keys() {
+                tx.execute(
+                    "DELETE FROM tag_children WHERE parent_id = ?1",
+                    params![parent_id],
+                )?;
+            }
+        }
+        {
+            let mut insert = tx.prepare(
+                "INSERT INTO tag_children (parent_id, child_id)
+                 SELECT ?1, ?2 WHERE EXISTS (SELECT 1 FROM tags WHERE id = ?2)",
+            )?;
+            for bundle in bundles {
+                for (parent_id, children) in &bundle.tag_children {
+                    for child_id in children {
+                        if insert.execute(params![parent_id, child_id])? == 0 {
+                            log::warn!(
+                                "Skipped missing child tag {child_id} for parent tag {parent_id}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        validate_tag_hierarchy(&tx)?;
 
         for bundle in bundles {
             tx.execute(
@@ -554,6 +605,176 @@ ORDER BY name ASC, id ASC;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
+    // TODO Should we change the return value of these three methods to Result<BTreeSet<TagId>>?
+    pub fn get_child_tags(&self, parent_id: &TagId) -> Result<Vec<Tag>> {
+        let conn = self.conn.lock();
+        let mut statement = conn.prepare(
+            r#"
+SELECT
+    t.id,
+    t.bundle_id,
+    t.relative_path,
+    t.name,
+    t.asset_ty
+FROM tags t
+JOIN tag_children c ON c.child_id = t.id
+JOIN tags p ON p.id = c.parent_id
+WHERE p.id = ?1
+    AND p.is_deleted = 0
+    AND t.is_deleted = 0
+ORDER BY
+    t.name,
+    t.id
+"#,
+        )?;
+        let rows = statement.query_map(params![parent_id], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                bundle_id: row.get(1)?,
+                relative_path: row.get(2)?,
+                name: row.get(3)?,
+                asset_ty: row.get(4)?,
+            })
+        })?;
+
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn get_parent_tags(&self, child_id: &TagId) -> Result<Vec<Tag>> {
+        let conn = self.conn.lock();
+        let mut statement = conn.prepare(
+            r#"
+SELECT
+    t.id,
+    t.bundle_id,
+    t.relative_path,
+    t.name,
+    t.asset_ty
+FROM tags t
+JOIN tag_children c ON c.parent_id = t.id
+JOIN tags child ON child.id = c.child_id
+WHERE child.id = ?1
+    AND child.is_deleted = 0
+    AND t.is_deleted = 0
+ORDER BY
+    t.name,
+    t.id
+            "#,
+        )?;
+        let rows = statement.query_map(params![child_id], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                bundle_id: row.get(1)?,
+                relative_path: row.get(2)?,
+                name: row.get(3)?,
+                asset_ty: row.get(4)?,
+            })
+        })?;
+
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn get_root_tags(&self) -> Result<Vec<Tag>> {
+        let conn = self.conn.lock();
+        let mut statement = conn.prepare(
+            r#"
+SELECT
+    t.id,
+    t.bundle_id,
+    t.relative_path,
+    t.name,
+    t.asset_ty
+FROM tags t
+WHERE t.is_deleted = 0 AND NOT EXISTS (
+    SELECT 1 FROM tag_children c
+    JOIN tags p ON p.id = c.parent_id
+    WHERE c.child_id = t.id
+        AND p.is_deleted = 0
+)
+ORDER BY t.name, t.id
+            "#,
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                bundle_id: row.get(1)?,
+                relative_path: row.get(2)?,
+                name: row.get(3)?,
+                asset_ty: row.get(4)?,
+            })
+        })?;
+
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn add_child_tag(&self, parent_id: &TagId, child_id: &TagId) -> Result<()> {
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+        for id in [parent_id, child_id] {
+            let exists = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM tags WHERE id = ?1 AND is_deleted = 0)",
+                params![id],
+                |row| row.get::<_, bool>(0),
+            )?;
+            if !exists {
+                bail!("Tag not found for tag ID: {id}");
+            }
+        }
+
+        let has_cycle = tx.query_row(
+            r#"
+WITH RECURSIVE descendants(id) AS (
+    SELECT ?1
+    UNION
+    SELECT c.child_id FROM tag_children c
+    JOIN descendants d ON c.parent_id = d.id
+)
+SELECT EXISTS(
+    SELECT 1 FROM descendants WHERE id = ?2
+)
+            "#,
+            params![child_id, parent_id],
+            |row| row.get::<_, bool>(0),
+        )?;
+        if has_cycle {
+            bail!("Tag hierarchy would contain a cycle");
+        }
+        tx.execute(
+            "INSERT INTO tag_children (parent_id, child_id) VALUES (?1, ?2)",
+            params![parent_id, child_id],
+        )?;
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn remove_child_tag(&self, parent_id: &TagId, child_id: &TagId) -> Result<()> {
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+
+        for id in [parent_id, child_id] {
+            let exists = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM tags WHERE id = ?1 AND is_deleted = 0)",
+                params![id],
+                |row| row.get::<_, bool>(0),
+            )?;
+            if !exists {
+                bail!("Tag not found for tag ID: {id}");
+            }
+        }
+
+        let is_child_of_parent = tx.execute(
+            "DELETE FROM tag_children WHERE parent_id = ?1 AND child_id = ?2",
+            params![parent_id, child_id],
+        )?;
+        if is_child_of_parent == 0 {
+            bail!("Tag {child_id} is not a child of tag {parent_id}");
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn add_tag(&self, tag: Tag) -> Result<()> {
         let conn = self.conn.lock();
         conn.execute(
@@ -566,6 +787,25 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0);
             params![
                 tag.id,
                 tag.bundle_id,
+                tag.relative_path,
+                tag.name,
+                tag.asset_ty,
+                Utc::now(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_tag(&self, tag: Tag) -> Result<()> {
+        let conn = self.conn.lock();
+        conn.execute(
+            r#"
+UPDATE tags
+SET relative_path = ?2, name = ?3, asset_ty = ?4, last_modified = ?5
+WHERE id = ?1 AND is_deleted = 0;
+            "#,
+            params![
+                tag.id,
                 tag.relative_path,
                 tag.name,
                 tag.asset_ty,
@@ -597,10 +837,10 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0);
             r#"
 DELETE FROM asset_revisions
 WHERE asset_id = ?1
-  AND EXISTS (
-      SELECT 1 FROM assets
-      WHERE asset_id = ?1 AND is_deleted = 1
-  );
+    AND EXISTS (
+        SELECT 1 FROM assets
+        WHERE asset_id = ?1 AND is_deleted = 1
+    );
             "#,
             params![asset.asset_id],
         )?;
@@ -679,7 +919,14 @@ LIMIT 1;
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
             r#"
-WITH latest AS (
+WITH RECURSIVE selected_tags(id) AS (
+    SELECT id FROM tags WHERE id = ?2 AND (is_deleted = 0 OR ?4 = 1)
+    UNION
+    SELECT c.child_id FROM tag_children c
+    JOIN selected_tags s ON c.parent_id = s.id
+    JOIN tags t ON t.id = c.child_id
+    WHERE ?5 = 1 AND (t.is_deleted = 0 OR ?4 = 1)
+), latest AS (
     SELECT
         r.asset_id,
         r.relative_path,
@@ -707,10 +954,8 @@ WHERE l.ord = 1
         OR EXISTS (
             SELECT 1
             FROM asset_tags at
-            JOIN tags t ON t.id = at.tag_id
             WHERE at.asset_id = a.asset_id
-                AND at.tag_id = ?2
-                AND (t.is_deleted = 0 OR ?4 = 1)
+                AND at.tag_id IN (SELECT id FROM selected_tags)
         )
     )
     AND (?3 IS NULL OR a.bundle_id = ?3)
@@ -724,6 +969,7 @@ ORDER BY l.relative_path ASC;
                 filter.tag.as_ref(),
                 filter.bundle.as_ref(),
                 filter.is_deleted,
+                filter.include_descendants,
             ],
             |row| {
                 Ok(AssetMetadata {
@@ -961,6 +1207,42 @@ WHERE bundle_id = ?1;
     }
 }
 
+fn validate_tag_hierarchy(conn: &Connection) -> Result<()> {
+    let mut children = HashMap::<TagId, Vec<TagId>>::new();
+    let mut indegree = HashMap::<TagId, usize>::new();
+    let mut statement = conn.prepare("SELECT parent_id, child_id FROM tag_children")?;
+    let edges = statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+    for edge in edges {
+        let (parent, child) = edge?;
+        children.entry(parent).or_default().push(child);
+        indegree.entry(parent).or_default();
+        *indegree.entry(child).or_default() += 1;
+    }
+    let mut roots = indegree
+        .iter()
+        .filter_map(|(&id, &degree)| (degree == 0).then_some(id))
+        .collect::<Vec<_>>();
+    let mut visited = 0;
+    while let Some(parent) = roots.pop() {
+        visited += 1;
+        if let Some(children) = children.get(&parent) {
+            for child in children {
+                let degree = indegree
+                    .get_mut(child)
+                    .expect("every child has an indegree");
+                *degree -= 1;
+                if *degree == 0 {
+                    roots.push(*child);
+                }
+            }
+        }
+    }
+    if visited != indegree.len() {
+        bail!("Tag hierarchy contains a cycle");
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::TimeZone as _;
@@ -1023,6 +1305,156 @@ mod tests {
         assert_eq!(stored.name, "Updated");
         assert_eq!(stored.last_modified, bundle.last_modified);
 
+        Ok(())
+    }
+
+    fn hierarchy_db() -> Result<(AssetIndexDb, BundleId, [TagId; 4])> {
+        let db = AssetIndexDb::open_in_memory()?;
+        let bundle_id = BundleId::new(Uuid::new_v4());
+        db.upsert_bundle(&AssetBundleMetadata {
+            bundle_id,
+            name: "Hierarchy".into(),
+            last_modified: Utc::now(),
+        })?;
+        let tags = ["root", "left", "right", "leaf"]
+            .map(|name| sourced_tag(bundle_id, &format!("{name}.tag"), name, None));
+        for tag in &tags {
+            db.add_tag(tag.clone())?;
+        }
+        let ids = tags.map(|tag| tag.id);
+        for (parent, child) in [(0, 1), (0, 2), (1, 3), (2, 3)] {
+            db.add_child_tag(&ids[parent], &ids[child])?;
+        }
+        Ok((db, bundle_id, ids))
+    }
+
+    #[test]
+    fn topological_check_handles_long_chains_and_disconnected_cycles() -> Result<()> {
+        let mut conn = Connection::open_in_memory()?;
+        conn.execute_batch("CREATE TABLE tag_children (parent_id TEXT, child_id TEXT);")?;
+        validate_tag_hierarchy(&conn)?;
+        let ids = (1..=10_000)
+            .map(|id| TagId::new(Uuid::from_u128(id)))
+            .collect::<Vec<_>>();
+        let tx = conn.transaction()?;
+        {
+            let mut insert = tx.prepare("INSERT INTO tag_children VALUES (?1, ?2)")?;
+            for pair in ids.windows(2) {
+                insert.execute(params![pair[0], pair[1]])?;
+            }
+        }
+        tx.commit()?;
+        validate_tag_hierarchy(&conn)?;
+        // A separate cyclic component must be detected even after the long chain
+        // has been processed successfully.
+        let a = TagId::new(Uuid::from_u128(10_001));
+        let b = TagId::new(Uuid::from_u128(10_002));
+        conn.execute(
+            "INSERT INTO tag_children VALUES (?1, ?2), (?2, ?1)",
+            params![a, b],
+        )?;
+        assert!(
+            validate_tag_hierarchy(&conn)
+                .unwrap_err()
+                .to_string()
+                .contains("cycle")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn tag_relationships_support_shared_children_and_soft_deletion() -> Result<()> {
+        let (db, _, [root, left, right, leaf]) = hierarchy_db()?;
+        assert_eq!(db.get_root_tags()?[0].id, root);
+        assert_eq!(db.get_child_tags(&root)?.len(), 2);
+        assert_eq!(db.get_parent_tags(&leaf)?.len(), 2);
+        assert!(db.add_child_tag(&root, &root).is_err());
+        assert!(db.add_child_tag(&left, &leaf).is_err());
+        assert!(
+            db.add_child_tag(&TagId::new(Uuid::new_v4()), &leaf)
+                .is_err()
+        );
+
+        db.delete_tag(&left)?;
+        db.delete_tag(&right)?;
+        assert!(db.get_child_tags(&left)?.is_empty());
+        assert!(db.get_parent_tags(&leaf)?.is_empty());
+        assert_eq!(db.get_root_tags()?.len(), 2);
+        // Hidden paths still count when checking cycles for future restoration.
+        assert!(db.add_child_tag(&leaf, &root).is_err());
+        assert!(db.add_child_tag(&right, &leaf).is_err());
+        db.restore_tag(&left)?;
+        db.restore_tag(&right)?;
+        assert_eq!(db.get_root_tags()?.len(), 1);
+        db.remove_child_tag(&left, &leaf)?;
+        assert_eq!(db.get_parent_tags(&leaf)?[0].id, right);
+        assert!(db.remove_child_tag(&left, &leaf).is_err());
+        db.remove_child_tag(&right, &leaf)?;
+        assert_eq!(db.get_root_tags()?.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn descendant_assets_are_deduplicated_and_keep_existing_filters() -> Result<()> {
+        let (db, bundle_id, [root, left, right, leaf]) = hierarchy_db()?;
+        let other_bundle = BundleId::new(Uuid::new_v4());
+        db.upsert_bundle(&AssetBundleMetadata {
+            bundle_id: other_bundle,
+            name: "Other".into(),
+            last_modified: Utc::now(),
+        })?;
+        let ids = [0, 1, 2, 3].map(|_| UntypedAssetId::new(Uuid::new_v4()));
+        for (index, id) in ids.iter().enumerate() {
+            db.add_asset(&AssetMetadata {
+                asset_id: *id,
+                ty: if index == 2 {
+                    OtherAsset::TYPE_NAME
+                } else {
+                    TestAsset::TYPE_NAME
+                }
+                .into(),
+                bundle_id: if index == 3 { other_bundle } else { bundle_id },
+                relative_path: format!("{index}.asset"),
+                revision: 0,
+                last_modified: Utc::now(),
+                in_memory: false,
+            })?;
+            db.add_tag_to_asset(id, if index == 0 { &root } else { &leaf })?;
+        }
+        db.add_tag_to_asset(&ids[1], &right)?;
+        let query = || {
+            AssetFilter::<TestAsset>::new()
+                .with_tag(root)
+                .with_descendants(true)
+        };
+        assert_eq!(
+            db.get_assets(
+                AssetFilter::<TestAsset>::new()
+                    .with_tag(root)
+                    .into_untyped()
+            )?
+            .len(),
+            1
+        );
+        assert_eq!(db.get_assets(query().into_untyped())?.len(), 3);
+        assert_eq!(
+            db.get_assets(query().with_bundle(bundle_id).into_untyped())?
+                .len(),
+            2
+        );
+        // The second path still reaches the leaf when the left branch is hidden.
+        db.delete_tag(&left)?;
+        assert_eq!(db.get_assets(query().into_untyped())?.len(), 3);
+        db.delete_tag(&right)?;
+        assert_eq!(db.get_assets(query().into_untyped())?.len(), 1);
+        db.restore_tag(&left)?;
+        assert_eq!(db.get_assets(query().into_untyped())?.len(), 3);
+        db.delete_asset(&ids[1])?;
+        db.delete_tag(&root)?;
+        assert!(db.get_assets(query().into_untyped())?.is_empty());
+        let deleted = db.get_assets(query().with_deleted(true).into_untyped())?;
+        assert_eq!(deleted.len(), 1);
+        assert_eq!(deleted[0].asset_id, ids[1]);
         Ok(())
     }
 

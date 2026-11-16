@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     ffi::OsStr,
     fs::{self, File, create_dir_all, metadata},
     io::Write as _,
@@ -69,6 +69,7 @@ pub(crate) struct BundleSnapshot {
     pub manifest: BundleManifest,
     pub assets: Vec<AssetMetadata>,
     pub tags: Vec<Tag>,
+    pub tag_children: HashMap<TagId, BTreeSet<TagId>>,
     pub asset_tags: HashMap<UntypedAssetId, AssetTags>,
 }
 
@@ -243,10 +244,45 @@ impl AssetBundleCache {
         Ok(asset)
     }
 
-    pub fn add_tag(&self, tag: &Tag) -> Result<()> {
-        let path = PathBuf::from(&tag.relative_path).clean();
-        self.bundle.add_tag(&path, &TagFile::from(tag.clone()))?;
-        self.manifest.write().tags.insert(tag.id, path);
+    pub fn read_tag(&self, id: &TagId) -> Result<TagFile> {
+        let path = self
+            .manifest
+            .read()
+            .tags
+            .get(id)
+            .cloned()
+            .ok_or_else(|| anyhow!("Tag path not found for tag ID: {id}"))?;
+
+        read_tag_file(
+            &self.assets_root,
+            &path,
+            &self.metadata.bundle_id,
+            self.bundle.as_ref(),
+        )
+    }
+
+    pub fn write_tag(&self, tag: &Tag, children: BTreeSet<TagId>) -> Result<()> {
+        let tag_file = TagFile {
+            id: tag.id,
+            name: tag.name.clone(),
+            asset_ty: tag.asset_ty.clone(),
+            children,
+        };
+
+        if self.bundle.is_readonly() {
+            let modified_path = self.absolute_modified_path(&tag.relative_path);
+
+            if let Some(parent) = modified_path.parent() {
+                create_dir_all(parent)?;
+            }
+
+            let content = toml::to_string(&tag_file)?;
+            fs::write(modified_path, content)?;
+        } else {
+            self.bundle
+                .add_tag(Path::new(&tag.relative_path), &tag_file)?;
+        }
+
         Ok(())
     }
 
@@ -270,7 +306,22 @@ pub(crate) fn read_asset_file(
     }
 }
 
-pub(crate) fn read_tag_file(tag_path: &Path, bundle: &dyn ErasedAssetBundle) -> Result<TagFile> {
+pub(crate) fn read_tag_file(
+    assets_root: &Path,
+    tag_path: &Path,
+    bundle_id: &BundleId,
+    bundle: &dyn ErasedAssetBundle,
+) -> Result<TagFile> {
+    if bundle.is_readonly() {
+        let modified_path = modified_bundle_absolute_path(assets_root, bundle_id).join(tag_path);
+
+        if modified_path.exists() {
+            let content = fs::read_to_string(modified_path)?;
+            let tag = toml::from_str::<TagFile>(&content)?;
+            return Ok(tag);
+        }
+    }
+
     bundle.read_tag(tag_path)
 }
 
@@ -723,6 +774,7 @@ mod tests {
                 },
                 assets: Vec::new(),
                 tags: Vec::new(),
+                tag_children: HashMap::new(),
                 asset_tags: HashMap::new(),
             },
             Arc::new(AssetSerializerRegistry::default()),
@@ -746,17 +798,23 @@ mod tests {
 
         cache.write_asset_tags(&asset_id, &[])?;
         assert!(cache.read_asset_tags(&asset_id)?.tags.is_empty());
-        assert!(
-            cache
-                .add_tag(&Tag {
-                    id: TagId::new(Uuid::new_v4()),
-                    bundle_id,
-                    relative_path: "new.tag".to_string(),
-                    name: "New".to_string(),
-                    asset_ty: None,
-                })
-                .is_err()
-        );
+        let tag = Tag {
+            id: TagId::new(Uuid::new_v4()),
+            bundle_id,
+            relative_path: "new.tag".to_string(),
+            name: "New".to_string(),
+            asset_ty: None,
+        };
+        let children = BTreeSet::from([base_tag]);
+        cache.write_tag(&tag, children.clone())?;
+
+        let modified_tag_path =
+            modified_bundle_absolute_path(&root, &bundle_id).join(&tag.relative_path);
+        let written_tag = toml::from_str::<TagFile>(&fs::read_to_string(modified_tag_path)?)?;
+        assert_eq!(written_tag.id, tag.id);
+        assert_eq!(written_tag.name, tag.name);
+        assert_eq!(written_tag.asset_ty, tag.asset_ty);
+        assert_eq!(written_tag.children, children);
 
         fs::remove_dir_all(root)?;
         Ok(())
