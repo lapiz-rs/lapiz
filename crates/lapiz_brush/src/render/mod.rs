@@ -63,6 +63,7 @@ pub mod stroke_preview;
 
 const MAX_SAMPLES_PER_INPUT_BATCH: u32 = 256;
 const MAX_INPUTS_PER_BATCH: usize = 32;
+const MAX_DABS_PER_SUBMISSION: usize = 8;
 
 /// Metadata describing an active brush stroke session on a specific canvas and target layer.
 pub struct CanvasBrushStrokeSessionInfo {
@@ -658,6 +659,9 @@ impl BrushStrokeWorker {
 
             let count = samples.n_samples as usize;
             has_more = samples.is_overflow != 0;
+            if count == 0 {
+                continue;
+            }
 
             let mut dab_bounds = Vec::with_capacity(count);
             let mut tiles = HashSet::new();
@@ -710,11 +714,12 @@ impl BrushStrokeWorker {
             else {
                 unreachable!();
             };
+            let mut dabs_in_submission = 0;
+            let mut encoder = device.create_command_encoder(&Default::default());
             for (index, dab_bounds) in dab_bounds.into_iter().enumerate() {
                 if dab_bounds.is_empty() {
                     continue;
                 }
-                let mut encoder = device.create_command_encoder(&Default::default());
                 main_pipeline.dispatch_main(
                     &mut encoder,
                     &self.main_batch_group,
@@ -723,7 +728,6 @@ impl BrushStrokeWorker {
                     self.main_sample_index_offsets[index],
                     dab_bounds,
                 )?;
-                queue.submit([encoder.finish()]);
                 let accumulator = self
                     .state
                     .accumulator
@@ -733,7 +737,7 @@ impl BrushStrokeWorker {
                 let PreparedLayerPixels::ReadWrite { storage, .. } = &mut accumulator.pixels else {
                     unreachable!();
                 };
-                storage.copy_pixels_from(dab_storage, dab_bounds);
+                storage.copy_pixels_from(dab_storage, dab_bounds, &mut encoder);
                 let previous = accumulator.pixel_bounds.unwrap_or(IRect::EMPTY);
                 let bounds = if previous.is_empty() {
                     dab_bounds
@@ -741,15 +745,32 @@ impl BrushStrokeWorker {
                     previous.union(dab_bounds)
                 };
                 accumulator.pixel_bounds = Some(bounds);
-                let mut encoded = encase::StorageBuffer::new(Vec::new());
-                encoded.write(&IVec4::new(
-                    bounds.min.x,
-                    bounds.min.y,
-                    bounds.max.x,
-                    bounds.max.y,
-                ))?;
-                queue.write_buffer(&accumulator.bounds, 0, encoded.as_ref());
+                dabs_in_submission += 1;
+                if dabs_in_submission == MAX_DABS_PER_SUBMISSION {
+                    let next = device.create_command_encoder(&Default::default());
+                    queue.submit([mem::replace(&mut encoder, next).finish()]);
+                    dabs_in_submission = 0;
+                }
             }
+            if dabs_in_submission > 0 {
+                queue.submit([encoder.finish()]);
+            }
+
+            let accumulator = self
+                .state
+                .accumulator
+                .as_ref()
+                .unwrap()
+                .as_ref::<PreparedLayer>();
+            let bounds = accumulator.pixel_bounds.unwrap_or(IRect::EMPTY);
+            let mut encoded = encase::StorageBuffer::new(Vec::new());
+            encoded.write(&IVec4::new(
+                bounds.min.x,
+                bounds.min.y,
+                bounds.max.x,
+                bounds.max.y,
+            ))?;
+            queue.write_buffer(&accumulator.bounds, 0, encoded.as_ref());
         }
 
         Ok(())
