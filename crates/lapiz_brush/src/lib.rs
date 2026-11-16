@@ -7,13 +7,15 @@ use lapiz_tools::ToolsAppExt as _;
 
 use crate::{
     asset::{BrushPreset, BrushPresetSerializer},
-    editor::{BrushEditor, BrushEngineEditorRegistry, lapiz_engine::LapizBrushEngineEditor},
+    editor::BrushEditor,
+    engine::{BrushEngineRegistry, lapiz_engine::LapizBrushEngineEditor},
     render::stroke_preview::load_cached_stroke_preview_or_generate,
     tool::BrushTool,
 };
 
 pub mod asset;
 pub mod editor;
+pub mod engine;
 pub mod input_processing;
 pub mod instance;
 pub mod render;
@@ -36,7 +38,7 @@ impl Plugin for BrushPlugin {
         globals.add_asset_serializer::<BrushPresetSerializer>();
         globals.add_tool_function::<BrushTool>();
 
-        let mut registry = BrushEngineEditorRegistry::default();
+        let mut registry = BrushEngineRegistry::default();
         registry.register::<LapizBrushEngineEditor>();
         app.add_global_instance(registry);
     }

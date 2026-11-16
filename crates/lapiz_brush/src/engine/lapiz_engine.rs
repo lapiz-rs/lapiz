@@ -32,7 +32,7 @@ use uuid::Uuid;
 
 use crate::{
     asset::{BrushPreset, BrushPresetMetadata},
-    editor::{BrushEditorEngine, BrushEditorEngineId, BrushPresetEntry},
+    engine::{BrushEngine, BrushEngineId, BrushPresetEntry},
     instance::{
         BrushParameter, BrushPresetInstance, main_effect_resources, postprocess_effect_resources,
         spacing_effect_resources,
@@ -128,12 +128,12 @@ impl Default for LapizBrushEngineEditor {
     }
 }
 
-impl BrushEditorEngine for LapizBrushEngineEditor {
+impl BrushEngine for LapizBrushEngineEditor {
     type Message = LapizBrushEngineEditorMessage;
     type Brush = BrushPreset;
 
-    fn id() -> BrushEditorEngineId {
-        BrushEditorEngineId::new("lapiz_brush_engine")
+    fn id() -> BrushEngineId {
+        BrushEngineId::new("lapiz_brush_engine")
     }
 
     fn label() -> String {
@@ -223,7 +223,10 @@ impl BrushEditorEngine for LapizBrushEngineEditor {
             .as_asset(globals.assets())
     }
 
-    fn view<'a>(&'a self, _globals: &'a Globals) -> Element<'a, Self::Message, Theme, Renderer> {
+    fn editor_view<'a>(
+        &'a self,
+        _globals: &'a Globals,
+    ) -> Element<'a, Self::Message, Theme, Renderer> {
         match self.selected.as_ref() {
             Some(selected) => row![self.view_selected(selected), self.view_parameters(selected)]
                 .gap(8.0)
@@ -236,7 +239,11 @@ impl BrushEditorEngine for LapizBrushEngineEditor {
         }
     }
 
-    fn update(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
+    fn editor_update(
+        &mut self,
+        message: Self::Message,
+        globals: &mut Globals,
+    ) -> Task<Self::Message> {
         match message {
             LapizBrushEngineEditorMessage::BrushNameChanged(name) => {
                 self.name_buffer = name.clone();
