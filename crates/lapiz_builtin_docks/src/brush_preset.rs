@@ -4,7 +4,8 @@ use iced_core::{Element, Length, Theme, window};
 use iced_runtime::Task;
 use lapiz_assets::AssetAppExt as _;
 use lapiz_brush::{
-    asset::BrushPreset, tool::CurrentBrushPresetExt as _, widget::BrushPresetListDelegate,
+    editor::{BrushEditorEngineId, BrushEngineEditorRegistry, UntypedBrushPresetEntry},
+    tool::CurrentBrushPresetExt as _,
 };
 use lapiz_dock::dock::{Dock, DockId};
 use lapiz_runtime::{Renderer, global::Globals};
@@ -16,7 +17,8 @@ pub static BRUSH_PRESETS_DOCK_ID: LazyLock<DockId> =
 
 /// Workspace [`Dock`] that displays loaded [`BrushPreset`] assets and updates the active brush preset when selected.
 pub struct BrushPresetDock {
-    brushes: BrushPresetListDelegate,
+    selected: Option<usize>,
+    brushes: Vec<(BrushEditorEngineId, UntypedBrushPresetEntry)>,
 }
 
 /// Messages handled by [`BrushPresetDock`].
@@ -27,10 +29,12 @@ pub enum BrushPresetDockMessage {
 
 impl BrushPresetDock {
     pub fn new(globals: &Globals) -> Self {
+        let engines = globals.global::<BrushEngineEditorRegistry>();
+        let assets = globals.assets();
+        let brushes = engines.all_brushes(assets);
         Self {
-            brushes: BrushPresetListDelegate::new(
-                globals.assets().all_handles_of::<BrushPreset>().unwrap(),
-            ),
+            selected: None,
+            brushes,
         }
     }
 }
@@ -49,13 +53,12 @@ impl Dock for BrushPresetDock {
     ) -> Element<'a, Self::Message, Theme, Renderer> {
         let buttons = self
             .brushes
-            .items()
             .iter()
             .enumerate()
-            .map(|(index, item)| {
+            .map(|(index, (_, item))| {
                 button(label(item.name.clone()))
                     .width(Length::Fill)
-                    .activated(item.selected)
+                    .activated(Some(index) == self.selected)
                     .on_press(BrushPresetDockMessage::SelectBrush(index))
                     .into()
             })
@@ -70,13 +73,21 @@ impl Dock for BrushPresetDock {
     fn update(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
         match message {
             BrushPresetDockMessage::SelectBrush(index) => {
-                self.brushes.select(index);
-                let handle = self.brushes.get(index).map(|item| item.brush.clone());
-                if let Some(handle) = handle
-                    && let Ok(preset) = handle.get().logged_err()
-                {
-                    globals.set_current_brush_preset(preset.as_ref()).log_err();
-                }
+                self.selected = Some(index);
+
+                let engines = globals.global::<BrushEngineEditorRegistry>();
+                let (engine_id, brush_entry) = &self.brushes[index];
+                let mut engine = engines.create(*engine_id).unwrap();
+                let assets = globals.assets().clone();
+                engine
+                    .load_brush(brush_entry.id, &assets, globals)
+                    .log_err();
+                let Ok(brush) = engine.compile_brush(globals).logged_err() else {
+                    return Task::none();
+                };
+                globals
+                    .set_current_brush_preset(&brush, Some(brush_entry.id))
+                    .log_err();
                 Task::none()
             }
         }

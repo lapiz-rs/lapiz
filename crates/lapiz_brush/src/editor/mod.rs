@@ -153,12 +153,12 @@ impl<T: BrushEditorEngine> ErasedBrushEditorEngine for T {
 
 #[derive(Default)]
 pub struct BrushEngineEditorRegistry {
-    factories: HashMap<BrushEditorEngineId, BrushEditorEngineRegistration>,
+    pub factories: HashMap<BrushEditorEngineId, BrushEditorEngineRegistration>,
 }
 
-struct BrushEditorEngineRegistration {
-    label: String,
-    create: Box<dyn Fn() -> Box<dyn ErasedBrushEditorEngine>>,
+pub struct BrushEditorEngineRegistration {
+    pub label: String,
+    pub create: Box<dyn Fn() -> Box<dyn ErasedBrushEditorEngine>>,
 }
 
 impl Global for BrushEngineEditorRegistry {}
@@ -174,12 +174,32 @@ impl BrushEngineEditorRegistry {
         );
     }
 
-    fn create(&self, id: BrushEditorEngineId) -> Result<Box<dyn ErasedBrushEditorEngine>> {
+    pub fn create(&self, id: BrushEditorEngineId) -> Result<Box<dyn ErasedBrushEditorEngine>> {
         let factory = self
             .factories
             .get(&id)
             .with_context(|| format!("Brush editor engine {} must be registered", id.0))?;
         Ok((factory.create)())
+    }
+
+    pub fn all_brushes(
+        &self,
+        assets: &AssetRegistry,
+    ) -> Vec<(BrushEditorEngineId, UntypedBrushPresetEntry)> {
+        let mut brushes = self
+            .factories
+            .iter()
+            .flat_map(|(engine_id, factory)| {
+                let brushes = (factory.create)()
+                    .query_brushes(assets)
+                    .logged_err()
+                    .unwrap_or_default();
+
+                brushes.into_iter().map(|entry| (*engine_id, entry))
+            })
+            .collect::<Vec<_>>();
+        brushes.sort_by(|(_, brush_a), (_, brush_b)| brush_a.name.cmp(&brush_b.name));
+        brushes
     }
 }
 
@@ -203,6 +223,7 @@ pub struct BrushEditor {
 
 struct SelectedBrushEditor {
     index: usize,
+    asset_id: UntypedAssetId,
     session: BrushEditorSessionId,
     engine: Box<dyn ErasedBrushEditorEngine>,
 }
@@ -249,18 +270,7 @@ impl WindowView for BrushEditor {
 
         let engines = globals.global::<BrushEngineEditorRegistry>();
         let assets = globals.assets();
-        let brushes = engines
-            .factories
-            .iter()
-            .flat_map(|(engine_id, factory)| {
-                let brushes = (factory.create)()
-                    .query_brushes(assets)
-                    .logged_err()
-                    .unwrap_or_default();
-
-                brushes.into_iter().map(|entry| (*engine_id, entry))
-            })
-            .collect();
+        let brushes = engines.all_brushes(assets);
 
         Ok((
             Self {
@@ -383,13 +393,18 @@ impl WindowView for BrushEditor {
                 task.map(move |message| BrushEditorMessage::EngineMessage { session, message })
             }
             BrushEditorMessage::WindowUnfocused(window) => {
+                let current_brush = globals
+                    .current_brush_preset()
+                    .and_then(|b| b.instance().asset_id());
+
+                // recompiles the brush preset if it's currently selected
                 if window == self.main_window
                     && let Some(selected) = self.selected.as_ref()
+                    && current_brush == Some(selected.asset_id)
                 {
-                    let result = selected
-                        .engine
-                        .compile_brush(globals)
-                        .and_then(|preset| globals.set_current_brush_preset(&preset));
+                    let result = selected.engine.compile_brush(globals).and_then(|preset| {
+                        globals.set_current_brush_preset(&preset, Some(selected.asset_id))
+                    });
                     if let Err(error) = result {
                         log::error!("Failed to apply brush preset on editor focus loss: {error:#}");
                     }
@@ -443,6 +458,22 @@ impl WindowView for BrushEditor {
 
 impl BrushEditor {
     fn select_brush(&mut self, index: usize, globals: &mut Globals) -> Result<()> {
+        // recompiles the previously selected brush preset if it's currently selected
+        if let Some(old_selected) = self.selected.take()
+            && let Some(current_brush) = globals
+                .current_brush_preset()
+                .and_then(|b| b.instance().asset_id())
+            && old_selected.asset_id == current_brush
+        {
+            old_selected
+                .engine
+                .compile_brush(globals)
+                .and_then(|preset| {
+                    globals.set_current_brush_preset(&preset, Some(old_selected.asset_id))
+                })
+                .log_err();
+        }
+
         let Some((engine_id, entry)) = self.brushes.get(index) else {
             return Ok(());
         };
@@ -454,6 +485,7 @@ impl BrushEditor {
 
         self.selected = Some(SelectedBrushEditor {
             index,
+            asset_id: entry.id,
             session: BrushEditorSessionId::new(Uuid::new_v4()),
             engine,
         });
@@ -475,6 +507,7 @@ impl BrushEditor {
         self.brushes.push((engine_id, entry));
         self.selected = Some(SelectedBrushEditor {
             index,
+            asset_id: id,
             session: BrushEditorSessionId::new(Uuid::new_v4()),
             engine,
         });

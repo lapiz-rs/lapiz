@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
-use lapiz_assets::AssetAppExt as _;
+use lapiz_assets::{AssetAppExt as _, asset::UntypedAssetId};
 use lapiz_canvas::{
     CanvasAppExt as _, CanvasUndoStackAppExt as _, command::TileReplaceCommand,
     event::CanvasUpdated,
@@ -37,8 +37,12 @@ pub struct CurrentBrushPreset(pub CanvasBrushPresetOperator);
 impl Global for CurrentBrushPreset {}
 
 impl CurrentBrushPreset {
-    pub fn new(preset: &BrushPreset, globals: &Globals) -> Result<Self> {
-        let instance = BrushPresetInstance::new(preset, globals.assets().clone())?;
+    pub fn new(
+        preset: &BrushPreset,
+        asset_id: Option<UntypedAssetId>,
+        globals: &Globals,
+    ) -> Result<Self> {
+        let instance = BrushPresetInstance::new(preset, asset_id, globals.assets().clone())?;
         let operator = CanvasBrushPresetOperator::new(
             instance,
             globals.render_device().clone(),
@@ -55,7 +59,11 @@ impl CurrentBrushPreset {
 
 pub trait CurrentBrushPresetExt {
     fn current_brush_preset(&self) -> Option<&CanvasBrushPresetOperator>;
-    fn set_current_brush_preset(&mut self, preset: &BrushPreset) -> Result<()>;
+    fn set_current_brush_preset(
+        &mut self,
+        preset: &BrushPreset,
+        asset_id: Option<UntypedAssetId>,
+    ) -> Result<()>;
 }
 
 impl CurrentBrushPresetExt for Globals {
@@ -64,8 +72,12 @@ impl CurrentBrushPresetExt for Globals {
             .map(|brush| &brush.0)
     }
 
-    fn set_current_brush_preset(&mut self, preset: &BrushPreset) -> Result<()> {
-        let brush = CurrentBrushPreset::new(preset, self)?;
+    fn set_current_brush_preset(
+        &mut self,
+        preset: &BrushPreset,
+        asset_id: Option<UntypedAssetId>,
+    ) -> Result<()> {
+        let brush = CurrentBrushPreset::new(preset, asset_id, self)?;
         self.insert_global(brush);
         Ok(())
     }
