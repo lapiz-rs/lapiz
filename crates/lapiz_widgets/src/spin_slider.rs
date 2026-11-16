@@ -13,6 +13,7 @@ use iced_core::{
     text,
     text::{Alignment, Ellipsis, LineHeight, Shaping, Wrapping},
     widget::tree::{self, Tree},
+    window,
 };
 use iced_widget::{TextInput, text_input};
 use num_traits::AsPrimitive;
@@ -371,6 +372,21 @@ where
             }
             state.interaction = SpinSliderState::Idle;
             return;
+        }
+
+        if matches!(event, Event::Window(window::Event::Unfocused)) {
+            state.modifiers = keyboard::Modifiers::default();
+            if matches!(
+                state.interaction,
+                SpinSliderState::Dragging { .. } | SpinSliderState::Pressing { .. }
+            ) {
+                if let SpinSliderState::Dragging { value } = mem::take(&mut state.interaction)
+                    && let Some(on_confirm) = &self.on_confirm
+                {
+                    shell.publish(on_confirm(value));
+                }
+                shell.request_redraw();
+            }
         }
 
         if let SpinSliderState::Editing { value } = &state.interaction {

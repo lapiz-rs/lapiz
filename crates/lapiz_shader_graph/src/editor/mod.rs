@@ -19,6 +19,7 @@ use iced_core::{
     shell::Bus,
     theme::{Base as _, Mode},
     widget::{Operation, Tree, tree},
+    window,
 };
 use iced_graphics::{
     geometry::{self, Frame, Renderer as _, Stroke},
@@ -518,6 +519,24 @@ impl<'a> Widget<GraphEditorMessage, GraphTheme, GraphRenderer> for GraphEditorVi
         viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_mut::<State>();
+        if matches!(event, Event::Window(window::Event::Unfocused)) {
+            state.interaction = InteractionState::Idle;
+            state.keyboard_modifiers = keyboard::Modifiers::default();
+            shell.request_redraw();
+        }
+        let owns_pointer = !matches!(state.interaction, InteractionState::Idle)
+            && matches!(event, Event::Pointer(_));
+        let cursor = if owns_pointer {
+            match event {
+                Event::Pointer(
+                    pointer::Event::PointerMoved { position, .. }
+                    | pointer::Event::PointerReleased { position, .. },
+                ) => mouse::Cursor::Available(*position),
+                _ => cursor.land(),
+            }
+        } else {
+            cursor
+        };
         let view_transformation = state.view_transformation(layout.bounds());
         let inverse_view_transformation = view_transformation.inverse();
         let graph_cursor = cursor * inverse_view_transformation;
@@ -536,15 +555,17 @@ impl<'a> Widget<GraphEditorMessage, GraphTheme, GraphRenderer> for GraphEditorVi
             .zip(&mut tree.children)
             .zip(layout.children())
         {
-            child.widget.as_widget_mut().update(
-                tree,
-                event,
-                layout,
-                graph_cursor,
-                renderer,
-                &mut children_shell,
-                &graph_viewport,
-            );
+            if !owns_pointer {
+                child.widget.as_widget_mut().update(
+                    tree,
+                    event,
+                    layout,
+                    graph_cursor,
+                    renderer,
+                    &mut children_shell,
+                    &graph_viewport,
+                );
+            }
 
             child
                 .widget
@@ -553,7 +574,7 @@ impl<'a> Widget<GraphEditorMessage, GraphTheme, GraphRenderer> for GraphEditorVi
         }
         shell.merge(children_shell, |m| m);
 
-        if shell.is_event_captured() {
+        if shell.is_event_captured() && !owns_pointer {
             return;
         }
 
@@ -750,11 +771,6 @@ impl<'a> Widget<GraphEditorMessage, GraphTheme, GraphRenderer> for GraphEditorVi
                         mode,
                     } => {
                         let Some(cursor) = graph_cursor.position() else {
-                            state.interaction = InteractionState::SelectionDragging {
-                                cursor_origin,
-                                originally_selected,
-                                mode,
-                            };
                             return;
                         };
                         let selection_rect = Rectangle {

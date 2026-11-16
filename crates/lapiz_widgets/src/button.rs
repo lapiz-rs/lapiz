@@ -6,6 +6,7 @@ use iced_core::{
     pointer::mouse,
     renderer,
     widget::{Operation, Tree, tree},
+    window,
 };
 use iced_widget::button::Catalog;
 pub use iced_widget::button::{Status, Style};
@@ -213,7 +214,7 @@ impl<Message> Widget<Message, Theme, Renderer> for Button<'_, Message> {
             shell,
             viewport,
         );
-        if !shell.is_event_captured() {
+        if !shell.is_event_captured() || tree.state.downcast_ref::<State>().pressed {
             let state = tree.state.downcast_mut::<State>();
             match event {
                 Event::Pointer(event)
@@ -237,7 +238,8 @@ impl<Message> Widget<Message, Theme, Renderer> for Button<'_, Message> {
                 }
                 Event::Pointer(pointer::Event::PointerLeft {
                     kind: pointer::Kind::Touch(_),
-                }) => {
+                })
+                | Event::Window(window::Event::Unfocused) => {
                     state.pressed = false;
                 }
                 _ => {}

@@ -7,6 +7,7 @@ use iced_core::{
     pointer::mouse::{self, Cursor},
     renderer::{self, Quad},
     widget::{self, tree},
+    window,
 };
 use iced_graphics::geometry::{Frame, Path, Renderer as _, Stroke};
 use lapiz_math::curve::CubicCurve;
@@ -150,6 +151,18 @@ impl<Message> Widget<Message, Theme, Renderer> for CurveEdit<'_, Message> {
     ) {
         let state = tree.state.downcast_mut::<CurveEditState>();
         let bounds = layout.bounds();
+
+        if matches!(event, Event::Window(window::Event::Unfocused)) && state.dragging {
+            state.dragging = false;
+            let curve = state
+                .drag_curve
+                .take()
+                .unwrap_or_else(|| self.curve.clone());
+            if let Some(message) = publish_with(&mut self.release, curve) {
+                shell.publish(message);
+            }
+            shell.request_redraw();
+        }
 
         match event {
             Event::Pointer(event) if event.is_primary_press() => {

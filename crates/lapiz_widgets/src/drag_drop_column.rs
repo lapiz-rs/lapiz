@@ -5,6 +5,7 @@ use iced_core::{
     pointer::mouse,
     renderer,
     widget::{Tree, Widget, tree},
+    window,
 };
 
 const DRAG_DEADBAND: f32 = 10.0;
@@ -140,34 +141,46 @@ where
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
-        for ((i, child), child_node) in self.children.iter_mut().enumerate().zip(layout.children())
-        {
-            child.as_widget_mut().update(
-                &mut tree.children[i],
-                event,
-                child_node,
-                cursor,
-                renderer,
-                shell,
-                viewport,
-            );
-            if shell.is_event_captured() {
-                return;
+        let state = tree.state.downcast_mut::<State>();
+        if matches!(event, Event::Window(window::Event::Unfocused)) {
+            if state.action == Action::Dragging
+                && let Some(on_drop) = &self.on_drop
+                && let Some(info) = make_info(&layout, state.pointer, state.index)
+            {
+                shell.publish(on_drop(info));
+            }
+            state.action = Action::Idle;
+            shell.request_redraw();
+        }
+        let owns_pointer = state.action != Action::Idle && matches!(event, Event::Pointer(_));
+        if !owns_pointer {
+            for ((i, child), child_node) in
+                self.children.iter_mut().enumerate().zip(layout.children())
+            {
+                child.as_widget_mut().update(
+                    &mut tree.children[i],
+                    event,
+                    child_node,
+                    cursor,
+                    renderer,
+                    shell,
+                    viewport,
+                );
+                if shell.is_event_captured() {
+                    return;
+                }
             }
         }
 
         let state = tree.state.downcast_mut::<State>();
         let position = match event {
-            Event::Pointer(pointer::Event::PointerMoved { position, .. }) => *position,
+            Event::Pointer(
+                pointer::Event::PointerMoved { position, .. }
+                | pointer::Event::PointerPressed { position, .. }
+                | pointer::Event::PointerReleased { position, .. },
+            ) => *position,
             _ => match cursor.land().position() {
                 Some(position) => position,
-                None if matches!(
-                    event,
-                    Event::Pointer(pointer::Event::PointerReleased { .. })
-                ) && state.action != Action::Idle =>
-                {
-                    state.pointer
-                }
                 None => return,
             },
         };

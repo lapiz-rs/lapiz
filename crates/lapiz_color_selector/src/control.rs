@@ -12,6 +12,7 @@ use iced_core::{
         Tree,
         tree::{self, Tag},
     },
+    window,
 };
 use iced_runtime::Task;
 use iced_wgpu::{graphics::geometry, primitive};
@@ -284,7 +285,20 @@ impl GradientSurface {
     }
 }
 
+#[derive(Default)]
+struct GradientSurfaceState {
+    pressed: bool,
+}
+
 impl Widget<ColorSelectorMessage, Theme, Renderer> for GradientSurface {
+    fn tag(&self) -> Tag {
+        Tag::of::<GradientSurfaceState>()
+    }
+
+    fn state(&self) -> tree::State {
+        tree::State::new(GradientSurfaceState::default())
+    }
+
     fn size(&self) -> Size<Length> {
         Size::new(self.width, self.height)
     }
@@ -303,7 +317,7 @@ impl Widget<ColorSelectorMessage, Theme, Renderer> for GradientSurface {
 
     fn update(
         &mut self,
-        _tree: &mut Tree,
+        tree: &mut Tree,
         event: &Event,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
@@ -319,24 +333,32 @@ impl Widget<ColorSelectorMessage, Theme, Renderer> for GradientSurface {
             ));
         }
 
-        let Some(position) = cursor.position_over(bounds) else {
-            return;
-        };
-
+        let state = tree.state.downcast_mut::<GradientSurfaceState>();
         match event {
-            Event::Pointer(event) if event.is_primary_press() => {
+            Event::Pointer(event @ pointer::Event::PointerPressed { position, .. })
+                if event.is_primary_press()
+                    && cursor.is_over(bounds)
+                    && !shell.is_event_captured() =>
+            {
+                state.pressed = true;
                 shell.publish(ColorSelectorMessage::SurfacePress(
                     self.surface_target,
-                    position,
+                    *position,
                 ));
                 shell.capture_event();
             }
-            Event::Pointer(event) if event.is_primary_release() => {
+            Event::Pointer(event) if event.is_primary_release() && state.pressed => {
+                state.pressed = false;
                 shell.publish(ColorSelectorMessage::SurfaceRelease);
                 shell.capture_event();
             }
-            Event::Pointer(pointer::Event::PointerMoved { .. }) => {
-                shell.publish(ColorSelectorMessage::SurfaceMove(position));
+            Event::Window(window::Event::Unfocused) if state.pressed => {
+                state.pressed = false;
+                shell.publish(ColorSelectorMessage::SurfaceRelease);
+                shell.request_redraw();
+            }
+            Event::Pointer(pointer::Event::PointerMoved { position, .. }) if state.pressed => {
+                shell.publish(ColorSelectorMessage::SurfaceMove(*position));
                 shell.capture_event();
             }
             _ => {}
