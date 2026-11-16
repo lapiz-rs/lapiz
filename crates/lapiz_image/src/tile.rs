@@ -24,10 +24,10 @@ use lapiz_runtime::global::{FromGlobals, Global, Globals};
 use lapiz_utils::Deref;
 use moxcms::{ColorProfile, TransformOptions};
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, Device, Extent3d, ImageSubresourceRange, Origin3d,
-    Queue, TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture,
-    TextureAspect, TextureDescriptor, TextureDimension, TextureUsages, TextureView,
-    TextureViewDescriptor, TextureViewDimension, util::DeviceExt as _,
+    Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, Extent3d,
+    ImageSubresourceRange, Origin3d, Queue, TexelCopyBufferInfo, TexelCopyBufferLayout,
+    TexelCopyTextureInfo, Texture, TextureAspect, TextureDescriptor, TextureDimension,
+    TextureUsages, TextureView, TextureViewDescriptor, TextureViewDimension, util::DeviceExt as _,
 };
 
 use crate::{
@@ -823,7 +823,7 @@ impl DynamicLayerStorage {
         self.queue.submit([ec.finish()]);
     }
 
-    pub fn copy_pixels_from(&mut self, src: &Self, pixel_rect: IRect) {
+    pub fn copy_pixels_from(&mut self, src: &Self, pixel_rect: IRect, ec: &mut CommandEncoder) {
         if pixel_rect.is_empty() {
             return;
         }
@@ -841,10 +841,12 @@ impl DynamicLayerStorage {
 
         self.allocate_tiles_batch(tiles.iter().copied());
 
-        let mut ec = self.device.create_command_encoder(&Default::default());
-        for tile in tiles {
+        for tile in src.iter_tile_indices() {
             let tile_rect = GpuTileStorage::tile_to_pixel_rect(tile);
             let copy_rect = tile_rect.intersect(pixel_rect);
+            if copy_rect.is_empty() {
+                continue;
+            }
             let offset = (copy_rect.min - tile_rect.min).as_uvec2();
             let size = copy_rect.size().as_uvec2();
             ec.copy_texture_to_texture(
@@ -875,7 +877,6 @@ impl DynamicLayerStorage {
                 },
             );
         }
-        self.queue.submit([ec.finish()]);
     }
 
     pub fn clear_tiles(&mut self, tiles: impl IntoIterator<Item = IVec2>) {

@@ -63,6 +63,7 @@ pub mod stroke_preview;
 
 const MAX_SAMPLES_PER_INPUT_BATCH: u32 = 256;
 const MAX_INPUTS_PER_BATCH: usize = 32;
+const MAX_DABS_PER_SUBMISSION: usize = 8;
 
 /// Metadata describing an active brush stroke session on a specific canvas and target layer.
 pub struct CanvasBrushStrokeSessionInfo {
@@ -596,6 +597,7 @@ impl BrushStrokeWorker {
                         for inputs in inputs.chunks(MAX_INPUTS_PER_BATCH) {
                             if let Err(error) = self.process_input_batch(inputs).await {
                                 log::error!("Brush main effects failed: {error:#}");
+                                return;
                             }
                         }
                     }
@@ -612,127 +614,155 @@ impl BrushStrokeWorker {
     }
 
     async fn process_input_batch(&mut self, inputs: &[PenInput]) -> Result<()> {
-        // sample input
+        self.input_batch.set(PenInputBatch::new(inputs));
+        self.input_batch
+            .write_buffer(&self.state.device, &self.state.queue);
+
         let device = self.state.device.clone();
         let queue = self.state.queue.clone();
-        self.input_batch.set(PenInputBatch::new(inputs));
-        self.input_batch.write_buffer(&device, &queue);
+        let mut has_more = true;
 
-        let mut encoder = device.create_command_encoder(&Default::default());
-        {
-            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("brush input sampling pass"),
-                timestamp_writes: None,
-            });
-            self.input_sample.dispatch(
-                &mut pass,
-                &self.input_sample_prepared,
-                &self.resource_group,
-            );
-        }
-
-        // batched eval
-        let main_pipeline = &self.state.compiled.main;
-        let builtins = main_builtins(&self.state)?;
-        let resources = main_pipeline.prepare_resource_group(&device, &builtins)?;
-        main_pipeline.dispatch_eval(&mut encoder, &self.main_batch_group, &resources);
-        let bounds_buffer = self.batch_bounds.buffer().unwrap();
-        let bounds_staging =
-            create_readback_buffer_and_schedule_copy_buffer(&device, &mut encoder, bounds_buffer);
-        let bounds_readback =
-            readback_buffer_on_submit_async::<BatchBounds, _>(&mut encoder, &bounds_staging, ..);
-        queue.submit([encoder.finish()]);
-
-        // readback bounds and allocate
-        let samples = bounds_readback.into_inner().await??;
-
-        let count = samples.n_samples as usize;
-        if samples.is_overflow != 0 {
-            bail!("Brush sample batch exceeds its output capacity");
-        }
-
-        let mut dab_bounds = Vec::with_capacity(count);
-        let mut tiles = HashSet::new();
-        for entry in samples.entries.iter().take(count) {
-            let rect = IRect {
-                min: entry.bounds.xy(),
-                max: entry.bounds.zw(),
-            };
-
-            if !rect.is_empty() {
-                let dab_tiles = GpuTileStorage::pixel_rect_to_tile(rect);
-                for y in dab_tiles.min.y..=dab_tiles.max.y {
-                    for x in dab_tiles.min.x..=dab_tiles.max.x {
-                        tiles.insert(IVec2::new(x, y));
-                    }
-                }
+        while has_more {
+            let mut encoder = device.create_command_encoder(&Default::default());
+            {
+                let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                    label: Some("brush input sampling pass"),
+                    timestamp_writes: None,
+                });
+                self.input_sample.dispatch(
+                    &mut pass,
+                    &self.input_sample_prepared,
+                    &self.resource_group,
+                );
             }
 
-            dab_bounds.push(rect);
-        }
+            // batched eval
+            let main_pipeline = &self.state.compiled.main;
+            let builtins = main_builtins(&self.state)?;
+            let resources = main_pipeline.prepare_resource_group(&device, &builtins)?;
+            main_pipeline.dispatch_eval(&mut encoder, &self.main_batch_group, &resources);
+            let bounds_buffer = self.batch_bounds.buffer().unwrap();
+            let bounds_staging = create_readback_buffer_and_schedule_copy_buffer(
+                &device,
+                &mut encoder,
+                bounds_buffer,
+            );
+            let bounds_readback = readback_buffer_on_submit_async::<BatchBounds, _>(
+                &mut encoder,
+                &bounds_staging,
+                ..,
+            );
+            queue.submit([encoder.finish()]);
 
-        let mut dab = self.state.compiled.main.prepare_output(&device, &queue)?;
-        let PreparedLayerPixels::ReadWrite {
-            storage: dab_storage,
-            ..
-        } = &mut dab.pixels
-        else {
-            unreachable!();
-        };
-        dab_storage.allocate_tiles_batch(&tiles);
-        let accumulator = self
-            .state
-            .accumulator
-            .as_mut()
-            .context("Missing brush accumulator")?
-            .as_mut::<PreparedLayer>();
-        let PreparedLayerPixels::ReadWrite { storage, .. } = &mut accumulator.pixels else {
-            bail!("Brush accumulator must have writable storage");
-        };
-        storage.allocate_tiles_batch(&tiles);
+            // readback bounds and allocate
+            let samples = bounds_readback.into_inner().await??;
 
-        // run main
-        let builtins = main_builtins(&self.state)?;
-        let resources = main_pipeline.prepare_resource_group(&device, &builtins)?;
-        let output = main_pipeline.prepare_output_group(&device, &dab)?;
-        let PreparedLayerPixels::ReadWrite {
-            storage: dab_storage,
-            ..
-        } = &dab.pixels
-        else {
-            unreachable!();
-        };
-        for (index, dab_bounds) in dab_bounds.into_iter().enumerate() {
-            if dab_bounds.is_empty() {
+            let count = samples.n_samples as usize;
+            has_more = samples.is_overflow != 0;
+            if count == 0 {
                 continue;
             }
-            let mut encoder = device.create_command_encoder(&Default::default());
-            main_pipeline.dispatch_main(
-                &mut encoder,
-                &self.main_batch_group,
-                &resources,
-                &output,
-                self.main_sample_index_offsets[index],
-                dab_bounds,
-            )?;
-            queue.submit([encoder.finish()]);
+
+            let mut dab_bounds = Vec::with_capacity(count);
+            let mut tiles = HashSet::new();
+            for entry in samples.entries.iter().take(count) {
+                let rect = IRect {
+                    min: entry.bounds.xy(),
+                    max: entry.bounds.zw(),
+                };
+
+                if !rect.is_empty() {
+                    let dab_tiles = GpuTileStorage::pixel_rect_to_tile(rect);
+                    for y in dab_tiles.min.y..=dab_tiles.max.y {
+                        for x in dab_tiles.min.x..=dab_tiles.max.x {
+                            tiles.insert(IVec2::new(x, y));
+                        }
+                    }
+                }
+
+                dab_bounds.push(rect);
+            }
+
+            let mut dab = self.state.compiled.main.prepare_output(&device, &queue)?;
+            let PreparedLayerPixels::ReadWrite {
+                storage: dab_storage,
+                ..
+            } = &mut dab.pixels
+            else {
+                unreachable!();
+            };
+            dab_storage.allocate_tiles_batch(&tiles);
             let accumulator = self
                 .state
                 .accumulator
                 .as_mut()
-                .unwrap()
+                .context("Missing brush accumulator")?
                 .as_mut::<PreparedLayer>();
             let PreparedLayerPixels::ReadWrite { storage, .. } = &mut accumulator.pixels else {
+                bail!("Brush accumulator must have writable storage");
+            };
+            storage.allocate_tiles_batch(&tiles);
+
+            // run main
+            let builtins = main_builtins(&self.state)?;
+            let resources = main_pipeline.prepare_resource_group(&device, &builtins)?;
+            let output = main_pipeline.prepare_output_group(&device, &dab)?;
+            let PreparedLayerPixels::ReadWrite {
+                storage: dab_storage,
+                ..
+            } = &dab.pixels
+            else {
                 unreachable!();
             };
-            storage.copy_pixels_from(dab_storage, dab_bounds);
-            let previous = accumulator.pixel_bounds.unwrap_or(IRect::EMPTY);
-            let bounds = if previous.is_empty() {
-                dab_bounds
-            } else {
-                previous.union(dab_bounds)
-            };
-            accumulator.pixel_bounds = Some(bounds);
+            let mut dabs_in_submission = 0;
+            let mut encoder = device.create_command_encoder(&Default::default());
+            for (index, dab_bounds) in dab_bounds.into_iter().enumerate() {
+                if dab_bounds.is_empty() {
+                    continue;
+                }
+                main_pipeline.dispatch_main(
+                    &mut encoder,
+                    &self.main_batch_group,
+                    &resources,
+                    &output,
+                    self.main_sample_index_offsets[index],
+                    dab_bounds,
+                )?;
+                let accumulator = self
+                    .state
+                    .accumulator
+                    .as_mut()
+                    .unwrap()
+                    .as_mut::<PreparedLayer>();
+                let PreparedLayerPixels::ReadWrite { storage, .. } = &mut accumulator.pixels else {
+                    unreachable!();
+                };
+                storage.copy_pixels_from(dab_storage, dab_bounds, &mut encoder);
+                let previous = accumulator.pixel_bounds.unwrap_or(IRect::EMPTY);
+                let bounds = if previous.is_empty() {
+                    dab_bounds
+                } else {
+                    previous.union(dab_bounds)
+                };
+                accumulator.pixel_bounds = Some(bounds);
+                dabs_in_submission += 1;
+                if dabs_in_submission == MAX_DABS_PER_SUBMISSION {
+                    let next = device.create_command_encoder(&Default::default());
+                    queue.submit([mem::replace(&mut encoder, next).finish()]);
+                    dabs_in_submission = 0;
+                }
+            }
+            if dabs_in_submission > 0 {
+                queue.submit([encoder.finish()]);
+            }
+
+            let accumulator = self
+                .state
+                .accumulator
+                .as_ref()
+                .unwrap()
+                .as_ref::<PreparedLayer>();
+            let bounds = accumulator.pixel_bounds.unwrap_or(IRect::EMPTY);
             let mut encoded = encase::StorageBuffer::new(Vec::new());
             encoded.write(&IVec4::new(
                 bounds.min.x,
@@ -742,6 +772,7 @@ impl BrushStrokeWorker {
             ))?;
             queue.write_buffer(&accumulator.bounds, 0, encoded.as_ref());
         }
+
         Ok(())
     }
 
@@ -930,6 +961,8 @@ pub struct InputSampler {
     pub next_dab_index: u32,
     pub distance_to_next_dab: f32,
     pub stroke_distance: f32,
+    /// Input index retained while a segment fills multiple output chunks.
+    pub next_input: u32,
 }
 
 /// Stabilized pen sample with cubic Bezier control points defining a curve segment from the previous input.

@@ -26,6 +26,7 @@ fn graph(dispatch_index: vec2i, brush_sample: ComputedPenInput, main_accumulate_
     //CODEGEN_GRAPH
 }
 
+// TODO: Remove this method
 fn union_bounds(previous: vec4i, next: vec4i) -> vec4i {
     if any(next.xy >= next.zw) { return previous; }
     if any(previous.xy >= previous.zw) { return next; }
