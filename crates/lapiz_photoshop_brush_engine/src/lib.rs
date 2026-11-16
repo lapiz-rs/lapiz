@@ -1,5 +1,5 @@
 use lapiz_assets::AssetAppExt as _;
-use lapiz_brush::editor::BrushEngineEditorRegistry;
+use lapiz_brush::engine::BrushEngineEditorRegistry;
 use lapiz_runtime::{Runtime, plugin::Plugin};
 
 use crate::{asset::PhotoshopBrushSerializer, editor::PhotoshopBrushEditor};

@@ -14,7 +14,7 @@ use lapiz_assets::{
 };
 use lapiz_brush::{
     asset::BrushPreset,
-    editor::{BrushEditorEngine, BrushEditorEngineId, BrushPresetEntry},
+    engine::{BrushEditorEngine, BrushEditorEngineId, BrushPresetEntry},
     instance::BrushPresetInstance,
     render::{
         graph::CanvasResources,

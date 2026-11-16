@@ -4,7 +4,7 @@ use iced_core::{Element, Length, Theme, window};
 use iced_runtime::Task;
 use lapiz_assets::AssetAppExt as _;
 use lapiz_brush::{
-    editor::{BrushEditorEngineId, BrushEngineEditorRegistry, UntypedBrushPresetEntry},
+    engine::{BrushEditorEngineId, BrushEngineEditorRegistry, UntypedBrushPresetEntry},
     tool::CurrentBrushPresetExt as _,
 };
 use lapiz_dock::dock::{Dock, DockId};

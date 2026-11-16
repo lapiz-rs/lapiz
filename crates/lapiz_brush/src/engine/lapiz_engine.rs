@@ -32,7 +32,7 @@ use uuid::Uuid;
 
 use crate::{
     asset::{BrushPreset, BrushPresetMetadata},
-    editor::{BrushEditorEngine, BrushEditorEngineId, BrushPresetEntry},
+    engine::{BrushEditorEngine, BrushEditorEngineId, BrushPresetEntry},
     instance::{
         BrushParameter, BrushPresetInstance, main_effect_resources, postprocess_effect_resources,
         spacing_effect_resources,
