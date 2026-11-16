@@ -8,7 +8,6 @@ use anyhow::{Result, anyhow};
 use chrono::Utc;
 use dashmap::DashMap;
 use lapiz_runtime::global::Global;
-use path_clean::PathClean as _;
 
 use crate::{
     asset::{Asset, AssetHandle, AssetId, AssetMetadata, ErasedAsset as _, UntypedAssetId},
@@ -224,19 +223,18 @@ impl AssetRegistry {
         self.inner.index_db.get_tags(filter)
     }
 
-    pub fn add_tag(&self, mut tag: Tag) -> Result<()> {
-        let bundle = self
-            .inner
-            .bundles
-            .get(&tag.bundle_id)
-            .ok_or_else(|| anyhow!("Asset bundle not found for bundle ID: {}", tag.bundle_id))?
-            .clone();
-        tag.relative_path = PathBuf::from(&tag.relative_path)
-            .clean()
-            .to_string_lossy()
-            .replace('\\', "/");
-        bundle.add_tag(&tag)?;
-        self.inner.index_db.add_tag(tag)
+    pub fn write_tag(&self, tag: &Tag) -> Result<()> {
+        let bundle = self.inner.bundles.get(&tag.bundle_id).ok_or_else(|| {
+            anyhow!(
+                "Asset bundle not found for bundle ID: {} (tag ID: {})",
+                tag.bundle_id,
+                tag.id
+            )
+        })?;
+        self.inner.index_db.update_tag(tag.clone())?;
+        let tag_parents = self.inner.index_db.get_parent_tags(&tag.id)?;
+        bundle.write_tag(tag, tag_parents.into_iter().map(|t| t.id).collect())?;
+        Ok(())
     }
 
     pub fn delete_tag(&self, tag_id: &TagId) -> Result<()> {
@@ -269,6 +267,7 @@ fn scan_tags(
 ) -> Result<(Vec<Tag>, HashMap<TagId, BTreeSet<TagId>>)> {
     let mut tags = Vec::new();
     let mut tag_parents = HashMap::new();
+
     for path in manifest.tags.values() {
         let tag = read_tag_file(assets_root, path, &bundle_id, bundle)?;
         tag_parents.insert(tag.id, tag.parents);
@@ -280,6 +279,7 @@ fn scan_tags(
             asset_ty: tag.asset_ty,
         });
     }
+
     Ok((tags, tag_parents))
 }
 
@@ -377,7 +377,6 @@ mod tests {
         fs::write(tags_root.join("test.tag"), toml::to_string(&tag)?)?;
 
         let assets_bundle = AssetDirectory::new(&assets_root)?;
-        let assets_bundle_id = AssetBundle::metadata(&assets_bundle)?.bundle_id;
         let tags_bundle = AssetDirectory::new(&tags_root)?;
         let tags_bundle_id = AssetBundle::metadata(&tags_bundle)?.bundle_id;
         let registry =
@@ -411,20 +410,23 @@ mod tests {
         );
         assert!(handle.add_tag(&tag.id).is_err());
 
-        let added_tag = Tag {
-            id: TagId::new(Uuid::new_v4()),
-            bundle_id: assets_bundle_id,
-            relative_path: "runtime/added.tag".to_string(),
-            name: "Added at runtime".to_string(),
-            asset_ty: None,
-        };
-        registry.add_tag(added_tag.clone())?;
-        assert!(assets_root.join("runtime/added.tag").is_file());
-        let stored_tag = registry.index_db().get_tag(added_tag.id)?;
-        assert_eq!(stored_tag.bundle_id, added_tag.bundle_id);
-        assert_eq!(stored_tag.relative_path, added_tag.relative_path);
-        assert_eq!(stored_tag.name, added_tag.name);
-        assert_eq!(stored_tag.asset_ty, added_tag.asset_ty);
+        let mut updated_tag = registry.index_db().get_tag(tag.id)?;
+        updated_tag.name = "Updated at runtime".to_string();
+        updated_tag.asset_ty = None;
+        registry.write_tag(&updated_tag)?;
+
+        let stored_tag = registry.index_db().get_tag(tag.id)?;
+        assert_eq!(stored_tag.bundle_id, updated_tag.bundle_id);
+        assert_eq!(stored_tag.relative_path, updated_tag.relative_path);
+        assert_eq!(stored_tag.name, updated_tag.name);
+        assert_eq!(stored_tag.asset_ty, updated_tag.asset_ty);
+
+        let written_tag =
+            toml::from_str::<TagFile>(&fs::read_to_string(tags_root.join("test.tag"))?)?;
+        assert_eq!(written_tag.id, updated_tag.id);
+        assert_eq!(written_tag.name, updated_tag.name);
+        assert_eq!(written_tag.asset_ty, updated_tag.asset_ty);
+        assert_eq!(handle.read_tags()?, BTreeSet::from([tag.id]));
 
         drop(handles);
         drop(registry);

@@ -796,17 +796,23 @@ mod tests {
 
         cache.write_asset_tags(&asset_id, &[])?;
         assert!(cache.read_asset_tags(&asset_id)?.tags.is_empty());
-        assert!(
-            cache
-                .add_tag(&Tag {
-                    id: TagId::new(Uuid::new_v4()),
-                    bundle_id,
-                    relative_path: "new.tag".to_string(),
-                    name: "New".to_string(),
-                    asset_ty: None,
-                })
-                .is_err()
-        );
+        let tag = Tag {
+            id: TagId::new(Uuid::new_v4()),
+            bundle_id,
+            relative_path: "new.tag".to_string(),
+            name: "New".to_string(),
+            asset_ty: None,
+        };
+        let parents = BTreeSet::from([base_tag]);
+        cache.write_tag(&tag, parents.clone())?;
+
+        let modified_tag_path =
+            modified_bundle_absolute_path(&root, &bundle_id).join(&tag.relative_path);
+        let written_tag = toml::from_str::<TagFile>(&fs::read_to_string(modified_tag_path)?)?;
+        assert_eq!(written_tag.id, tag.id);
+        assert_eq!(written_tag.name, tag.name);
+        assert_eq!(written_tag.asset_ty, tag.asset_ty);
+        assert_eq!(written_tag.parents, parents);
 
         fs::remove_dir_all(root)?;
         Ok(())

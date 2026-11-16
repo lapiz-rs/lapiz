@@ -605,6 +605,7 @@ ORDER BY name ASC, id ASC;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
+    // TODO Should we change the return value of these three methods to Result<BTreeSet<TagId>>?
     pub fn get_child_tags(&self, parent_id: &TagId) -> Result<Vec<Tag>> {
         let conn = self.conn.lock();
         let mut statement = conn.prepare(
@@ -786,6 +787,25 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0);
             params![
                 tag.id,
                 tag.bundle_id,
+                tag.relative_path,
+                tag.name,
+                tag.asset_ty,
+                Utc::now(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_tag(&self, tag: Tag) -> Result<()> {
+        let conn = self.conn.lock();
+        conn.execute(
+            r#"
+UPDATE tags
+SET relative_path = ?2, name = ?3, asset_ty = ?4, last_modified = ?5
+WHERE id = ?1 AND is_deleted = 0;
+            "#,
+            params![
+                tag.id,
                 tag.relative_path,
                 tag.name,
                 tag.asset_ty,
