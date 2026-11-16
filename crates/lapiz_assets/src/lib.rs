@@ -67,14 +67,15 @@ impl Plugin for AssetsPlugin {
                     .clone()
                     .into(),
             )?;
-            registry.add_erased_bundles(all_bundles)?;
-            let loaded_bundle_ids = registry
-                .bundles()
-                .map(|bundle| bundle.metadata().bundle_id)
-                .collect::<HashSet<_>>();
+            let loaded_bundle_ids = all_bundles
+                .iter()
+                .map(|bundle| bundle.metadata().map(|metadata| metadata.bundle_id))
+                .collect::<Result<HashSet<_>>>()?;
+            // Remove stale parents before resolving references and checking cycles.
             registry
                 .index_db()
                 .remove_unloaded_bundles(&loaded_bundle_ids)?;
+            registry.add_erased_bundles(all_bundles)?;
             Result::<AssetRegistry, anyhow::Error>::Ok(registry)
         };
 

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -144,7 +144,12 @@ impl AssetRegistry {
             &manifest,
             &self.inner.serializers,
         )?;
-        let tags = scan_tags(bundle.as_ref(), &manifest, metadata.bundle_id)?;
+        let (tags, tag_parents) = scan_tags(
+            &self.inner.root,
+            bundle.as_ref(),
+            &manifest,
+            metadata.bundle_id,
+        )?;
         let asset_tags = scan_asset_tags(
             self.inner.root.as_path(),
             &metadata.bundle_id,
@@ -159,6 +164,7 @@ impl AssetRegistry {
             manifest,
             assets,
             tags,
+            tag_parents,
             asset_tags,
         })
     }
@@ -256,24 +262,25 @@ impl AssetRegistry {
 }
 
 fn scan_tags(
+    assets_root: &Path,
     bundle: &dyn ErasedAssetBundle,
     manifest: &BundleManifest,
     bundle_id: BundleId,
-) -> Result<Vec<Tag>> {
-    manifest
-        .tags
-        .values()
-        .map(|path| {
-            let tag = read_tag_file(path, bundle)?;
-            Ok(Tag {
-                id: tag.id,
-                bundle_id,
-                relative_path: path.to_string_lossy().replace('\\', "/"),
-                name: tag.name,
-                asset_ty: tag.asset_ty,
-            })
-        })
-        .collect()
+) -> Result<(Vec<Tag>, HashMap<TagId, BTreeSet<TagId>>)> {
+    let mut tags = Vec::new();
+    let mut tag_parents = HashMap::new();
+    for path in manifest.tags.values() {
+        let tag = read_tag_file(assets_root, path, &bundle_id, bundle)?;
+        tag_parents.insert(tag.id, tag.parents);
+        tags.push(Tag {
+            id: tag.id,
+            bundle_id,
+            relative_path: path.to_string_lossy().replace('\\', "/"),
+            name: tag.name,
+            asset_ty: tag.asset_ty,
+        });
+    }
+    Ok((tags, tag_parents))
 }
 
 fn scan_asset_tags(

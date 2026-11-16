@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     ffi::OsStr,
     fs::{self, File, create_dir_all, metadata},
     io::Write as _,
@@ -69,6 +69,8 @@ pub(crate) struct BundleSnapshot {
     pub manifest: BundleManifest,
     pub assets: Vec<AssetMetadata>,
     pub tags: Vec<Tag>,
+    /// Direct parents for each scanned tag, including tags with no parents.
+    pub tag_parents: HashMap<TagId, BTreeSet<TagId>>,
     pub asset_tags: HashMap<UntypedAssetId, AssetTags>,
 }
 
@@ -250,6 +252,52 @@ impl AssetBundleCache {
         Ok(())
     }
 
+    pub fn read_tag(&self, id: &TagId) -> Result<TagFile> {
+        let path = self
+            .manifest
+            .read()
+            .tags
+            .get(id)
+            .cloned()
+            .ok_or_else(|| anyhow!("Tag path not found for tag ID: {id}"))?;
+
+        read_tag_file(
+            &self.assets_root,
+            &path,
+            &self.metadata.bundle_id,
+            self.bundle.as_ref(),
+        )
+    }
+
+    pub fn write_tag(&self, id: &TagId, tag: &TagFile) -> Result<()> {
+        if tag.id != *id {
+            return Err(anyhow!("Tag ID mismatch: expected {id}, got {}", tag.id));
+        }
+
+        let path = self
+            .manifest
+            .read()
+            .tags
+            .get(id)
+            .cloned()
+            .ok_or_else(|| anyhow!("Tag path not found for tag ID: {id}"))?;
+
+        if self.bundle.is_readonly() {
+            let modified_path = self.absolute_modified_path(&path);
+
+            if let Some(parent) = modified_path.parent() {
+                create_dir_all(parent)?;
+            }
+
+            let content = toml::to_string(tag)?;
+            fs::write(modified_path, content)?;
+        } else {
+            self.bundle.add_tag(&path, tag)?;
+        }
+
+        Ok(())
+    }
+
     pub fn absolute_modified_path(&self, path: impl AsRef<Path>) -> PathBuf {
         modified_bundle_absolute_path(&self.assets_root, &self.metadata.bundle_id).join(path)
     }
@@ -270,7 +318,22 @@ pub(crate) fn read_asset_file(
     }
 }
 
-pub(crate) fn read_tag_file(tag_path: &Path, bundle: &dyn ErasedAssetBundle) -> Result<TagFile> {
+pub(crate) fn read_tag_file(
+    assets_root: &Path,
+    tag_path: &Path,
+    bundle_id: &BundleId,
+    bundle: &dyn ErasedAssetBundle,
+) -> Result<TagFile> {
+    if bundle.is_readonly() {
+        let modified_path = modified_bundle_absolute_path(assets_root, bundle_id).join(tag_path);
+
+        if modified_path.exists() {
+            let content = fs::read_to_string(modified_path)?;
+            let tag = toml::from_str::<TagFile>(&content)?;
+            return Ok(tag);
+        }
+    }
+
     bundle.read_tag(tag_path)
 }
 
@@ -723,6 +786,7 @@ mod tests {
                 },
                 assets: Vec::new(),
                 tags: Vec::new(),
+                tag_parents: HashMap::new(),
                 asset_tags: HashMap::new(),
             },
             Arc::new(AssetSerializerRegistry::default()),
