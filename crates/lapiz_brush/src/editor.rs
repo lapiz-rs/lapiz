@@ -20,9 +20,8 @@ use uuid::Uuid;
 
 use crate::{
     engine::{
-        BrushEngine as _, BrushEngineId, BrushEngineSessionId,
-        BrushEngineRegistry, ErasedBrushEngine, UntypedBrushPresetEntry,
-        lapiz_engine::LapizBrushEngineEditor,
+        BrushEngine as _, BrushEngineId, BrushEngineRegistry, BrushEngineSessionId,
+        ErasedBrushEngine, UntypedBrushPresetEntry, lapiz_engine::LapizBrushEngineEditor,
     },
     tool::CurrentBrushPresetExt as _,
 };
@@ -291,9 +290,7 @@ impl BrushEditor {
         let Some((engine_id, entry)) = self.brushes.get(index) else {
             return Ok(());
         };
-        let mut engine = globals
-            .global::<BrushEngineRegistry>()
-            .create(*engine_id)?;
+        let mut engine = globals.global::<BrushEngineRegistry>().create(*engine_id)?;
         let assets = globals.assets().clone();
         engine.load_brush(entry.id, &assets, globals)?;
 
@@ -307,9 +304,7 @@ impl BrushEditor {
     }
 
     fn new_brush(&mut self, engine_id: BrushEngineId, globals: &mut Globals) -> Result<()> {
-        let mut engine = globals
-            .global::<BrushEngineRegistry>()
-            .create(engine_id)?;
+        let mut engine = globals.global::<BrushEngineRegistry>().create(engine_id)?;
         let assets = globals.assets().clone();
         let id = engine.new_brush(&assets, globals)?;
         let entry = engine

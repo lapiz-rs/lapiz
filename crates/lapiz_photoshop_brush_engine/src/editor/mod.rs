@@ -207,7 +207,11 @@ impl BrushEngine for PhotoshopBrushEngine {
         content.into()
     }
 
-    fn editor_update(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
+    fn editor_update(
+        &mut self,
+        message: Self::Message,
+        globals: &mut Globals,
+    ) -> Task<Self::Message> {
         match message {
             PhotoshopBrushEngineMessage::SelectSection(section) => self.section = section,
             PhotoshopBrushEngineMessage::ToggleSection(section, enabled) => {
