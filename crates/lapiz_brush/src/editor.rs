@@ -21,7 +21,7 @@ use uuid::Uuid;
 use crate::{
     engine::{
         BrushEngine as _, BrushEngineId, BrushEngineRegistry, BrushEngineSessionId,
-        ErasedBrushEngine, UntypedBrushPresetEntry, lapiz_engine::LapizBrushEngineEditor,
+        ErasedBrushEngine, UntypedBrushPresetEntry, lapiz_engine::LapizBrushEngine,
     },
     tool::CurrentBrushPresetExt as _,
 };
@@ -126,14 +126,14 @@ impl WindowView for BrushEditor {
 
         let mut create_buttons = column![
             button(label(t!("new_brush")))
-                .on_press(BrushEditorMessage::NewBrush(LapizBrushEngineEditor::id())),
+                .on_press(BrushEditorMessage::NewBrush(LapizBrushEngine::id())),
         ]
         .gap(4.0);
         let mut additional_engines = globals
             .global::<BrushEngineRegistry>()
             .factories
             .iter()
-            .filter(|(id, _)| **id != LapizBrushEngineEditor::id())
+            .filter(|(id, _)| **id != LapizBrushEngine::id())
             .collect::<Vec<_>>();
         additional_engines.sort_by_key(|(id, _)| id.0);
         for (id, registration) in additional_engines {
