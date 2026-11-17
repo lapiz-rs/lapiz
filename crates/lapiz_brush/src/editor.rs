@@ -20,8 +20,9 @@ use uuid::Uuid;
 
 use crate::{
     engine::{
-        BrushEngine as _, BrushEngineId, BrushEngineRegistry, BrushEngineSessionId,
-        ErasedBrushEngine, UntypedBrushPresetEntry, lapiz_engine::LapizBrushEngine,
+        BrushEngine as _, BrushEngineId, BrushEngineRegistry, BrushEngineRegistryExt,
+        BrushEngineSessionId, ErasedBrushEngine, UntypedBrushPresetEntry,
+        lapiz_engine::LapizBrushEngine,
     },
     tool::CurrentBrushPresetExt as _,
 };
@@ -124,22 +125,20 @@ impl WindowView for BrushEditor {
             })
             .collect::<Vec<_>>();
 
-        let mut create_buttons = column![
-            button(label(t!("new_brush")))
-                .on_press(BrushEditorMessage::NewBrush(LapizBrushEngine::id())),
-        ]
-        .gap(4.0);
+        let mut create_buttons = column![].gap(4.0);
         let mut additional_engines = globals
             .global::<BrushEngineRegistry>()
             .factories
             .iter()
-            .filter(|(id, _)| **id != LapizBrushEngine::id())
             .collect::<Vec<_>>();
         additional_engines.sort_by_key(|(id, _)| id.0);
         for (id, registration) in additional_engines {
             create_buttons = create_buttons.push(
-                button(label(t!("new_engine_brush", engine = &registration.label)))
-                    .on_press(BrushEditorMessage::NewBrush(*id)),
+                button(label(t!(
+                    "new_engine_brush",
+                    engine = registration.label().clone()
+                )))
+                .on_press(BrushEditorMessage::NewBrush(*id)),
             );
         }
 
@@ -290,9 +289,8 @@ impl BrushEditor {
         let Some((engine_id, entry)) = self.brushes.get(index) else {
             return Ok(());
         };
-        let mut engine = globals.global::<BrushEngineRegistry>().create(*engine_id)?;
-        let assets = globals.assets().clone();
-        engine.load_brush(entry.id, &assets, globals)?;
+        let factory = globals.brush_engine_registry().get(engine_id)?;
+        let engine = factory.load_brush(entry.id, globals.assets())?;
 
         self.selected = Some(SelectedBrushEditor {
             index,
@@ -304,19 +302,18 @@ impl BrushEditor {
     }
 
     fn new_brush(&mut self, engine_id: BrushEngineId, globals: &mut Globals) -> Result<()> {
-        let mut engine = globals.global::<BrushEngineRegistry>().create(engine_id)?;
+        let factory = globals.brush_engine_registry().get(&engine_id)?;
         let assets = globals.assets().clone();
-        let id = engine.new_brush(&assets, globals)?;
-        let entry = engine
-            .query_brushes(&assets)?
-            .into_iter()
-            .find(|entry| entry.id == id)
-            .context("The new brush must appear in its engine's brush list")?;
+        let engine = factory.new_brush(&assets)?;
         let index = self.brushes.len();
+        let entry = UntypedBrushPresetEntry {
+            id: engine.brush_asset_id(),
+            name: t!("new_brush"),
+        };
         self.brushes.push((engine_id, entry));
         self.selected = Some(SelectedBrushEditor {
             index,
-            asset_id: id,
+            asset_id: engine.brush_asset_id(),
             session: BrushEngineSessionId::new(Uuid::new_v4()),
             engine,
         });
@@ -327,9 +324,14 @@ impl BrushEditor {
         let Some(selected) = self.selected.as_ref() else {
             return;
         };
-        let Ok(entries) = selected.engine.query_brushes(globals.assets()).logged_err() else {
+        let factory = globals
+            .brush_engine_registry()
+            .get(&selected.engine.id())
+            .unwrap();
+        let Ok(entries) = factory.query_brushes(globals.assets()).logged_err() else {
             return;
         };
+
         let engine_id = self.brushes[selected.index].0;
         let mut names = entries
             .into_iter()

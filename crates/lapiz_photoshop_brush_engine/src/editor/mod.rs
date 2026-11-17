@@ -44,7 +44,7 @@ type EditorElement<'a> = Element<'a, PhotoshopBrushEngineMessage, Theme, Rendere
 
 pub struct PhotoshopBrushEngine {
     brush: PhotoshopBrushPreset,
-    handle: Option<AssetHandle<PhotoshopBrushPreset>>,
+    handle: AssetHandle<PhotoshopBrushPreset>,
     section: Section,
     dirty: bool,
     revision: u64,
@@ -64,22 +64,6 @@ pub enum PhotoshopBrushEngineMessage {
     PreviewReady(u64, Result<Handle>),
 }
 
-impl Default for PhotoshopBrushEngine {
-    fn default() -> Self {
-        Self {
-            brush: PhotoshopBrushPreset::default(),
-            handle: None,
-            section: Section::BrushTip,
-            dirty: false,
-            revision: 0,
-            preview: None,
-            preview_revision: None,
-            preview_error: None,
-            status: None,
-        }
-    }
-}
-
 impl BrushEngine for PhotoshopBrushEngine {
     type Brush = PhotoshopBrushPreset;
     type Message = PhotoshopBrushEngineMessage;
@@ -92,7 +76,7 @@ impl BrushEngine for PhotoshopBrushEngine {
         t!("photoshop_brush_engine")
     }
 
-    fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>> {
+    fn query_brushes(assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>> {
         assets
             .all_handles_of::<PhotoshopBrushPreset>()?
             .into_iter()
@@ -105,28 +89,25 @@ impl BrushEngine for PhotoshopBrushEngine {
             .collect()
     }
 
-    fn load_brush(
-        &mut self,
-        asset: AssetId<Self::Brush>,
-        assets: &AssetRegistry,
-        _globals: &mut Globals,
-    ) -> Result<()> {
+    fn load_brush(asset: AssetId<Self::Brush>, assets: &AssetRegistry) -> Result<Self> {
         let handle = assets.handle(asset)?;
         let brush = handle.get()?.as_ref().clone();
-        self.brush = brush;
-        self.handle = Some(handle);
-        self.section = Section::BrushTip;
-        self.dirty = false;
-        self.status = None;
-        self.invalidate_preview();
-        Ok(())
+        let mut this = Self {
+            brush,
+            handle,
+            section: Section::BrushTip,
+            dirty: false,
+            revision: 0,
+            preview: None,
+            preview_revision: None,
+            preview_error: None,
+            status: None,
+        };
+        this.invalidate_preview();
+        Ok(this)
     }
 
-    fn new_brush(
-        &mut self,
-        assets: &AssetRegistry,
-        globals: &mut Globals,
-    ) -> Result<AssetId<Self::Brush>> {
+    fn new_brush(assets: &AssetRegistry) -> Result<Self> {
         let bundle = assets
             .bundles()
             .find(|bundle| !bundle.is_readonly())
@@ -138,9 +119,13 @@ impl BrushEngine for PhotoshopBrushEngine {
             PhotoshopBrushSerializer::file_extension()
         );
         let id = assets.add_asset(bundle, path, Arc::new(PhotoshopBrushPreset::default()))?;
-        self.load_brush(id, assets, globals)?;
-        self.dirty = true;
-        Ok(id)
+        let mut this = Self::load_brush(id, assets)?;
+        this.dirty = true;
+        Ok(this)
+    }
+
+    fn brush_asset_id(&self) -> AssetId<Self::Brush> {
+        self.handle.id()
     }
 
     fn compile_brush(&self, _globals: &Globals) -> Result<BrushPreset> {
@@ -287,12 +272,8 @@ impl PhotoshopBrushEngine {
     }
 
     fn save(&mut self) -> Result<()> {
-        let handle = self
-            .handle
-            .as_ref()
-            .context("A brush asset is required for saving")?;
-        handle.update(self.brush.clone())?;
-        handle.write()?;
+        self.handle.update(self.brush.clone())?;
+        self.handle.write()?;
         self.dirty = false;
         Ok(())
     }
@@ -336,9 +317,9 @@ impl PhotoshopBrushEngine {
 
     fn render_preview(&self, globals: &Globals) -> Result<Task<Result<Handle>>> {
         let brush = &self.brush;
-        let asset_id = self.handle.as_ref().map(|h| h.id().into_untyped());
+        let asset_id = self.handle.id().into_untyped();
         let preset = brush.compile()?;
-        let instance = BrushPresetInstance::new(&preset, asset_id, globals.assets().clone())?;
+        let instance = BrushPresetInstance::new(&preset, Some(asset_id), globals.assets().clone())?;
         let (width, height) = (512, 128);
         let task = create_stroke_preview(
             &instance,

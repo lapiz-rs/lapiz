@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap};
+use std::{any::Any, collections::HashMap, marker::PhantomData};
 
 use anyhow::{Context as _, Result};
 use iced_core::{Element, Theme};
@@ -35,18 +35,14 @@ pub trait BrushEngine: 'static {
 
     fn id() -> BrushEngineId;
     fn label() -> String;
-    fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>>;
-    fn load_brush(
-        &mut self,
-        asset: AssetId<Self::Brush>,
-        assets: &AssetRegistry,
-        globals: &mut Globals,
-    ) -> Result<()>;
-    fn new_brush(
-        &mut self,
-        assets: &AssetRegistry,
-        globals: &mut Globals,
-    ) -> Result<AssetId<Self::Brush>>;
+    fn query_brushes(assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>>;
+    fn load_brush(asset: AssetId<Self::Brush>, assets: &AssetRegistry) -> Result<Self>
+    where
+        Self: Sized;
+    fn new_brush(assets: &AssetRegistry) -> Result<Self>
+    where
+        Self: Sized;
+    fn brush_asset_id(&self) -> AssetId<Self::Brush>;
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset>;
     fn editor_view<'a>(
         &'a self,
@@ -63,18 +59,9 @@ pub trait BrushEngine: 'static {
 }
 
 pub trait ErasedBrushEngine: 'static {
-    fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>>;
-    fn load_brush(
-        &mut self,
-        asset: UntypedAssetId,
-        assets: &AssetRegistry,
-        globals: &mut Globals,
-    ) -> Result<()>;
-    fn new_brush(
-        &mut self,
-        assets: &AssetRegistry,
-        globals: &mut Globals,
-    ) -> Result<UntypedAssetId>;
+    fn id(&self) -> BrushEngineId;
+    fn label(&self) -> String;
+    fn brush_asset_id(&self) -> UntypedAssetId;
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset>;
     fn editor_view<'a>(
         &'a self,
@@ -89,33 +76,16 @@ pub trait ErasedBrushEngine: 'static {
 }
 
 impl<T: BrushEngine> ErasedBrushEngine for T {
-    fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>> {
-        BrushEngine::query_brushes(self, assets).map(|entries| {
-            entries
-                .into_iter()
-                .map(|entry| UntypedBrushPresetEntry {
-                    id: entry.id.into_untyped(),
-                    name: entry.name,
-                })
-                .collect()
-        })
+    fn id(&self) -> BrushEngineId {
+        T::id()
     }
 
-    fn load_brush(
-        &mut self,
-        asset: UntypedAssetId,
-        assets: &AssetRegistry,
-        globals: &mut Globals,
-    ) -> Result<()> {
-        BrushEngine::load_brush(self, asset.into_typed(), assets, globals)
+    fn label(&self) -> String {
+        T::label()
     }
 
-    fn new_brush(
-        &mut self,
-        assets: &AssetRegistry,
-        globals: &mut Globals,
-    ) -> Result<UntypedAssetId> {
-        BrushEngine::new_brush(self, assets, globals).map(|id| id.into_untyped())
+    fn brush_asset_id(&self) -> UntypedAssetId {
+        self.brush_asset_id().into_untyped()
     }
 
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset> {
@@ -148,35 +118,84 @@ impl<T: BrushEngine> ErasedBrushEngine for T {
     }
 }
 
-#[derive(Default)]
-pub struct BrushEngineRegistry {
-    pub factories: HashMap<BrushEngineId, BrushEngineRegistration>,
+pub trait BrushEngineFactory {
+    fn id(&self) -> BrushEngineId;
+    fn label(&self) -> String;
+    fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>>;
+    fn load_brush(
+        &self,
+        asset: UntypedAssetId,
+        assets: &AssetRegistry,
+    ) -> Result<Box<dyn ErasedBrushEngine>>;
+    fn new_brush(&self, assets: &AssetRegistry) -> Result<Box<dyn ErasedBrushEngine>>;
 }
 
-pub struct BrushEngineRegistration {
-    pub label: String,
-    pub create: Box<dyn Fn() -> Box<dyn ErasedBrushEngine>>,
+pub struct BrushEngineFactoryInstance<E: BrushEngine> {
+    _marker: PhantomData<E>,
+}
+
+impl<E: BrushEngine> Default for BrushEngineFactoryInstance<E> {
+    fn default() -> Self {
+        Self {
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<E: BrushEngine> BrushEngineFactory for BrushEngineFactoryInstance<E> {
+    fn id(&self) -> BrushEngineId {
+        E::id()
+    }
+
+    fn label(&self) -> String {
+        E::label()
+    }
+
+    fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>> {
+        E::query_brushes(assets).map(|brushes| {
+            brushes
+                .into_iter()
+                .map(|entry| UntypedBrushPresetEntry {
+                    id: entry.id.into_untyped(),
+                    name: entry.name,
+                })
+                .collect()
+        })
+    }
+
+    fn load_brush(
+        &self,
+        asset: UntypedAssetId,
+        assets: &AssetRegistry,
+    ) -> Result<Box<dyn ErasedBrushEngine>> {
+        E::load_brush(asset.into_typed(), assets).map(|engine| Box::new(engine) as Box<_>)
+    }
+
+    fn new_brush(&self, assets: &AssetRegistry) -> Result<Box<dyn ErasedBrushEngine>> {
+        E::new_brush(assets).map(|engine| Box::new(engine) as Box<_>)
+    }
+}
+
+#[derive(Default)]
+pub struct BrushEngineRegistry {
+    pub factories: HashMap<BrushEngineId, Box<dyn BrushEngineFactory>>,
 }
 
 impl Global for BrushEngineRegistry {}
 
 impl BrushEngineRegistry {
-    pub fn register<T: BrushEngine + Default>(&mut self) {
+    pub fn register<T: BrushEngine>(&mut self) {
         self.factories.insert(
             T::id(),
-            BrushEngineRegistration {
-                label: T::label(),
-                create: Box::new(|| Box::new(T::default())),
-            },
+            Box::new(BrushEngineFactoryInstance::<T>::default()),
         );
     }
 
-    pub fn create(&self, id: BrushEngineId) -> Result<Box<dyn ErasedBrushEngine>> {
-        let factory = self
-            .factories
-            .get(&id)
-            .with_context(|| format!("Brush editor engine {} must be registered", id.0))?;
-        Ok((factory.create)())
+    pub fn get(&self, engine_id: &BrushEngineId) -> Result<&dyn BrushEngineFactory> {
+        self.factories
+            .get(engine_id)
+            .map(|b| b.as_ref())
+            .context("Brush engine not found")
     }
 
     pub fn all_brushes(
@@ -187,7 +206,7 @@ impl BrushEngineRegistry {
             .factories
             .iter()
             .flat_map(|(engine_id, factory)| {
-                let brushes = (factory.create)()
+                let brushes = factory
                     .query_brushes(assets)
                     .logged_err()
                     .unwrap_or_default();
@@ -197,6 +216,21 @@ impl BrushEngineRegistry {
             .collect::<Vec<_>>();
         brushes.sort_by(|(_, brush_a), (_, brush_b)| brush_a.name.cmp(&brush_b.name));
         brushes
+    }
+}
+
+pub trait BrushEngineRegistryExt {
+    fn brush_engine_registry(&self) -> &BrushEngineRegistry;
+    fn brush_engine_registry_mut(&mut self) -> &mut BrushEngineRegistry;
+}
+
+impl BrushEngineRegistryExt for Globals {
+    fn brush_engine_registry(&self) -> &BrushEngineRegistry {
+        self.global::<BrushEngineRegistry>()
+    }
+
+    fn brush_engine_registry_mut(&mut self) -> &mut BrushEngineRegistry {
+        self.global_mut::<BrushEngineRegistry>()
     }
 }
 

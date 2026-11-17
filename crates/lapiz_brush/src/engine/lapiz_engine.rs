@@ -64,7 +64,7 @@ impl BrushEffectSlot {
 }
 
 pub struct LapizBrushEngine {
-    selected: Option<SelectedBrush>,
+    selected: SelectedBrush,
     active_slot: BrushEffectSlot,
     name_buffer: String,
     dirty: bool,
@@ -117,17 +117,6 @@ pub enum LapizBrushEngineMessage {
     Parameters(ParametersEditorMessage),
 }
 
-impl Default for LapizBrushEngine {
-    fn default() -> Self {
-        Self {
-            selected: None,
-            active_slot: BrushEffectSlot::Main,
-            name_buffer: String::new(),
-            dirty: false,
-        }
-    }
-}
-
 impl BrushEngine for LapizBrushEngine {
     type Message = LapizBrushEngineMessage;
     type Brush = BrushPreset;
@@ -140,7 +129,7 @@ impl BrushEngine for LapizBrushEngine {
         t!("lapiz_brush_engine")
     }
 
-    fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>> {
+    fn query_brushes(assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>> {
         Ok(assets
             .all_handles_of::<BrushPreset>()?
             .into_iter()
@@ -154,12 +143,10 @@ impl BrushEngine for LapizBrushEngine {
             .collect())
     }
 
-    fn load_brush(
-        &mut self,
-        asset: AssetId<Self::Brush>,
-        assets: &AssetRegistry,
-        _globals: &mut Globals,
-    ) -> Result<()> {
+    fn load_brush(asset: AssetId<Self::Brush>, assets: &AssetRegistry) -> Result<Self>
+    where
+        Self: Sized,
+    {
         let handle = assets.handle(asset)?;
         let mut instance = BrushPresetInstance::new(
             handle.get()?.as_ref(),
@@ -178,22 +165,19 @@ impl BrushEngine for LapizBrushEngine {
                 .update(effect, EffectEditorMessage::OpenPass(pass_id));
         }
 
-        self.name_buffer = instance.metadata().name.clone();
-        self.selected = Some(SelectedBrush {
-            handle,
-            instance,
-            editor_states,
-        });
-        self.active_slot = BrushEffectSlot::Main;
-        self.dirty = false;
-        Ok(())
+        Ok(Self {
+            name_buffer: instance.metadata().name.clone(),
+            selected: SelectedBrush {
+                handle,
+                instance,
+                editor_states,
+            },
+            active_slot: BrushEffectSlot::Main,
+            dirty: false,
+        })
     }
 
-    fn new_brush(
-        &mut self,
-        assets: &AssetRegistry,
-        globals: &mut Globals,
-    ) -> Result<AssetId<Self::Brush>> {
+    fn new_brush(assets: &AssetRegistry) -> Result<Self> {
         let preset = BrushPreset {
             metadata: BrushPresetMetadata {
                 name: "[Unnamed Brush]".into(),
@@ -210,33 +194,31 @@ impl BrushEngine for LapizBrushEngine {
             .context("A writable asset bundle is required for a new brush preset")?;
         let path = format!("unnamed_brush_{}.lapiz", Uuid::new_v4());
         let id = assets.add_asset(bundle, path, Arc::new(preset))?;
-        self.load_brush(id, assets, globals)?;
-        self.dirty = true;
-        Ok(id)
+        let mut this = Self::load_brush(id, assets)?;
+        this.dirty = true;
+        Ok(this)
+    }
+
+    fn brush_asset_id(&self) -> AssetId<Self::Brush> {
+        self.selected.handle.id()
     }
 
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset> {
-        self.selected
-            .as_ref()
-            .context("A selected brush is required for compilation")?
-            .instance
-            .as_asset(globals.assets())
+        self.selected.instance.as_asset(globals.assets())
     }
 
     fn editor_view<'a>(
         &'a self,
         _globals: &'a Globals,
     ) -> Element<'a, Self::Message, Theme, Renderer> {
-        match self.selected.as_ref() {
-            Some(selected) => row![self.view_selected(selected), self.view_parameters(selected)]
-                .gap(8.0)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into(),
-            None => row![label(t!("select_a_brush")).muted(), label("")]
-                .gap(8.0)
-                .into(),
-        }
+        row![
+            self.view_selected(&self.selected),
+            self.view_parameters(&self.selected)
+        ]
+        .gap(8.0)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     }
 
     fn editor_update(
@@ -247,10 +229,8 @@ impl BrushEngine for LapizBrushEngine {
         match message {
             LapizBrushEngineMessage::BrushNameChanged(name) => {
                 self.name_buffer = name.clone();
-                if let Some(selected) = self.selected.as_mut() {
-                    selected.instance.metadata_mut().name = name;
-                    self.dirty = true;
-                }
+                self.selected.instance.metadata_mut().name = name;
+                self.dirty = true;
             }
             LapizBrushEngineMessage::Save => {
                 if let Err(error) = self.save(globals) {
@@ -261,18 +241,17 @@ impl BrushEngine for LapizBrushEngine {
                 self.active_slot = slot;
             }
             LapizBrushEngineMessage::Effect(message) => {
-                if let Some(selected) = self.selected.as_mut() {
-                    selected.editor_states.get_mut(self.active_slot).update(
-                        effect_mut(&mut selected.instance, self.active_slot),
+                self.selected
+                    .editor_states
+                    .get_mut(self.active_slot)
+                    .update(
+                        effect_mut(&mut self.selected.instance, self.active_slot),
                         message,
                     );
-                }
             }
             LapizBrushEngineMessage::Parameters(message) => {
-                if let Some(selected) = self.selected.as_mut() {
-                    apply_parameter_message(&mut selected.instance, message);
-                    self.dirty = true;
-                }
+                apply_parameter_message(&mut self.selected.instance, message);
+                self.dirty = true;
             }
         }
         Task::none()
@@ -360,12 +339,9 @@ impl LapizBrushEngine {
     }
 
     fn save(&mut self, globals: &Globals) -> Result<()> {
-        let Some(selected) = self.selected.as_ref() else {
-            return Ok(());
-        };
         let preset = self.compile_brush(globals)?;
-        selected.handle.update(preset)?;
-        selected.handle.write()?;
+        self.selected.handle.update(preset)?;
+        self.selected.handle.write()?;
         self.dirty = false;
         Ok(())
     }

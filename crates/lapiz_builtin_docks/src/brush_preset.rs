@@ -4,7 +4,9 @@ use iced_core::{Element, Length, Theme, window};
 use iced_runtime::Task;
 use lapiz_assets::AssetAppExt as _;
 use lapiz_brush::{
-    engine::{BrushEngineId, BrushEngineRegistry, UntypedBrushPresetEntry},
+    engine::{
+        BrushEngineId, BrushEngineRegistry, BrushEngineRegistryExt as _, UntypedBrushPresetEntry,
+    },
     tool::CurrentBrushPresetExt as _,
 };
 use lapiz_dock::dock::{Dock, DockId};
@@ -75,13 +77,15 @@ impl Dock for BrushPresetDock {
             BrushPresetDockMessage::SelectBrush(index) => {
                 self.selected = Some(index);
 
-                let engines = globals.global::<BrushEngineRegistry>();
                 let (engine_id, brush_entry) = &self.brushes[index];
-                let mut engine = engines.create(*engine_id).unwrap();
+                let factory = globals
+                    .brush_engine_registry()
+                    .get(engine_id)
+                    .expect("Brush engine not found");
                 let assets = globals.assets().clone();
-                engine
-                    .load_brush(brush_entry.id, &assets, globals)
-                    .log_err();
+                let Ok(engine) = factory.load_brush(brush_entry.id, &assets).logged_err() else {
+                    return Task::none();
+                };
                 let Ok(brush) = engine.compile_brush(globals).logged_err() else {
                     return Task::none();
                 };
