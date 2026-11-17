@@ -1,14 +1,14 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, HashMap},
     ffi::OsStr,
     fs::{self, File, create_dir_all, metadata},
-    io::Write as _,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
+use indexmap::IndexSet;
 use lapiz_utils::wrapper;
 use parking_lot::RwLock;
 use parse_display::Display;
@@ -20,7 +20,7 @@ use uuid::Uuid;
 use crate::{
     asset::{AssetMetadata, ErasedAsset, UntypedAssetId},
     loader::{AssetSerializerRegistry, ErasedAssetSerializer},
-    tag::{ASSET_TAGS_EXT, AssetTags, TAG_EXT, Tag, TagFile, TagId},
+    tag::{TAG_EXT, TAGGED_ASSETS_EXT, Tag, TagFile, TagId, TaggedAssets},
 };
 
 pub mod directory;
@@ -69,8 +69,8 @@ pub(crate) struct BundleSnapshot {
     pub manifest: BundleManifest,
     pub assets: Vec<AssetMetadata>,
     pub tags: Vec<Tag>,
-    pub tag_children: HashMap<TagId, BTreeSet<TagId>>,
-    pub asset_tags: HashMap<UntypedAssetId, AssetTags>,
+    pub tag_children: HashMap<TagId, IndexSet<TagId>>,
+    pub tagged_assets: HashMap<TagId, TaggedAssets>,
 }
 
 /// In-memory cache and synchronization manager for an [`AssetBundle`].
@@ -181,43 +181,36 @@ impl AssetBundleCache {
         &self.metadata
     }
 
-    pub fn read_asset_tags(&self, id: &UntypedAssetId) -> Result<AssetTags> {
+    pub fn read_tagged_assets(&self, id: &TagId) -> Result<TaggedAssets> {
         let manifest = self.manifest.read();
-        let asset_path = manifest
-            .assets
+        let path = manifest
+            .tags
             .get(id)
-            .cloned()
-            .ok_or_else(|| anyhow!("Asset path not found for asset ID: {id}"))?;
-        let tags = read_asset_tags_file(
-            self.assets_root.as_path(),
-            &asset_path,
+            .ok_or_else(|| anyhow!("Tag path not found for tag ID: {id}"))?;
+        Ok(read_tagged_assets_file(
+            &self.assets_root,
+            path,
             &self.metadata.bundle_id,
             self.bundle.as_ref(),
         )?
-        .unwrap_or_default();
-        Ok(tags)
+        .unwrap_or_default())
     }
 
-    pub fn write_asset_tags(&self, id: &UntypedAssetId, tags: &[TagId]) -> Result<()> {
+    pub fn write_tagged_assets(&self, id: &TagId, assets: &TaggedAssets) -> Result<()> {
         let manifest = self.manifest.read();
         let path = manifest
-            .assets
+            .tags
             .get(id)
-            .ok_or_else(|| anyhow!("Asset path not found for asset ID: {id}"))?;
-        let tags = AssetTags {
-            tags: tags.iter().cloned().collect(),
-        };
+            .ok_or_else(|| anyhow!("Tag path not found for tag ID: {id}"))?;
 
         if self.bundle.is_readonly() {
-            let modified_path =
-                modified_bundle_absolute_path(&self.assets_root, &self.metadata.bundle_id)
-                    .join(path.with_added_extension(ASSET_TAGS_EXT));
+            let modified_path = self.absolute_modified_path(path.with_extension(TAGGED_ASSETS_EXT));
             if let Some(parent) = modified_path.parent() {
                 create_dir_all(parent)?;
             }
-            File::create(modified_path)?.write_all(toml::to_string(&tags)?.as_bytes())?;
+            fs::write(modified_path, toml::to_string(assets)?)?;
         } else {
-            self.bundle.write_asset_tags(path, &tags)?;
+            self.bundle.write_tagged_assets(path, assets)?;
         }
 
         Ok(())
@@ -261,7 +254,7 @@ impl AssetBundleCache {
         )
     }
 
-    pub fn write_tag(&self, tag: &Tag, children: BTreeSet<TagId>) -> Result<()> {
+    pub fn write_tag(&self, tag: &Tag, children: IndexSet<TagId>) -> Result<()> {
         let tag_file = TagFile {
             id: tag.id,
             name: tag.name.clone(),
@@ -325,21 +318,21 @@ pub(crate) fn read_tag_file(
     bundle.read_tag(tag_path)
 }
 
-pub(crate) fn read_asset_tags_file(
+pub(crate) fn read_tagged_assets_file(
     assets_root: &Path,
-    asset_path: &Path,
+    tag_path: &Path,
     bundle_id: &BundleId,
     bundle: &dyn ErasedAssetBundle,
-) -> Result<Option<AssetTags>> {
+) -> Result<Option<TaggedAssets>> {
     if bundle.is_readonly() {
         let modified_path = modified_bundle_absolute_path(assets_root, bundle_id)
-            .join(asset_path.with_added_extension(ASSET_TAGS_EXT));
+            .join(tag_path.with_extension(TAGGED_ASSETS_EXT));
         if modified_path.exists() {
             return Ok(Some(toml::from_str(&fs::read_to_string(modified_path)?)?));
         }
     }
 
-    bundle.read_asset_tags(asset_path)
+    bundle.read_tagged_assets(tag_path)
 }
 
 pub(crate) fn scan_bundle_assets(
@@ -434,7 +427,7 @@ fn scan_modified_assets_dfs(
                 path_to_id,
             );
         } else if path.is_file() {
-            if path.extension() == Some(OsStr::new(ASSET_TAGS_EXT))
+            if path.extension() == Some(OsStr::new(TAGGED_ASSETS_EXT))
                 || path.extension() == Some(OsStr::new(TAG_EXT))
             {
                 continue;
@@ -606,8 +599,8 @@ pub trait AssetBundle: Send + Sync + 'static {
     ) -> Result<UntypedAssetId>;
     fn read_tag(&self, tag: &Path) -> Result<TagFile>;
     fn add_tag(&self, path: &Path, tag: &TagFile) -> Result<()>;
-    fn read_asset_tags(&self, path: &Path) -> Result<Option<AssetTags>>;
-    fn write_asset_tags(&self, path: &Path, tags: &AssetTags) -> Result<()>;
+    fn read_tagged_assets(&self, path: &Path) -> Result<Option<TaggedAssets>>;
+    fn write_tagged_assets(&self, path: &Path, assets: &TaggedAssets) -> Result<()>;
 }
 
 pub trait ErasedAssetBundle: Send + Sync + 'static {
@@ -627,8 +620,8 @@ pub trait ErasedAssetBundle: Send + Sync + 'static {
     ) -> Result<UntypedAssetId>;
     fn read_tag(&self, path: &Path) -> Result<TagFile>;
     fn add_tag(&self, path: &Path, tag: &TagFile) -> Result<()>;
-    fn read_asset_tags(&self, path: &Path) -> Result<Option<AssetTags>>;
-    fn write_asset_tags(&self, path: &Path, tags: &AssetTags) -> Result<()>;
+    fn read_tagged_assets(&self, path: &Path) -> Result<Option<TaggedAssets>>;
+    fn write_tagged_assets(&self, path: &Path, assets: &TaggedAssets) -> Result<()>;
 }
 
 impl<T: AssetBundle> ErasedAssetBundle for T {
@@ -669,18 +662,18 @@ impl<T: AssetBundle> ErasedAssetBundle for T {
         AssetBundle::add_tag(self, path, tag)
     }
 
-    fn read_asset_tags(&self, path: &Path) -> Result<Option<AssetTags>> {
-        AssetBundle::read_asset_tags(self, path)
+    fn read_tagged_assets(&self, path: &Path) -> Result<Option<TaggedAssets>> {
+        AssetBundle::read_tagged_assets(self, path)
     }
 
-    fn write_asset_tags(&self, path: &Path, tags: &AssetTags) -> Result<()> {
-        AssetBundle::write_asset_tags(self, path, tags)
+    fn write_tagged_assets(&self, path: &Path, assets: &TaggedAssets) -> Result<()> {
+        AssetBundle::write_tagged_assets(self, path, assets)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeSet, env, fs, slice};
+    use std::{env, fs};
 
     use super::*;
     use crate::tag::TagId;
@@ -689,7 +682,8 @@ mod tests {
         id: BundleId,
         asset_id: UntypedAssetId,
         asset_path: PathBuf,
-        tags: AssetTags,
+        tag_id: TagId,
+        tagged_assets: TaggedAssets,
     }
 
     impl AssetBundle for ReadonlyBundle {
@@ -705,7 +699,7 @@ mod tests {
         fn manifest(&self) -> Result<BundleManifest> {
             Ok(BundleManifest {
                 assets: BTreeMap::from([(self.asset_id, self.asset_path.clone())]),
-                tags: BTreeMap::new(),
+                tags: BTreeMap::from([(self.tag_id, PathBuf::from("tags/sample.tag"))]),
             })
         }
 
@@ -734,17 +728,17 @@ mod tests {
             Err(anyhow!("readonly"))
         }
 
-        fn read_asset_tags(&self, _: &Path) -> Result<Option<AssetTags>> {
-            Ok(Some(self.tags.clone()))
+        fn read_tagged_assets(&self, _: &Path) -> Result<Option<TaggedAssets>> {
+            Ok(Some(self.tagged_assets.clone()))
         }
 
-        fn write_asset_tags(&self, _: &Path, _: &AssetTags) -> Result<()> {
+        fn write_tagged_assets(&self, _: &Path, _: &TaggedAssets) -> Result<()> {
             Err(anyhow!("readonly"))
         }
     }
 
     #[test]
-    fn readonly_asset_tags_are_overridden_in_modified_directory() -> Result<()> {
+    fn readonly_tagged_assets_are_overridden_in_modified_directory() -> Result<()> {
         let root = env::temp_dir().join(format!("lapiz-readonly-tags-{}", Uuid::new_v4()));
         let bundle_id = BundleId::new(Uuid::from_u128(1));
         let asset_id = UntypedAssetId::new(Uuid::from_u128(2));
@@ -755,8 +749,9 @@ mod tests {
             id: bundle_id,
             asset_id,
             asset_path: asset_path.clone(),
-            tags: AssetTags {
-                tags: BTreeSet::from([base_tag]),
+            tag_id: base_tag,
+            tagged_assets: TaggedAssets {
+                assets: IndexSet::from([asset_id]),
             },
         });
         let cache = AssetBundleCache::new(
@@ -770,34 +765,58 @@ mod tests {
                 },
                 manifest: BundleManifest {
                     assets: BTreeMap::from([(asset_id, asset_path.clone())]),
-                    tags: BTreeMap::new(),
+                    tags: BTreeMap::from([(base_tag, PathBuf::from("tags/sample.tag"))]),
                 },
                 assets: Vec::new(),
                 tags: Vec::new(),
                 tag_children: HashMap::new(),
-                asset_tags: HashMap::new(),
+                tagged_assets: HashMap::new(),
             },
             Arc::new(AssetSerializerRegistry::default()),
         );
 
         assert_eq!(
-            cache.read_asset_tags(&asset_id)?.tags,
-            BTreeSet::from([base_tag])
+            cache
+                .read_tagged_assets(&base_tag)?
+                .assets
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![asset_id]
         );
 
-        cache.write_asset_tags(&asset_id, slice::from_ref(&override_tag))?;
+        let other_id = UntypedAssetId::new(Uuid::from_u128(5));
+        cache.write_tagged_assets(
+            &base_tag,
+            &TaggedAssets {
+                assets: IndexSet::from([other_id, asset_id]),
+            },
+        )?;
         assert_eq!(
-            cache.read_asset_tags(&asset_id)?.tags,
-            BTreeSet::from([override_tag])
+            cache
+                .read_tagged_assets(&base_tag)?
+                .assets
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![other_id, asset_id]
         );
         assert!(
-            modified_bundle_absolute_path(&root, &bundle_id)
-                .join(asset_path.with_added_extension(ASSET_TAGS_EXT))
+            cache
+                .absolute_modified_path("tags/sample.tagged_assets")
                 .is_file()
         );
+        assert_eq!(
+            cache
+                .bundle
+                .read_tagged_assets(Path::new("tags/sample.tag"))?
+                .unwrap()
+                .assets
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![asset_id]
+        );
 
-        cache.write_asset_tags(&asset_id, &[])?;
-        assert!(cache.read_asset_tags(&asset_id)?.tags.is_empty());
+        cache.write_tagged_assets(&base_tag, &TaggedAssets::default())?;
+        assert!(cache.read_tagged_assets(&base_tag)?.assets.is_empty());
         let tag = Tag {
             id: TagId::new(Uuid::new_v4()),
             bundle_id,
@@ -805,7 +824,7 @@ mod tests {
             name: "New".to_string(),
             asset_ty: None,
         };
-        let children = BTreeSet::from([base_tag]);
+        let children = IndexSet::from([override_tag, base_tag]);
         cache.write_tag(&tag, children.clone())?;
 
         let modified_tag_path =
@@ -814,7 +833,10 @@ mod tests {
         assert_eq!(written_tag.id, tag.id);
         assert_eq!(written_tag.name, tag.name);
         assert_eq!(written_tag.asset_ty, tag.asset_ty);
-        assert_eq!(written_tag.children, children);
+        assert_eq!(
+            written_tag.children.into_iter().collect::<Vec<_>>(),
+            children.into_iter().collect::<Vec<_>>()
+        );
 
         fs::remove_dir_all(root)?;
         Ok(())

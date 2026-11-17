@@ -5,8 +5,9 @@ use std::{
     path::Path,
 };
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
+use indexmap::IndexSet;
 use parking_lot::Mutex;
 use rusqlite::{Connection, OptionalExtension as _, params};
 use uuid::Uuid;
@@ -14,7 +15,7 @@ use uuid::Uuid;
 use crate::{
     asset::{Asset, AssetMetadata, UntypedAssetId},
     bundle::{AssetBundleMetadata, BundleId, BundleSnapshot},
-    tag::{Tag, TagId},
+    tag::{Tag, TagId, TaggedAssets},
 };
 
 /// Synchronization status of an indexed database record after an upsert operation.
@@ -213,6 +214,7 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE TABLE IF NOT EXISTS asset_tags (
     asset_id TEXT NOT NULL,
     tag_id TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (asset_id, tag_id),
     FOREIGN KEY (asset_id) REFERENCES assets(asset_id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
@@ -221,6 +223,7 @@ CREATE TABLE IF NOT EXISTS asset_tags (
 CREATE TABLE IF NOT EXISTS tag_children (
     parent_id TEXT NOT NULL,
     child_id TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
 
     PRIMARY KEY (parent_id, child_id),
     FOREIGN KEY (parent_id) REFERENCES tags(id) ON DELETE CASCADE,
@@ -232,6 +235,21 @@ CREATE INDEX IF NOT EXISTS idx_tag_children_child
     ON tag_children(child_id);
             "#,
         )?;
+
+        for table in ["asset_tags", "tag_children"] {
+            let mut statement = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+            let columns = statement
+                .query_map([], |row| row.get::<_, String>(1))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            if !columns.iter().any(|column| column == "position") {
+                conn.execute_batch(&format!(
+                    r#"
+ALTER TABLE {table}
+ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+                    "#
+                ))?;
+            }
+        }
 
         Ok(())
     }
@@ -375,13 +393,20 @@ ON CONFLICT(id) DO UPDATE SET
         }
         {
             let mut insert = tx.prepare(
-                "INSERT INTO tag_children (parent_id, child_id)
-                 SELECT ?1, ?2 WHERE EXISTS (SELECT 1 FROM tags WHERE id = ?2)",
+                r#"
+INSERT INTO tag_children (parent_id, child_id, position)
+SELECT ?1, ?2, ?3
+WHERE EXISTS (
+    SELECT 1
+    FROM tags
+    WHERE id = ?2
+);
+                "#,
             )?;
             for bundle in bundles {
                 for (parent_id, children) in &bundle.tag_children {
-                    for child_id in children {
-                        if insert.execute(params![parent_id, child_id])? == 0 {
+                    for (position, child_id) in children.iter().enumerate() {
+                        if insert.execute(params![parent_id, child_id, position as i64])? == 0 {
                             log::warn!(
                                 "Skipped missing child tag {child_id} for parent tag {parent_id}"
                             );
@@ -393,22 +418,8 @@ ON CONFLICT(id) DO UPDATE SET
         validate_tag_hierarchy(&tx)?;
 
         for bundle in bundles {
-            tx.execute(
-                r#"
-DELETE FROM asset_tags
-WHERE asset_id IN (
-    SELECT asset_id FROM assets WHERE bundle_id = ?1
-);
-                "#,
-                params![bundle.metadata.bundle_id],
-            )?;
-            for (asset_id, asset_tags) in &bundle.asset_tags {
-                for tag_id in &asset_tags.tags {
-                    tx.execute(
-                        "INSERT INTO asset_tags (asset_id, tag_id) VALUES (?1, ?2)",
-                        params![asset_id, tag_id],
-                    )?;
-                }
+            for (tag_id, tagged_assets) in &bundle.tagged_assets {
+                replace_tagged_assets(&tx, tag_id, tagged_assets)?;
             }
         }
 
@@ -605,7 +616,6 @@ ORDER BY name ASC, id ASC;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
-    // TODO Should we change the return value of these three methods to Result<BTreeSet<TagId>>?
     pub fn get_child_tags(&self, parent_id: &TagId) -> Result<Vec<Tag>> {
         let conn = self.conn.lock();
         let mut statement = conn.prepare(
@@ -623,9 +633,9 @@ WHERE p.id = ?1
     AND p.is_deleted = 0
     AND t.is_deleted = 0
 ORDER BY
-    t.name,
+    c.position,
     t.id
-"#,
+            "#,
         )?;
         let rows = statement.query_map(params![parent_id], |row| {
             Ok(Tag {
@@ -740,7 +750,12 @@ SELECT EXISTS(
             bail!("Tag hierarchy would contain a cycle");
         }
         tx.execute(
-            "INSERT INTO tag_children (parent_id, child_id) VALUES (?1, ?2)",
+            r#"
+INSERT INTO tag_children (parent_id, child_id, position)
+SELECT ?1, ?2, COALESCE(MAX(position) + 1, 0)
+FROM tag_children
+WHERE parent_id = ?1;
+            "#,
             params![parent_id, child_id],
         )?;
 
@@ -959,7 +974,14 @@ WHERE l.ord = 1
         )
     )
     AND (?3 IS NULL OR a.bundle_id = ?3)
-ORDER BY l.relative_path ASC;
+ORDER BY
+    CASE WHEN ?5 = 0 THEN (
+        SELECT at.position
+        FROM asset_tags at
+        WHERE at.asset_id = a.asset_id
+            AND at.tag_id = ?2
+    ) END ASC,
+    l.relative_path ASC;
             "#,
         )?;
 
@@ -1100,52 +1122,7 @@ RETURNING revision;
         Ok(())
     }
 
-    pub fn add_tag_to_asset(&self, asset_id: &UntypedAssetId, tag_id: &TagId) -> Result<()> {
-        let mut conn = self.conn.lock();
-        let tx = conn.transaction()?;
-
-        let asset_ty = tx
-            .query_row(
-                "SELECT ty FROM assets WHERE asset_id = ?1 AND is_deleted = 0",
-                params![asset_id],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?
-            .ok_or_else(|| anyhow!("Asset not found for asset ID: {asset_id}"))?;
-        let tag_asset_ty = tx
-            .query_row(
-                "SELECT asset_ty FROM tags WHERE id = ?1 AND is_deleted = 0",
-                params![tag_id],
-                |row| row.get::<_, Option<String>>(0),
-            )
-            .optional()?
-            .ok_or_else(|| anyhow!("Tag not found for tag ID: {tag_id}"))?;
-
-        if let Some(expected_ty) = tag_asset_ty
-            && asset_ty != expected_ty
-        {
-            bail!(
-                "Tag {tag_id} cannot be added to asset {asset_id} of type {asset_ty}; expected {expected_ty}"
-            );
-        }
-
-        let inserted = tx.execute(
-            r#"
-INSERT INTO asset_tags (asset_id, tag_id)
-VALUES (?1, ?2)
-ON CONFLICT DO NOTHING;
-            "#,
-            params![asset_id, tag_id],
-        )?;
-        if inserted == 0 {
-            bail!("Tag {tag_id} is already assigned to asset {asset_id}");
-        }
-
-        tx.commit()?;
-        Ok(())
-    }
-
-    pub fn remove_tag_from_asset(&self, asset_id: &UntypedAssetId, tag_id: &TagId) -> Result<()> {
+    pub(crate) fn edit_tagged_assets(&self, tag_id: &TagId, assets: &TaggedAssets) -> Result<()> {
         let mut conn = self.conn.lock();
         let tx = conn.transaction()?;
 
@@ -1158,16 +1135,40 @@ ON CONFLICT DO NOTHING;
             bail!("Tag not found for tag ID: {tag_id}");
         }
 
-        let deleted = tx.execute(
-            "DELETE FROM asset_tags WHERE asset_id = ?1 AND tag_id = ?2",
-            params![asset_id, tag_id],
+        let mut statement = tx.prepare(
+            "SELECT EXISTS(SELECT 1 FROM assets WHERE asset_id = ?1 AND is_deleted = 1)",
         )?;
-        if deleted == 0 {
-            bail!("Tag {tag_id} is not assigned to asset {asset_id}");
+        for asset_id in &assets.assets {
+            if statement.query_row(params![asset_id], |row| row.get::<_, bool>(0))? {
+                bail!("Asset not found for asset ID: {asset_id}");
+            }
         }
+        drop(statement);
 
+        replace_tagged_assets(&tx, tag_id, assets)?;
         tx.commit()?;
         Ok(())
+    }
+
+    pub fn get_asset_tags(&self, asset_id: &UntypedAssetId) -> Result<IndexSet<TagId>> {
+        let conn = self.conn.lock();
+        let mut statement = conn.prepare(
+            r#"
+SELECT t.id
+FROM tags t
+JOIN asset_tags at ON at.tag_id = t.id
+JOIN assets a ON a.asset_id = at.asset_id
+WHERE at.asset_id = ?1
+    AND t.is_deleted = 0
+    AND a.is_deleted = 0
+ORDER BY
+    t.name,
+    t.id;
+            "#,
+        )?;
+        Ok(statement
+            .query_map(params![asset_id], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?)
     }
 
     pub fn revert_asset(&self, id: &Uuid) -> Result<()> {
@@ -1205,6 +1206,33 @@ WHERE bundle_id = ?1;
 
         Ok(bundle)
     }
+}
+
+fn replace_tagged_assets(conn: &Connection, tag_id: &TagId, assets: &TaggedAssets) -> Result<()> {
+    conn.execute(
+        r#"
+DELETE FROM asset_tags
+WHERE tag_id = ?1;
+        "#,
+        params![tag_id],
+    )?;
+    let mut insert = conn.prepare(
+        r#"
+INSERT INTO asset_tags (asset_id, tag_id, position)
+SELECT ?1, ?2, ?3
+WHERE EXISTS (
+    SELECT 1
+    FROM assets
+    WHERE asset_id = ?1
+);
+        "#,
+    )?;
+    for (position, asset_id) in assets.assets.iter().enumerate() {
+        if insert.execute(params![asset_id, tag_id, position as i64])? == 0 {
+            log::warn!("Skipped missing asset {asset_id} for tag {tag_id}");
+        }
+    }
+    Ok(())
 }
 
 fn validate_tag_hierarchy(conn: &Connection) -> Result<()> {
@@ -1277,6 +1305,45 @@ mod tests {
     }
 
     #[test]
+    fn legacy_relation_tables_gain_positions_without_losing_rows() -> Result<()> {
+        let (db, bundle_id, [root, left, right, _]) = hierarchy_db()?;
+        let asset_id = UntypedAssetId::new(Uuid::new_v4());
+        db.add_asset(&AssetMetadata {
+            asset_id,
+            ty: TestAsset::TYPE_NAME.into(),
+            bundle_id,
+            relative_path: "sample.asset".into(),
+            revision: 0,
+            last_modified: Utc::now(),
+            in_memory: false,
+        })?;
+        add_indexed_member(&db, &asset_id, &root)?;
+        db.conn.lock().execute_batch(
+            r#"
+ALTER TABLE asset_tags
+DROP COLUMN position;
+
+ALTER TABLE tag_children
+DROP COLUMN position;
+            "#,
+        )?;
+        db.initialize_tables()?;
+        db.initialize_tables()?;
+        assert!(db.get_asset_tags(&asset_id)?.contains(&root));
+        assert_eq!(db.get_child_tags(&root)?.len(), 2);
+        db.remove_child_tag(&root, &left)?;
+        db.add_child_tag(&root, &left)?;
+        assert_eq!(
+            db.get_child_tags(&root)?
+                .into_iter()
+                .map(|tag| tag.id)
+                .collect::<Vec<_>>(),
+            vec![right, left]
+        );
+        Ok(())
+    }
+
+    #[test]
     fn bundle_upsert_and_get() -> Result<()> {
         let db = AssetIndexDb::open_in_memory()?;
         let bundle_id = BundleId::new(Uuid::from_u128(1));
@@ -1306,6 +1373,25 @@ mod tests {
         assert_eq!(stored.last_modified, bundle.last_modified);
 
         Ok(())
+    }
+
+    fn add_indexed_member(
+        db: &AssetIndexDb,
+        asset_id: &UntypedAssetId,
+        tag_id: &TagId,
+    ) -> Result<()> {
+        let mut assets = TaggedAssets {
+            assets: db
+                .get_assets(UntypedAssetFilter {
+                    tag: Some(*tag_id),
+                    ..Default::default()
+                })?
+                .into_iter()
+                .map(|asset| asset.asset_id)
+                .collect(),
+        };
+        assets.assets.insert(*asset_id);
+        db.edit_tagged_assets(tag_id, &assets)
     }
 
     fn hierarchy_db() -> Result<(AssetIndexDb, BundleId, [TagId; 4])> {
@@ -1419,9 +1505,9 @@ mod tests {
                 last_modified: Utc::now(),
                 in_memory: false,
             })?;
-            db.add_tag_to_asset(id, if index == 0 { &root } else { &leaf })?;
+            add_indexed_member(&db, id, if index == 0 { &root } else { &leaf })?;
         }
-        db.add_tag_to_asset(&ids[1], &right)?;
+        add_indexed_member(&db, &ids[1], &right)?;
         let query = || {
             AssetFilter::<TestAsset>::new()
                 .with_tag(root)
@@ -1698,190 +1784,49 @@ mod tests {
     }
 
     #[test]
-    fn tag_asset_association_lifecycle() -> Result<()> {
-        let db = AssetIndexDb::open_in_memory()?;
-        let bundle_id = BundleId::new(Uuid::from_u128(63));
-        let last_modified = Utc.with_ymd_and_hms(2026, 4, 5, 0, 0, 0).unwrap();
-        db.upsert_bundle(&AssetBundleMetadata {
+    fn tagged_asset_edits_roll_back_on_persistence_failure() -> Result<()> {
+        let (db, bundle_id, [tag_id, _, _, _]) = hierarchy_db()?;
+        let asset_id = UntypedAssetId::new(Uuid::new_v4());
+        db.add_asset(&AssetMetadata {
+            asset_id,
+            ty: TestAsset::TYPE_NAME.into(),
             bundle_id,
-            name: "Tagged assets".to_string(),
-            last_modified,
+            relative_path: "asset.test".into(),
+            revision: 0,
+            last_modified: Utc::now(),
+            in_memory: false,
         })?;
-
-        let test_asset_id = UntypedAssetId::new(Uuid::from_u128(64));
-        let other_asset_id = UntypedAssetId::new(Uuid::from_u128(65));
-        for (asset_id, ty) in [
-            (test_asset_id, TestAsset::TYPE_NAME),
-            (other_asset_id, OtherAsset::TYPE_NAME),
-        ] {
-            db.add_asset(&AssetMetadata {
-                asset_id,
-                ty: ty.to_string(),
-                bundle_id,
-                relative_path: format!("{asset_id}.asset"),
-                revision: 0,
-                last_modified,
-                in_memory: false,
-            })?;
-        }
-
-        let typed_tag = sourced_tag(
-            bundle_id,
-            "test.tag",
-            "Test assets",
-            Some(TestAsset::TYPE_NAME.to_string()),
-        );
-        let untyped_tag = sourced_tag(bundle_id, "any.tag", "Any assets", None);
-        db.upsert_tag(&typed_tag, last_modified)?;
-        db.upsert_tag(&untyped_tag, last_modified)?;
-
-        db.add_tag_to_asset(&test_asset_id, &typed_tag.id)?;
-        assert_eq!(
-            db.add_tag_to_asset(&test_asset_id, &typed_tag.id)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "Tag {} is already assigned to asset {test_asset_id}",
-                typed_tag.id
-            )
-        );
-        assert_eq!(
-            db.add_tag_to_asset(&other_asset_id, &typed_tag.id)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "Tag {} cannot be added to asset {other_asset_id} of type {}; expected {}",
-                typed_tag.id,
-                OtherAsset::TYPE_NAME,
-                TestAsset::TYPE_NAME
-            )
-        );
-        db.add_tag_to_asset(&other_asset_id, &untyped_tag.id)?;
-
-        let tagged = db.get_assets(UntypedAssetFilter {
-            tag: Some(typed_tag.id),
-            ..Default::default()
-        })?;
-        assert_eq!(tagged.len(), 1);
-        assert_eq!(tagged[0].asset_id, test_asset_id);
-
-        db.remove_tag_from_asset(&test_asset_id, &typed_tag.id)?;
-        assert_eq!(
-            db.remove_tag_from_asset(&test_asset_id, &typed_tag.id)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "Tag {} is not assigned to asset {test_asset_id}",
-                typed_tag.id
-            )
-        );
-        assert!(
-            db.get_assets(UntypedAssetFilter {
-                tag: Some(typed_tag.id),
-                ..Default::default()
-            })?
-            .is_empty()
-        );
-
-        db.delete_tag(&untyped_tag.id)?;
-
-        assert!(db.get_tag(untyped_tag.id).is_err());
-        assert!(
-            db.get_tags(TagFilter::default())?
-                .iter()
-                .all(|tag| tag.id != untyped_tag.id)
-        );
-        assert_eq!(
-            db.get_tags(TagFilter {
-                is_deleted: true,
-                ..Default::default()
-            })?
-            .iter()
-            .map(|tag| tag.id)
-            .collect::<Vec<_>>(),
-            vec![untyped_tag.id]
-        );
-        assert_eq!(
-            db.get_tags(TagFilter {
-                asset_ty: Some(None),
-                is_deleted: true,
-            })?[0]
-                .id,
-            untyped_tag.id
-        );
-        assert!(
-            db.get_tags(TagFilter {
-                asset_ty: Some(Some(TestAsset::TYPE_NAME.to_string())),
-                is_deleted: true,
-            })?
-            .is_empty()
-        );
-        assert!(
-            db.get_assets(UntypedAssetFilter {
-                tag: Some(untyped_tag.id),
-                ..Default::default()
-            })?
-            .is_empty()
-        );
-        db.delete_asset(&other_asset_id)?;
-        assert_eq!(
-            db.get_assets(UntypedAssetFilter {
-                tag: Some(untyped_tag.id),
-                is_deleted: true,
-                ..Default::default()
-            })?[0]
-                .asset_id,
-            other_asset_id
-        );
-        assert!(
-            db.add_tag_to_asset(&test_asset_id, &untyped_tag.id)
-                .is_err()
-        );
-        assert!(
-            db.remove_tag_from_asset(&other_asset_id, &untyped_tag.id)
-                .is_err()
-        );
-        assert!(db.delete_tag(&untyped_tag.id).is_err());
-
-        let mut rediscovered_tag = untyped_tag.clone();
-        rediscovered_tag.name = "Rediscovered tag".to_string();
-        db.upsert_tag(
-            &rediscovered_tag,
-            Utc.with_ymd_and_hms(2026, 4, 6, 0, 0, 0).unwrap(),
-        )?;
-        assert!(db.get_tag(untyped_tag.id).is_err());
-
-        let (association_count, is_deleted) = db.conn.lock().query_row(
+        let members = TaggedAssets {
+            assets: IndexSet::from([asset_id]),
+        };
+        db.edit_tagged_assets(&tag_id, &members)?;
+        db.conn.lock().execute_batch(
             r#"
-SELECT
-    (SELECT COUNT(*) FROM asset_tags WHERE tag_id = ?1),
-    (SELECT is_deleted FROM tags WHERE id = ?1);
+CREATE TEMP TRIGGER fail_tagged_asset_insert
+BEFORE INSERT ON asset_tags
+BEGIN
+    SELECT RAISE(ABORT, 'write failed');
+END;
             "#,
-            params![untyped_tag.id],
-            |row| Ok((row.get::<_, u32>(0)?, row.get::<_, bool>(1)?)),
         )?;
-        assert_eq!(association_count, 1);
-        assert!(is_deleted);
-
-        db.restore_tag(&untyped_tag.id)?;
-        assert_eq!(db.get_tag(untyped_tag.id)?.id, untyped_tag.id);
-        assert!(
-            db.get_tags(TagFilter {
-                is_deleted: true,
-                ..Default::default()
-            })?
-            .is_empty()
+        let error = db.edit_tagged_assets(&tag_id, &members).unwrap_err();
+        assert!(error.to_string().contains("write failed"));
+        assert!(db.get_asset_tags(&asset_id)?.contains(&tag_id));
+        db.conn
+            .lock()
+            .execute_batch("DROP TRIGGER fail_tagged_asset_insert;")?;
+        db.edit_tagged_assets(&tag_id, &members)?;
+        assert_eq!(
+            db.get_asset_tags(&asset_id)?
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![tag_id]
         );
-        assert!(db.restore_tag(&untyped_tag.id).is_err());
-
-        db.restore_asset(&other_asset_id)?;
-        let tagged = db.get_assets(UntypedAssetFilter {
-            tag: Some(untyped_tag.id),
-            ..Default::default()
-        })?;
-        assert_eq!(tagged.len(), 1);
-        assert_eq!(tagged[0].asset_id, other_asset_id);
-
+        db.delete_tag(&tag_id)?;
+        assert!(db.get_asset_tags(&asset_id)?.is_empty());
+        assert!(db.edit_tagged_assets(&tag_id, &members).is_err());
+        db.restore_tag(&tag_id)?;
+        assert!(db.get_asset_tags(&asset_id)?.contains(&tag_id));
         Ok(())
     }
 
@@ -1914,7 +1859,7 @@ SELECT
             Some(TestAsset::TYPE_NAME.to_string()),
         );
         db.upsert_tag(&tag, last_modified)?;
-        db.add_tag_to_asset(&asset_id, &tag.id)?;
+        add_indexed_member(&db, &asset_id, &tag.id)?;
 
         db.delete_asset(&asset_id)?;
 
@@ -1928,7 +1873,7 @@ SELECT
             .is_empty()
         );
         assert!(db.update_asset(&asset_id).is_err());
-        assert!(db.add_tag_to_asset(&asset_id, &tag.id).is_err());
+        assert!(add_indexed_member(&db, &asset_id, &tag.id).is_err());
         assert!(db.delete_asset(&asset_id).is_err());
 
         let deleted = db.get_assets(UntypedAssetFilter {
