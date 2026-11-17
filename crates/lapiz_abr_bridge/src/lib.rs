@@ -38,7 +38,7 @@ use lapiz_assets::{
     bundle::{AssetBundle, AssetBundleMetadata, BundleId, BundleManifest, ErasedAssetBundle},
     loader::{AssetSerializer, ErasedAssetSerializer},
     source::{AssetSource, AssetSourceRegistryExt as _},
-    tag::{TagFile, TaggedAssets},
+    tag::{TagFile, TaggedAssets, TaggedTags},
 };
 use lapiz_photoshop_brush_engine::asset::PhotoshopBrushSerializer;
 use lapiz_render::texture::Image;
@@ -267,7 +267,15 @@ impl AssetBundle for AbrAssetBundle {
         Ok(None)
     }
 
+    fn read_tagged_tags(&self, _tag: &Path) -> Result<Option<TaggedTags>> {
+        Ok(None)
+    }
+
     fn write_tagged_assets(&self, _: &Path, _: &TaggedAssets) -> Result<()> {
+        bail!("Unsupported writing to ABR asset bundle")
+    }
+
+    fn write_tagged_tags(&self, _tag: &Path, _tags: &TaggedTags) -> Result<()> {
         bail!("Unsupported writing to ABR asset bundle")
     }
 }

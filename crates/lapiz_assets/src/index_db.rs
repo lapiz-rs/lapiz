@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::{
     asset::{Asset, AssetMetadata, UntypedAssetId},
     bundle::{AssetBundleMetadata, BundleId, BundleSnapshot},
-    tag::{Tag, TagId, TaggedAssets},
+    tag::{Tag, TagId, TaggedAssets, TaggedTags},
 };
 
 /// Synchronization status of an indexed database record after an upsert operation.
@@ -384,35 +384,8 @@ ON CONFLICT(id) DO UPDATE SET
         }
 
         for bundle in bundles {
-            for parent_id in bundle.tag_children.keys() {
-                tx.execute(
-                    "DELETE FROM tag_children WHERE parent_id = ?1",
-                    params![parent_id],
-                )?;
-            }
-        }
-        {
-            let mut insert = tx.prepare(
-                r#"
-INSERT INTO tag_children (parent_id, child_id, position)
-SELECT ?1, ?2, ?3
-WHERE EXISTS (
-    SELECT 1
-    FROM tags
-    WHERE id = ?2
-);
-                "#,
-            )?;
-            for bundle in bundles {
-                for (parent_id, children) in &bundle.tag_children {
-                    for (position, child_id) in children.iter().enumerate() {
-                        if insert.execute(params![parent_id, child_id, position as i64])? == 0 {
-                            log::warn!(
-                                "Skipped missing child tag {child_id} for parent tag {parent_id}"
-                            );
-                        }
-                    }
-                }
+            for (parent_id, children) in &bundle.tag_children {
+                replace_tagged_tags(&tx, parent_id, children)?;
             }
         }
         validate_tag_hierarchy(&tx)?;
@@ -650,40 +623,6 @@ ORDER BY
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
-    pub fn get_parent_tags(&self, child_id: &TagId) -> Result<Vec<Tag>> {
-        let conn = self.conn.lock();
-        let mut statement = conn.prepare(
-            r#"
-SELECT
-    t.id,
-    t.bundle_id,
-    t.relative_path,
-    t.name,
-    t.asset_ty
-FROM tags t
-JOIN tag_children c ON c.parent_id = t.id
-JOIN tags child ON child.id = c.child_id
-WHERE child.id = ?1
-    AND child.is_deleted = 0
-    AND t.is_deleted = 0
-ORDER BY
-    t.name,
-    t.id
-            "#,
-        )?;
-        let rows = statement.query_map(params![child_id], |row| {
-            Ok(Tag {
-                id: row.get(0)?,
-                bundle_id: row.get(1)?,
-                relative_path: row.get(2)?,
-                name: row.get(3)?,
-                asset_ty: row.get(4)?,
-            })
-        })?;
-
-        Ok(rows.collect::<rusqlite::Result<_>>()?)
-    }
-
     pub fn get_root_tags(&self) -> Result<Vec<Tag>> {
         let conn = self.conn.lock();
         let mut statement = conn.prepare(
@@ -715,79 +654,6 @@ ORDER BY t.name, t.id
         })?;
 
         Ok(rows.collect::<rusqlite::Result<_>>()?)
-    }
-
-    pub fn add_child_tag(&self, parent_id: &TagId, child_id: &TagId) -> Result<()> {
-        let mut conn = self.conn.lock();
-        let tx = conn.transaction()?;
-        for id in [parent_id, child_id] {
-            let exists = tx.query_row(
-                "SELECT EXISTS(SELECT 1 FROM tags WHERE id = ?1 AND is_deleted = 0)",
-                params![id],
-                |row| row.get::<_, bool>(0),
-            )?;
-            if !exists {
-                bail!("Tag not found for tag ID: {id}");
-            }
-        }
-
-        let has_cycle = tx.query_row(
-            r#"
-WITH RECURSIVE descendants(id) AS (
-    SELECT ?1
-    UNION
-    SELECT c.child_id FROM tag_children c
-    JOIN descendants d ON c.parent_id = d.id
-)
-SELECT EXISTS(
-    SELECT 1 FROM descendants WHERE id = ?2
-)
-            "#,
-            params![child_id, parent_id],
-            |row| row.get::<_, bool>(0),
-        )?;
-        if has_cycle {
-            bail!("Tag hierarchy would contain a cycle");
-        }
-        tx.execute(
-            r#"
-INSERT INTO tag_children (parent_id, child_id, position)
-SELECT ?1, ?2, COALESCE(MAX(position) + 1, 0)
-FROM tag_children
-WHERE parent_id = ?1;
-            "#,
-            params![parent_id, child_id],
-        )?;
-
-        tx.commit()?;
-        Ok(())
-    }
-
-    pub fn remove_child_tag(&self, parent_id: &TagId, child_id: &TagId) -> Result<()> {
-        let mut conn = self.conn.lock();
-        let tx = conn.transaction()?;
-
-        for id in [parent_id, child_id] {
-            let exists = tx.query_row(
-                "SELECT EXISTS(SELECT 1 FROM tags WHERE id = ?1 AND is_deleted = 0)",
-                params![id],
-                |row| row.get::<_, bool>(0),
-            )?;
-            if !exists {
-                bail!("Tag not found for tag ID: {id}");
-            }
-        }
-
-        let is_child_of_parent = tx.execute(
-            "DELETE FROM tag_children WHERE parent_id = ?1 AND child_id = ?2",
-            params![parent_id, child_id],
-        )?;
-        if is_child_of_parent == 0 {
-            bail!("Tag {child_id} is not a child of tag {parent_id}");
-        }
-
-        tx.commit()?;
-        Ok(())
     }
 
     pub fn add_tag(&self, tag: Tag) -> Result<()> {
@@ -1122,7 +988,23 @@ RETURNING revision;
         Ok(())
     }
 
-    pub(crate) fn edit_tagged_assets(&self, tag_id: &TagId, assets: &TaggedAssets) -> Result<()> {
+    pub(crate) fn validate_tagged_tags(&self, tag_id: &TagId, tags: &TaggedTags) -> Result<()> {
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+        update_tagged_tags(&tx, tag_id, tags)?;
+        tx.rollback()?;
+        Ok(())
+    }
+
+    pub fn edit_tagged_tags(&self, tag_id: &TagId, tags: &TaggedTags) -> Result<()> {
+        let mut conn = self.conn.lock();
+        let tx = conn.transaction()?;
+        update_tagged_tags(&tx, tag_id, tags)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn edit_tagged_assets(&self, tag_id: &TagId, assets: &TaggedAssets) -> Result<()> {
         let mut conn = self.conn.lock();
         let tx = conn.transaction()?;
 
@@ -1206,6 +1088,51 @@ WHERE bundle_id = ?1;
 
         Ok(bundle)
     }
+}
+
+fn update_tagged_tags(conn: &Connection, tag_id: &TagId, tags: &TaggedTags) -> Result<()> {
+    let exists = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM tags WHERE id = ?1 AND is_deleted = 0)",
+        params![tag_id],
+        |row| row.get::<_, bool>(0),
+    )?;
+    if !exists {
+        bail!("Tag not found for tag ID: {tag_id}");
+    }
+
+    for child_id in &tags.tags {
+        let deleted = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM tags WHERE id = ?1 AND is_deleted = 1)",
+            params![child_id],
+            |row| row.get::<_, bool>(0),
+        )?;
+        if deleted {
+            bail!("Tag not found for tag ID: {child_id}");
+        }
+    }
+
+    replace_tagged_tags(conn, tag_id, &tags.tags)?;
+    validate_tag_hierarchy(conn)
+}
+
+fn replace_tagged_tags(conn: &Connection, tag_id: &TagId, tags: &IndexSet<TagId>) -> Result<()> {
+    conn.execute(
+        "DELETE FROM tag_children WHERE parent_id = ?1",
+        params![tag_id],
+    )?;
+    let mut insert = conn.prepare(
+        r#"
+INSERT INTO tag_children (parent_id, child_id, position)
+SELECT ?1, ?2, ?3
+WHERE EXISTS (SELECT 1 FROM tags WHERE id = ?2);
+        "#,
+    )?;
+    for (position, child_id) in tags.iter().enumerate() {
+        if insert.execute(params![tag_id, child_id, position as i64])? == 0 {
+            log::warn!("Skipped missing child tag {child_id} for parent tag {tag_id}");
+        }
+    }
+    Ok(())
 }
 
 fn replace_tagged_assets(conn: &Connection, tag_id: &TagId, assets: &TaggedAssets) -> Result<()> {
@@ -1331,8 +1258,12 @@ DROP COLUMN position;
         db.initialize_tables()?;
         assert!(db.get_asset_tags(&asset_id)?.contains(&root));
         assert_eq!(db.get_child_tags(&root)?.len(), 2);
-        db.remove_child_tag(&root, &left)?;
-        db.add_child_tag(&root, &left)?;
+        db.edit_tagged_tags(
+            &root,
+            &TaggedTags {
+                tags: IndexSet::from([right, left]),
+            },
+        )?;
         assert_eq!(
             db.get_child_tags(&root)?
                 .into_iter()
@@ -1408,8 +1339,17 @@ DROP COLUMN position;
             db.add_tag(tag.clone())?;
         }
         let ids = tags.map(|tag| tag.id);
-        for (parent, child) in [(0, 1), (0, 2), (1, 3), (2, 3)] {
-            db.add_child_tag(&ids[parent], &ids[child])?;
+        for (parent, children) in [
+            (0, vec![ids[1], ids[2]]),
+            (1, vec![ids[3]]),
+            (2, vec![ids[3]]),
+        ] {
+            db.edit_tagged_tags(
+                &ids[parent],
+                &TaggedTags {
+                    tags: children.into_iter().collect(),
+                },
+            )?;
         }
         Ok((db, bundle_id, ids))
     }
@@ -1453,29 +1393,54 @@ DROP COLUMN position;
         let (db, _, [root, left, right, leaf]) = hierarchy_db()?;
         assert_eq!(db.get_root_tags()?[0].id, root);
         assert_eq!(db.get_child_tags(&root)?.len(), 2);
-        assert_eq!(db.get_parent_tags(&leaf)?.len(), 2);
-        assert!(db.add_child_tag(&root, &root).is_err());
-        assert!(db.add_child_tag(&left, &leaf).is_err());
+        assert_eq!(db.get_child_tags(&left)?[0].id, leaf);
+        assert_eq!(db.get_child_tags(&right)?[0].id, leaf);
         assert!(
-            db.add_child_tag(&TagId::new(Uuid::new_v4()), &leaf)
+            db.edit_tagged_tags(
+                &root,
+                &TaggedTags {
+                    tags: IndexSet::from([root])
+                }
+            )
+            .is_err()
+        );
+        assert_eq!(db.get_child_tags(&root)?.len(), 2);
+        assert!(
+            db.edit_tagged_tags(&TagId::new(Uuid::new_v4()), &TaggedTags::default())
                 .is_err()
         );
 
         db.delete_tag(&left)?;
         db.delete_tag(&right)?;
         assert!(db.get_child_tags(&left)?.is_empty());
-        assert!(db.get_parent_tags(&leaf)?.is_empty());
+        assert!(db.get_child_tags(&right)?.is_empty());
         assert_eq!(db.get_root_tags()?.len(), 2);
         // Hidden paths still count when checking cycles for future restoration.
-        assert!(db.add_child_tag(&leaf, &root).is_err());
-        assert!(db.add_child_tag(&right, &leaf).is_err());
+        assert!(
+            db.edit_tagged_tags(
+                &leaf,
+                &TaggedTags {
+                    tags: IndexSet::from([root])
+                }
+            )
+            .is_err()
+        );
+        assert!(
+            db.edit_tagged_tags(
+                &right,
+                &TaggedTags {
+                    tags: IndexSet::from([leaf])
+                }
+            )
+            .is_err()
+        );
         db.restore_tag(&left)?;
         db.restore_tag(&right)?;
         assert_eq!(db.get_root_tags()?.len(), 1);
-        db.remove_child_tag(&left, &leaf)?;
-        assert_eq!(db.get_parent_tags(&leaf)?[0].id, right);
-        assert!(db.remove_child_tag(&left, &leaf).is_err());
-        db.remove_child_tag(&right, &leaf)?;
+        db.edit_tagged_tags(&left, &TaggedTags::default())?;
+        assert!(db.get_child_tags(&left)?.is_empty());
+        assert_eq!(db.get_child_tags(&right)?[0].id, leaf);
+        db.edit_tagged_tags(&right, &TaggedTags::default())?;
         assert_eq!(db.get_root_tags()?.len(), 2);
         Ok(())
     }
@@ -1780,6 +1745,82 @@ DROP COLUMN position;
             .is_empty()
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn tagged_tag_edits_validate_and_roll_back_without_losing_order() -> Result<()> {
+        let (db, _, [root, left, right, _]) = hierarchy_db()?;
+        let members = TaggedTags {
+            tags: IndexSet::from([right, left]),
+        };
+        db.validate_tagged_tags(&root, &members)?;
+        assert_eq!(
+            db.get_child_tags(&root)?
+                .into_iter()
+                .map(|tag| tag.id)
+                .collect::<Vec<_>>(),
+            vec![left, right]
+        );
+        db.edit_tagged_tags(&root, &members)?;
+        db.conn.lock().execute_batch(
+            r#"
+CREATE TEMP TRIGGER fail_tagged_tag_insert
+BEFORE INSERT ON tag_children
+BEGIN
+    SELECT RAISE(ABORT, 'write failed');
+END;
+            "#,
+        )?;
+        assert!(
+            db.edit_tagged_tags(
+                &root,
+                &TaggedTags {
+                    tags: IndexSet::from([left])
+                }
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("write failed")
+        );
+        assert_eq!(
+            db.get_child_tags(&root)?
+                .into_iter()
+                .map(|tag| tag.id)
+                .collect::<Vec<_>>(),
+            vec![right, left]
+        );
+        db.conn
+            .lock()
+            .execute_batch("DROP TRIGGER fail_tagged_tag_insert;")?;
+        let missing = TagId::new(Uuid::new_v4());
+        db.edit_tagged_tags(
+            &root,
+            &TaggedTags {
+                tags: IndexSet::from([missing, left]),
+            },
+        )?;
+        assert_eq!(
+            db.get_child_tags(&root)?
+                .into_iter()
+                .map(|tag| tag.id)
+                .collect::<Vec<_>>(),
+            vec![left]
+        );
+        db.delete_tag(&left)?;
+        assert!(
+            db.edit_tagged_tags(
+                &root,
+                &TaggedTags {
+                    tags: IndexSet::from([left])
+                }
+            )
+            .is_err()
+        );
+        db.restore_tag(&left)?;
+        assert_eq!(db.get_child_tags(&root)?[0].id, left);
+        db.edit_tagged_tags(&root, &TaggedTags::default())?;
+        assert!(db.get_child_tags(&root)?.is_empty());
         Ok(())
     }
 
