@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use downcast_rs::DowncastSync;
 use indexmap::IndexSet;

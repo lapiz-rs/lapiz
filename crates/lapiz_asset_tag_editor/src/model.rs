@@ -318,7 +318,6 @@ mod tests {
     fn editor_persists_orders_membership_and_parent_changes() -> Result<()> {
         let temp = tempfile::tempdir()?;
         let directory = temp.path().join("builtin_assets");
-        std::fs::create_dir_all(directory.join("type_order"))?;
         let root = TagFile::new(
             Tag::type_tag_name(TestAsset::TYPE_NAME),
             Some(TestAsset::TYPE_NAME.into()),
@@ -330,7 +329,9 @@ mod tests {
             ("parent.tag".into(), &parent),
             ("child.tag".into(), &child),
         ] {
-            std::fs::write(directory.join(path), toml::to_string(tag)?)?;
+            let path = directory.join(path);
+            std::fs::create_dir_all(path.parent().expect("tag path has a parent"))?;
+            std::fs::write(path, toml::to_string(tag)?)?;
         }
         let mut serializers = AssetSerializerRegistry::default();
         serializers.register::<TestSerializer>();

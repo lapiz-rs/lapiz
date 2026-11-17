@@ -60,7 +60,6 @@ impl Plugin for AssetsPlugin {
     fn finish(&self, app: &mut Runtime) {
         let prepare_type_tags = || -> Result<()> {
             let builtin = self.asset_root.join("builtin_assets");
-            fs::create_dir_all(builtin.join("type_order"))?;
             for ty in app
                 .globals()
                 .global::<AssetSerializerRegistry>()
@@ -68,6 +67,8 @@ impl Plugin for AssetsPlugin {
             {
                 let path = builtin.join(Tag::type_tag_path(ty));
                 if !path.exists() {
+                    fs::create_dir_all(path.parent().expect("type tag path has a parent"))?;
+
                     let tag = TagFile::new(Tag::type_tag_name(ty), Some(ty.into()));
                     fs::write(path, toml::to_string(&tag)?)?;
                 }
