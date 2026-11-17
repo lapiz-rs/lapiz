@@ -297,43 +297,13 @@ impl<T: Asset> AssetHandle<T> {
     }
 
     pub fn add_to_tag_at(&self, tag_id: &TagId, position: AssetPositionInTag) -> Result<()> {
-        let metadata = self.metadata()?;
-        let tag = self.registry.index_db().get_tag(*tag_id)?;
-        if let Some(expected_ty) = &tag.asset_ty
-            && metadata.ty != *expected_ty
-        {
-            bail!(
-                "Tag {tag_id} cannot be added to asset {} of type {}; expected {expected_ty}",
-                self.untyped_id(),
-                metadata.ty
-            );
-        }
-
-        let bundle = self.registry.bundle(&tag.bundle_id)?;
-        let mut assets = bundle.read_tagged_assets(tag_id)?;
-        assets.insert(self.untyped_id(), position)?;
-
-        bundle.write_tagged_assets(tag_id, &assets)?;
         self.registry
-            .index_db()
-            .edit_tagged_assets(tag_id, &assets)?;
-        Ok(())
+            .add_asset_to_tag_at(self.untyped_id(), *tag_id, position)
     }
 
     pub fn remove_tag(&self, tag_id: &TagId) -> Result<()> {
-        let tag = self.registry.index_db().get_tag(*tag_id)?;
-        let bundle = self.registry.bundle(&tag.bundle_id)?;
-        let mut assets = bundle.read_tagged_assets(tag_id)?;
-        if !assets.assets.shift_remove(&self.untyped_id()) {
-            bail!(
-                "Asset {} is not assigned to tag {}",
-                self.untyped_id(),
-                tag.name
-            );
-        }
-
-        bundle.write_tagged_assets(tag_id, &assets)?;
-        self.registry.index_db().edit_tagged_assets(tag_id, &assets)
+        self.registry
+            .remove_asset_from_tag(self.untyped_id(), *tag_id)
     }
 
     pub fn metadata(&self) -> Result<AssetMetadata> {

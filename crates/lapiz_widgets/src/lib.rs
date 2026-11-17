@@ -10,6 +10,7 @@ pub mod collapsible;
 pub mod combo_box;
 pub mod curve_edit;
 pub mod divider;
+pub mod drag_drop;
 pub mod drag_drop_column;
 pub mod flex;
 pub mod fluent_builder;

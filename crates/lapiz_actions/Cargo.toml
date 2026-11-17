@@ -13,6 +13,7 @@ futures.workspace = true
 iced_core.workspace = true
 iced_runtime.workspace = true
 lapiz_about.workspace = true
+lapiz_asset_tag_editor.workspace = true
 lapiz_assets.workspace = true
 lapiz_canvas.workspace = true
 lapiz_config.workspace = true

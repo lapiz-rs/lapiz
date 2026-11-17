@@ -8,7 +8,10 @@ use anyhow::{Result, anyhow, ensure};
 use glam::{IVec4, Vec2, Vec4};
 use iced_runtime::Task;
 use image::{ImageFormat, RgbaImage};
-use lapiz_assets::{asset::AssetHandle, store::AssetRegistry};
+use lapiz_assets::{
+    asset::{AssetHandle, UntypedAssetId},
+    store::AssetRegistry,
+};
 use lapiz_dirs::cache_dir;
 use lapiz_image::{
     layer_bounds::LayerBoundsPipeline,
@@ -101,6 +104,30 @@ pub fn load_cached_stroke_preview_or_generate(
             info!("Stroke preview saved to {}", cache_path.display());
             Ok(img)
         }))
+}
+
+pub fn generate_stroke_preview(
+    preset: &BrushPreset,
+    asset_id: UntypedAssetId,
+    assets: &AssetRegistry,
+    globals: &Globals,
+) -> Result<Task<Result<RgbaImage>>> {
+    let (width, height) = CACHED_STROKE_PREVIEW_SIZE;
+    let instance = BrushPresetInstance::new(preset, Some(asset_id), assets.clone())?;
+    let texture = create_stroke_preview(
+        &instance,
+        &predefined_curve_samples(width, height),
+        width,
+        height,
+        globals,
+        &CanvasResources {
+            foreground_color: Vec4::ONE,
+            background_color: Vec4::ZERO,
+        },
+    )?;
+    let device = globals.render_device().clone();
+    let queue = globals.render_queue().clone();
+    Ok(texture.then(move |texture| readback_preview(device.clone(), queue.clone(), texture)))
 }
 
 fn readback_preview(device: Device, queue: Queue, texture: Texture) -> Task<Result<RgbaImage>> {
