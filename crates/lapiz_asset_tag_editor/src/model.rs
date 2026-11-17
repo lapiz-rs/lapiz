@@ -38,7 +38,7 @@ pub struct EditorModel {
     pub children: HashMap<TagId, Vec<TagId>>,
     pub all_assets: Vec<AssetMetadata>,
     pub tagged_assets: Vec<AssetMetadata>,
-    pub expanded: HashSet<TagId>,
+    pub expanded: HashMap<String, HashSet<TagId>>,
     pub root: Option<TagId>,
 }
 
@@ -134,6 +134,26 @@ impl EditorModel {
         !tag.is_type_tag() && (tag.asset_ty.is_none() || tag.asset_ty == self.current_asset_ty)
     }
 
+    pub fn is_tag_expanded(&self, id: TagId) -> bool {
+        self.current_asset_ty
+            .as_ref()
+            .and_then(|ty| self.expanded.get(ty))
+            .is_some_and(|expanded| expanded.contains(&id))
+    }
+
+    pub fn set_tag_expanded(&mut self, id: TagId, expanded: bool) {
+        let Some(ty) = &self.current_asset_ty else {
+            return;
+        };
+        let tags = self.expanded.entry(ty.clone()).or_default();
+
+        if expanded {
+            tags.insert(id);
+        } else {
+            tags.remove(&id);
+        }
+    }
+
     pub fn rows(&self) -> Vec<TagRow> {
         let mut rows = Vec::new();
         if let Some(root) = self.root {
@@ -157,7 +177,7 @@ impl EditorModel {
                 continue;
             }
             rows.push(TagRow { id, parent, depth });
-            if self.expanded.contains(&id) {
+            if self.is_tag_expanded(id) {
                 self.append_rows(id, depth + 1, path, rows);
             }
         }
@@ -245,7 +265,7 @@ impl EditorModel {
                 };
                 assets.move_tag_at(id, &self.tags[&parent], &self.tags[&destination], position)?;
                 if zone == DropZone::Into {
-                    self.expanded.insert(destination);
+                    self.set_tag_expanded(destination, true);
                 }
             }
             _ => bail!("Invalid drag source"),

@@ -210,9 +210,8 @@ impl WindowView for AssetTagEditor {
                 self.record(result);
             }
             Message::ToggleTag(id) => {
-                if !self.model.expanded.remove(&id) {
-                    self.model.expanded.insert(id);
-                }
+                let expanded = self.model.is_tag_expanded(id);
+                self.model.set_tag_expanded(id, !expanded);
             }
             Message::SelectAsset(id) => {
                 self.model.selected_asset = Some(id);
@@ -351,7 +350,7 @@ impl AssetTagEditor {
             .into_iter()
             .map(|entry| {
                 let tag = &self.model.tags[&entry.id];
-                let expanded = self.model.expanded.contains(&entry.id);
+                let expanded = self.model.is_tag_expanded(entry.id);
                 let toggle: Element<'_, Message, Theme, Renderer> =
                     if self.model.has_children(entry.id) {
                         icon_button(if expanded {
@@ -550,22 +549,25 @@ impl AssetTagEditor {
             );
         }
         items = items.push(
-            panel(
-                label(if list == AssetList::Tagged {
-                    t!("drop_to_tag")
-                } else {
-                    t!("drop_to_end")
-                })
-                .faint()
-                .size(11),
+            DragRegion::new(
+                DragItem::List(list),
+                panel(
+                    label(if list == AssetList::Tagged {
+                        t!("drop_to_tag")
+                    } else {
+                        t!("drop_to_end")
+                    })
+                    .faint()
+                    .size(11),
+                )
+                .transparent()
+                .padding(14)
+                .width(Length::Fill),
             )
-            .transparent()
-            .padding(14)
-            .width(Length::Fill),
-        );
-        let area = DragRegion::new(DragItem::List(list), scrollable(items).height(Length::Fill))
             .draggable(false)
-            .mode(DropMode::Into);
+            .mode(DropMode::Into),
+        );
+        let area = scrollable(items).height(Length::Fill);
         panel(column![header, search, area].gap(10.0).height(Length::Fill))
             .padding(12)
             .width(Length::Fill)
@@ -802,7 +804,7 @@ impl AssetTagEditor {
             &tag.id,
             PositionInTag::Last,
         )?;
-        self.model.expanded.insert(parent);
+        self.model.set_tag_expanded(parent, true);
         self.model.current_tag = Some(tag.id);
         self.tag_form = None;
         self.model.refresh(globals.assets())
