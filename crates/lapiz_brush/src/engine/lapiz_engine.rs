@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use anyhow::{Context as _, Result};
 use iced_core::{Element, Length, Point, Theme};
@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 use lapiz_assets::{
     AssetAppExt as _,
     asset::{AssetHandle, AssetId},
+    bundle::BundleId,
     store::AssetRegistry,
 };
 use lapiz_effect::{
@@ -31,7 +32,7 @@ use lapiz_widgets::{button, column, component::component, label, panel, row, tab
 use uuid::Uuid;
 
 use crate::{
-    asset::{BrushPreset, BrushPresetMetadata},
+    asset::{BrushPreset, BrushPresetMetadata, BrushPresetSerializer},
     engine::{BrushEngine, BrushEngineId, BrushPresetEntry},
     instance::{
         BrushParameter, BrushPresetInstance, main_effect_resources, postprocess_effect_resources,
@@ -120,6 +121,7 @@ pub enum LapizBrushEngineMessage {
 impl BrushEngine for LapizBrushEngine {
     type Message = LapizBrushEngineMessage;
     type Brush = BrushPreset;
+    type BrushSerializer = BrushPresetSerializer;
 
     fn id() -> BrushEngineId {
         BrushEngineId::new("lapiz_brush_engine")
@@ -177,8 +179,8 @@ impl BrushEngine for LapizBrushEngine {
         })
     }
 
-    fn new_brush(assets: &AssetRegistry) -> Result<Self> {
-        let preset = BrushPreset {
+    fn new_brush(assets: &AssetRegistry) -> Result<Self::Brush> {
+        Ok(BrushPreset {
             metadata: BrushPresetMetadata {
                 name: "[Unnamed Brush]".into(),
             },
@@ -186,17 +188,7 @@ impl BrushEngine for LapizBrushEngine {
             main_effect: new_main_effect(assets.clone())?.as_asset()?,
             postprocess_effect: new_postprocess_effect().as_asset()?,
             parameters: Default::default(),
-        };
-        let bundle = assets
-            .bundles()
-            .find(|bundle| !bundle.is_readonly())
-            .map(|bundle| bundle.metadata().bundle_id)
-            .context("A writable asset bundle is required for a new brush preset")?;
-        let path = format!("unnamed_brush_{}.lapiz", Uuid::new_v4());
-        let id = assets.add_asset(bundle, path, Arc::new(preset))?;
-        let mut this = Self::load_brush(id, assets)?;
-        this.dirty = true;
-        Ok(this)
+        })
     }
 
     fn brush_asset_id(&self) -> AssetId<Self::Brush> {

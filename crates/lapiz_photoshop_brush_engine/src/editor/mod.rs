@@ -67,6 +67,7 @@ pub enum PhotoshopBrushEngineMessage {
 impl BrushEngine for PhotoshopBrushEngine {
     type Brush = PhotoshopBrushPreset;
     type Message = PhotoshopBrushEngineMessage;
+    type BrushSerializer = PhotoshopBrushSerializer;
 
     fn id() -> BrushEngineId {
         BrushEngineId::new("photoshop_brush_engine")
@@ -107,21 +108,8 @@ impl BrushEngine for PhotoshopBrushEngine {
         Ok(this)
     }
 
-    fn new_brush(assets: &AssetRegistry) -> Result<Self> {
-        let bundle = assets
-            .bundles()
-            .find(|bundle| !bundle.is_readonly())
-            .map(|bundle| bundle.metadata().bundle_id)
-            .context("A writable asset bundle is required for a new brush")?;
-        let path = format!(
-            "brush_{}.{}",
-            Uuid::new_v4(),
-            PhotoshopBrushSerializer::file_extension()
-        );
-        let id = assets.add_asset(bundle, path, Arc::new(PhotoshopBrushPreset::default()))?;
-        let mut this = Self::load_brush(id, assets)?;
-        this.dirty = true;
-        Ok(this)
+    fn new_brush(_assets: &AssetRegistry) -> Result<Self::Brush> {
+        Ok(PhotoshopBrushPreset::default())
     }
 
     fn brush_asset_id(&self) -> AssetId<Self::Brush> {

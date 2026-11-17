@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{any::Any, collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::{Context as _, Result};
 use iced_core::{Element, Event, Length, Size, Theme, window};
@@ -304,16 +304,27 @@ impl BrushEditor {
     fn new_brush(&mut self, engine_id: BrushEngineId, globals: &mut Globals) -> Result<()> {
         let factory = globals.brush_engine_registry().get(&engine_id)?;
         let assets = globals.assets().clone();
-        let engine = factory.new_brush(&assets)?;
+        let new_brush = factory.new_brush(&assets)?;
         let index = self.brushes.len();
-        let entry = UntypedBrushPresetEntry {
-            id: engine.brush_asset_id(),
-            name: t!("new_brush"),
-        };
-        self.brushes.push((engine_id, entry));
+        // TODO Replace this with asset event system;
+        // self.brushes.push((engine_id, entry));
+
+        let bundle = assets
+            .bundles()
+            .find(|bundle| !bundle.is_readonly())
+            .map(|bundle| bundle.metadata().bundle_id)
+            .context("A writable asset bundle is required for a new brush preset")?;
+        let path = format!(
+            "unnamed_{}.{}",
+            Uuid::new_v4(),
+            factory.brush_file_extension()
+        );
+        let asset_id = factory.add_brush_to_assets(new_brush, bundle, Path::new(&path), &assets)?;
+        let engine = factory.load_brush(asset_id, &assets)?;
+
         self.selected = Some(SelectedBrushEditor {
             index,
-            asset_id: engine.brush_asset_id(),
+            asset_id,
             session: BrushEngineSessionId::new(Uuid::new_v4()),
             engine,
         });

@@ -1,11 +1,13 @@
-use std::{any::Any, collections::HashMap, marker::PhantomData};
+use std::{any::Any, collections::HashMap, marker::PhantomData, path::Path, sync::Arc};
 
 use anyhow::{Context as _, Result};
 use iced_core::{Element, Theme};
 use iced_futures::Subscription;
 use iced_runtime::Task;
 use lapiz_assets::{
-    asset::{Asset, AssetId, UntypedAssetId},
+    asset::{Asset, AssetId, ErasedAsset, UntypedAssetId},
+    bundle::BundleId,
+    loader::AssetSerializer,
     store::AssetRegistry,
 };
 use lapiz_runtime::{
@@ -32,6 +34,7 @@ wrapper! {
 pub trait BrushEngine: 'static {
     type Message: Send + 'static;
     type Brush: Asset;
+    type BrushSerializer: AssetSerializer<Asset = Self::Brush>;
 
     fn id() -> BrushEngineId;
     fn label() -> String;
@@ -39,9 +42,15 @@ pub trait BrushEngine: 'static {
     fn load_brush(asset: AssetId<Self::Brush>, assets: &AssetRegistry) -> Result<Self>
     where
         Self: Sized;
-    fn new_brush(assets: &AssetRegistry) -> Result<Self>
-    where
-        Self: Sized;
+    fn new_brush(assets: &AssetRegistry) -> Result<Self::Brush>;
+    fn add_brush_to_assets(
+        brush: Self::Brush,
+        bundle_id: BundleId,
+        path: &Path,
+        assets: &AssetRegistry,
+    ) -> Result<AssetId<Self::Brush>> {
+        assets.add_asset(bundle_id, path, Arc::new(brush))
+    }
     fn brush_asset_id(&self) -> AssetId<Self::Brush>;
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset>;
     fn editor_view<'a>(
@@ -62,6 +71,7 @@ pub trait ErasedBrushEngine: 'static {
     fn id(&self) -> BrushEngineId;
     fn label(&self) -> String;
     fn brush_asset_id(&self) -> UntypedAssetId;
+    fn brush_file_extension(&self) -> &'static str;
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset>;
     fn editor_view<'a>(
         &'a self,
@@ -86,6 +96,10 @@ impl<T: BrushEngine> ErasedBrushEngine for T {
 
     fn brush_asset_id(&self) -> UntypedAssetId {
         self.brush_asset_id().into_untyped()
+    }
+
+    fn brush_file_extension(&self) -> &'static str {
+        T::BrushSerializer::file_extension()
     }
 
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset> {
@@ -121,13 +135,21 @@ impl<T: BrushEngine> ErasedBrushEngine for T {
 pub trait BrushEngineFactory {
     fn id(&self) -> BrushEngineId;
     fn label(&self) -> String;
+    fn brush_file_extension(&self) -> &'static str;
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>>;
     fn load_brush(
         &self,
         asset: UntypedAssetId,
         assets: &AssetRegistry,
     ) -> Result<Box<dyn ErasedBrushEngine>>;
-    fn new_brush(&self, assets: &AssetRegistry) -> Result<Box<dyn ErasedBrushEngine>>;
+    fn new_brush(&self, assets: &AssetRegistry) -> Result<Box<dyn ErasedAsset>>;
+    fn add_brush_to_assets(
+        &self,
+        brush: Box<dyn ErasedAsset>,
+        bundle_id: BundleId,
+        path: &Path,
+        assets: &AssetRegistry,
+    ) -> Result<UntypedAssetId>;
 }
 
 pub struct BrushEngineFactoryInstance<E: BrushEngine> {
@@ -151,6 +173,10 @@ impl<E: BrushEngine> BrushEngineFactory for BrushEngineFactoryInstance<E> {
         E::label()
     }
 
+    fn brush_file_extension(&self) -> &'static str {
+        E::BrushSerializer::file_extension()
+    }
+
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>> {
         E::query_brushes(assets).map(|brushes| {
             brushes
@@ -171,8 +197,21 @@ impl<E: BrushEngine> BrushEngineFactory for BrushEngineFactoryInstance<E> {
         E::load_brush(asset.into_typed(), assets).map(|engine| Box::new(engine) as Box<_>)
     }
 
-    fn new_brush(&self, assets: &AssetRegistry) -> Result<Box<dyn ErasedBrushEngine>> {
-        E::new_brush(assets).map(|engine| Box::new(engine) as Box<_>)
+    fn new_brush(&self, assets: &AssetRegistry) -> Result<Box<dyn ErasedAsset>> {
+        E::new_brush(assets).map(|brush| Box::new(brush) as Box<_>)
+    }
+
+    fn add_brush_to_assets(
+        &self,
+        brush: Box<dyn ErasedAsset>,
+        bundle_id: BundleId,
+        path: &Path,
+        assets: &AssetRegistry,
+    ) -> Result<UntypedAssetId> {
+        let brush = brush
+            .downcast::<E::Brush>()
+            .map_err(|_| anyhow::anyhow!("invalid brush type"))?;
+        E::add_brush_to_assets(*brush, bundle_id, path, assets).map(|id| id.into_untyped())
     }
 }
 
