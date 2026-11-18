@@ -14,7 +14,7 @@ use lapiz_assets::{
 };
 use lapiz_brush::{
     engine::{BrushEngineId, BrushEngineRegistry, BrushEngineRegistryExt as _},
-    render::stroke_preview::generate_stroke_preview,
+    widget::BrushPreviewCompiled,
 };
 use lapiz_i18n::t;
 use lapiz_render::texture::{Image, read_or_create_cached_thumbnail};
@@ -47,7 +47,6 @@ pub struct AssetTagEditor {
     searches: [String; 2],
     ratios: [f32; 3],
     preview: Option<image::Handle>,
-    preview_loading: bool,
     preview_generation: u64,
     extra_metadata: Vec<(String, String)>,
     asset_tags: Vec<TagId>,
@@ -70,11 +69,6 @@ pub enum Message {
     ClearSearch(AssetList),
     Drop(DragItem, DragItem, DropZone),
     Resize(usize, f32),
-    Preview {
-        id: UntypedAssetId,
-        generation: u64,
-        result: std::result::Result<image::Handle, String>,
-    },
     BeginTag(bool),
     TagName(String),
     CreateTag,
@@ -125,7 +119,6 @@ impl WindowView for AssetTagEditor {
             searches: Default::default(),
             ratios: [0.18, 0.76, 0.5],
             preview: None,
-            preview_loading: false,
             preview_generation: 0,
             extra_metadata: Vec::new(),
             asset_tags: Vec::new(),
@@ -231,19 +224,6 @@ impl WindowView for AssetTagEditor {
                     _ => (0.25, 0.75),
                 };
                 self.ratios[index] = ratio.clamp(min, max);
-            }
-            Message::Preview {
-                id,
-                generation,
-                result,
-            } => {
-                if self.model.selected_asset == Some(id) && self.preview_generation == generation {
-                    self.preview_loading = false;
-                    match result {
-                        Ok(handle) => self.preview = Some(handle),
-                        Err(error) => self.error = Some(error),
-                    }
-                }
             }
             Message::BeginTag(child) => {
                 if let Some(parent) = if child {
@@ -575,7 +555,7 @@ impl AssetTagEditor {
             .into()
     }
 
-    fn inspector(&self, globals: &Globals) -> Element<'_, Message, Theme, Renderer> {
+    fn inspector<'a>(&'a self, globals: &'a Globals) -> Element<'a, Message, Theme, Renderer> {
         let Some(metadata) = self.model.selected_metadata() else {
             return panel(
                 column![
@@ -614,13 +594,23 @@ impl AssetTagEditor {
                 .padding(8)
                 .width(Length::Fill),
             );
-        } else if self.preview_loading {
-            content = content.push(
-                panel(label(t!("loading_preview")).muted())
-                    .inset()
-                    .padding(24)
-                    .width(Length::Fill),
-            );
+        } else if let Some(engine_id) = self.engines.get(&metadata.asset_id) {
+            let preview = globals
+                .brush_engine_registry()
+                .get(engine_id)
+                .and_then(|factory| {
+                    let engine =
+                        factory.load_brush_from_assets(metadata.asset_id, globals.assets())?;
+                    engine.compile_brush(globals)
+                });
+            let preview = match preview {
+                Ok(brush) => Element::<'_, Message, Theme, Renderer>::from(
+                    BrushPreviewCompiled::new(brush, Some(metadata.asset_id), globals)
+                        .generation(self.preview_generation),
+                ),
+                Err(error) => Element::from(label(format!("{error:#}")).muted()),
+            };
+            content = content.push(panel(preview).inset().padding(8).width(Length::Fill));
         }
         let bundle = globals
             .assets()
@@ -712,7 +702,6 @@ impl AssetTagEditor {
     fn clear_preview(&mut self) {
         self.preview_generation += 1;
         self.preview = None;
-        self.preview_loading = false;
         self.extra_metadata.clear();
         self.asset_tags.clear();
     }
@@ -733,7 +722,6 @@ impl AssetTagEditor {
             return Task::none();
         };
         let id = metadata.asset_id;
-        let generation = self.preview_generation;
         let assets = globals.assets().clone();
         if metadata.ty == Image::TYPE_NAME {
             let result = assets.handle(id.into_typed::<Image>()).and_then(|handle| {
@@ -753,35 +741,6 @@ impl AssetTagEditor {
                 Err(error) => self.error = Some(format!("{error:#}")),
             }
             return Task::none();
-        }
-        if let Some(engine_id) = self.engines.get(&id) {
-            let result = globals
-                .brush_engine_registry()
-                .get(engine_id)
-                .and_then(|factory| {
-                    let engine = factory.load_brush_from_assets(id, &assets)?;
-                    let preset = engine.compile_brush(globals)?;
-                    generate_stroke_preview(&preset, id, &assets, globals)
-                });
-            match result {
-                Ok(task) => {
-                    self.preview_loading = true;
-                    return task.map(move |result| Message::Preview {
-                        id,
-                        generation,
-                        result: result
-                            .map(|image| {
-                                image::Handle::from_rgba(
-                                    image.width(),
-                                    image.height(),
-                                    image.into_raw(),
-                                )
-                            })
-                            .map_err(|error| format!("{error:#}")),
-                    });
-                }
-                Err(error) => self.error = Some(format!("{error:#}")),
-            }
         }
         Task::none()
     }

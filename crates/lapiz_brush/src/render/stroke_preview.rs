@@ -1,18 +1,14 @@
-use std::{
-    array::from_fn,
-    f32::consts::TAU,
-    fs::{self, File},
-};
+use std::{array::from_fn, f32::consts::TAU};
 
-use anyhow::{Result, anyhow, ensure};
+use anyhow::{Context as _, Result, anyhow, bail, ensure};
+use futures::{FutureExt as _, StreamExt as _, future::BoxFuture};
 use glam::{IVec4, Vec2, Vec4};
-use iced_runtime::Task;
-use image::{ImageFormat, RgbaImage};
+use iced_runtime::{Action, task::into_stream};
+use image::RgbaImage;
 use lapiz_assets::{
+    AssetAppExt as _,
     asset::{AssetHandle, UntypedAssetId},
-    store::AssetRegistry,
 };
-use lapiz_dirs::cache_dir;
 use lapiz_image::{
     layer_bounds::LayerBoundsPipeline,
     texel::TexelType,
@@ -30,7 +26,6 @@ use lapiz_render::{
 };
 use lapiz_runtime::global::Globals;
 use lapiz_utils::log_err::LogErr as _;
-use tracing::info;
 use wesl::include_wesl;
 use wgpu::{
     BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Buffer, ComputePassDescriptor,
@@ -41,6 +36,7 @@ use wgpu::{
 
 use crate::{
     asset::BrushPreset,
+    engine::{BrushEngine, BrushEngineRegistryExt as _},
     input_processing::{BasicStabilizer, InputProcessor, RawPenInput},
     instance::BrushPresetInstance,
     render::{BrushPresetRenderer, Time, graph::CanvasResources},
@@ -48,110 +44,78 @@ use crate::{
 
 pub const CACHED_STROKE_PREVIEW_SIZE: (u32, u32) = (512, 256);
 
-pub fn load_cached_stroke_preview_or_generate(
-    brush: &AssetHandle<BrushPreset>,
-    assets: &AssetRegistry,
+pub fn generate_stroke_preview<E: BrushEngine>(
+    handle: &AssetHandle<E::Brush>,
     globals: &Globals,
-) -> Result<Task<Result<RgbaImage>>> {
-    let cache_path = cache_dir()
-        .join("brush_stroke_preview")
-        .join(format!("preview-{}.png", brush.id()));
+) -> BoxFuture<'static, Result<RgbaImage>> {
+    let prepare = || -> Result<_> {
+        let brush = handle.get()?;
+        let untyped_id = handle.id().into_untyped();
+        let factory = globals.brush_engine_registry().get(&E::id())?;
+        let engine = factory.load_brush(brush.as_ref(), Some(untyped_id), globals.assets())?;
+        Ok(generate_stroke_preview_compiled(
+            &engine.compile_brush(globals)?,
+            Some(untyped_id),
+            globals,
+        ))
+    };
+    let preview = prepare();
+    async move { preview?.await }.boxed()
+}
 
-    if cache_path.exists()
-        && let Ok(img) = image::open(&cache_path).logged_err()
-    {
-        info!("Loaded cached stroke preview from {}", cache_path.display());
-        return Ok(Task::done(Ok(img.into_rgba8())));
+/// Prepares owned resources so the returned task does not borrow the application globals.
+pub fn generate_stroke_preview_compiled(
+    brush: &BrushPreset,
+    asset_id: Option<UntypedAssetId>,
+    globals: &Globals,
+) -> BoxFuture<'static, Result<RgbaImage>> {
+    let instance = BrushPresetInstance::new(brush, asset_id, globals.assets().clone())
+        .map_err(|error| anyhow!("Failed to create brush preset instance: {error:#}"));
+    let device = globals.render_device().clone();
+    let queue = globals.render_queue().clone();
+
+    async move {
+        let instance = instance?;
+        let texture = create_stroke_preview_with(
+            &instance,
+            &predefined_curve_samples(CACHED_STROKE_PREVIEW_SIZE.0, CACHED_STROKE_PREVIEW_SIZE.1),
+            CACHED_STROKE_PREVIEW_SIZE.0,
+            CACHED_STROKE_PREVIEW_SIZE.1,
+            &device,
+            &queue,
+            &CanvasResources {
+                foreground_color: Vec4::ONE,
+                background_color: Vec4::ZERO,
+            },
+        )
+        .await?;
+
+        let img = readback_preview(&device, &queue, texture).await;
+        let img = img.logged_err().unwrap_or_else(|_| {
+            RgbaImage::new(CACHED_STROKE_PREVIEW_SIZE.0, CACHED_STROKE_PREVIEW_SIZE.1)
+        });
+        Ok(img)
     }
-
-    info!("Generating stroke preview for brush {}", brush.id());
-
-    let instance = BrushPresetInstance::new(
-        brush.get()?.as_ref(),
-        Some(brush.id().into_untyped()),
-        assets.clone(),
-    )
-    .map_err(|error| anyhow::anyhow!("Failed to create brush preset instance: {error:#}"))?;
-
-    let texture = create_stroke_preview(
-        &instance,
-        &predefined_curve_samples(CACHED_STROKE_PREVIEW_SIZE.0, CACHED_STROKE_PREVIEW_SIZE.1),
-        CACHED_STROKE_PREVIEW_SIZE.0,
-        CACHED_STROKE_PREVIEW_SIZE.1,
-        globals,
-        &CanvasResources {
-            foreground_color: Vec4::ONE,
-            background_color: Vec4::ZERO,
-        },
-    )?;
-
-    let device = globals.render_device().clone();
-    let queue = globals.render_queue().clone();
-
-    Ok(texture
-        .then(move |texture| readback_preview(device.clone(), queue.clone(), texture))
-        .map(move |img| {
-            let img = img.logged_err().unwrap_or_else(|_| {
-                RgbaImage::new(CACHED_STROKE_PREVIEW_SIZE.0, CACHED_STROKE_PREVIEW_SIZE.1)
-            });
-            fs::create_dir_all(
-                cache_path
-                    .parent()
-                    .expect("preview cache path has a parent"),
-            )?;
-            let mut file = File::create(&cache_path)?;
-            img.write_to(&mut file, ImageFormat::Png)?;
-            info!("Stroke preview saved to {}", cache_path.display());
-            Ok(img)
-        }))
+    .boxed()
 }
 
-pub fn generate_stroke_preview(
-    preset: &BrushPreset,
-    asset_id: UntypedAssetId,
-    assets: &AssetRegistry,
-    globals: &Globals,
-) -> Result<Task<Result<RgbaImage>>> {
-    let (width, height) = CACHED_STROKE_PREVIEW_SIZE;
-    let instance = BrushPresetInstance::new(preset, Some(asset_id), assets.clone())?;
-    let texture = create_stroke_preview(
-        &instance,
-        &predefined_curve_samples(width, height),
-        width,
-        height,
-        globals,
-        &CanvasResources {
-            foreground_color: Vec4::ONE,
-            background_color: Vec4::ZERO,
-        },
-    )?;
-    let device = globals.render_device().clone();
-    let queue = globals.render_queue().clone();
-    Ok(texture.then(move |texture| readback_preview(device.clone(), queue.clone(), texture)))
-}
-
-fn readback_preview(device: Device, queue: Queue, texture: Texture) -> Task<Result<RgbaImage>> {
+async fn readback_preview(device: &Device, queue: &Queue, texture: Texture) -> Result<RgbaImage> {
     let mut ec = device.create_command_encoder(&Default::default());
-    let staging = create_readback_buffer_and_schedule_copy_texture(&device, &mut ec, &texture);
+    let staging = create_readback_buffer_and_schedule_copy_texture(device, &mut ec, &texture);
     let mut readback = Some(readback_buffer_raw_on_submit_async(&mut ec, &staging, ..));
     let si = queue.submit([ec.finish()]);
 
     let width = texture.width();
     let height = texture.height();
 
-    Task::future(async move {
-        let _ = device.poll_indefinitely_for(si);
-    })
-    .then(move |_| {
-        let readback = readback
-            .take()
-            .expect("stroke preview readback task must only run once");
-        Task::future(async move {
-            let rgba_bytes = readback.into_inner().await??;
-            RgbaImage::from_raw(width, height, rgba_bytes)
-                .ok_or_else(|| anyhow!("Unable to create preview image."))
-        })
-    })
+    let _ = device.poll_indefinitely_for(si);
+
+    let readback = readback
+        .take()
+        .expect("stroke preview readback task must only run once");
+    let rgba_bytes = readback.into_inner().await??;
+    RgbaImage::from_raw(width, height, rgba_bytes)
+        .ok_or_else(|| anyhow!("Unable to create preview image."))
 }
 
 pub fn predefined_curve_samples(width: u32, height: u32) -> [RawPenInput; 32] {
@@ -180,27 +144,7 @@ pub fn predefined_curve_samples(width: u32, height: u32) -> [RawPenInput; 32] {
     })
 }
 
-// TODO remove this method
-pub fn create_stroke_preview(
-    brush: &BrushPresetInstance,
-    samples: &[RawPenInput],
-    width: u32,
-    height: u32,
-    globals: &Globals,
-    canvas_resources: &CanvasResources,
-) -> Result<Task<Texture>> {
-    create_stroke_preview_with(
-        brush,
-        samples,
-        width,
-        height,
-        globals.render_device(),
-        globals.render_queue(),
-        canvas_resources,
-    )
-}
-
-pub fn create_stroke_preview_with(
+pub async fn create_stroke_preview_with(
     brush: &BrushPresetInstance,
     samples: &[RawPenInput],
     width: u32,
@@ -208,7 +152,7 @@ pub fn create_stroke_preview_with(
     device: &Device,
     queue: &Queue,
     canvas_resources: &CanvasResources,
-) -> Result<Task<Texture>> {
+) -> Result<Texture> {
     let target_layer = DynamicLayerStorage::new(
         device.clone(),
         queue.clone(),
@@ -226,9 +170,10 @@ pub fn create_stroke_preview_with(
         canvas_resources,
         target_layer,
     )
+    .await
 }
 
-pub fn create_stroke_preview_on_target(
+pub async fn create_stroke_preview_on_target(
     brush: &BrushPresetInstance,
     samples: &[RawPenInput],
     width: u32,
@@ -236,7 +181,7 @@ pub fn create_stroke_preview_on_target(
     globals: &Globals,
     canvas_resources: &CanvasResources,
     target_layer: DynamicLayerStorage,
-) -> Result<Task<Texture>> {
+) -> Result<Texture> {
     create_stroke_preview_on_target_with(
         brush,
         samples,
@@ -247,9 +192,10 @@ pub fn create_stroke_preview_on_target(
         canvas_resources,
         target_layer,
     )
+    .await
 }
 
-pub fn create_stroke_preview_on_target_with(
+pub async fn create_stroke_preview_on_target_with(
     brush: &BrushPresetInstance,
     samples: &[RawPenInput],
     width: u32,
@@ -258,7 +204,7 @@ pub fn create_stroke_preview_on_target_with(
     queue: &Queue,
     canvas_resources: &CanvasResources,
     mut target_layer: DynamicLayerStorage,
-) -> Result<Task<Texture>> {
+) -> Result<Texture> {
     ensure!(
         samples.len() >= 2,
         "stroke preview requires at least two samples"
@@ -333,24 +279,16 @@ pub fn create_stroke_preview_on_target_with(
     let device = device.clone();
     let queue = queue.clone();
 
-    let texture = final_result.map(move |result| {
-        Some(map_result_texture(
-            device.clone(),
-            queue.clone(),
-            width,
-            height,
-            result,
-        ))
-    });
-    Ok(Task::batch([worker.map(|()| None), texture])
-        .collect()
-        .map(|textures| {
-            textures
-                .into_iter()
-                .flatten()
-                .next()
-                .expect("stroke preview worker produced no texture")
-        }))
+    if let Some(mut stream) = into_stream(worker) {
+        while let Some(_) = stream.next().await {}
+    }
+
+    let mut stream = into_stream(final_result).context("no output from stroke preview renderer")?;
+    let Some(Action::Output(result)) = stream.next().await else {
+        bail!("stroke preview renderer did not produce an output");
+    };
+    let texture = map_result_texture(device.clone(), queue.clone(), width, height, result);
+    Ok(texture)
 }
 
 fn map_result_texture(
