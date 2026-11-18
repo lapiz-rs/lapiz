@@ -10,6 +10,7 @@ ignore = [
     { id = "RUSTSEC-2026-0370", reason = "zvariant is pulled in by mundy through zbus 5 for Linux theme detection; remove this exception when mundy migrates to zbus 6" },
     { id = "RUSTSEC-2026-0371", reason = "zbus_names is pulled in by mundy through zbus 5 for Linux theme detection; remove this exception when mundy migrates to zbus 6" },
     { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is pulled in by mundy through zbus 5 for Linux theme detection; remove this exception when mundy migrates to zbus 6" },
+    { id = "RUSTSEC-2026-0543", reason = "chrono is retained for date and time handling in direct and transitive dependencies despite its unmaintained status" },
 ]
 
 [licenses]
