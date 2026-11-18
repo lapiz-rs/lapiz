@@ -1,15 +1,10 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::{Context as _, Result};
 use iced_core::{Element, Length, Point, Theme};
 use iced_runtime::Task;
 use indexmap::IndexMap;
-use lapiz_assets::{
-    AssetAppExt as _,
-    asset::{AssetHandle, AssetId},
-    bundle::BundleId,
-    store::AssetRegistry,
-};
+use lapiz_assets::{AssetAppExt as _, asset::AssetId, store::AssetRegistry};
 use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassId},
     editor::{EffectEditorMessage, EffectEditorState, EffectEditorView},
@@ -28,7 +23,7 @@ use lapiz_shader_graph::{
     graph::{Graph, slot::ErasedGraphValueType},
     wgsl_std::types::{handle::LayerType, primitive::F32Type},
 };
-use lapiz_widgets::{button, column, component::component, label, panel, row, tab_bar, text_input};
+use lapiz_widgets::{column, component::component, label, panel, row, tab_bar, text_input};
 use uuid::Uuid;
 
 use crate::{
@@ -213,7 +208,7 @@ impl BrushEngine for LapizBrushEngine {
     fn editor_update(
         &mut self,
         message: Self::Message,
-        globals: &mut Globals,
+        _globals: &mut Globals,
     ) -> Task<Self::Message> {
         match message {
             LapizBrushEngineMessage::BrushNameChanged(name) => {
@@ -265,11 +260,6 @@ type EditorElement<'a> = GraphElement<'a, LapizBrushEngineMessage>;
 
 impl LapizBrushEngine {
     fn view_selected<'a>(&'a self, selected: &'a SelectedBrush) -> EditorElement<'a> {
-        let save_label = if self.dirty {
-            t!("save_dirty")
-        } else {
-            t!("save")
-        };
         let naming = row![
             label(t!("name")),
             text_input("", &self.name_buffer)

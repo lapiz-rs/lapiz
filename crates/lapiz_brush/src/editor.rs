@@ -15,14 +15,13 @@ use lapiz_runtime::{
     windows::{WindowView, WindowViewId},
 };
 use lapiz_utils::log_err::LogErr as _;
-use lapiz_widgets::{button, column, flex::Flex, label, panel, row, scrollable, space, title_bar};
+use lapiz_widgets::{button, column, flex::Flex, label, panel, row, scrollable, title_bar};
 use uuid::Uuid;
 
 use crate::{
     engine::{
-        BrushEngine as _, BrushEngineId, BrushEngineRegistry, BrushEngineRegistryExt,
-        BrushEngineSessionId, ErasedBrushEngine, UntypedBrushPresetEntry,
-        lapiz_engine::LapizBrushEngine,
+        BrushEngineId, BrushEngineRegistry, BrushEngineRegistryExt as _, BrushEngineSessionId,
+        ErasedBrushEngine, UntypedBrushPresetEntry,
     },
     tool::CurrentBrushPresetExt as _,
 };

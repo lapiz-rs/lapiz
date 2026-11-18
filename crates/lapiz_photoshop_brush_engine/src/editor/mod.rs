@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use anyhow::{Context as _, Result};
 use futures::stream;
@@ -6,12 +6,7 @@ use glam::Vec4;
 use iced_core::{Color, Element, Length, Theme, image::Handle};
 use iced_futures::Subscription;
 use iced_runtime::Task;
-use lapiz_assets::{
-    AssetAppExt as _,
-    asset::{AssetHandle, AssetId},
-    loader::AssetSerializer as _,
-    store::AssetRegistry,
-};
+use lapiz_assets::{AssetAppExt as _, asset::AssetId, store::AssetRegistry};
 use lapiz_brush::{
     asset::BrushPreset,
     engine::{BrushEngine, BrushEngineId, BrushPresetEntry},
@@ -33,7 +28,6 @@ use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_widgets::{
     button, column, flex::Flex, image, label, panel, panel::inset, row, scrollable, text_input,
 };
-use uuid::Uuid;
 
 use self::controls::Section;
 use crate::{asset::PhotoshopBrushSerializer, parameter::PhotoshopBrushPreset};
@@ -92,7 +86,7 @@ impl BrushEngine for PhotoshopBrushEngine {
     fn load_brush(
         brush: &Self::Brush,
         asset_id: Option<AssetId<Self::Brush>>,
-        assets: &AssetRegistry,
+        _assets: &AssetRegistry,
     ) -> Result<Self> {
         let mut this = Self {
             brush: brush.clone(),
