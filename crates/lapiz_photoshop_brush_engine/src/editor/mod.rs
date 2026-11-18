@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use anyhow::{Context as _, Result};
 use futures::stream;
@@ -6,12 +6,7 @@ use glam::Vec4;
 use iced_core::{Color, Element, Length, Theme, image::Handle};
 use iced_futures::Subscription;
 use iced_runtime::Task;
-use lapiz_assets::{
-    AssetAppExt as _,
-    asset::{AssetHandle, AssetId},
-    loader::AssetSerializer as _,
-    store::AssetRegistry,
-};
+use lapiz_assets::{AssetAppExt as _, asset::AssetId, store::AssetRegistry};
 use lapiz_brush::{
     asset::BrushPreset,
     engine::{BrushEngine, BrushEngineId, BrushPresetEntry},
@@ -33,7 +28,6 @@ use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_widgets::{
     button, column, flex::Flex, image, label, panel, panel::inset, row, scrollable, text_input,
 };
-use uuid::Uuid;
 
 use self::controls::Section;
 use crate::{asset::PhotoshopBrushSerializer, parameter::PhotoshopBrushPreset};
@@ -44,7 +38,7 @@ type EditorElement<'a> = Element<'a, PhotoshopBrushEngineMessage, Theme, Rendere
 
 pub struct PhotoshopBrushEngine {
     brush: PhotoshopBrushPreset,
-    handle: Option<AssetHandle<PhotoshopBrushPreset>>,
+    asset_id: Option<AssetId<PhotoshopBrushPreset>>,
     section: Section,
     dirty: bool,
     revision: u64,
@@ -59,30 +53,14 @@ pub enum PhotoshopBrushEngineMessage {
     ToggleSection(Section, bool),
     NameChanged(String),
     Edit(Box<dyn FnOnce(&mut PhotoshopBrushPreset) + Send>),
-    Save,
     RefreshPreview(u64),
     PreviewReady(u64, Result<Handle>),
-}
-
-impl Default for PhotoshopBrushEngine {
-    fn default() -> Self {
-        Self {
-            brush: PhotoshopBrushPreset::default(),
-            handle: None,
-            section: Section::BrushTip,
-            dirty: false,
-            revision: 0,
-            preview: None,
-            preview_revision: None,
-            preview_error: None,
-            status: None,
-        }
-    }
 }
 
 impl BrushEngine for PhotoshopBrushEngine {
     type Brush = PhotoshopBrushPreset;
     type Message = PhotoshopBrushEngineMessage;
+    type BrushSerializer = PhotoshopBrushSerializer;
 
     fn id() -> BrushEngineId {
         BrushEngineId::new("photoshop_brush_engine")
@@ -92,7 +70,7 @@ impl BrushEngine for PhotoshopBrushEngine {
         t!("photoshop_brush_engine")
     }
 
-    fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>> {
+    fn query_brushes(assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>> {
         assets
             .all_handles_of::<PhotoshopBrushPreset>()?
             .into_iter()
@@ -106,41 +84,31 @@ impl BrushEngine for PhotoshopBrushEngine {
     }
 
     fn load_brush(
-        &mut self,
-        asset: AssetId<Self::Brush>,
-        assets: &AssetRegistry,
-        _globals: &mut Globals,
-    ) -> Result<()> {
-        let handle = assets.handle(asset)?;
-        let brush = handle.get()?.as_ref().clone();
-        self.brush = brush;
-        self.handle = Some(handle);
-        self.section = Section::BrushTip;
-        self.dirty = false;
-        self.status = None;
-        self.invalidate_preview();
-        Ok(())
+        brush: &Self::Brush,
+        asset_id: Option<AssetId<Self::Brush>>,
+        _assets: &AssetRegistry,
+    ) -> Result<Self> {
+        let mut this = Self {
+            brush: brush.clone(),
+            asset_id,
+            section: Section::BrushTip,
+            dirty: false,
+            revision: 0,
+            preview: None,
+            preview_revision: None,
+            preview_error: None,
+            status: None,
+        };
+        this.invalidate_preview();
+        Ok(this)
     }
 
-    fn new_brush(
-        &mut self,
-        assets: &AssetRegistry,
-        globals: &mut Globals,
-    ) -> Result<AssetId<Self::Brush>> {
-        let bundle = assets
-            .bundles()
-            .find(|bundle| !bundle.is_readonly())
-            .map(|bundle| bundle.metadata().bundle_id)
-            .context("A writable asset bundle is required for a new brush")?;
-        let path = format!(
-            "brush_{}.{}",
-            Uuid::new_v4(),
-            PhotoshopBrushSerializer::file_extension()
-        );
-        let id = assets.add_asset(bundle, path, Arc::new(PhotoshopBrushPreset::default()))?;
-        self.load_brush(id, assets, globals)?;
-        self.dirty = true;
-        Ok(id)
+    fn new_brush(_assets: &AssetRegistry) -> Result<Self::Brush> {
+        Ok(PhotoshopBrushPreset::default())
+    }
+
+    fn brush_asset_id(&self) -> Option<AssetId<PhotoshopBrushPreset>> {
+        self.asset_id
     }
 
     fn compile_brush(&self, _globals: &Globals) -> Result<BrushPreset> {
@@ -154,17 +122,7 @@ impl BrushEngine for PhotoshopBrushEngine {
                 .width(Length::Fill),
         )
         .map(PhotoshopBrushEngineMessage::NameChanged);
-        let toolbar = row![
-            name_input,
-            button(label(if self.dirty {
-                t!("save_dirty")
-            } else {
-                t!("save")
-            }))
-            .primary()
-            .on_press_maybe(self.dirty.then_some(PhotoshopBrushEngineMessage::Save)),
-        ]
-        .gap(8.0);
+        let toolbar = row![name_input].gap(8.0);
 
         let sections = Section::ALL.into_iter().map(|section| {
             let toggle = controls::section_toggle(section, &self.brush);
@@ -232,12 +190,6 @@ impl BrushEngine for PhotoshopBrushEngine {
                 self.status = None;
                 self.invalidate_preview();
             }
-            PhotoshopBrushEngineMessage::Save => {
-                self.status = Some(match self.save() {
-                    Ok(()) => t!("photoshop_brush_saved"),
-                    Err(error) => format!("{}: {error:#}", t!("photoshop_brush_save_error")),
-                });
-            }
             PhotoshopBrushEngineMessage::RefreshPreview(revision) => {
                 if revision == self.revision {
                     self.preview_error = None;
@@ -269,6 +221,10 @@ impl BrushEngine for PhotoshopBrushEngine {
         Task::none()
     }
 
+    fn editor_dirty(&self) -> bool {
+        self.dirty
+    }
+
     fn editor_subscription(&self, _globals: &Globals) -> Subscription<Self::Message> {
         Subscription::run_with(self.revision, |revision| {
             let revision = *revision;
@@ -278,23 +234,24 @@ impl BrushEngine for PhotoshopBrushEngine {
             })
         })
     }
+
+    fn editor_save(&mut self, globals: &Globals) -> Result<()> {
+        let asset_id = self
+            .asset_id
+            .context("Cannot save brush without asset ID")?;
+        let assets = globals.assets();
+        let handle = assets.handle(asset_id)?;
+        handle.update(self.brush.clone())?;
+        handle.write()?;
+        self.dirty = false;
+        Ok(())
+    }
 }
 
 impl PhotoshopBrushEngine {
     fn invalidate_preview(&mut self) {
         self.revision = self.revision.wrapping_add(1);
         self.preview_error = None;
-    }
-
-    fn save(&mut self) -> Result<()> {
-        let handle = self
-            .handle
-            .as_ref()
-            .context("A brush asset is required for saving")?;
-        handle.update(self.brush.clone())?;
-        handle.write()?;
-        self.dirty = false;
-        Ok(())
     }
 
     fn view_preview(&self) -> EditorElement<'_> {
@@ -336,7 +293,7 @@ impl PhotoshopBrushEngine {
 
     fn render_preview(&self, globals: &Globals) -> Result<Task<Result<Handle>>> {
         let brush = &self.brush;
-        let asset_id = self.handle.as_ref().map(|h| h.id().into_untyped());
+        let asset_id = self.asset_id.map(|id| id.into_untyped());
         let preset = brush.compile()?;
         let instance = BrushPresetInstance::new(&preset, asset_id, globals.assets().clone())?;
         let (width, height) = (512, 128);

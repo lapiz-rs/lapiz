@@ -8,7 +8,7 @@ use lapiz_tools::ToolsAppExt as _;
 use crate::{
     asset::{BrushPreset, BrushPresetSerializer},
     editor::BrushEditor,
-    engine::{BrushEngineRegistry, lapiz_engine::LapizBrushEngineEditor},
+    engine::{BrushEngineRegistry, lapiz_engine::LapizBrushEngine},
     render::stroke_preview::load_cached_stroke_preview_or_generate,
     tool::BrushTool,
 };
@@ -39,7 +39,7 @@ impl Plugin for BrushPlugin {
         globals.add_tool_function::<BrushTool>();
 
         let mut registry = BrushEngineRegistry::default();
-        registry.register::<LapizBrushEngineEditor>();
+        registry.register::<LapizBrushEngine>();
         app.add_global_instance(registry);
     }
 

@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{any::Any, collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::{Context as _, Result};
 use iced_core::{Element, Event, Length, Size, Theme, window};
@@ -20,8 +20,8 @@ use uuid::Uuid;
 
 use crate::{
     engine::{
-        BrushEngine as _, BrushEngineId, BrushEngineRegistry, BrushEngineSessionId,
-        ErasedBrushEngine, UntypedBrushPresetEntry, lapiz_engine::LapizBrushEngineEditor,
+        BrushEngineId, BrushEngineRegistry, BrushEngineRegistryExt as _, BrushEngineSessionId,
+        ErasedBrushEngine, UntypedBrushPresetEntry,
     },
     tool::CurrentBrushPresetExt as _,
 };
@@ -44,6 +44,7 @@ struct SelectedBrushEditor {
 pub enum BrushEditorMessage {
     SelectBrush(usize),
     NewBrush(BrushEngineId),
+    SaveBrush,
     EngineMessage {
         session: BrushEngineSessionId,
         message: Box<dyn Any + Send>,
@@ -124,22 +125,20 @@ impl WindowView for BrushEditor {
             })
             .collect::<Vec<_>>();
 
-        let mut create_buttons = column![
-            button(label(t!("new_brush")))
-                .on_press(BrushEditorMessage::NewBrush(LapizBrushEngineEditor::id())),
-        ]
-        .gap(4.0);
+        let mut create_buttons = column![].gap(4.0);
         let mut additional_engines = globals
             .global::<BrushEngineRegistry>()
             .factories
             .iter()
-            .filter(|(id, _)| **id != LapizBrushEngineEditor::id())
             .collect::<Vec<_>>();
         additional_engines.sort_by_key(|(id, _)| id.0);
         for (id, registration) in additional_engines {
             create_buttons = create_buttons.push(
-                button(label(t!("new_engine_brush", engine = &registration.label)))
-                    .on_press(BrushEditorMessage::NewBrush(*id)),
+                button(label(t!(
+                    "new_engine_brush",
+                    engine = registration.label().clone()
+                )))
+                .on_press(BrushEditorMessage::NewBrush(*id)),
             );
         }
 
@@ -159,14 +158,22 @@ impl WindowView for BrushEditor {
         let view = match self.selected.as_ref() {
             Some(selected) => {
                 let session = selected.session;
-                selected
-                    .engine
-                    .editor_view(globals)
-                    .map(move |message| BrushEditorMessage::EngineMessage { session, message })
+                column![
+                    selected
+                        .engine
+                        .editor_view(globals)
+                        .map(move |message| BrushEditorMessage::EngineMessage { session, message }),
+                    button(label(if selected.engine.editor_dirty() {
+                        t!("save_dirty")
+                    } else {
+                        t!("save")
+                    }))
+                    .width(Length::Fill)
+                    .on_press(BrushEditorMessage::SaveBrush)
+                ]
+                .gap(8)
             }
-            None => row![label(t!("select_a_brush")).muted(), label("")]
-                .gap(8.0)
-                .into(),
+            None => row![label(t!("select_a_brush")).muted(), label("")].gap(8.0),
         };
 
         panel(column![
@@ -204,6 +211,17 @@ impl WindowView for BrushEditor {
                 let task = selected.engine.editor_update(message, globals);
                 self.refresh_brush_names(globals);
                 task.map(move |message| BrushEditorMessage::EngineMessage { session, message })
+            }
+            BrushEditorMessage::SaveBrush => {
+                let Some(selected) = self.selected.as_mut() else {
+                    return Task::none();
+                };
+
+                if selected.engine.editor_dirty() {
+                    selected.engine.editor_save(globals).log_err();
+                }
+
+                Task::none()
             }
             BrushEditorMessage::WindowUnfocused(window) => {
                 let current_brush = globals
@@ -290,9 +308,8 @@ impl BrushEditor {
         let Some((engine_id, entry)) = self.brushes.get(index) else {
             return Ok(());
         };
-        let mut engine = globals.global::<BrushEngineRegistry>().create(*engine_id)?;
-        let assets = globals.assets().clone();
-        engine.load_brush(entry.id, &assets, globals)?;
+        let factory = globals.brush_engine_registry().get(engine_id)?;
+        let engine = factory.load_brush_from_assets(entry.id, globals.assets())?;
 
         self.selected = Some(SelectedBrushEditor {
             index,
@@ -304,19 +321,29 @@ impl BrushEditor {
     }
 
     fn new_brush(&mut self, engine_id: BrushEngineId, globals: &mut Globals) -> Result<()> {
-        let mut engine = globals.global::<BrushEngineRegistry>().create(engine_id)?;
+        let factory = globals.brush_engine_registry().get(&engine_id)?;
         let assets = globals.assets().clone();
-        let id = engine.new_brush(&assets, globals)?;
-        let entry = engine
-            .query_brushes(&assets)?
-            .into_iter()
-            .find(|entry| entry.id == id)
-            .context("The new brush must appear in its engine's brush list")?;
+        let new_brush = factory.new_brush(&assets)?;
         let index = self.brushes.len();
-        self.brushes.push((engine_id, entry));
+        // TODO Replace this with asset event system;
+        // self.brushes.push((engine_id, entry));
+
+        let bundle = assets
+            .bundles()
+            .find(|bundle| !bundle.is_readonly())
+            .map(|bundle| bundle.metadata().bundle_id)
+            .context("A writable asset bundle is required for a new brush preset")?;
+        let path = format!(
+            "unnamed_{}.{}",
+            Uuid::new_v4(),
+            factory.brush_file_extension()
+        );
+        let asset_id = factory.add_brush_to_assets(new_brush, bundle, Path::new(&path), &assets)?;
+        let engine = factory.load_brush_from_assets(asset_id, &assets)?;
+
         self.selected = Some(SelectedBrushEditor {
             index,
-            asset_id: id,
+            asset_id,
             session: BrushEngineSessionId::new(Uuid::new_v4()),
             engine,
         });
@@ -327,9 +354,14 @@ impl BrushEditor {
         let Some(selected) = self.selected.as_ref() else {
             return;
         };
-        let Ok(entries) = selected.engine.query_brushes(globals.assets()).logged_err() else {
+        let factory = globals
+            .brush_engine_registry()
+            .get(&selected.engine.id())
+            .unwrap();
+        let Ok(entries) = factory.query_brushes(globals.assets()).logged_err() else {
             return;
         };
+
         let engine_id = self.brushes[selected.index].0;
         let mut names = entries
             .into_iter()
