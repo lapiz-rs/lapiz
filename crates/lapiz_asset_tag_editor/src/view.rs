@@ -13,7 +13,7 @@ use lapiz_assets::{
     tag::{PositionInTag, TagFile, TagId},
 };
 use lapiz_brush::{
-    engine::{BrushEngineId, BrushEngineRegistry},
+    engine::{BrushEngineId, BrushEngineRegistry, BrushEngineRegistryExt as _},
     render::stroke_preview::generate_stroke_preview,
 };
 use lapiz_i18n::t;
@@ -756,10 +756,10 @@ impl AssetTagEditor {
         }
         if let Some(engine_id) = self.engines.get(&id) {
             let result = globals
-                .global::<BrushEngineRegistry>()
-                .create(*engine_id)
-                .and_then(|mut engine| {
-                    engine.load_brush(id, &assets, globals)?;
+                .brush_engine_registry()
+                .get(engine_id)
+                .and_then(|factory| {
+                    let engine = factory.load_brush_from_assets(id, &assets)?;
                     let preset = engine.compile_brush(globals)?;
                     generate_stroke_preview(&preset, id, &assets, globals)
                 });
