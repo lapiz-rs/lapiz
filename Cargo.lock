@@ -3284,6 +3284,7 @@ dependencies = [
  "iced_core",
  "iced_runtime",
  "lapiz_about",
+ "lapiz_asset_tag_editor",
  "lapiz_assets",
  "lapiz_canvas",
  "lapiz_config",
@@ -3339,6 +3340,7 @@ dependencies = [
  "lapiz_about",
  "lapiz_abr_bridge",
  "lapiz_actions",
+ "lapiz_asset_tag_editor",
  "lapiz_assets",
  "lapiz_brush",
  "lapiz_bucket_tool",
@@ -3380,6 +3382,25 @@ dependencies = [
  "unic-langid",
  "wgpu",
  "winit",
+]
+
+[[package]]
+name = "lapiz_asset_tag_editor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "iced_core",
+ "iced_futures",
+ "iced_runtime",
+ "lapiz_assets",
+ "lapiz_brush",
+ "lapiz_i18n",
+ "lapiz_render",
+ "lapiz_runtime",
+ "lapiz_widgets",
+ "rust-embed",
+ "tempfile",
+ "toml 1.1.6+spec-1.1.0",
 ]
 
 [[package]]

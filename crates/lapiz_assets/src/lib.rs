@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -12,6 +13,7 @@ use crate::{
     loader::{AssetSerializer, AssetSerializerRegistry},
     source::{AssetSourceRegistry, AssetSourceRegistryExt as _},
     store::AssetRegistry,
+    tag::{Tag, TagFile},
 };
 
 pub mod asset;
@@ -56,6 +58,27 @@ impl Plugin for AssetsPlugin {
     }
 
     fn finish(&self, app: &mut Runtime) {
+        let prepare_type_tags = || -> Result<()> {
+            let builtin = self.asset_root.join("builtin_assets");
+            for ty in app
+                .globals()
+                .global::<AssetSerializerRegistry>()
+                .asset_types()
+            {
+                let path = builtin.join(Tag::type_tag_path(ty));
+                if !path.exists() {
+                    fs::create_dir_all(path.parent().expect("type tag path has a parent"))?;
+
+                    let tag = TagFile::new(Tag::type_tag_name(ty), Some(ty.into()));
+                    fs::write(path, toml::to_string(&tag)?)?;
+                }
+            }
+            Ok(())
+        };
+        if prepare_type_tags().logged_err().is_err() {
+            return;
+        }
+
         let sources = app.globals().global::<AssetSourceRegistry>();
         let all_bundles = sources.scan_all(&self.asset_root);
 
@@ -75,6 +98,7 @@ impl Plugin for AssetsPlugin {
                 .index_db()
                 .remove_unloaded_bundles(&loaded_bundle_ids)?;
             registry.add_erased_bundles(all_bundles)?;
+            registry.sync_type_tag_assets()?;
             Result::<AssetRegistry, anyhow::Error>::Ok(registry)
         };
 

@@ -171,6 +171,7 @@ impl WindowView for BrushEditor {
                     .width(Length::Fill)
                     .on_press(BrushEditorMessage::SaveBrush)
                 ]
+                .width(Length::Fill)
                 .gap(8)
             }
             None => row![label(t!("select_a_brush")).muted(), label("")].gap(8.0),

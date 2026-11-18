@@ -312,6 +312,10 @@ impl AssetBundleCache {
                 .add_tag(Path::new(&tag.relative_path), &tag_file)?;
         }
 
+        self.manifest
+            .write()
+            .tags
+            .insert(tag.id, PathBuf::from(&tag.relative_path));
         Ok(())
     }
 

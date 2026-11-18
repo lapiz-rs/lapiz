@@ -27,6 +27,17 @@ impl AssetSerializerRegistry {
             .insert(T::file_extension(), Arc::new(T::default()));
     }
 
+    pub fn asset_types(&self) -> Vec<&'static str> {
+        let mut types = self
+            .serializers
+            .values()
+            .map(|serializer| serializer.asset_type_name())
+            .collect::<Vec<_>>();
+        types.sort_unstable();
+        types.dedup();
+        types
+    }
+
     pub fn get(&self, ext: &str) -> Option<Arc<dyn ErasedAssetSerializer>> {
         self.serializers.get(ext).cloned()
     }

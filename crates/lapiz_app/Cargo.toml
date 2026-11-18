@@ -23,6 +23,7 @@ image.workspace = true
 lapiz_about.workspace = true
 lapiz_abr_bridge.workspace = true
 lapiz_actions.workspace = true
+lapiz_asset_tag_editor.workspace = true
 lapiz_assets.workspace = true
 lapiz_brush.workspace = true
 lapiz_bucket_tool.workspace = true

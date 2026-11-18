@@ -1,6 +1,6 @@
 use iced_core::{
-    Element, Event, Layout, Length, Point, Rectangle, Renderer as _, Shell, Size, Theme, Vector,
-    Widget, layout, overlay, pointer,
+    Element, Event, Layout, Length, Point, Rectangle, Shell, Size, Theme, Vector, Widget, layout,
+    overlay, pointer,
     pointer::mouse,
     renderer,
     widget::{Operation, Tree, tree},
@@ -280,18 +280,6 @@ impl<Message> Widget<Message, Theme, Renderer> for Splitter<'_, Message> {
                 viewport,
             );
         }
-        let p = theme.palette();
-        renderer.fill_quad(
-            renderer::Quad {
-                bounds: self.handle_bounds(layout.bounds()),
-                ..renderer::Quad::default()
-            },
-            if cursor.is_over(self.handle_bounds(layout.bounds())) {
-                p.primary.base.color
-            } else {
-                p.background.strong.color
-            },
-        );
     }
 
     fn mouse_interaction(

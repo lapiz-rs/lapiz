@@ -44,6 +44,22 @@ pub struct Tag {
     pub asset_ty: Option<String>,
 }
 
+impl Tag {
+    pub fn type_tag_name(asset_ty: &str) -> String {
+        format!("{asset_ty}_asset")
+    }
+
+    pub fn type_tag_path(asset_ty: &str) -> String {
+        format!("type_tags/{}.tag", Self::type_tag_name(asset_ty))
+    }
+
+    pub fn is_type_tag(&self) -> bool {
+        self.asset_ty.as_ref().is_some_and(|ty| {
+            self.name == Self::type_tag_name(ty) && self.relative_path == Self::type_tag_path(ty)
+        })
+    }
+}
+
 /// On-disk serialized representation of a tag file (`.tag`).
 ///
 /// Stored as TOML to persist the tag's [`TagId`], human-readable name, and optional target asset type.

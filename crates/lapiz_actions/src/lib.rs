@@ -19,7 +19,7 @@ use crate::{
         MoveLayerDownAction, MoveLayerUpAction, SelectNextLayerAction, SelectPreviousLayerAction,
     },
     selection::DeleteSelectionAction,
-    window::{OpenBrushEditorAction, ToggleFilterPanelAction},
+    window::{OpenAssetTagEditorAction, OpenBrushEditorAction, ToggleFilterPanelAction},
 };
 
 pub mod about;
@@ -58,6 +58,7 @@ impl Plugin for ActionPlugin {
             .add_action_function::<SelectNextLayerAction>()
             .add_action_function::<SelectPreviousLayerAction>()
             .add_action_function::<PasteIntoNewLayerAction>()
+            .add_action_function::<OpenAssetTagEditorAction>()
             .add_action_function::<OpenBrushEditorAction>()
             .add_action_function::<ToggleFilterPanelAction>()
             .add_action_function::<UndoAction>()

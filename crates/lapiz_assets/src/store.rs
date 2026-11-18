@@ -11,14 +11,14 @@ use indexmap::IndexSet;
 use lapiz_runtime::global::Global;
 
 use crate::{
-    asset::{Asset, AssetHandle, AssetId, AssetMetadata, ErasedAsset as _},
+    asset::{Asset, AssetHandle, AssetId, AssetMetadata, ErasedAsset as _, UntypedAssetId},
     bundle::{
         AssetBundle, AssetBundleCache, BundleId, BundleManifest, BundleSnapshot, ErasedAssetBundle,
         read_tag_file, read_tagged_assets_file, read_tagged_tags_file, scan_bundle_assets,
     },
     index_db::{AssetFilter, AssetIndexDb, TagFilter, UntypedAssetFilter},
     loader::AssetSerializerRegistry,
-    tag::{PositionInTag, Tag, TagId, TaggedAssets},
+    tag::{PositionInTag, Tag, TagFile, TagId, TaggedAssets},
 };
 
 /// Central service managing asset bundles, in-memory caches, serialization, and index queries.
@@ -237,6 +237,101 @@ impl AssetRegistry {
         })?;
         self.inner.index_db.update_tag(tag.clone())?;
         bundle.write_tag(tag)?;
+        Ok(())
+    }
+
+    pub fn create_tag(
+        &self,
+        bundle_id: BundleId,
+        relative_path: String,
+        file: TagFile,
+    ) -> Result<Tag> {
+        let tag = Tag {
+            id: file.id,
+            bundle_id,
+            relative_path,
+            name: file.name,
+            asset_ty: file.asset_ty,
+        };
+        let bundle = self.bundle(&bundle_id)?;
+        bundle.write_tag(&tag)?;
+        self.index_db().add_tag(tag.clone())?;
+        Ok(tag)
+    }
+
+    pub fn remove_asset_from_tag(&self, asset_id: UntypedAssetId, tag_id: TagId) -> Result<()> {
+        let tag = self.index_db().get_tag(tag_id)?;
+        let bundle = self.bundle(&tag.bundle_id)?;
+        let mut members = bundle.read_tagged_assets(&tag_id)?;
+        if !members.assets.shift_remove(&asset_id) {
+            bail!("Asset {asset_id} is not assigned to tag {}", tag.name);
+        }
+        bundle.write_tagged_assets(&tag_id, &members)?;
+        self.index_db().edit_tagged_assets(&tag_id, &members)
+    }
+
+    pub fn add_asset_to_tag_at(
+        &self,
+        asset_id: UntypedAssetId,
+        tag_id: TagId,
+        position: PositionInTag<UntypedAssetId>,
+    ) -> Result<()> {
+        let metadata = self.inner.index_db.get_asset(&asset_id)?;
+        let tag = self.inner.index_db.get_tag(tag_id)?;
+        if let Some(expected) = &tag.asset_ty
+            && metadata.ty != *expected
+        {
+            bail!(
+                "Tag {tag_id} requires asset type {expected}, got {}",
+                metadata.ty
+            );
+        }
+
+        let bundle = self.bundle(&tag.bundle_id)?;
+        let mut assets = bundle.read_tagged_assets(&tag_id)?;
+        assets.insert(asset_id, position)?;
+        bundle.write_tagged_assets(&tag_id, &assets)?;
+        self.inner.index_db.edit_tagged_assets(&tag_id, &assets)
+    }
+
+    pub fn sync_type_tag_assets(&self) -> Result<()> {
+        for tag in self.all_tags()?.into_iter().filter(Tag::is_type_tag) {
+            let bundle = self.bundle(&tag.bundle_id)?;
+            let mut members = bundle.read_tagged_assets(&tag.id)?;
+            let before = members.assets.clone();
+            for asset in self.index_db().get_assets(UntypedAssetFilter {
+                ty: tag.asset_ty.clone(),
+                ..Default::default()
+            })? {
+                members.assets.insert(asset.asset_id);
+            }
+            if members.assets != before {
+                bundle.write_tagged_assets(&tag.id, &members)?;
+                self.index_db().edit_tagged_assets(&tag.id, &members)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn move_tag_at(
+        &self,
+        child_id: TagId,
+        old_parent: &Tag,
+        new_parent: &Tag,
+        position: PositionInTag<TagId>,
+    ) -> Result<()> {
+        if old_parent.id == new_parent.id {
+            return self.add_tag_to_tag_at(new_parent, &child_id, position);
+        }
+        let destination_bundle = self.bundle(&new_parent.bundle_id)?;
+        let original = destination_bundle.read_tagged_tags(&new_parent.id)?;
+        self.add_tag_to_tag_at(new_parent, &child_id, position)?;
+        if let Err(error) = self.remove_child_from_tag(old_parent, &child_id) {
+            destination_bundle.write_tagged_tags(&new_parent.id, &original)?;
+            self.index_db()
+                .edit_tagged_tags(&new_parent.id, &original)?;
+            return Err(error);
+        }
         Ok(())
     }
 

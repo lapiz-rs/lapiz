@@ -15,3 +15,5 @@ __pycache__/
 
 # We may not include any external abr bundles for copyright reasons.
 *.abr
+
+/assets/builtin_assets/type_tags
