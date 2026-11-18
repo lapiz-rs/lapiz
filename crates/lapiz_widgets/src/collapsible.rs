@@ -18,6 +18,7 @@ pub struct Collapsible<'a, Message> {
     open: bool,
     toggle: Callback<'a, Message>,
     width: Length,
+    bordered: bool,
 }
 
 impl<'a, Message> Collapsible<'a, Message> {
@@ -32,6 +33,7 @@ impl<'a, Message> Collapsible<'a, Message> {
             open,
             toggle: Callback::Empty,
             width: Length::Fill,
+            bordered: true,
         }
     }
 
@@ -39,6 +41,11 @@ impl<'a, Message> Collapsible<'a, Message> {
 
     pub fn width(mut self, width: impl Into<Length>) -> Self {
         self.width = width.into();
+        self
+    }
+
+    pub fn borderless(mut self) -> Self {
+        self.bordered = false;
         self
     }
 }
@@ -65,6 +72,11 @@ impl<'a, Message: 'a> From<Collapsible<'a, Message>> for Element<'a, Message, Th
         } else {
             Flex::column([header.into()])
         };
-        panel(body.width(Length::Fill)).width(value.width).into()
+        let panel = panel(body.width(Length::Fill)).width(value.width);
+        if value.bordered {
+            panel.into()
+        } else {
+            panel.transparent().into()
+        }
     }
 }
