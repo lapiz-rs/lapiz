@@ -331,18 +331,18 @@ impl AssetTagEditor {
             .map(|entry| {
                 let tag = &self.model.tags[&entry.id];
                 let expanded = self.model.is_tag_expanded(entry.id);
-                let toggle: Element<'_, Message, Theme, Renderer> =
-                    if self.model.has_children(entry.id) {
+                let toggle = if self.model.has_children(entry.id) {
+                    Element::from(
                         icon_button(if expanded {
                             icon::caret_down()
                         } else {
                             icon::caret_right()
                         })
-                        .on_press(Message::ToggleTag(entry.id))
-                        .into()
-                    } else {
-                        panel(label("")).width(24).transparent().into()
-                    };
+                        .on_press(Message::ToggleTag(entry.id)),
+                    )
+                } else {
+                    panel(label("")).width(24).transparent().into()
+                };
                 let name = row![icon::folder(), label(&tag.name).width(Length::Fill)].gap(6.0);
                 let row = row![
                     toggle,

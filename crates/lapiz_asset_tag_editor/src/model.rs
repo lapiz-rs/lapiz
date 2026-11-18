@@ -300,6 +300,7 @@ pub fn matches_search(asset: &AssetMetadata, name: &str, query: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use std::{
+        fs,
         io::{Read, Write},
         path::Path,
         sync::Arc,
@@ -350,8 +351,8 @@ mod tests {
             ("child.tag".into(), &child),
         ] {
             let path = directory.join(path);
-            std::fs::create_dir_all(path.parent().expect("tag path has a parent"))?;
-            std::fs::write(path, toml::to_string(tag)?)?;
+            fs::create_dir_all(path.parent().expect("tag path has a parent"))?;
+            fs::write(path, toml::to_string(tag)?)?;
         }
         let mut serializers = AssetSerializerRegistry::default();
         serializers.register::<TestSerializer>();

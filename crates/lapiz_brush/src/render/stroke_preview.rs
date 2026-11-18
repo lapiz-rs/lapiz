@@ -280,7 +280,7 @@ pub async fn create_stroke_preview_on_target_with(
     let queue = queue.clone();
 
     if let Some(mut stream) = into_stream(worker) {
-        while let Some(_) = stream.next().await {}
+        while stream.next().await.is_some() {}
     }
 
     let mut stream = into_stream(final_result).context("no output from stroke preview renderer")?;
