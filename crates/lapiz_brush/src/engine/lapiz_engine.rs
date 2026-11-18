@@ -240,6 +240,25 @@ impl BrushEngine for LapizBrushEngine {
         }
         Task::none()
     }
+
+    fn editor_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    fn editor_save(&mut self, globals: &Globals) -> Result<()> {
+        let asset_id = self
+            .selected
+            .instance
+            .asset_id()
+            .context("Brush has no asset ID")?;
+        let preset = self.compile_brush(globals)?;
+        let assets = globals.assets();
+        let handle = assets.handle(asset_id.into_typed())?;
+        handle.update(preset)?;
+        handle.write()?;
+        self.dirty = false;
+        Ok(())
+    }
 }
 
 type EditorElement<'a> = GraphElement<'a, LapizBrushEngineMessage>;
@@ -318,14 +337,6 @@ impl LapizBrushEngine {
             .height(Length::Fill)
             .into()
     }
-
-    // fn save(&mut self, globals: &Globals) -> Result<()> {
-    //     let preset = self.compile_brush(globals)?;
-    //     self.selected.handle.update(preset)?;
-    //     self.selected.handle.write()?;
-    //     self.dirty = false;
-    //     Ok(())
-    // }
 }
 
 fn apply_parameter_message(instance: &mut BrushPresetInstance, message: ParametersEditorMessage) {

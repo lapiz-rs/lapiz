@@ -79,9 +79,11 @@ pub trait BrushEngine: 'static {
         message: Self::Message,
         globals: &mut Globals,
     ) -> Task<Self::Message>;
+    fn editor_dirty(&self) -> bool;
     fn editor_subscription(&self, _globals: &Globals) -> Subscription<Self::Message> {
         Subscription::none()
     }
+    fn editor_save(&mut self, globals: &Globals) -> Result<()>;
 }
 
 pub trait ErasedBrushEngine: 'static {
@@ -99,7 +101,9 @@ pub trait ErasedBrushEngine: 'static {
         message: Box<dyn Any + Send>,
         globals: &mut Globals,
     ) -> Task<Box<dyn Any + Send>>;
+    fn editor_dirty(&self) -> bool;
     fn editor_subscription(&self, globals: &Globals) -> Subscription<Box<dyn Any + Send>>;
+    fn editor_save(&mut self, globals: &Globals) -> Result<()>;
 }
 
 impl<T: BrushEngine> ErasedBrushEngine for T {
@@ -143,9 +147,17 @@ impl<T: BrushEngine> ErasedBrushEngine for T {
             .map(|message| Box::new(message) as Box<dyn Any + Send>)
     }
 
+    fn editor_dirty(&self) -> bool {
+        BrushEngine::editor_dirty(self)
+    }
+
     fn editor_subscription(&self, globals: &Globals) -> Subscription<Box<dyn Any + Send>> {
         BrushEngine::editor_subscription(self, globals)
             .map(|message| Box::new(message) as Box<dyn Any + Send>)
+    }
+
+    fn editor_save(&mut self, globals: &Globals) -> Result<()> {
+        BrushEngine::editor_save(self, globals)
     }
 }
 

@@ -15,7 +15,7 @@ use lapiz_runtime::{
     windows::{WindowView, WindowViewId},
 };
 use lapiz_utils::log_err::LogErr as _;
-use lapiz_widgets::{button, column, flex::Flex, label, panel, row, scrollable, title_bar};
+use lapiz_widgets::{button, column, flex::Flex, label, panel, row, scrollable, space, title_bar};
 use uuid::Uuid;
 
 use crate::{
@@ -45,6 +45,7 @@ struct SelectedBrushEditor {
 pub enum BrushEditorMessage {
     SelectBrush(usize),
     NewBrush(BrushEngineId),
+    SaveBrush,
     EngineMessage {
         session: BrushEngineSessionId,
         message: Box<dyn Any + Send>,
@@ -158,14 +159,22 @@ impl WindowView for BrushEditor {
         let view = match self.selected.as_ref() {
             Some(selected) => {
                 let session = selected.session;
-                selected
-                    .engine
-                    .editor_view(globals)
-                    .map(move |message| BrushEditorMessage::EngineMessage { session, message })
+                column![
+                    selected
+                        .engine
+                        .editor_view(globals)
+                        .map(move |message| BrushEditorMessage::EngineMessage { session, message }),
+                    button(label(if selected.engine.editor_dirty() {
+                        t!("save_dirty")
+                    } else {
+                        t!("save")
+                    }))
+                    .width(Length::Fill)
+                    .on_press(BrushEditorMessage::SaveBrush)
+                ]
+                .gap(8)
             }
-            None => row![label(t!("select_a_brush")).muted(), label("")]
-                .gap(8.0)
-                .into(),
+            None => row![label(t!("select_a_brush")).muted(), label("")].gap(8.0),
         };
 
         panel(column![
@@ -203,6 +212,17 @@ impl WindowView for BrushEditor {
                 let task = selected.engine.editor_update(message, globals);
                 self.refresh_brush_names(globals);
                 task.map(move |message| BrushEditorMessage::EngineMessage { session, message })
+            }
+            BrushEditorMessage::SaveBrush => {
+                let Some(selected) = self.selected.as_mut() else {
+                    return Task::none();
+                };
+
+                if selected.engine.editor_dirty() {
+                    selected.engine.editor_save(globals).log_err();
+                }
+
+                Task::none()
             }
             BrushEditorMessage::WindowUnfocused(window) => {
                 let current_brush = globals

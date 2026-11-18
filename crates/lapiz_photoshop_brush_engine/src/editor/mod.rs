@@ -227,6 +227,10 @@ impl BrushEngine for PhotoshopBrushEngine {
         Task::none()
     }
 
+    fn editor_dirty(&self) -> bool {
+        self.dirty
+    }
+
     fn editor_subscription(&self, _globals: &Globals) -> Subscription<Self::Message> {
         Subscription::run_with(self.revision, |revision| {
             let revision = *revision;
@@ -236,6 +240,18 @@ impl BrushEngine for PhotoshopBrushEngine {
             })
         })
     }
+
+    fn editor_save(&mut self, globals: &Globals) -> Result<()> {
+        let asset_id = self
+            .asset_id
+            .context("Cannot save brush without asset ID")?;
+        let assets = globals.assets();
+        let handle = assets.handle(asset_id)?;
+        handle.update(self.brush.clone())?;
+        handle.write()?;
+        self.dirty = false;
+        Ok(())
+    }
 }
 
 impl PhotoshopBrushEngine {
@@ -243,13 +259,6 @@ impl PhotoshopBrushEngine {
         self.revision = self.revision.wrapping_add(1);
         self.preview_error = None;
     }
-
-    // fn save(&mut self) -> Result<()> {
-    //     self.handle.update(self.brush.clone())?;
-    //     self.handle.write()?;
-    //     self.dirty = false;
-    //     Ok(())
-    // }
 
     fn view_preview(&self) -> EditorElement<'_> {
         let status = if self.preview_error.is_some() {
