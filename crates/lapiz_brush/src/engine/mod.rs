@@ -39,9 +39,20 @@ pub trait BrushEngine: 'static {
     fn id() -> BrushEngineId;
     fn label() -> String;
     fn query_brushes(assets: &AssetRegistry) -> Result<Vec<BrushPresetEntry<Self::Brush>>>;
-    fn load_brush(asset: AssetId<Self::Brush>, assets: &AssetRegistry) -> Result<Self>
+    fn load_brush(
+        brush: &Self::Brush,
+        asset_id: Option<AssetId<Self::Brush>>,
+        assets: &AssetRegistry,
+    ) -> Result<Self>
     where
         Self: Sized;
+    fn load_brush_from_assets(asset: AssetId<Self::Brush>, assets: &AssetRegistry) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let brush = Self::get_brush_from_assets(asset, assets)?;
+        Self::load_brush(&brush, Some(asset), assets)
+    }
     fn new_brush(assets: &AssetRegistry) -> Result<Self::Brush>;
     fn add_brush_to_assets(
         brush: Self::Brush,
@@ -51,7 +62,13 @@ pub trait BrushEngine: 'static {
     ) -> Result<AssetId<Self::Brush>> {
         assets.add_asset(bundle_id, path, Arc::new(brush))
     }
-    fn brush_asset_id(&self) -> AssetId<Self::Brush>;
+    fn get_brush_from_assets(
+        asset: AssetId<Self::Brush>,
+        assets: &AssetRegistry,
+    ) -> Result<Arc<Self::Brush>> {
+        assets.handle(asset)?.get()
+    }
+    fn brush_asset_id(&self) -> Option<AssetId<Self::Brush>>;
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset>;
     fn editor_view<'a>(
         &'a self,
@@ -70,7 +87,7 @@ pub trait BrushEngine: 'static {
 pub trait ErasedBrushEngine: 'static {
     fn id(&self) -> BrushEngineId;
     fn label(&self) -> String;
-    fn brush_asset_id(&self) -> UntypedAssetId;
+    fn brush_asset_id(&self) -> Option<UntypedAssetId>;
     fn brush_file_extension(&self) -> &'static str;
     fn compile_brush(&self, globals: &Globals) -> Result<BrushPreset>;
     fn editor_view<'a>(
@@ -94,8 +111,8 @@ impl<T: BrushEngine> ErasedBrushEngine for T {
         T::label()
     }
 
-    fn brush_asset_id(&self) -> UntypedAssetId {
-        self.brush_asset_id().into_untyped()
+    fn brush_asset_id(&self) -> Option<UntypedAssetId> {
+        self.brush_asset_id().map(|id| id.into_untyped())
     }
 
     fn brush_file_extension(&self) -> &'static str {
@@ -138,6 +155,12 @@ pub trait BrushEngineFactory {
     fn brush_file_extension(&self) -> &'static str;
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>>;
     fn load_brush(
+        &self,
+        brush: &dyn ErasedAsset,
+        asset_id: Option<UntypedAssetId>,
+        assets: &AssetRegistry,
+    ) -> Result<Box<dyn ErasedBrushEngine>>;
+    fn load_brush_from_assets(
         &self,
         asset: UntypedAssetId,
         assets: &AssetRegistry,
@@ -191,10 +214,24 @@ impl<E: BrushEngine> BrushEngineFactory for BrushEngineFactoryInstance<E> {
 
     fn load_brush(
         &self,
+        brush: &dyn ErasedAsset,
+        asset_id: Option<UntypedAssetId>,
+        assets: &AssetRegistry,
+    ) -> Result<Box<dyn ErasedBrushEngine>> {
+        let brush = brush
+            .downcast_ref::<E::Brush>()
+            .ok_or_else(|| anyhow::anyhow!("invalid brush type"))?;
+        E::load_brush(brush, asset_id.map(|id| id.into_typed()), assets)
+            .map(|engine| Box::new(engine) as Box<_>)
+    }
+
+    fn load_brush_from_assets(
+        &self,
         asset: UntypedAssetId,
         assets: &AssetRegistry,
     ) -> Result<Box<dyn ErasedBrushEngine>> {
-        E::load_brush(asset.into_typed(), assets).map(|engine| Box::new(engine) as Box<_>)
+        E::load_brush_from_assets(asset.into_typed(), assets)
+            .map(|engine| Box::new(engine) as Box<_>)
     }
 
     fn new_brush(&self, assets: &AssetRegistry) -> Result<Box<dyn ErasedAsset>> {

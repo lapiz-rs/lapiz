@@ -83,7 +83,10 @@ impl Dock for BrushPresetDock {
                     .get(engine_id)
                     .expect("Brush engine not found");
                 let assets = globals.assets().clone();
-                let Ok(engine) = factory.load_brush(brush_entry.id, &assets).logged_err() else {
+                let Ok(engine) = factory
+                    .load_brush_from_assets(brush_entry.id, &assets)
+                    .logged_err()
+                else {
                     return Task::none();
                 };
                 let Ok(brush) = engine.compile_brush(globals).logged_err() else {

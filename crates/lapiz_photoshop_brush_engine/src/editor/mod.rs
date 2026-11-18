@@ -44,7 +44,7 @@ type EditorElement<'a> = Element<'a, PhotoshopBrushEngineMessage, Theme, Rendere
 
 pub struct PhotoshopBrushEngine {
     brush: PhotoshopBrushPreset,
-    handle: AssetHandle<PhotoshopBrushPreset>,
+    asset_id: Option<AssetId<PhotoshopBrushPreset>>,
     section: Section,
     dirty: bool,
     revision: u64,
@@ -59,7 +59,6 @@ pub enum PhotoshopBrushEngineMessage {
     ToggleSection(Section, bool),
     NameChanged(String),
     Edit(Box<dyn FnOnce(&mut PhotoshopBrushPreset) + Send>),
-    Save,
     RefreshPreview(u64),
     PreviewReady(u64, Result<Handle>),
 }
@@ -90,12 +89,14 @@ impl BrushEngine for PhotoshopBrushEngine {
             .collect()
     }
 
-    fn load_brush(asset: AssetId<Self::Brush>, assets: &AssetRegistry) -> Result<Self> {
-        let handle = assets.handle(asset)?;
-        let brush = handle.get()?.as_ref().clone();
+    fn load_brush(
+        brush: &Self::Brush,
+        asset_id: Option<AssetId<Self::Brush>>,
+        assets: &AssetRegistry,
+    ) -> Result<Self> {
         let mut this = Self {
-            brush,
-            handle,
+            brush: brush.clone(),
+            asset_id,
             section: Section::BrushTip,
             dirty: false,
             revision: 0,
@@ -112,8 +113,8 @@ impl BrushEngine for PhotoshopBrushEngine {
         Ok(PhotoshopBrushPreset::default())
     }
 
-    fn brush_asset_id(&self) -> AssetId<Self::Brush> {
-        self.handle.id()
+    fn brush_asset_id(&self) -> Option<AssetId<PhotoshopBrushPreset>> {
+        self.asset_id
     }
 
     fn compile_brush(&self, _globals: &Globals) -> Result<BrushPreset> {
@@ -127,17 +128,7 @@ impl BrushEngine for PhotoshopBrushEngine {
                 .width(Length::Fill),
         )
         .map(PhotoshopBrushEngineMessage::NameChanged);
-        let toolbar = row![
-            name_input,
-            button(label(if self.dirty {
-                t!("save_dirty")
-            } else {
-                t!("save")
-            }))
-            .primary()
-            .on_press_maybe(self.dirty.then_some(PhotoshopBrushEngineMessage::Save)),
-        ]
-        .gap(8.0);
+        let toolbar = row![name_input].gap(8.0);
 
         let sections = Section::ALL.into_iter().map(|section| {
             let toggle = controls::section_toggle(section, &self.brush);
@@ -205,12 +196,6 @@ impl BrushEngine for PhotoshopBrushEngine {
                 self.status = None;
                 self.invalidate_preview();
             }
-            PhotoshopBrushEngineMessage::Save => {
-                self.status = Some(match self.save() {
-                    Ok(()) => t!("photoshop_brush_saved"),
-                    Err(error) => format!("{}: {error:#}", t!("photoshop_brush_save_error")),
-                });
-            }
             PhotoshopBrushEngineMessage::RefreshPreview(revision) => {
                 if revision == self.revision {
                     self.preview_error = None;
@@ -259,12 +244,12 @@ impl PhotoshopBrushEngine {
         self.preview_error = None;
     }
 
-    fn save(&mut self) -> Result<()> {
-        self.handle.update(self.brush.clone())?;
-        self.handle.write()?;
-        self.dirty = false;
-        Ok(())
-    }
+    // fn save(&mut self) -> Result<()> {
+    //     self.handle.update(self.brush.clone())?;
+    //     self.handle.write()?;
+    //     self.dirty = false;
+    //     Ok(())
+    // }
 
     fn view_preview(&self) -> EditorElement<'_> {
         let status = if self.preview_error.is_some() {
@@ -305,9 +290,9 @@ impl PhotoshopBrushEngine {
 
     fn render_preview(&self, globals: &Globals) -> Result<Task<Result<Handle>>> {
         let brush = &self.brush;
-        let asset_id = self.handle.id().into_untyped();
+        let asset_id = self.asset_id.map(|id| id.into_untyped());
         let preset = brush.compile()?;
-        let instance = BrushPresetInstance::new(&preset, Some(asset_id), globals.assets().clone())?;
+        let instance = BrushPresetInstance::new(&preset, asset_id, globals.assets().clone())?;
         let (width, height) = (512, 128);
         let task = create_stroke_preview(
             &instance,

@@ -290,7 +290,7 @@ impl BrushEditor {
             return Ok(());
         };
         let factory = globals.brush_engine_registry().get(engine_id)?;
-        let engine = factory.load_brush(entry.id, globals.assets())?;
+        let engine = factory.load_brush_from_assets(entry.id, globals.assets())?;
 
         self.selected = Some(SelectedBrushEditor {
             index,
@@ -320,7 +320,7 @@ impl BrushEditor {
             factory.brush_file_extension()
         );
         let asset_id = factory.add_brush_to_assets(new_brush, bundle, Path::new(&path), &assets)?;
-        let engine = factory.load_brush(asset_id, &assets)?;
+        let engine = factory.load_brush_from_assets(asset_id, &assets)?;
 
         self.selected = Some(SelectedBrushEditor {
             index,
