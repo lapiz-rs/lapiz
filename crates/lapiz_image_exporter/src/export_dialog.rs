@@ -22,8 +22,8 @@ use lapiz_widgets::{
 };
 
 use crate::{
-    ErasedExportDialogMessage, ImageExporterConfig, ImageFormatAdapterRegistry, PendingExport,
-    SilentSaveCanvases,
+    ErasedExportDialogMessage, ErasedImageFormatExporter, ImageExporterConfig,
+    ImageFormatExporterRegistry, PendingExport, SilentSaveCanvases,
 };
 
 pub const EXPORT_DIALOG_VIEW_ID: &str = "export_dialog";
@@ -32,7 +32,7 @@ pub const EXPORT_DIALOG_VIEW_ID: &str = "export_dialog";
 pub struct ExportDialogView {
     window: window::Id,
     windows: Arc<[window::Id]>,
-    adapter: Box<dyn crate::ErasedImageFormatAdapter>,
+    adapter: Box<dyn ErasedImageFormatExporter>,
     extension: &'static str,
     local_file: Arc<LocalFile>,
     canvas_id: CanvasId,
@@ -62,7 +62,7 @@ impl WindowView for ExportDialogView {
         globals: &mut Globals,
     ) -> Result<(Self, Task<Self::Message>)> {
         let pending = params.ok_or(anyhow::anyhow!("No pending export"))?;
-        let registry = globals.global::<ImageFormatAdapterRegistry>();
+        let registry = globals.global::<ImageFormatExporterRegistry>();
         let extension = pending
             .local_file
             .path()
