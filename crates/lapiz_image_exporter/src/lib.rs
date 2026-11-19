@@ -20,7 +20,9 @@ use lapiz_runtime::{
 };
 
 use crate::{
-    adapter::{
+    config::ImageExporterConfig,
+    export_dialog::ExportDialogView,
+    exporter::{
         avif::AvifExporter,
         jpg::JpgExporter,
         lazuli::LazuliExporter,
@@ -30,15 +32,13 @@ use crate::{
             PnmExporter, QoiExporter, TgaExporter, TiffExporter, WebPExporter,
         },
     },
-    config::ImageExporterConfig,
-    export_dialog::ExportDialogView,
 };
 
 lapiz_i18n::define_i18n!("image_exporter");
 
-pub mod adapter;
 pub mod config;
 pub mod export_dialog;
+pub mod exporter;
 
 /// Plugin that initializes the image export subsystem, registers built-in [`ImageFormatExporter`]s, and sets up the [`ExportDialogView`].
 pub struct ImageExporterPlugin;
@@ -47,12 +47,12 @@ impl Plugin for ImageExporterPlugin {
     fn build(&self, app: &mut Runtime) {
         i18n::init();
 
-        app.add_global::<ImageFormatAdapterRegistry>()
+        app.add_global::<ImageFormatExporterRegistry>()
             .add_global::<SilentSaveCanvases>()
             .register_view::<ExportDialogView>();
 
         app.globals_mut()
-            .global_mut::<ImageFormatAdapterRegistry>()
+            .global_mut::<ImageFormatExporterRegistry>()
             .register::<PngExporter>()
             .register::<JpgExporter>()
             .register::<WebPExporter>()
@@ -132,7 +132,7 @@ pub trait ImageFormatExporter: 'static {
 }
 
 /// Type-erased wrapper trait for [`ImageFormatExporter`] used for dynamic storage and dispatch.
-pub trait ErasedImageFormatAdapter: Send + Sync + 'static {
+pub trait ErasedImageFormatExporter: Send + Sync + 'static {
     fn extension(&self) -> &'static str;
 
     fn description(&self) -> String;
@@ -166,7 +166,7 @@ pub trait ErasedImageFormatAdapter: Send + Sync + 'static {
     fn from_toml(&mut self, value: toml::Value) -> Result<()>;
 }
 
-impl<T> ErasedImageFormatAdapter for T
+impl<T> ErasedImageFormatExporter for T
 where
     T: ImageFormatExporter + Send + Sync,
 {
@@ -231,7 +231,7 @@ struct AdapterEntry {
     extension: &'static str,
     aliases: &'static [&'static str],
     description: fn() -> String,
-    construct: fn() -> Box<dyn ErasedImageFormatAdapter>,
+    construct: fn() -> Box<dyn ErasedImageFormatExporter>,
 }
 
 /// Global registry of available [`ImageFormatExporter`] implementations indexed by file extension.
@@ -240,20 +240,20 @@ struct AdapterEntry {
 /// type-erased [`ErasedImageFormatAdapter`] instances, optionally hydrated with saved user
 /// preferences from [`ImageExporterConfig`].
 #[derive(Default)]
-pub struct ImageFormatAdapterRegistry {
+pub struct ImageFormatExporterRegistry {
     entries: Vec<AdapterEntry>,
     lookup: HashMap<String, usize>,
 }
 
-impl Global for ImageFormatAdapterRegistry {}
+impl Global for ImageFormatExporterRegistry {}
 
-impl ImageFormatAdapterRegistry {
+impl ImageFormatExporterRegistry {
     pub fn register<A: ImageFormatExporter + Send + Sync + Default>(&mut self) -> &mut Self {
         let entry = AdapterEntry {
             extension: A::extension(),
             aliases: A::aliases(),
             description: A::description,
-            construct: || Box::new(A::default()) as Box<dyn ErasedImageFormatAdapter>,
+            construct: || Box::new(A::default()) as Box<dyn ErasedImageFormatExporter>,
         };
         let index = self.entries.len();
         for key in iter::once(entry.extension)
@@ -282,7 +282,7 @@ impl ImageFormatAdapterRegistry {
         Some(self.entries[*index].extension)
     }
 
-    pub fn create(&self, extension: &str) -> Option<Box<dyn ErasedImageFormatAdapter>> {
+    pub fn create(&self, extension: &str) -> Option<Box<dyn ErasedImageFormatExporter>> {
         let index = *self.lookup.get(&extension.to_ascii_lowercase())?;
         Some((self.entries[index].construct)())
     }
@@ -291,7 +291,7 @@ impl ImageFormatAdapterRegistry {
         &self,
         extension: &str,
         config: &ImageExporterConfig,
-    ) -> Option<Box<dyn ErasedImageFormatAdapter>> {
+    ) -> Option<Box<dyn ErasedImageFormatExporter>> {
         let extension = self.find_extension(extension)?;
         let mut adapter = self.create(extension)?;
         if let Some(value) = config.adapters.get(extension)

@@ -7,7 +7,7 @@ use lapiz_config::Config;
 use lapiz_file_dialog::{FileDialog, LocalFile};
 use lapiz_i18n::t;
 use lapiz_image_exporter::{
-    ImageFormatAdapterRegistry, PendingExport, SilentSaveCanvases, config::ImageExporterConfig,
+    ImageFormatExporterRegistry, PendingExport, SilentSaveCanvases, config::ImageExporterConfig,
     export_dialog::EXPORT_DIALOG_VIEW_ID,
 };
 use lapiz_image_importer::{ImageImporterRegistry, start_import};
@@ -170,7 +170,7 @@ impl ActionFunction for ExportFileAction {
             .filter(|name| !name.is_empty());
         dialog = dialog.set_file_name(name.unwrap_or("Untitled.png"));
         for format in globals
-            .global::<ImageFormatAdapterRegistry>()
+            .global::<ImageFormatExporterRegistry>()
             .iter_formats()
         {
             let mut extensions = vec![format.extension];
@@ -212,8 +212,8 @@ fn start_export(
         return;
     };
 
-    let adapters = globals.global::<ImageFormatAdapterRegistry>();
-    let Some(extension) = adapters.find_extension(path_extension) else {
+    let exporters = globals.global::<ImageFormatExporterRegistry>();
+    let Some(extension) = exporters.find_extension(path_extension) else {
         log::warn!(
             "No image format adapter matches {}, cannot export",
             path.display()
@@ -222,12 +222,12 @@ fn start_export(
     };
 
     let config = Config::<ImageExporterConfig>::read_or_init_or_fallback();
-    let Some(adapter) = adapters.create_with_saved_settings(extension, &config.get()) else {
+    let Some(exporter) = exporters.create_with_saved_settings(extension, &config.get()) else {
         return;
     };
 
     let can_silent_export = globals.global::<SilentSaveCanvases>().contains(canvas.id());
-    if adapter.has_options() && !(allow_silent_export && can_silent_export) {
+    if exporter.has_options() && !(allow_silent_export && can_silent_export) {
         let params = PendingExport {
             local_file,
             allow_silent_export,
@@ -241,7 +241,7 @@ fn start_export(
             ));
     } else {
         // TODO nonononono use async
-        block_on(adapter.export(globals, canvas, local_file.path()))
+        block_on(exporter.export(globals, canvas, local_file.path()))
             .and_then(|_| local_file.commit())
             .log_err();
     }
