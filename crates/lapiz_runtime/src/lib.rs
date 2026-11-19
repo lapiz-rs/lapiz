@@ -13,7 +13,7 @@ use parking_lot::deadlock;
 use winit::platform::android::activity::AndroidApp;
 
 use crate::{
-    global::{FromGlobals, Global, Globals},
+    global::{FromGlobals, Global, GlobalHandle, GlobalRequest, Globals},
     plugin::Plugin,
     renderer::global_render_context,
     windows::{WindowCommandBuffer, WindowView, WindowViewManager, WindowViewManagerMessage},
@@ -156,6 +156,10 @@ impl Program for Application {
     fn boot(&self) -> (Self::State, Task<Self::Message>) {
         let mut rt = mem::take::<Runtime>(&mut self.runtime.borrow_mut());
 
+        let (handle, requests) = GlobalHandle::channel();
+        rt.add_global_instance(handle);
+        let global_requests = Task::stream(requests).map(ApplicationMessage::GlobalRequest);
+
         let window_task = rt
             .wm
             .boot(None, &mut rt.globals)
@@ -176,7 +180,7 @@ impl Program for Application {
         });
         (
             rt,
-            Task::batch([window_task, deadlock_detect_task.discard()]),
+            Task::batch([window_task, global_requests, deadlock_detect_task.discard()]),
         )
     }
 
@@ -199,6 +203,10 @@ impl Program for Application {
             }
             ApplicationMessage::WindowClosed(id) => {
                 state.wm.on_window_closed(id, &mut state.globals).discard()
+            }
+            ApplicationMessage::GlobalRequest(request) => {
+                request.run(&mut state.globals);
+                Task::none()
             }
         };
 
@@ -317,4 +325,5 @@ pub enum ApplicationMessage {
     WindowOpened(window::Id),
     WindowRawId(window::Id, u64),
     WindowClosed(window::Id),
+    GlobalRequest(GlobalRequest),
 }
