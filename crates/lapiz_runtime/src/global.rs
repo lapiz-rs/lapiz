@@ -3,7 +3,6 @@ use std::{
     collections::HashMap,
 };
 
-use anyhow::{Context as _, Result, anyhow};
 use futures::channel::oneshot;
 use smol::channel::{Receiver, Sender, unbounded};
 

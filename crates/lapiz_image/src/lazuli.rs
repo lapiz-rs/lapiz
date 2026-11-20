@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     io::{Read as _, Write as _},
+    path::PathBuf,
     result,
 };
 
@@ -73,22 +74,31 @@ impl CImage {
         })
     }
 
-    pub async fn write_archive(&self, archive: &LazuliArchive, globals: &Globals) -> Result<()> {
-        archive.write_image_properties(&ImageProperties {
-            width: self.size.x,
-            height: self.size.y,
-            tile_size: GpuTileStorage::TILE_SIZE,
-            color_profile: self.profile.encode()?,
-            root_layer: **self.layers.root_node().id(),
-            texel_type: self.texel_type.encode(),
-        })?;
+    pub fn write_archive(
+        &self,
+        path: PathBuf,
+        globals: &Globals,
+    ) -> impl Future<Output = Result<()>> + Send + use<> {
+        let size = self.size;
+        let profile = self.profile.clone();
+        let texel_type = self.texel_type;
+        let layers = self.layers.clone();
+        let device = globals.render_device().clone();
+        let queue = globals.render_queue().clone();
+        let tile_storage = globals.tile_storage().clone();
 
-        self.layers.write_entire_tree(archive)?;
-        let render_context = globals.render_context();
-        let tile_storage = globals.tile_storage();
-
-        let result = join_all(
-            self.layers
+        async move {
+            let archive = LazuliArchive::new(path)?;
+            archive.write_image_properties(&ImageProperties {
+                width: size.x,
+                height: size.y,
+                tile_size: GpuTileStorage::TILE_SIZE,
+                color_profile: profile.encode()?,
+                root_layer: **layers.root_id(),
+                texel_type: texel_type.encode(),
+            })?;
+            layers.write_entire_tree(&archive)?;
+            let layer_ids = layers
                 .iter_layers()
                 .filter(|layer| {
                     layer
@@ -96,21 +106,21 @@ impl CImage {
                         .get_texel_prop()
                         .is_some_and(|p| p.source == TexelSource::DirectlyDefined)
                 })
-                .map(|layer| {
-                    tile_storage.write_layer(
-                        &render_context.device,
-                        &render_context.queue,
-                        archive,
-                        *layer.id(),
-                    )
-                }),
-        )
-        .await;
-        for r in result {
-            r?;
-        }
+                .map(|layer| *layer.id())
+                .collect::<Vec<_>>();
+            drop(layers);
 
-        Ok(())
+            let results = join_all(
+                layer_ids
+                    .into_iter()
+                    .map(|layer| tile_storage.write_layer(&device, &queue, &archive, layer)),
+            )
+            .await;
+            for result in results {
+                result?;
+            }
+            Ok(())
+        }
     }
 
     pub fn image_to_lazuli(img: DynamicImage, profile: ColorProfile) -> Result<LazuliArchive> {
@@ -194,6 +204,7 @@ impl GpuTileStorage {
         let tile_data = layer
             .readback(device, queue, layer.iter_tile_indices())
             .await?;
+        drop(layer);
 
         for (tile, data) in tile_data {
             Self::write_tile_data(archive, layer_id, tile, &data)?;

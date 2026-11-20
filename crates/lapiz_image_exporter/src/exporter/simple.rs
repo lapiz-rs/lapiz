@@ -4,10 +4,11 @@ use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
 use image::{DynamicImage, ImageFormat};
-use lapiz_canvas::CCanvas;
-use lapiz_image::tile::TileStorageAppExt as _;
-use lapiz_render::render_context::RenderContextAppExt as _;
-use lapiz_runtime::{Renderer, global::Globals};
+use lapiz_canvas::CanvasId;
+use lapiz_runtime::{
+    Renderer,
+    global::{GlobalHandle, Globals},
+};
 use lapiz_widgets::column;
 
 use super::pixels;
@@ -50,17 +51,11 @@ macro_rules! simple_exporters {
                 #[tracing::instrument(skip_all)]
                 async fn export(
                     &self,
-                    globals: &Globals,
-                    canvas: &CCanvas,
+                    globals: GlobalHandle,
+                    canvas: CanvasId,
                     path: &Path,
                 ) -> Result<()> {
-                    let rgba = pixels::readback_root_layer(
-                        canvas,
-                        globals.tile_storage(),
-                        globals.render_device(),
-                        globals.render_queue(),
-                    )
-                    .await?;
+                    let (rgba, _) = pixels::readback_root_layer(globals, canvas, false).await?;
                     DynamicImage::ImageRgba8(rgba)
                         .write_to(&mut BufWriter::new(std::fs::File::create(path)?), $format)?;
                     Ok(())

@@ -1,6 +1,5 @@
 use std::{ffi::OsStr, iter, sync::Arc};
 
-use futures::executor::block_on;
 use iced_runtime::Task;
 use lapiz_canvas::{CanvasAppExt as _, CanvasId, recent::RecentFiles};
 use lapiz_config::Config;
@@ -13,7 +12,7 @@ use lapiz_image_exporter::{
 use lapiz_image_importer::{ImageImporterRegistry, start_import};
 use lapiz_new_canvas_dialog::NEW_CANVAS_DIALOG_VIEW_ID;
 use lapiz_runtime::{
-    global::Globals,
+    global::{AsyncGlobalExt as _, Globals},
     windows::{OpenWindowViewCommand, WindowCommandBuffer, WindowViewId},
 };
 use lapiz_utils::log_err::LogErr as _;
@@ -117,8 +116,7 @@ impl ActionFunction for SaveFileAction {
 
         // TODO incremental saving for lazuli file. Saving should happen at every canvas command.
         if let Some(file) = canvas.local_file().cloned() {
-            start_export(globals, canvas_id, true, file);
-            Task::none()
+            start_export(globals, canvas_id, true, file)
         } else {
             // The canvas has not saved yet and only exists in memory.
             ExportFileAction.trigger(globals)
@@ -138,8 +136,7 @@ impl ActionFunction for SaveFileAction {
         Config::<RecentFiles>::read_or_init_or_fallback()
             .update(|c| c.update(local_file.source(), local_file.name().to_owned()))
             .log_err();
-        start_export(globals, canvas_id, false, local_file);
-        Task::none()
+        start_export(globals, canvas_id, false, local_file)
     }
 }
 
@@ -193,8 +190,7 @@ impl ActionFunction for ExportFileAction {
         let ExportFileMessage::PathChosen(canvas_id, Some(local_file)) = message else {
             return Task::none();
         };
-        start_export(globals, canvas_id, false, local_file.into());
-        Task::none()
+        start_export(globals, canvas_id, false, local_file.into())
     }
 }
 
@@ -203,13 +199,13 @@ fn start_export(
     canvas_id: CanvasId,
     allow_silent_export: bool,
     local_file: Arc<LocalFile>,
-) {
-    let Some(canvas) = globals.canvas(&canvas_id) else {
-        return;
-    };
+) -> Task<ExportFileMessage> {
+    if globals.canvas(&canvas_id).is_none() {
+        return Task::none();
+    }
     let path = local_file.path();
     let Some(path_extension) = path.extension().and_then(OsStr::to_str) else {
-        return;
+        return Task::none();
     };
 
     let exporters = globals.global::<ImageFormatExporterRegistry>();
@@ -218,20 +214,20 @@ fn start_export(
             "No image format adapter matches {}, cannot export",
             path.display()
         );
-        return;
+        return Task::none();
     };
 
     let config = Config::<ImageExporterConfig>::read_or_init_or_fallback();
     let Some(exporter) = exporters.create_with_saved_settings(extension, &config.get()) else {
-        return;
+        return Task::none();
     };
 
-    let can_silent_export = globals.global::<SilentSaveCanvases>().contains(canvas.id());
+    let can_silent_export = globals.global::<SilentSaveCanvases>().contains(canvas_id);
     if exporter.has_options() && !(allow_silent_export && can_silent_export) {
         let params = PendingExport {
             local_file,
             allow_silent_export,
-            canvas_id: canvas.id(),
+            canvas_id,
         };
         globals
             .global_mut::<WindowCommandBuffer>()
@@ -239,10 +235,16 @@ fn start_export(
                 WindowViewId::new(EXPORT_DIALOG_VIEW_ID),
                 params,
             ));
+        Task::none()
     } else {
-        // TODO nonononono use async
-        block_on(exporter.export(globals, canvas, local_file.path()))
-            .and_then(|_| local_file.commit())
-            .log_err();
+        let globals = globals.async_handle();
+        Task::future(async move {
+            exporter
+                .export(globals, canvas_id, local_file.path())
+                .await
+                .and_then(|_| local_file.commit())
+                .log_err();
+        })
+        .discard()
     }
 }

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use futures::executor::block_on;
 use iced_core::{Element, Length, Size, Theme, window};
 use iced_runtime::{
     Task,
@@ -13,7 +12,7 @@ use lapiz_file_dialog::LocalFile;
 use lapiz_i18n::t;
 use lapiz_runtime::{
     Renderer,
-    global::Globals,
+    global::{AsyncGlobalExt as _, Globals},
     windows::{WindowView, WindowViewId},
 };
 use lapiz_utils::log_err::LogErr as _;
@@ -32,7 +31,7 @@ pub const EXPORT_DIALOG_VIEW_ID: &str = "export_dialog";
 pub struct ExportDialogView {
     window: window::Id,
     windows: Arc<[window::Id]>,
-    adapter: Box<dyn ErasedImageFormatExporter>,
+    adapter: Option<Box<dyn ErasedImageFormatExporter>>,
     extension: &'static str,
     local_file: Arc<LocalFile>,
     canvas_id: CanvasId,
@@ -45,6 +44,7 @@ pub enum ExportDialogMessage {
     Adapter(ErasedExportDialogMessage),
     DontAskAgainToggled(bool),
     Confirm,
+    Finished(Box<dyn ErasedImageFormatExporter>, Result<()>),
     Cancel,
 }
 
@@ -89,7 +89,7 @@ impl WindowView for ExportDialogView {
             Self {
                 window,
                 windows: Arc::from([window]),
-                adapter,
+                adapter: Some(adapter),
                 extension,
                 local_file: pending.local_file,
                 canvas_id: pending.canvas_id,
@@ -105,26 +105,31 @@ impl WindowView for ExportDialogView {
         _: window::Id,
         globals: &'a Globals,
     ) -> impl Into<Element<'a, Self::Message, Theme, Renderer>> {
-        let options = self
-            .adapter
-            .dialog_view(globals)
-            .map(ExportDialogMessage::Adapter);
+        let ready = self.adapter.is_some();
+        let options = self.adapter.as_ref().map_or_else(
+            || space().into(),
+            |adapter| {
+                adapter
+                    .dialog_view(globals)
+                    .map(ExportDialogMessage::Adapter)
+            },
+        );
         let footer = row![]
             .when(self.allow_silent_export, |r| {
                 r.push(
                     checkbox(self.dont_ask_again)
                         .label(t!("dont_ask_again"))
-                        .on_toggle(ExportDialogMessage::DontAskAgainToggled),
+                        .on_toggle_maybe(ready.then_some(ExportDialogMessage::DontAskAgainToggled)),
                 )
             })
             .extend([
                 space().width(Length::Fill).into(),
                 button(label(t!("cancel")))
-                    .on_press(ExportDialogMessage::Cancel)
+                    .on_press_maybe(ready.then_some(ExportDialogMessage::Cancel))
                     .into(),
                 button(label(t!("export")))
                     .primary()
-                    .on_press(ExportDialogMessage::Confirm)
+                    .on_press_maybe(ready.then_some(ExportDialogMessage::Confirm))
                     .into(),
             ])
             .gap(10.0);
@@ -154,25 +159,41 @@ impl WindowView for ExportDialogView {
         globals: &mut Globals,
     ) -> impl Into<Task<Self::Message>> {
         match message {
-            ExportDialogMessage::Adapter(message) => self
-                .adapter
-                .dialog_update(message, globals)
-                .map(ExportDialogMessage::Adapter),
+            ExportDialogMessage::Adapter(message) => {
+                self.adapter.as_mut().map_or_else(Task::none, |adapter| {
+                    adapter
+                        .dialog_update(message, globals)
+                        .map(ExportDialogMessage::Adapter)
+                })
+            }
             ExportDialogMessage::DontAskAgainToggled(checked) => {
-                self.dont_ask_again = checked;
+                if self.adapter.is_some() {
+                    self.dont_ask_again = checked;
+                }
                 Task::none()
             }
             ExportDialogMessage::Confirm => {
-                let Some(canvas) = globals.canvas(&self.canvas_id) else {
-                    return Task::done(ExportDialogMessage::Cancel);
-                };
-
-                // TODO use async
-                if block_on(self.adapter.export(globals, canvas, self.local_file.path()))
-                    .and_then(|_| self.local_file.commit())
-                    .logged_err()
-                    .is_err()
-                {
+                if self.adapter.is_none() {
+                    return Task::none();
+                }
+                if globals.canvas(&self.canvas_id).is_none() {
+                    return close(self.window);
+                }
+                let adapter = self.adapter.take().expect("Exporter is available");
+                let globals = globals.async_handle();
+                let file = self.local_file.clone();
+                let canvas = self.canvas_id;
+                Task::future(async move {
+                    let result = adapter
+                        .export(globals, canvas, file.path())
+                        .await
+                        .and_then(|_| file.commit());
+                    ExportDialogMessage::Finished(adapter, result)
+                })
+            }
+            ExportDialogMessage::Finished(adapter, result) => {
+                if result.logged_err().is_err() {
+                    self.adapter = Some(adapter);
                     return Task::none();
                 }
 
@@ -183,7 +204,7 @@ impl WindowView for ExportDialogView {
                     silent_saves.remove(self.canvas_id);
                 }
                 Config::<ImageExporterConfig>::read_or_init_or_fallback()
-                    .update(|config| match self.adapter.to_toml() {
+                    .update(|config| match adapter.to_toml() {
                         Ok(value) => {
                             config.adapters.insert(self.extension.to_string(), value);
                         }
@@ -194,7 +215,8 @@ impl WindowView for ExportDialogView {
                     .log_err();
                 close(self.window)
             }
-            ExportDialogMessage::Cancel => close(self.window),
+            ExportDialogMessage::Cancel if self.adapter.is_some() => close(self.window),
+            ExportDialogMessage::Cancel => Task::none(),
         }
     }
 

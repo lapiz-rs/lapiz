@@ -1,16 +1,37 @@
 use anyhow::{Result, anyhow};
-use lapiz_canvas::CCanvas;
-use lapiz_image::{texel::TexelType, tile::GpuTileStorage};
-use wgpu::{Device, Queue};
+use lapiz_canvas::{CanvasAppExt as _, CanvasId};
+use lapiz_image::{
+    texel::TexelType,
+    tile::{GpuTileStorage, TileStorageAppExt as _},
+};
+use lapiz_render::render_context::RenderContextAppExt as _;
+use lapiz_runtime::global::GlobalHandle;
 
 pub(crate) async fn readback_root_layer(
-    canvas: &CCanvas,
-    tile_storage: &GpuTileStorage,
-    device: &Device,
-    queue: &Queue,
-) -> Result<image::RgbaImage> {
-    let image = &canvas.image;
-    let root_layer = *image.layer_stack().root_id();
+    globals: GlobalHandle,
+    canvas: CanvasId,
+    embed_profile: bool,
+) -> Result<(image::RgbaImage, Option<Vec<u8>>)> {
+    let (size, root_layer, profile, tile_storage, device, queue) = globals
+        .update(move |globals| {
+            let image = &globals
+                .canvas(&canvas)
+                .ok_or_else(|| anyhow!("Canvas is missing"))?
+                .image;
+            let profile = embed_profile
+                .then(|| image.profile().encode())
+                .transpose()?;
+            Ok::<_, anyhow::Error>((
+                image.size(),
+                *image.layer_stack().root_id(),
+                profile,
+                globals.tile_storage().clone(),
+                globals.render_device().clone(),
+                globals.render_queue().clone(),
+            ))
+        })
+        .await?;
+
     let layer = tile_storage
         .get_layer(root_layer)
         .ok_or_else(|| anyhow!("Root layer is missing from tile storage"))?;
@@ -19,9 +40,8 @@ pub(crate) async fn readback_root_layer(
         anyhow::bail!("Unsupported root layer texel type for image export");
     }
 
-    let size = image.size();
     let tile_data = layer
-        .readback(device, queue, layer.iter_tile_indices().collect::<Vec<_>>())
+        .readback(&device, &queue, layer.iter_tile_indices())
         .await?;
     drop(layer);
 
@@ -39,5 +59,5 @@ pub(crate) async fn readback_root_layer(
             (&mut *result)[offset..offset + width * 4].copy_from_slice(src);
         }
     }
-    Ok(result)
+    Ok((result, profile))
 }
