@@ -125,7 +125,7 @@ jobs:
             exit 1
           fi
 
-          tag=nightly
+          tag=nightly-build
           notes="Built from commit $GITHUB_SHA."
           update_tag() {
             git -c credential.helper= \
