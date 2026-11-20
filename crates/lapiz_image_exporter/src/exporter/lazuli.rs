@@ -1,17 +1,19 @@
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
-use lapiz_canvas::CCanvas;
+use lapiz_canvas::{CanvasAppExt as _, CanvasId};
 use lapiz_i18n::t;
-use lapiz_lazuli::LazuliArchive;
-use lapiz_runtime::{Renderer, global::Globals};
+use lapiz_runtime::{
+    Renderer,
+    global::{GlobalHandle, Globals},
+};
 use lapiz_widgets::column;
 
 use crate::ImageFormatExporter;
 
-/// Exporter that saves a canvas into a `.lazuli` project archive via [`LazuliArchive`].
+/// Exporter that saves a canvas into a `.lazuli` project archive.
 #[derive(Default)]
 pub struct LazuliExporter;
 
@@ -39,9 +41,17 @@ impl ImageFormatExporter for LazuliExporter {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn export(&self, globals: &Globals, canvas: &CCanvas, path: &Path) -> Result<()> {
-        let archive = LazuliArchive::new(path)?;
-        canvas.image.write_archive(&archive, globals).await
+    async fn export(&self, globals: GlobalHandle, canvas: CanvasId, path: &Path) -> Result<()> {
+        let path = path.to_owned();
+        globals
+            .update(move |globals| -> Result<_> {
+                let canvas = globals
+                    .canvas(&canvas)
+                    .ok_or_else(|| anyhow!("Canvas is missing"))?;
+                Ok(canvas.image.write_archive(path, globals))
+            })
+            .await?
+            .await
     }
 
     fn to_toml(&self) -> Result<toml::Value> {

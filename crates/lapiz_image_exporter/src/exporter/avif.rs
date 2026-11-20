@@ -4,16 +4,16 @@ use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
 use image::{ExtendedColorType, ImageEncoder as _, codecs::avif::AvifEncoder};
-use lapiz_canvas::CCanvas;
+use lapiz_canvas::CanvasId;
 use lapiz_i18n::t;
-use lapiz_image::tile::TileStorageAppExt as _;
-use lapiz_render::render_context::RenderContextAppExt as _;
-use lapiz_runtime::{Renderer, global::Globals};
+use lapiz_runtime::{
+    Renderer,
+    global::{GlobalHandle, Globals},
+};
 use lapiz_widgets::{form, spin_slider};
 use serde::{Deserialize, Serialize};
 
-use super::pixels;
-use crate::ImageFormatExporter;
+use crate::{ImageFormatExporter, exporter::readback_root_layer};
 
 // ravif speed, 1 (slowest, best compression) to 10 (fastest)
 const AVIF_SPEED: u8 = 4;
@@ -70,14 +70,8 @@ impl ImageFormatExporter for AvifExporter {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn export(&self, globals: &Globals, canvas: &CCanvas, path: &Path) -> Result<()> {
-        let rgba = pixels::readback_root_layer(
-            canvas,
-            globals.tile_storage(),
-            globals.render_device(),
-            globals.render_queue(),
-        )
-        .await?;
+    async fn export(&self, globals: GlobalHandle, canvas: CanvasId, path: &Path) -> Result<()> {
+        let (rgba, _) = readback_root_layer(globals, canvas, false).await?;
         let file = File::create(path)?;
         AvifEncoder::new_with_speed_quality(file, AVIF_SPEED, self.quality).write_image(
             rgba.as_raw(),

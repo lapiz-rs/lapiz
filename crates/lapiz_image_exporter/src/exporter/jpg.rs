@@ -4,16 +4,16 @@ use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
 use image::{ExtendedColorType, ImageEncoder as _, codecs::jpeg::JpegEncoder};
-use lapiz_canvas::CCanvas;
+use lapiz_canvas::CanvasId;
 use lapiz_i18n::t;
-use lapiz_image::tile::TileStorageAppExt as _;
-use lapiz_render::render_context::RenderContextAppExt as _;
-use lapiz_runtime::{Renderer, global::Globals};
+use lapiz_runtime::{
+    Renderer,
+    global::{GlobalHandle, Globals},
+};
 use lapiz_widgets::{checkbox, form, spin_slider};
 use serde::{Deserialize, Serialize};
 
-use super::pixels;
-use crate::ImageFormatExporter;
+use crate::{ImageFormatExporter, exporter::readback_root_layer};
 
 /// Exporter for the JPEG (`.jpg` / `.jpeg`) image format with quality and ICC profile embedding options.
 #[derive(Serialize, Deserialize)]
@@ -82,19 +82,13 @@ impl ImageFormatExporter for JpgExporter {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn export(&self, globals: &Globals, canvas: &CCanvas, path: &Path) -> Result<()> {
-        let rgba = pixels::readback_root_layer(
-            canvas,
-            globals.tile_storage(),
-            globals.render_device(),
-            globals.render_queue(),
-        )
-        .await?;
+    async fn export(&self, globals: GlobalHandle, canvas: CanvasId, path: &Path) -> Result<()> {
+        let (rgba, profile) = readback_root_layer(globals, canvas, self.embed_profile).await?;
         let rgb = flatten_onto_white(&rgba);
         let file = File::create(path)?;
         let mut encoder = JpegEncoder::new_with_quality(file, self.quality);
-        if self.embed_profile {
-            encoder.set_icc_profile(canvas.image.profile().encode()?)?;
+        if let Some(profile) = profile {
+            encoder.set_icc_profile(profile)?;
         }
         encoder.write_image(
             rgb.as_raw(),

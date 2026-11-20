@@ -11,11 +11,11 @@ use std::{
 use anyhow::Result;
 use iced_core::Element;
 use iced_runtime::Task;
-use lapiz_canvas::{CCanvas, CanvasId};
+use lapiz_canvas::CanvasId;
 use lapiz_file_dialog::LocalFile;
 use lapiz_runtime::{
     Renderer, Runtime, Theme,
-    global::{Global, Globals},
+    global::{Global, GlobalHandle, Globals},
     plugin::Plugin,
 };
 
@@ -77,7 +77,7 @@ pub(crate) fn default_embed_profile() -> bool {
     true
 }
 
-/// Defines a format-specific exporter capable of saving a [`CCanvas`] to disk.
+/// Defines a format-specific exporter capable of saving a [`CCanvas`](lapiz_canvas::CCanvas) to disk.
 ///
 /// Implementations provide format metadata (primary file extension, extension aliases, and
 /// localized description), an optional configuration UI rendered inside [`ExportDialogView`],
@@ -85,7 +85,7 @@ pub(crate) fn default_embed_profile() -> bool {
 ///
 /// # Lifecycle
 ///
-/// 1. Registered into [`ImageFormatAdapterRegistry`] at startup.
+/// 1. Registered into [`ImageFormatExporterRegistry`] at startup.
 /// 2. Instantiated and populated with persisted settings from [`ImageExporterConfig`] when an
 ///    export is requested.
 /// 3. Displayed in [`ExportDialogView`] if [`has_options`](Self::has_options) returns `true`.
@@ -116,11 +116,12 @@ pub trait ImageFormatExporter: 'static {
         globals: &mut Globals,
     ) -> Task<Self::DialogMessage>;
 
-    #[allow(
-        async_fn_in_trait,
-        reason = "callers await this method directly; the erased trait boxes the future"
-    )]
-    async fn export(&self, globals: &Globals, canvas: &CCanvas, path: &Path) -> Result<()>;
+    fn export(
+        &self,
+        globals: GlobalHandle,
+        canvas: CanvasId,
+        path: &Path,
+    ) -> impl Future<Output = Result<()>> + Send;
 
     fn to_toml(&self) -> Result<toml::Value>;
 
@@ -152,10 +153,10 @@ pub trait ErasedImageFormatExporter: Send + Sync + 'static {
 
     fn export<'a>(
         &'a self,
-        globals: &'a Globals,
-        canvas: &'a CCanvas,
+        globals: GlobalHandle,
+        canvas: CanvasId,
         path: &'a Path,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
 
     fn to_toml(&self) -> Result<toml::Value>;
 
@@ -204,10 +205,10 @@ where
 
     fn export<'a>(
         &'a self,
-        globals: &'a Globals,
-        canvas: &'a CCanvas,
+        globals: GlobalHandle,
+        canvas: CanvasId,
         path: &'a Path,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(ImageFormatExporter::export(self, globals, canvas, path))
     }
 
@@ -237,7 +238,7 @@ struct AdapterEntry {
 /// Global registry of available [`ImageFormatExporter`] implementations indexed by file extension.
 ///
 /// Maps primary extensions and aliases (case-insensitively) to factory functions that construct
-/// type-erased [`ErasedImageFormatAdapter`] instances, optionally hydrated with saved user
+/// type-erased [`ErasedImageFormatExporter`] instances, optionally hydrated with saved user
 /// preferences from [`ImageExporterConfig`].
 #[derive(Default)]
 pub struct ImageFormatExporterRegistry {

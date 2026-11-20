@@ -3,12 +3,62 @@ use std::{
     collections::HashMap,
 };
 
+use futures::channel::oneshot;
+use smol::channel::{Receiver, Sender, unbounded};
+
 /// Marker trait for singleton resources stored in [`Globals`].
 ///
 /// Any `'static` type can implement `Global` to be managed by [`Globals`] and [`Runtime`](crate::Runtime).
 /// Plugins typically register globals during startup via [`Runtime::add_global`](crate::Runtime::add_global)
 /// or [`Runtime::add_global_instance`](crate::Runtime::add_global_instance).
 pub trait Global: 'static {}
+
+#[derive(Clone)]
+pub struct GlobalHandle {
+    requests: Sender<GlobalRequest>,
+}
+
+impl Global for GlobalHandle {}
+
+impl GlobalHandle {
+    pub(crate) fn channel() -> (Self, Receiver<GlobalRequest>) {
+        let (requests, receiver) = unbounded();
+        (Self { requests }, receiver)
+    }
+
+    pub async fn update<T: Send + 'static>(
+        &self,
+        update: impl FnOnce(&mut Globals) -> T + Send + 'static,
+    ) -> T {
+        let (reply, result) = oneshot::channel();
+        let request = GlobalRequest(Box::new(move |globals| {
+            if !reply.is_canceled() {
+                let _ = reply.send(update(globals));
+            }
+        }));
+
+        self.requests.send(request).await.unwrap();
+        result.await.unwrap()
+    }
+}
+
+pub struct GlobalRequest(Box<dyn FnOnce(&mut Globals) + Send>);
+
+impl GlobalRequest {
+    pub(crate) fn run(self, globals: &mut Globals) {
+        (self.0)(globals);
+    }
+}
+
+pub trait AsyncGlobalExt {
+    fn async_handle(&self) -> GlobalHandle;
+}
+
+impl AsyncGlobalExt for Globals {
+    fn async_handle(&self) -> GlobalHandle {
+        self.global::<GlobalHandle>().clone()
+    }
+}
 
 /// Trait for constructing a [`Global`] resource from existing state in [`Globals`].
 ///
