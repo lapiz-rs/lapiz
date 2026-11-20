@@ -7,7 +7,7 @@ use lapiz_canvas::{
     command::InsertLayerCommand,
 };
 use lapiz_image::{
-    layer::{LayerPosition, pixel_layer::PixelLayer},
+    layer::{LayerPosition, LayerTypeRegistry, LayerTypeRegistryExt as _, pixel_layer::PixelLayer},
     tile::TileStorageAppExt as _,
 };
 use lapiz_runtime::global::Globals;
@@ -141,9 +141,13 @@ impl ActionFunction for PasteIntoNewLayerAction {
 
         let mut layers = Vec::new();
         for path in &paths {
-            let Ok(layer) =
-                PixelLayer::from_path(path, globals.tile_storage(), &profile).logged_err()
-            else {
+            let Ok(layer) = PixelLayer::from_path(
+                path,
+                globals.tile_storage(),
+                &profile,
+                globals.layer_type_registry(),
+            )
+            .logged_err() else {
                 continue;
             };
             layers.push(layer);

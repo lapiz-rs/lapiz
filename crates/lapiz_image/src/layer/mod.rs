@@ -5,10 +5,11 @@ use std::{
     fmt, iter,
 };
 
+use anyhow::{Result, anyhow};
 use dyn_clone::DynClone;
 use indexmap::IndexSet;
 use lapiz_i18n::t;
-use lapiz_runtime::global::Global;
+use lapiz_runtime::global::{Global, Globals};
 use lapiz_utils::wrapper;
 use parse_display::Display;
 use schemars::JsonSchema;
@@ -22,7 +23,7 @@ use crate::{
     layer::{
         group_layer::GroupLayer,
         pixel_layer::PixelLayer,
-        properties::{HasLayerPropertiesDyn, LayerProperties, builtin::NameProp},
+        properties::{EncodedLayerProperties, LayerProperties, LayerProperty, builtin::NameProp},
     },
     tile::{GpuTileStorage, LayerBinding},
 };
@@ -31,25 +32,138 @@ pub mod group_layer;
 pub mod pixel_layer;
 pub mod properties;
 
-/// Global registry of prototype [`Layer`] instances indexed by their numeric layer type ID.
-///
-/// Used during archive deserialization to instantiate concrete [`Layer`] implementations
-/// (such as [`PixelLayer`] and [`GroupLayer`]) from serialized type tags.
+/// Registers layer types and properties during plugin startup, after `ImagePlugin`.
+pub trait LayerTypeRegistryExt {
+    fn layer_type_registry(&self) -> &LayerTypeRegistry;
+    fn register_layer<T: Layer + Default>(&mut self);
+    fn register_layer_property<T: Layer + Default, P: LayerProperty + Default>(&mut self);
+}
+
+impl LayerTypeRegistryExt for Globals {
+    fn layer_type_registry(&self) -> &LayerTypeRegistry {
+        self.global::<LayerTypeRegistry>()
+    }
+
+    fn register_layer<T: Layer + Default>(&mut self) {
+        self.global_mut::<LayerTypeRegistry>().register::<T>();
+    }
+
+    fn register_layer_property<T: Layer + Default, P: LayerProperty + Default>(&mut self) {
+        self.global_mut::<LayerTypeRegistry>()
+            .register_layer_prop::<T, P>();
+    }
+}
+
+pub struct LayerTypeRegistration {
+    pub layer_type: u32,
+    pub default: fn() -> Box<dyn Layer>,
+    pub props: Vec<LayerPropertyRegistration>,
+}
+
+pub struct LayerPropertyRegistration {
+    pub ident: &'static str,
+    pub default: Box<dyn Fn() -> Box<dyn LayerProperty> + Send + Sync>,
+    pub decode: fn(&[u8]) -> Result<Box<dyn LayerProperty>>,
+}
+
+/// Registry of layer constructors and property codecs, indexed by the serialized layer type ID.
+/// Register types and properties during startup, before creating or opening images.
 #[derive(Default)]
 pub struct LayerTypeRegistry {
-    tys: HashMap<u32, Box<dyn Layer>>,
+    tys: HashMap<u32, LayerTypeRegistration>,
 }
 
 impl Global for LayerTypeRegistry {}
 
 impl LayerTypeRegistry {
-    pub fn register<T: Layer + HasLayerPropertiesDyn + Default>(&mut self) {
-        let instance = T::default();
-        self.tys.insert(instance.layer_type(), Box::new(instance));
+    pub fn register<T: Layer + Default>(&mut self) {
+        let layer_type = T::default().layer_type();
+        self.tys.insert(
+            layer_type,
+            LayerTypeRegistration {
+                layer_type,
+                default: || Box::new(T::default()),
+                props: Vec::new(),
+            },
+        );
     }
 
-    pub fn get_cloned(&self, ty: u32) -> Option<Box<dyn Layer>> {
-        self.tys.get(&ty).cloned()
+    pub fn register_layer_prop<T: Layer + Default, P: LayerProperty + Default>(&mut self) {
+        self.register_layer_prop_with::<T, P>(P::default);
+    }
+
+    pub fn register_layer_prop_with<T: Layer + Default, P: LayerProperty>(
+        &mut self,
+        default: fn() -> P,
+    ) {
+        let layer_type = T::default().layer_type();
+        let reg = self
+            .tys
+            .get_mut(&layer_type)
+            .expect("Layer type must be registered before registering its properties");
+        reg.props.push(LayerPropertyRegistration {
+            ident: P::ident(),
+            default: Box::new(move || Box::new(default())),
+            decode: |data| P::decode(data).map(|prop| Box::new(prop) as Box<_>),
+        });
+    }
+
+    pub fn create_default(&self, layer_type: u32) -> Option<Box<dyn Layer>> {
+        self.tys.get(&layer_type).map(|reg| (reg.default)())
+    }
+
+    pub fn create_default_properties(&self, layer_type: u32) -> Option<LayerProperties> {
+        let reg = self.tys.get(&layer_type)?;
+        let mut props = HashMap::with_capacity(reg.props.len());
+        for prop_reg in &reg.props {
+            props.insert(prop_reg.ident, (prop_reg.default)());
+        }
+        Some(LayerProperties::new(props))
+    }
+
+    pub fn decode_properties(
+        &self,
+        layer_type: u32,
+        mut encoded: EncodedLayerProperties,
+    ) -> Result<HashMap<&'static str, Box<dyn LayerProperty>>> {
+        let mut props = HashMap::with_capacity(encoded.props.len());
+        let reg = self
+            .tys
+            .get(&layer_type)
+            .ok_or_else(|| anyhow!("Layer type {} not registered", layer_type))?;
+
+        for reg in &reg.props {
+            match encoded.props.remove(reg.ident) {
+                Some(data) => {
+                    let prop = (reg.decode)(&data).map_err(|e| {
+                        anyhow!(
+                            "Failed to decode property {} for layer type {}: {}",
+                            reg.ident,
+                            layer_type,
+                            e
+                        )
+                    })?;
+
+                    props.insert(reg.ident, prop);
+                }
+                None => {
+                    // TODO Give a warn?
+                    props.insert(reg.ident, (reg.default)());
+                }
+            }
+        }
+
+        // TODO Allow this?
+        if !encoded.props.is_empty() {
+            let unknown_props = encoded.props.keys().cloned().collect::<Vec<_>>();
+            return Err(anyhow!(
+                "Unknown properties for layer type {}: {:?}",
+                layer_type,
+                unknown_props
+            ));
+        }
+
+        Ok(props)
     }
 }
 
@@ -82,10 +196,9 @@ impl LayerId {
 /// Core trait implemented by all layer types in a [`LayerStack`].
 ///
 /// A `Layer` defines whether it can parent child layers, declares its numeric serialization tag,
-/// provides default and decoded [`LayerProperties`] via [`HasLayerPropertiesDyn`], and implements
-/// the three-stage GPU compositing lifecycle (`create_blend_cache`, `prepare_blend_cache`, and
+/// and implements the three-stage GPU compositing lifecycle (`create_blend_cache`, `prepare_blend_cache`, and
 /// `dispatch_blend`) used by [`ImageCompositor`].
-pub trait Layer: Send + Sync + DynClone + 'static + HasLayerPropertiesDyn {
+pub trait Layer: Send + Sync + DynClone + 'static {
     // TODO This doesn't allow us to extend existing layers.
     //      Probably use a dynamic registry?
     fn can_have_children_of(&self, ty: TypeId) -> bool;
@@ -178,12 +291,6 @@ pub struct LayerStack {
     layers: HashMap<LayerId, LayerStackNode>,
 }
 
-impl Default for LayerStack {
-    fn default() -> Self {
-        Self::with_empty_background()
-    }
-}
-
 impl LayerStack {
     pub fn new(root: LayerStackNode) -> Self {
         assert!(root.parent.is_none());
@@ -193,21 +300,27 @@ impl LayerStack {
         }
     }
 
-    pub fn with_empty_background() -> Self {
-        Self::with_background_layer(LayerStackNode::without_parent(
-            LayerId::random(),
-            Box::new(PixelLayer),
-            {
-                let mut props = LayerProperties::new::<PixelLayer>();
+    pub fn with_empty_background(layer_registry: &LayerTypeRegistry) -> Self {
+        Self::with_background_layer(
+            LayerStackNode::without_parent(LayerId::random(), Box::new(PixelLayer), {
+                let mut props = layer_registry
+                    .create_default_properties(PixelLayer.layer_type())
+                    .expect("PixelLayer must be registered");
                 props.set(NameProp(t!("background_layer")));
                 props
-            },
-        ))
+            }),
+            layer_registry,
+        )
     }
 
-    pub fn with_background_layer(mut background: LayerStackNode) -> Self {
+    pub fn with_background_layer(
+        mut background: LayerStackNode,
+        layer_registry: &LayerTypeRegistry,
+    ) -> Self {
         let mut root = LayerStackNode::without_parent(LayerId::random(), Box::new(GroupLayer), {
-            let mut props = LayerProperties::new::<GroupLayer>();
+            let mut props = layer_registry
+                .create_default_properties(GroupLayer.layer_type())
+                .expect("GroupLayer must be registered");
             props.set(NameProp("Root".into()));
             props
         });

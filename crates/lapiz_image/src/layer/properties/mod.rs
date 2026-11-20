@@ -1,12 +1,10 @@
 use std::{collections::HashMap, fmt};
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use downcast_rs::Downcast;
 use dyn_clone::DynClone;
 
 pub mod builtin;
-
-use crate::layer::Layer;
 
 /// Type-erased map of [`LayerProperty`] values attached to a [`LayerStackNode`](crate::layer::LayerStackNode).
 ///
@@ -26,14 +24,8 @@ impl fmt::Debug for LayerProperties {
 }
 
 impl LayerProperties {
-    pub fn new<T: HasLayerProperties>() -> Self {
-        let props = T::new_properties();
-        Self { props: props.props }
-    }
-
-    pub fn new_decoded(data: EncodedLayerProperties, layer: &dyn Layer) -> Result<Self> {
-        let props = layer.decode_properties(data)?;
-        Ok(Self { props: props.props })
+    pub fn new(props: HashMap<&'static str, Box<dyn LayerProperty>>) -> Self {
+        Self { props }
     }
 
     pub fn set<T: LayerProperty>(&mut self, value: T) {
@@ -58,68 +50,14 @@ impl LayerProperties {
 
 /// Intermediate map of MessagePack-encoded property byte blobs used when deserializing [`LayerProperties`].
 pub struct EncodedLayerProperties {
-    props: HashMap<String, Vec<u8>>,
+    pub props: HashMap<String, Vec<u8>>,
 }
 
 impl EncodedLayerProperties {
-    pub fn new(props: &[u8]) -> Result<Self> {
+    pub fn from_slice(props: &[u8]) -> Result<Self> {
         Ok(Self {
             props: rmp_serde::from_slice(props)?,
         })
-    }
-
-    pub fn decode<T: LayerProperty>(
-        &mut self,
-        decl: &mut LayerPropertiesDeclaration,
-    ) -> Result<()> {
-        let data = self
-            .props
-            .remove(T::ident())
-            .ok_or_else(|| anyhow!("Missing property: {}", T::ident()))?;
-        decl.create(T::decode(&data)?);
-        Ok(())
-    }
-}
-
-/// Trait implemented by concrete [`Layer`] types to declare and decode their supported [`LayerProperties`].
-pub trait HasLayerProperties {
-    fn new_properties() -> LayerPropertiesDeclaration;
-    fn decode_properties(data: EncodedLayerProperties) -> Result<LayerPropertiesDeclaration>;
-}
-
-/// Object-safe counterpart to [`HasLayerProperties`] for dynamic [`Layer`] trait objects.
-pub trait HasLayerPropertiesDyn {
-    fn new_properties(&self) -> LayerPropertiesDeclaration;
-    fn decode_properties(&self, data: EncodedLayerProperties)
-    -> Result<LayerPropertiesDeclaration>;
-}
-
-impl<T: HasLayerProperties> HasLayerPropertiesDyn for T {
-    fn new_properties(&self) -> LayerPropertiesDeclaration {
-        T::new_properties()
-    }
-
-    fn decode_properties(
-        &self,
-        data: EncodedLayerProperties,
-    ) -> Result<LayerPropertiesDeclaration> {
-        T::decode_properties(data)
-    }
-}
-
-/// Builder used inside [`HasLayerProperties`] implementations to register a layer's initial or decoded properties.
-#[derive(Default)]
-pub struct LayerPropertiesDeclaration {
-    props: HashMap<&'static str, Box<dyn LayerProperty>>,
-}
-
-impl LayerPropertiesDeclaration {
-    pub fn create<T: LayerProperty>(&mut self, value: T) {
-        self.props.insert(T::ident(), Box::new(value));
-    }
-
-    pub fn create_default<T: LayerProperty + Default>(&mut self) {
-        self.props.insert(T::ident(), Box::new(T::default()));
     }
 }
 

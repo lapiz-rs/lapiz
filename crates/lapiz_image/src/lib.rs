@@ -20,8 +20,12 @@ use crate::{
     composite::{BlendFunctionRegistry, LayerPreviewOverriders},
     layer::{
         LayerId, LayerNameGenerator, LayerStack, LayerStackNode, LayerTypeRegistry, SpecialLayers,
-        group_layer::GroupLayer, pixel_layer::PixelLayer,
-        properties::builtin::NamePropertyExt as _,
+        group_layer::GroupLayer,
+        pixel_layer::PixelLayer,
+        properties::builtin::{
+            BlendFunctionProp, DisabledChannelsProp, LayerTexelProp, LockedChannelsProp,
+            LockedProp, NameProp, NamePropertyExt as _, OpacityProp, TexelSource, VisibleProp,
+        },
     },
     texel::TexelType,
     tile::GpuTileStorage,
@@ -58,7 +62,27 @@ impl Plugin for ImagePlugin {
 
         let mut layer_types = LayerTypeRegistry::default();
         layer_types.register::<PixelLayer>();
+        layer_types.register_layer_prop::<PixelLayer, NameProp>();
+        layer_types.register_layer_prop::<PixelLayer, VisibleProp>();
+        layer_types.register_layer_prop::<PixelLayer, BlendFunctionProp>();
+        layer_types.register_layer_prop::<PixelLayer, OpacityProp>();
+        layer_types.register_layer_prop::<PixelLayer, LockedProp>();
+        layer_types.register_layer_prop::<PixelLayer, LockedChannelsProp>();
+        layer_types.register_layer_prop::<PixelLayer, DisabledChannelsProp>();
+        layer_types.register_layer_prop_with::<PixelLayer, LayerTexelProp>(|| {
+            LayerTexelProp::new(TexelType::RGBA8, TexelSource::DirectlyDefined)
+        });
+
         layer_types.register::<GroupLayer>();
+        layer_types.register_layer_prop::<GroupLayer, NameProp>();
+        layer_types.register_layer_prop::<GroupLayer, VisibleProp>();
+        layer_types.register_layer_prop::<GroupLayer, BlendFunctionProp>();
+        layer_types.register_layer_prop::<GroupLayer, OpacityProp>();
+        layer_types.register_layer_prop::<GroupLayer, LockedProp>();
+        layer_types.register_layer_prop::<GroupLayer, DisabledChannelsProp>();
+        layer_types.register_layer_prop_with::<GroupLayer, LayerTexelProp>(|| {
+            LayerTexelProp::new(TexelType::RGBA8, TexelSource::Generated)
+        });
         app.add_global_instance(layer_types);
     }
 }
@@ -80,8 +104,8 @@ pub struct CImage {
 }
 
 impl CImage {
-    pub fn new(size: UVec2, profile: ColorProfile) -> Self {
-        let layers = LayerStack::with_empty_background();
+    pub fn new(size: UVec2, profile: ColorProfile, layer_registry: &LayerTypeRegistry) -> Self {
+        let layers = LayerStack::with_empty_background(layer_registry);
 
         Self {
             size,
@@ -93,8 +117,13 @@ impl CImage {
         }
     }
 
-    pub fn from_layer(size: UVec2, layer: LayerStackNode, profile: ColorProfile) -> Self {
-        let layers = LayerStack::with_background_layer(layer);
+    pub fn from_layer(
+        size: UVec2,
+        layer: LayerStackNode,
+        profile: ColorProfile,
+        layer_registry: &LayerTypeRegistry,
+    ) -> Self {
+        let layers = LayerStack::with_background_layer(layer, layer_registry);
 
         Self {
             size,
@@ -122,11 +151,12 @@ impl CImage {
         img: imagers::DynamicImage,
         profile: ColorProfile,
         tiles: &GpuTileStorage,
+        layer_registry: &LayerTypeRegistry,
     ) -> Self {
         let size = UVec2::new(img.width(), img.height());
-        let mut layer = PixelLayer::from_image(img, tiles);
+        let mut layer = PixelLayer::from_image(img, tiles, layer_registry);
         layer.properties_mut().set_name(t!("background_layer"));
-        Self::from_layer(size, layer, profile)
+        Self::from_layer(size, layer, profile, layer_registry)
     }
 
     pub fn next_name_of_layer(&mut self, base: String) -> String {
