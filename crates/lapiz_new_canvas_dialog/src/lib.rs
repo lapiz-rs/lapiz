@@ -17,10 +17,7 @@ use lapiz_canvas::{CCanvas, CanvasAppExt as _};
 use lapiz_i18n::t;
 use lapiz_image::{
     CImage,
-    layer::{
-        LayerTypeRegistry, LayerTypeRegistryExt as _,
-        properties::builtin::LayerTexelTypePropertyExt as _,
-    },
+    layer::{LayerTypeRegistryExt as _, properties::builtin::LayerTexelTypePropertyExt as _},
     tile::{GpuLayerInfo, TileStorageAppExt as _},
 };
 use lapiz_lazuli::LazuliArchive;

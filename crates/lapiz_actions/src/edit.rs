@@ -7,7 +7,7 @@ use lapiz_canvas::{
     command::InsertLayerCommand,
 };
 use lapiz_image::{
-    layer::{LayerPosition, LayerTypeRegistry, LayerTypeRegistryExt as _, pixel_layer::PixelLayer},
+    layer::{LayerPosition, LayerTypeRegistryExt as _, pixel_layer::PixelLayer},
     tile::TileStorageAppExt as _,
 };
 use lapiz_runtime::global::Globals;

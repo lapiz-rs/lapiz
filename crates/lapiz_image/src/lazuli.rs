@@ -21,7 +21,7 @@ use wgpu::{Device, Queue};
 use crate::{
     CImage,
     layer::{
-        Layer, LayerId, LayerStack, LayerStackNode, LayerTypeRegistry, SpecialLayers,
+        Layer as _, LayerId, LayerStack, LayerStackNode, LayerTypeRegistry, SpecialLayers,
         pixel_layer::PixelLayer,
         properties::{
             EncodedLayerProperties, LayerProperties,

@@ -10,9 +10,8 @@ use lapiz_canvas::{
 };
 use lapiz_i18n::t;
 use lapiz_image::layer::{
-    Layer as _, LayerId, LayerPosition, LayerStackNode, LayerTypeRegistry,
-    LayerTypeRegistryExt as _, group_layer::GroupLayer, pixel_layer::PixelLayer,
-    properties::builtin::NameProp,
+    Layer as _, LayerId, LayerPosition, LayerStackNode, LayerTypeRegistryExt as _,
+    group_layer::GroupLayer, pixel_layer::PixelLayer, properties::builtin::NameProp,
 };
 use lapiz_runtime::global::Globals;
 use lapiz_utils::log_err::LogErr as _;

@@ -29,7 +29,7 @@ use crate::{
     layer::{
         Layer, LayerId, LayerStackNode, LayerTypeRegistry,
         properties::builtin::{
-            BlendFunctionPropertyExt as _, DisabledChannelsPropertyExt as _, NamePropertyExt,
+            BlendFunctionPropertyExt as _, DisabledChannelsPropertyExt as _, NamePropertyExt as _,
             OpacityPropertyExt as _, VisiblePropertyExt as _,
         },
     },
