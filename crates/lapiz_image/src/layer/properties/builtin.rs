@@ -184,6 +184,8 @@ impl NamePropertyExt for LayerProperties {
     }
 }
 
+// TODO Implement this property for tools and layer stack. Locked layers should not be edited by
+//      tools, and cannot be moved, renamed or deleted in layer stack.
 wrapper! {
     /// Layer property indicating whether the layer is locked against editing.
     #[derive(Debug, Clone, Copy, Default)]
@@ -280,6 +282,7 @@ impl DisabledChannelsProp {
     }
 }
 
+// TODO Implement this layer property for tools like brush and bucket.
 wrapper! {
     /// Layer property storing a bitmask of color channels locked against pixel modification.
     #[derive(Debug, Clone, Copy, Default)]
@@ -391,3 +394,6 @@ impl LayerTexelTypePropertyExt for LayerProperties {
         self.get_texel_prop().map(|prop| prop.source)
     }
 }
+
+// TODO Alpha inheritance property. Should behave as it does in Krita.
+// TODO Clipping layer property. Should behave as it does in Photoshop.

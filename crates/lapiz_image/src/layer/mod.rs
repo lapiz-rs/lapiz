@@ -28,6 +28,7 @@ use crate::{
     tile::{GpuTileStorage, LayerBinding},
 };
 
+// TODO Implement vector layer, filter layer, transparency mask layer, filter mask layer.
 pub mod group_layer;
 pub mod pixel_layer;
 pub mod properties;
@@ -199,8 +200,7 @@ impl LayerId {
 /// and implements the three-stage GPU compositing lifecycle (`create_blend_cache`, `prepare_blend_cache`, and
 /// `dispatch_blend`) used by [`ImageCompositor`].
 pub trait Layer: Send + Sync + DynClone + 'static {
-    // TODO This doesn't allow us to extend existing layers.
-    //      Probably use a dynamic registry?
+    // TODO Use layer type instead of type id.
     fn can_have_children_of(&self, ty: TypeId) -> bool;
 
     fn layer_type(&self) -> u32;
