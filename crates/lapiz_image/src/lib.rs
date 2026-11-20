@@ -69,6 +69,7 @@ impl Plugin for ImagePlugin {
         layer_types.register_layer_prop::<PixelLayer, LockedProp>();
         layer_types.register_layer_prop::<PixelLayer, LockedChannelsProp>();
         layer_types.register_layer_prop::<PixelLayer, DisabledChannelsProp>();
+        // TODO This is incorrect for images that has a different texel type other than rgba8.
         layer_types.register_layer_prop_with::<PixelLayer, LayerTexelProp>(|| {
             LayerTexelProp::new(TexelType::RGBA8, TexelSource::DirectlyDefined)
         });
@@ -80,6 +81,7 @@ impl Plugin for ImagePlugin {
         layer_types.register_layer_prop::<GroupLayer, OpacityProp>();
         layer_types.register_layer_prop::<GroupLayer, LockedProp>();
         layer_types.register_layer_prop::<GroupLayer, DisabledChannelsProp>();
+        // TODO This is incorrect for images that has a different texel type other than rgba8.
         layer_types.register_layer_prop_with::<GroupLayer, LayerTexelProp>(|| {
             LayerTexelProp::new(TexelType::RGBA8, TexelSource::Generated)
         });
