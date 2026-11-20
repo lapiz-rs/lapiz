@@ -1,0 +1,155 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-nightly
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+            platform: desktop
+            arch: ""
+          - name: windows
+            os: windows-latest
+            platform: desktop
+            arch: ""
+          - name: macos
+            os: macos-latest
+            platform: desktop
+            arch: ""
+          - name: android-aarch64
+            os: ubuntu-latest
+            platform: android
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # taiki-e/install-action v2
+      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        with:
+          tool: just
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install Android CLI
+        if: matrix.platform == 'android'
+        shell: bash
+        run: |
+          bin="$RUNNER_TEMP/android-cli"
+          mkdir -p "$bin"
+          curl -fsSL -o "$bin/android" \
+            https://dl.google.com/android/cli/latest/linux_x86_64/android
+          chmod +x "$bin/android"
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - run: just setup-rust
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          shared-key: nightly-${{ matrix.name }}
+
+      - run: just setup-for-package
+
+      - run: just setup-android
+        if: matrix.platform == 'android'
+
+      - name: Package binaries and debug symbols
+        env:
+          LAPIZ_NIGHTLY_BUILD: ${{ github.run_id }}.${{ github.run_attempt }}
+        run: just package "${{ matrix.platform }}" release "${{ matrix.arch }}"
+
+      # actions/upload-artifact v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: nightly-${{ matrix.name }}
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            target/package/*.zip
+            target/package/*.tar.gz
+            target/package/*.apk
+            target/package/*.sha256
+            target/package/*.debug
+            target/package/*.pdb
+            target/package/*.so
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # actions/download-artifact v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          path: dist
+          pattern: nightly-*
+          merge-multiple: true
+
+      - name: Update the Nightly release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(dist/*)
+          if (( ${#files[@]} == 0 )); then
+            echo "No Nightly files found" >&2
+            exit 1
+          fi
+
+          tag=nightly-build
+          notes="Built from commit $GITHUB_SHA."
+          update_tag() {
+            git -c credential.helper= \
+              -c 'credential.helper=!gh auth git-credential' \
+              push --force origin "$GITHUB_SHA:refs/tags/$tag"
+          }
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # Only a retry can overwrite files from the same build attempt.
+            gh release upload "$tag" "${files[@]}" --clobber
+            update_tag
+            gh release edit "$tag" --title Nightly --prerelease \
+              --latest=false --draft=false --notes "$notes"
+          else
+            update_tag
+            gh release create "$tag" "${files[@]}" --verify-tag \
+              --title Nightly --prerelease --latest=false --notes "$notes"
+          fi
+
+          # Remove only Nightly packages that are not part of this batch.
+          package_pattern='^lapiz-.*-nightly\.[0-9]+\.[0-9]+-'
+          assets=$(gh release view "$tag" --json assets --jq '.assets[].name')
+          while IFS= read -r asset; do
+            if [[ "$asset" =~ $package_pattern && ! -f "dist/$asset" ]]; then
+              gh release delete-asset "$tag" "$asset" --yes
+            fi
+          done <<< "$assets"

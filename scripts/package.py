@@ -3,7 +3,9 @@
 import argparse
 import hashlib
 import json
+import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -56,7 +58,11 @@ def get_app_version() -> str:
 def artifact_name_for(profile: str, system: str, arch: str) -> str:
     suffix = "-dev" if profile == "dev" else ""
     sha = output_of("git", "rev-parse", "HEAD")[:7]
-    return f"lapiz-{get_app_version()}{suffix}-{sha}-{system}-{arch}"
+    nightly_build = os.environ.get("LAPIZ_NIGHTLY_BUILD")
+    if nightly_build is not None and not re.fullmatch(r"[0-9]+\.[0-9]+", nightly_build):
+        raise ValueError("LAPIZ_NIGHTLY_BUILD must be <run ID>.<run attempt>")
+    channel = f"-nightly.{nightly_build}" if nightly_build else ""
+    return f"lapiz-{get_app_version()}{suffix}-{sha}{channel}-{system}-{arch}"
 
 
 def package_desktop(profile: str) -> None:
