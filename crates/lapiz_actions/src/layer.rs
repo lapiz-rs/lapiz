@@ -10,10 +10,8 @@ use lapiz_canvas::{
 };
 use lapiz_i18n::t;
 use lapiz_image::layer::{
-    LayerId, LayerPosition, LayerStackNode,
-    group_layer::GroupLayer,
-    pixel_layer::PixelLayer,
-    properties::{LayerProperties, builtin::NameProp},
+    Layer as _, LayerId, LayerPosition, LayerStackNode, LayerTypeRegistryExt as _,
+    group_layer::GroupLayer, pixel_layer::PixelLayer, properties::builtin::NameProp,
 };
 use lapiz_runtime::global::Globals;
 use lapiz_utils::log_err::LogErr as _;
@@ -37,7 +35,7 @@ impl ActionFunction for CreateNewLayerAction {
         };
 
         let cmd = globals
-            .update_canvas(&canvas_id, |canvas, _| {
+            .update_canvas(&canvas_id, |canvas, globals| {
                 let (parent, position) = {
                     let mut cur_parent = canvas.active_layer_node();
                     let mut cur_position = LayerPosition::foreground();
@@ -60,7 +58,10 @@ impl ActionFunction for CreateNewLayerAction {
 
                 let new_layer =
                     LayerStackNode::without_parent(LayerId::random(), Box::new(PixelLayer), {
-                        let mut props = LayerProperties::new::<PixelLayer>();
+                        let mut props = globals
+                            .layer_type_registry()
+                            .create_default_properties(PixelLayer.layer_type())
+                            .expect("PixelLayer must be registered");
                         props.set(NameProp(name));
                         props
                     });
@@ -92,7 +93,7 @@ impl ActionFunction for GroupSelectedLayersAction {
             return Task::none();
         };
 
-        let cmd = globals.update_canvas(&canvas_id, |canvas, _| {
+        let cmd = globals.update_canvas(&canvas_id, |canvas, globals| {
             let group_name = canvas.image.next_name_of_layer(t!("default_group_name"));
             let reduced_layers = canvas
                 .image
@@ -124,7 +125,10 @@ impl ActionFunction for GroupSelectedLayersAction {
 
             let group_layer =
                 LayerStackNode::without_parent(LayerId::random(), Box::new(GroupLayer), {
-                    let mut props = LayerProperties::new::<GroupLayer>();
+                    let mut props = globals
+                        .layer_type_registry()
+                        .create_default_properties(GroupLayer.layer_type())
+                        .expect("GroupLayer must be registered");
                     props.set(NameProp(group_name));
                     props
                 });

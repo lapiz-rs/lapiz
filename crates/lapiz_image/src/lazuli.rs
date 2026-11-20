@@ -22,7 +22,7 @@ use wgpu::{Device, Queue};
 use crate::{
     CImage,
     layer::{
-        Layer, LayerId, LayerStack, LayerStackNode, LayerTypeRegistry, SpecialLayers,
+        Layer as _, LayerId, LayerStack, LayerStackNode, LayerTypeRegistry, SpecialLayers,
         pixel_layer::PixelLayer,
         properties::{
             EncodedLayerProperties, LayerProperties,
@@ -123,17 +123,23 @@ impl CImage {
         }
     }
 
-    pub fn image_to_lazuli(img: DynamicImage, profile: ColorProfile) -> Result<LazuliArchive> {
+    pub fn image_to_lazuli(
+        img: DynamicImage,
+        profile: ColorProfile,
+        layer_registry: &LayerTypeRegistry,
+    ) -> Result<LazuliArchive> {
         let size = UVec2::new(img.width(), img.height());
 
         let mut layer = LayerStackNode::without_parent(
             LayerId::random(),
             Box::new(PixelLayer),
-            LayerProperties::new::<PixelLayer>(),
+            layer_registry
+                .create_default_properties(PixelLayer.layer_type())
+                .unwrap(),
         );
         layer.properties_mut().set_name(t!("background_layer"));
         let layer_id = *layer.id();
-        let image = Self::from_layer(size, layer, profile);
+        let image = Self::from_layer(size, layer, profile, layer_registry);
         let archive = LazuliArchive::new_in_memory()?;
         archive.write_image_properties(&ImageProperties {
             width: image.size.x,
@@ -291,10 +297,6 @@ impl LayerProperties {
     pub fn encode(&self) -> Result<Vec<u8>> {
         Ok(rmp_serde::to_vec(self)?)
     }
-
-    pub fn decode(data: &[u8], layer: &dyn Layer) -> Result<Self> {
-        Self::new_decoded(EncodedLayerProperties::new(data)?, layer)
-    }
 }
 
 impl LayerStack {
@@ -385,9 +387,11 @@ impl LayerStack {
 
         fn read_node(node: &LayerNode, layer_types: &LayerTypeRegistry) -> Result<LayerStackNode> {
             let instance = layer_types
-                .get_cloned(node.layer_type)
-                .ok_or(anyhow::anyhow!("Unknown layer type: {}", node.layer_type))?;
-            let props = LayerProperties::decode(&node.properties, instance.as_ref())?;
+                .create_default(node.layer_type)
+                .ok_or_else(|| anyhow!("Unknown layer type: {}", node.layer_type))?;
+            let encoded = EncodedLayerProperties::from_slice(&node.properties)?;
+            let props =
+                LayerProperties::new(layer_types.decode_properties(node.layer_type, encoded)?);
             let root_node = LayerStackNode::without_parent(LayerId(node.id), instance, props);
             Ok(root_node)
         }

@@ -17,7 +17,7 @@ use lapiz_canvas::{CCanvas, CanvasAppExt as _};
 use lapiz_i18n::t;
 use lapiz_image::{
     CImage,
-    layer::properties::builtin::LayerTexelTypePropertyExt as _,
+    layer::{LayerTypeRegistryExt as _, properties::builtin::LayerTexelTypePropertyExt as _},
     tile::{GpuLayerInfo, TileStorageAppExt as _},
 };
 use lapiz_lazuli::LazuliArchive;
@@ -347,15 +347,18 @@ impl WindowView for NewCanvasDialog {
                 };
                 let profile = ColorProfile::new_srgb();
                 let image = match this.tab {
-                    CanvasTab::NewCanvas => {
-                        CImage::new(UVec2::new(this.width, this.height), profile)
-                    }
+                    CanvasTab::NewCanvas => CImage::new(
+                        UVec2::new(this.width, this.height),
+                        profile,
+                        globals.layer_type_registry(),
+                    ),
                     CanvasTab::Clipboard => {
                         let image = this.clipboard_image.as_ref().unwrap();
                         CImage::from_image(
                             DynamicImage::ImageRgba8(image.pixels.clone()),
                             image.profile.clone(),
                             tiles,
+                            globals.layer_type_registry(),
                         )
                     }
                 };

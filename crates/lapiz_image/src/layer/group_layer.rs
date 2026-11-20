@@ -1,6 +1,5 @@
 use std::any::TypeId;
 
-use anyhow::Result;
 use bevy_math::IRect;
 use glam::{IVec2, UVec3};
 use lapiz_render::{
@@ -26,17 +25,11 @@ use crate::{
     image,
     layer::{
         Layer, LayerId,
-        properties::{
-            EncodedLayerProperties, HasLayerProperties, LayerPropertiesDeclaration,
-            builtin::{
-                BlendFunctionProp, BlendFunctionPropertyExt as _, DisabledChannelsProp,
-                DisabledChannelsPropertyExt as _, LayerTexelProp, LockedProp, NameProp,
-                OpacityProp, OpacityPropertyExt as _, TexelSource, VisibleProp,
-                VisiblePropertyExt as _,
-            },
+        properties::builtin::{
+            BlendFunctionPropertyExt as _, DisabledChannelsPropertyExt as _,
+            OpacityPropertyExt as _, VisiblePropertyExt as _,
         },
     },
-    texel::TexelType,
     tile::{GpuTileInfo, GpuTileStorage, LayerBinding},
 };
 
@@ -339,33 +332,4 @@ pub struct GroupBlendCache {
     copy_pipeline: CopyLayerPipeline,
     generated_copy_prepared: Option<PreparedCopyLayerPipeline>,
     output_copy_prepared: Option<PreparedCopyLayerPipeline>,
-}
-
-impl HasLayerProperties for GroupLayer {
-    fn new_properties() -> LayerPropertiesDeclaration {
-        let mut decl = LayerPropertiesDeclaration::default();
-        decl.create_default::<NameProp>();
-        decl.create_default::<VisibleProp>();
-        decl.create_default::<BlendFunctionProp>();
-        decl.create_default::<OpacityProp>();
-        decl.create_default::<LockedProp>();
-        decl.create_default::<DisabledChannelsProp>();
-        decl.create(LayerTexelProp::new(
-            TexelType::RGBA8,
-            TexelSource::Generated,
-        ));
-        decl
-    }
-
-    fn decode_properties(mut data: EncodedLayerProperties) -> Result<LayerPropertiesDeclaration> {
-        let mut decl = LayerPropertiesDeclaration::default();
-        data.decode::<NameProp>(&mut decl)?;
-        data.decode::<VisibleProp>(&mut decl)?;
-        data.decode::<BlendFunctionProp>(&mut decl)?;
-        data.decode::<OpacityProp>(&mut decl)?;
-        data.decode::<LockedProp>(&mut decl)?;
-        data.decode::<DisabledChannelsProp>(&mut decl)?;
-        data.decode::<LayerTexelProp>(&mut decl)?;
-        Ok(decl)
-    }
 }
