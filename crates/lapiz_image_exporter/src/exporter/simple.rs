@@ -11,8 +11,7 @@ use lapiz_runtime::{
 };
 use lapiz_widgets::column;
 
-use super::pixels;
-use crate::ImageFormatExporter;
+use crate::{ImageFormatExporter, exporter::readback_root_layer};
 
 macro_rules! simple_exporters {
     ($($name:ident($extension:literal, [$($alias:literal),*], $format:expr, $description:literal))*) => {
@@ -55,7 +54,7 @@ macro_rules! simple_exporters {
                     canvas: CanvasId,
                     path: &Path,
                 ) -> Result<()> {
-                    let (rgba, _) = pixels::readback_root_layer(globals, canvas, false).await?;
+                    let (rgba, _) = readback_root_layer(globals, canvas, false).await?;
                     DynamicImage::ImageRgba8(rgba)
                         .write_to(&mut BufWriter::new(std::fs::File::create(path)?), $format)?;
                     Ok(())

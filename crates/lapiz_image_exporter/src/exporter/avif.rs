@@ -13,8 +13,7 @@ use lapiz_runtime::{
 use lapiz_widgets::{form, spin_slider};
 use serde::{Deserialize, Serialize};
 
-use super::pixels;
-use crate::ImageFormatExporter;
+use crate::{ImageFormatExporter, exporter::readback_root_layer};
 
 // ravif speed, 1 (slowest, best compression) to 10 (fastest)
 const AVIF_SPEED: u8 = 4;
@@ -72,7 +71,7 @@ impl ImageFormatExporter for AvifExporter {
 
     #[tracing::instrument(skip_all)]
     async fn export(&self, globals: GlobalHandle, canvas: CanvasId, path: &Path) -> Result<()> {
-        let (rgba, _) = pixels::readback_root_layer(globals, canvas, false).await?;
+        let (rgba, _) = readback_root_layer(globals, canvas, false).await?;
         let file = File::create(path)?;
         AvifEncoder::new_with_speed_quality(file, AVIF_SPEED, self.quality).write_image(
             rgba.as_raw(),

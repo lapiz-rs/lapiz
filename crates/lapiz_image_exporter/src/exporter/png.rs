@@ -17,8 +17,7 @@ use lapiz_widgets::{checkbox, combo_box, form};
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
 
-use super::pixels;
-use crate::ImageFormatExporter;
+use crate::{ImageFormatExporter, exporter::readback_root_layer};
 
 const COMPRESSIONS: [PngCompression; 4] = [
     PngCompression::Default,
@@ -168,8 +167,7 @@ impl ImageFormatExporter for PngExporter {
 
     #[tracing::instrument(skip_all)]
     async fn export(&self, globals: GlobalHandle, canvas: CanvasId, path: &Path) -> Result<()> {
-        let (rgba, profile) =
-            pixels::readback_root_layer(globals, canvas, self.embed_profile).await?;
+        let (rgba, profile) = readback_root_layer(globals, canvas, self.embed_profile).await?;
         let file = File::create(path)?;
         let mut encoder =
             PngEncoder::new_with_quality(file, self.compression.into(), self.filter.into());

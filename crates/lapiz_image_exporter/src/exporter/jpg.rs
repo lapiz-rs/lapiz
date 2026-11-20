@@ -13,8 +13,7 @@ use lapiz_runtime::{
 use lapiz_widgets::{checkbox, form, spin_slider};
 use serde::{Deserialize, Serialize};
 
-use super::pixels;
-use crate::ImageFormatExporter;
+use crate::{ImageFormatExporter, exporter::readback_root_layer};
 
 /// Exporter for the JPEG (`.jpg` / `.jpeg`) image format with quality and ICC profile embedding options.
 #[derive(Serialize, Deserialize)]
@@ -84,8 +83,7 @@ impl ImageFormatExporter for JpgExporter {
 
     #[tracing::instrument(skip_all)]
     async fn export(&self, globals: GlobalHandle, canvas: CanvasId, path: &Path) -> Result<()> {
-        let (rgba, profile) =
-            pixels::readback_root_layer(globals, canvas, self.embed_profile).await?;
+        let (rgba, profile) = readback_root_layer(globals, canvas, self.embed_profile).await?;
         let rgb = flatten_onto_white(&rgba);
         let file = File::create(path)?;
         let mut encoder = JpegEncoder::new_with_quality(file, self.quality);
