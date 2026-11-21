@@ -3,7 +3,7 @@ use std::{ffi::OsStr, iter, sync::Arc};
 use iced_runtime::Task;
 #[cfg(not(target_os = "android"))]
 use lapiz_canvas::CanvasUndoStackAppExt as _;
-use lapiz_canvas::{CCanvas, CanvasAppExt as _, CanvasId, recent::RecentFiles};
+use lapiz_canvas::{CanvasAppExt as _, CanvasId, recent::RecentFiles};
 use lapiz_config::Config;
 use lapiz_file_dialog::{FileDialog, LocalFile};
 use lapiz_i18n::t;
