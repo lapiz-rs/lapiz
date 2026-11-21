@@ -257,10 +257,8 @@ impl Layer for PixelLayer {
 
         let pipeline =
             if let Some(overrider) = overriders.get_overrider::<PixelPreviewOverrider>(&layer_id) {
-                entries = entries.extend_sequential((
-                    &overrider.texture,
-                    overrider.tile_info_buffer.as_entire_binding(),
-                ));
+                entries =
+                    entries.extend_sequential((overrider.texture(), overrider.tile_info_binding()));
 
                 cache.with_overrider_pipeline.clone()
             } else {
