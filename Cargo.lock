@@ -4266,6 +4266,7 @@ dependencies = [
  "anyhow",
  "downcast-rs 2.0.2",
  "futures",
+ "iced_runtime",
  "lapiz_runtime",
  "lapiz_utils",
  "tracing",

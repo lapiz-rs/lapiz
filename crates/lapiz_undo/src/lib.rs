@@ -2,15 +2,18 @@ use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
     fmt,
-    time::Instant,
 };
 
 use anyhow::{Result, bail};
 use downcast_rs::Downcast;
 use futures::{
-    channel::oneshot::{self, Canceled, Receiver, Sender},
+    channel::{
+        mpsc::{self, UnboundedReceiver, UnboundedSender},
+        oneshot::{self, Canceled, Receiver, Sender},
+    },
     future::BoxFuture,
 };
+use iced_runtime::Task;
 use lapiz_runtime::{
     Runtime,
     global::{Global, Globals},
@@ -74,23 +77,32 @@ impl Global for UndoStacks {}
 /// - **Queued Push**: [`queue`](UndoStack::queue) reserves a slot in the FIFO pending queue and
 ///   returns a [`QueuedUndoCommand`]. Subsequent pushes wait behind pending reservations until
 ///   [`poll`](UndoStack::poll) drains ready commands in order.
+/// - **Archive Sync**: Each successful command execution immediately queues an archive write.
+///   The background writer processes writes in execution order.
 pub struct UndoStack {
     id: Uuid,
     cursor: usize,
     history: VecDeque<UndoCommandData>,
     queue: VecDeque<Receiver<Box<dyn UndoCommand>>>,
     max_history: usize,
+    archive_writes: UnboundedSender<BoxFuture<'static, anyhow::Result<()>>>,
 }
 
 impl UndoStack {
-    pub fn new(id: Uuid, max_history: usize) -> Self {
-        Self {
-            id,
-            cursor: 0,
-            history: VecDeque::new(),
-            queue: VecDeque::new(),
-            max_history,
-        }
+    pub fn new(id: Uuid, max_history: usize) -> (Self, Task<()>) {
+        let (tx, rx) = mpsc::unbounded();
+        let task = Task::future(Self::write_archive(rx));
+        (
+            Self {
+                id,
+                cursor: 0,
+                history: VecDeque::with_capacity(max_history),
+                queue: VecDeque::new(),
+                max_history,
+                archive_writes: tx,
+            },
+            task,
+        )
     }
 
     pub fn queue(&mut self) -> QueuedUndoCommand {
@@ -135,6 +147,7 @@ impl UndoStack {
             && rhs.command.can_cancel_out(cmd.as_ref())
         {
             cmd.redo(globals)?;
+            self.queue_archive_write(cmd.redo_write_archive(globals));
             self.history.pop_back();
         } else {
             if self.history.len() == self.max_history {
@@ -142,14 +155,26 @@ impl UndoStack {
             }
 
             cmd.redo(globals)?;
-            self.history.push_back(UndoCommandData {
-                _pushed_at: Instant::now(),
-                command: cmd,
-            });
+            self.queue_archive_write(cmd.redo_write_archive(globals));
+            self.history.push_back(UndoCommandData { command: cmd });
         }
 
         self.cursor = self.len();
         Ok(())
+    }
+
+    fn queue_archive_write(&mut self, write: BoxFuture<'static, anyhow::Result<()>>) {
+        self.archive_writes
+            .unbounded_send(write)
+            .expect("Archive writer stopped while the undo stack is active");
+    }
+
+    async fn write_archive(
+        mut receiver: UnboundedReceiver<BoxFuture<'static, anyhow::Result<()>>>,
+    ) {
+        while let Ok(write) = receiver.recv().await {
+            let _ = write.await.logged_err();
+        }
     }
 
     pub fn poll(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
@@ -189,6 +214,8 @@ impl UndoStack {
             let data = &self.history[self.cursor - 1];
             info!("Redo {}", data.command.label());
             data.command.redo(globals).logged_err()?;
+            let write = data.command.redo_write_archive(globals);
+            self.queue_archive_write(write);
         }
         while self.cursor > cursor {
             self.cursor -= 1;
@@ -196,6 +223,8 @@ impl UndoStack {
             let data = &self.history[self.cursor];
             info!("Undo {}", data.command.label());
             data.command.undo(globals).logged_err()?;
+            let write = data.command.undo_write_archive(globals);
+            self.queue_archive_write(write);
         }
 
         Ok(())
@@ -241,9 +270,8 @@ impl fmt::Debug for UndoStack {
     }
 }
 
-/// Entry in an [`UndoStack`] pairing an executed [`UndoCommand`] with its creation timestamp.
+/// Entry in an [`UndoStack`] holding an executed [`UndoCommand`].
 pub struct UndoCommandData {
-    _pushed_at: Instant,
     command: Box<dyn UndoCommand>,
 }
 
