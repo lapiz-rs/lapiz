@@ -95,7 +95,7 @@ impl<'a, Message> Flex<'a, Message> {
     pub fn row(children: impl IntoIterator<Item = Element<'a, Message, Theme, Renderer>>) -> Self {
         Self::new()
             .direction(FlexDirection::Row)
-            .align_items(AlignItems::Center)
+            .align_items(AlignItems::CENTER)
             .extend(children)
     }
 
@@ -126,21 +126,21 @@ impl<'a, Message> Flex<'a, Message> {
     }
 
     fn align_items(mut self, alignment: AlignItems) -> Self {
-        self.taffy_style.align_items = Some(alignment);
+        self.taffy_style.align_items = alignment;
         self
     }
 
     fn justify_content(mut self, justification: JustifyContent) -> Self {
-        self.taffy_style.justify_content = Some(justification);
+        self.taffy_style.justify_content = justification;
         self
     }
 
     pub fn space_between(self) -> Self {
-        self.justify_content(JustifyContent::SpaceBetween)
+        self.justify_content(JustifyContent::SPACE_BETWEEN)
     }
 
     pub fn space_evenly(self) -> Self {
-        self.justify_content(JustifyContent::SpaceEvenly)
+        self.justify_content(JustifyContent::SPACE_EVENLY)
     }
 
     pub fn wrap(mut self) -> Self {
