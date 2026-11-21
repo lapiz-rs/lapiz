@@ -32,6 +32,8 @@ impl Plugin for UndoPlugin {
     }
 }
 
+pub type ArchiveWriteFuture = BoxFuture<'static, anyhow::Result<()>>;
+
 /// Reservation handle for an asynchronous [`UndoCommand`] that preserves submission order in an [`UndoStack`].
 ///
 /// Created via [`UndoStack::queue`] when an operation begins asynchronously (for example, waiting on
@@ -85,7 +87,7 @@ pub struct UndoStack {
     history: VecDeque<UndoCommandData>,
     queue: VecDeque<Receiver<Box<dyn UndoCommand>>>,
     max_history: usize,
-    archive_writes: UnboundedSender<BoxFuture<'static, anyhow::Result<()>>>,
+    archive_writes: UnboundedSender<ArchiveWriteFuture>,
 }
 
 impl UndoStack {
@@ -146,16 +148,14 @@ impl UndoStack {
         if let Some(rhs) = self.history.back()
             && rhs.command.can_cancel_out(cmd.as_ref())
         {
-            cmd.redo(globals)?;
-            self.queue_archive_write(cmd.redo_write_archive(globals));
+            self.queue_archive_write(cmd.redo(globals)?);
             self.history.pop_back();
         } else {
             if self.history.len() == self.max_history {
                 self.history.pop_front();
             }
 
-            cmd.redo(globals)?;
-            self.queue_archive_write(cmd.redo_write_archive(globals));
+            self.queue_archive_write(cmd.redo(globals)?);
             self.history.push_back(UndoCommandData { command: cmd });
         }
 
@@ -163,15 +163,13 @@ impl UndoStack {
         Ok(())
     }
 
-    fn queue_archive_write(&mut self, write: BoxFuture<'static, anyhow::Result<()>>) {
+    fn queue_archive_write(&mut self, write: ArchiveWriteFuture) {
         self.archive_writes
             .unbounded_send(write)
             .expect("Archive writer stopped while the undo stack is active");
     }
 
-    async fn write_archive(
-        mut receiver: UnboundedReceiver<BoxFuture<'static, anyhow::Result<()>>>,
-    ) {
+    async fn write_archive(mut receiver: UnboundedReceiver<ArchiveWriteFuture>) {
         while let Ok(write) = receiver.recv().await {
             let _ = write.await.logged_err();
         }
@@ -213,18 +211,14 @@ impl UndoStack {
 
             let data = &self.history[self.cursor - 1];
             info!("Redo {}", data.command.label());
-            data.command.redo(globals).logged_err()?;
-            let write = data.command.redo_write_archive(globals);
-            self.queue_archive_write(write);
+            self.queue_archive_write(data.command.redo(globals).logged_err()?);
         }
         while self.cursor > cursor {
             self.cursor -= 1;
 
             let data = &self.history[self.cursor];
             info!("Undo {}", data.command.label());
-            data.command.undo(globals).logged_err()?;
-            let write = data.command.undo_write_archive(globals);
-            self.queue_archive_write(write);
+            self.queue_archive_write(data.command.undo(globals).logged_err()?);
         }
 
         Ok(())
@@ -286,16 +280,12 @@ pub struct UndoCommandData {
 /// - [`redo`](UndoCommand::redo): Applies (or re-applies) the command's mutation. Called automatically
 ///   when the command is first pushed onto an [`UndoStack`].
 /// - [`undo`](UndoCommand::undo): Reverts the mutation performed by [`redo`](UndoCommand::redo).
-/// - [`redo_write_archive`](UndoCommand::redo_write_archive) and
-///   [`undo_write_archive`](UndoCommand::undo_write_archive): Apply the corresponding change to the archive.
 /// - [`can_cancel_out`](UndoCommand::can_cancel_out): Optional check allowing two consecutive inverse
 ///   commands to cancel each other out and be removed from history.
 pub trait UndoCommand: 'static + Downcast {
     fn label(&self) -> Cow<'static, str>;
-    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()>;
-    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()>;
-    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>>;
-    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>>;
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<ArchiveWriteFuture>;
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<ArchiveWriteFuture>;
     fn can_cancel_out(&self, _: &dyn UndoCommand) -> bool {
         false
     }
@@ -331,64 +321,47 @@ impl UndoCommand for BatchedUndoCommand {
         self.label.clone()
     }
 
-    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()> {
-        let mut success = 0;
-        for i in 0..self.commands.len() {
-            match self.commands[i].redo(globals) {
-                Ok(_) => success += 1,
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<ArchiveWriteFuture> {
+        let mut writes = Vec::with_capacity(self.commands.len());
+        for (i, command) in self.commands.iter().enumerate() {
+            match command.redo(globals) {
+                Ok(write) => writes.push(write),
                 Err(err) => {
-                    for i in (0..success).rev() {
-                        self.commands[i].undo(globals)?;
+                    for command in self.commands[..i].iter().rev() {
+                        drop(command.undo(globals)?);
                     }
                     return Err(err);
                 }
             }
         }
-        Ok(())
+
+        Ok(Box::pin(async move {
+            for write in writes {
+                write.await?;
+            }
+            Ok(())
+        }))
     }
 
-    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
-        let mut success = 0;
-        for i in (0..self.commands.len()).rev() {
-            match self.commands[i].undo(globals) {
-                Ok(_) => success += 1,
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<ArchiveWriteFuture> {
+        let mut writes = Vec::with_capacity(self.commands.len());
+        for (i, command) in self.commands.iter().enumerate().rev() {
+            match command.undo(globals) {
+                Ok(write) => writes.push(write),
                 Err(err) => {
-                    for i in self.commands.len() - success..self.commands.len() {
-                        self.commands[i].redo(globals)?;
+                    for command in &self.commands[i + 1..] {
+                        drop(command.redo(globals)?);
                     }
                     return Err(err);
                 }
             }
         }
-        Ok(())
-    }
 
-    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
-        let writes = self
-            .commands
-            .iter()
-            .map(|cmd| cmd.redo_write_archive(globals));
-        let writes = writes.collect::<Vec<_>>();
-        Box::pin(async move {
+        Ok(Box::pin(async move {
             for write in writes {
                 write.await?;
             }
             Ok(())
-        })
-    }
-
-    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
-        let writes = self
-            .commands
-            .iter()
-            .rev()
-            .map(|cmd| cmd.undo_write_archive(globals));
-        let writes = writes.collect::<Vec<_>>();
-        Box::pin(async move {
-            for write in writes {
-                write.await?;
-            }
-            Ok(())
-        })
+        }))
     }
 }
