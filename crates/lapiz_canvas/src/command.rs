@@ -687,7 +687,6 @@ struct DeletedNode {
     root: LayerId,
     nodes: HashMap<LayerId, LayerStackNode>,
     original_parent: LayerId,
-    original_above: Option<LayerId>,
     original_index: usize,
 }
 
@@ -781,7 +780,6 @@ impl DeleteLayersCommand {
                     root,
                     nodes,
                     original_parent: *parent.id(),
-                    original_above: parent.child_below(&root),
                     original_index: parent.child_index(&root).unwrap(),
                 }
             })
@@ -849,7 +847,7 @@ impl UndoCommand for DeleteLayersCommand {
                 for node in &self.deleted {
                     layer_stack.add_layer_hierarchy(
                         node.original_parent,
-                        LayerPosition::Above(node.original_above),
+                        LayerPosition::Absolute(node.original_index),
                         node.root,
                         node.nodes.clone(),
                     );
