@@ -267,7 +267,16 @@ fn apply_archive_tile_replace(
     tiles: &Option<(Texture, Vec<IVec2>)>,
     previous: &Option<(Texture, Vec<IVec2>)>,
 ) -> BoxFuture<'static, anyhow::Result<()>> {
-    let archive = globals.canvas(&canvas).map(|canvas| canvas.archive.clone());
+    let archive = globals
+        .canvas(&canvas)
+        .map(|canvas| canvas.archive.clone())
+        .ok_or_else(|| anyhow!("Canvas {canvas} not found"));
+    if globals
+        .canvas(&canvas)
+        .is_some_and(|canvas| canvas.image.selection_layer() == layer)
+    {
+        return Box::pin(async { Ok(()) });
+    }
     let tiles = tiles.clone();
     let writes = tiles
         .iter()
@@ -282,7 +291,7 @@ fn apply_archive_tile_replace(
     let queue = globals.render_queue().clone();
 
     Box::pin(async move {
-        let archive = archive.ok_or_else(|| anyhow!("Canvas {canvas} not found"))?;
+        let archive = archive?;
         let mut writes = Vec::new();
         if let Some((texture, indices)) = tiles.filter(|(_, indices)| !indices.is_empty()) {
             let tile_size = GpuTileStorage::TILE_SIZE;
@@ -402,6 +411,33 @@ impl UndoCommand for TileReplaceCommand {
     }
 }
 
+fn insert_archive_layers(
+    globals: &Globals,
+    canvas: CanvasId,
+    layers: Vec<(LayerNode, Option<TexelSource>)>,
+) -> BoxFuture<'static, anyhow::Result<()>> {
+    let archive = globals
+        .canvas(&canvas)
+        .map(|canvas| canvas.archive.clone())
+        .ok_or_else(|| anyhow!("Canvas {canvas} not found"));
+    let device = globals.render_device().clone();
+    let queue = globals.render_queue().clone();
+    let tile_storage = globals.tile_storage().clone();
+
+    Box::pin(async move {
+        let archive = archive?;
+        for (layer, texel_source) in layers {
+            archive.insert_layer_node(&layer)?;
+            if texel_source == Some(TexelSource::DirectlyDefined) {
+                tile_storage
+                    .write_layer(&device, &queue, &archive, LayerId(layer.id))
+                    .await?;
+            }
+        }
+        Ok(())
+    })
+}
+
 /// Undoable command that inserts a new [`LayerStackNode`] into a canvas's layer hierarchy and selects it.
 pub struct InsertLayerCommand {
     canvas: CanvasId,
@@ -489,6 +525,25 @@ impl UndoCommand for InsertLayerCommand {
 
         Ok(())
     }
+
+    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let layer = self
+            .layer
+            .as_archive_node(0)
+            .unwrap()
+            .with_parent(*self.parent_id, self.index as u32);
+        let texel_source = self.layer.properties().get_texel_source();
+        insert_archive_layers(globals, self.canvas, vec![(layer, texel_source)])
+    }
+
+    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let archive = globals
+            .canvas(&self.canvas)
+            .map(|canvas| canvas.archive.clone())
+            .ok_or_else(|| anyhow!("Canvas {} not found", self.canvas));
+        let layer = **self.layer.id();
+        Box::pin(async move { archive?.remove_layer_hierarchy(layer) })
+    }
 }
 
 /// Undoable command that creates a group layer and moves a set of child layers into it.
@@ -572,6 +627,66 @@ impl UndoCommand for GroupLayerCommand {
             .log_err();
 
         Ok(())
+    }
+
+    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let archive = globals
+            .canvas(&self.canvas)
+            .map(|canvas| canvas.archive.clone())
+            .ok_or_else(|| anyhow!("Canvas {} not found", self.canvas));
+        let group = self
+            .group
+            .as_archive_node(0)
+            .unwrap()
+            .with_parent(*self.parent_id, self.index as u32);
+        let texel_source = self.group.properties().get_texel_source();
+        let insert = insert_archive_layers(globals, self.canvas, vec![(group, texel_source)]);
+        let moves = self
+            .children
+            .iter()
+            .enumerate()
+            .map(|(index, child)| (*child.id, **self.group.id(), index))
+            .collect::<Vec<_>>();
+
+        Box::pin(async move {
+            insert.await?;
+            archive?.move_layer_nodes(&moves)
+        })
+    }
+
+    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let archive = globals
+            .canvas(&self.canvas)
+            .map(|canvas| canvas.archive.clone())
+            .ok_or_else(|| anyhow!("Canvas {} not found", self.canvas));
+        let group = **self.group.id();
+        let mut moves = self
+            .children
+            .iter()
+            .map(|child| (*child.id, *child.original_parent, child.original_index))
+            .collect::<Vec<_>>();
+        moves.sort_by_key(|&(_, _, index)| index);
+
+        Box::pin(async move {
+            let archive = archive?;
+            let group_node = archive.read_layer_node(group)?;
+            let mut group_index = group_node
+                .sort_order
+                .ok_or_else(|| anyhow!("Group layer has no sibling order"))?
+                as usize;
+            // Restore children while the group still occupies a sibling position.
+            for (_, parent, index) in &mut moves {
+                if Some(*parent) == group_node.parent_id {
+                    if *index <= group_index {
+                        group_index += 1;
+                    } else {
+                        *index += 1;
+                    }
+                }
+            }
+            archive.move_layer_nodes(&moves)?;
+            archive.remove_layer_hierarchy(group)
+        })
     }
 }
 
@@ -705,6 +820,34 @@ impl UndoCommand for MoveLayersCommand {
         });
 
         Ok(())
+    }
+
+    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let archive = globals
+            .canvas(&self.canvas)
+            .map(|canvas| canvas.archive.clone())
+            .ok_or_else(|| anyhow!("Canvas {} not found", self.canvas));
+        let moves = self
+            .layers
+            .iter()
+            .enumerate()
+            .map(|(offset, layer)| (*layer.id, *self.new_parent, self.new_index + offset))
+            .collect::<Vec<_>>();
+        Box::pin(async move { archive?.move_layer_nodes(&moves) })
+    }
+
+    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let archive = globals
+            .canvas(&self.canvas)
+            .map(|canvas| canvas.archive.clone())
+            .ok_or_else(|| anyhow!("Canvas {} not found", self.canvas));
+        let mut moves = self
+            .layers
+            .iter()
+            .map(|layer| (*layer.id, *layer.original_parent, layer.original_index))
+            .collect::<Vec<_>>();
+        moves.sort_by_key(|&(_, _, index)| index);
+        Box::pin(async move { archive?.move_layer_nodes(&moves) })
     }
 }
 
@@ -902,8 +1045,10 @@ impl UndoCommand for DeleteLayersCommand {
     }
 
     fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
-        let canvas = self.canvas;
-        let archive = globals.canvas(&canvas).map(|canvas| canvas.archive.clone());
+        let archive = globals
+            .canvas(&self.canvas)
+            .map(|canvas| canvas.archive.clone())
+            .ok_or_else(|| anyhow!("Canvas {} not found", self.canvas));
         let roots = self
             .deleted
             .iter()
@@ -911,7 +1056,7 @@ impl UndoCommand for DeleteLayersCommand {
             .collect::<Vec<_>>();
 
         Box::pin(async move {
-            let archive = archive.ok_or_else(|| anyhow!("Canvas {canvas} not found"))?;
+            let archive = archive?;
             for root in roots {
                 archive.remove_layer_hierarchy(*root)?;
             }
@@ -920,8 +1065,6 @@ impl UndoCommand for DeleteLayersCommand {
     }
 
     fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
-        let canvas = self.canvas;
-        let archive = globals.canvas(&canvas).map(|canvas| canvas.archive.clone());
         let layers = self
             .deleted
             .iter()
@@ -942,36 +1085,15 @@ impl UndoCommand for DeleteLayersCommand {
                 })
             })
             .map(|(node, index)| {
-                let layer = LayerNode {
-                    id: **node.id(),
-                    parent_id: node.parent().map(|id| **id),
-                    sort_order: Some(index as u32),
-                    layer_type: node.instance().layer_type(),
-                    properties: node.properties().encode()?,
-                };
-                let has_own_tiles = node
-                    .properties()
-                    .get_texel_prop()
-                    .is_some_and(|p| p.source == TexelSource::DirectlyDefined);
-                Ok((layer, has_own_tiles))
+                let layer = node
+                    .as_archive_node(0)
+                    .unwrap()
+                    .with_parent(**node.parent().unwrap(), index as u32);
+                let texel_source = node.properties().get_texel_source();
+                (layer, texel_source)
             })
-            .collect::<anyhow::Result<Vec<_>>>();
-        let device = globals.render_device().clone();
-        let queue = globals.render_queue().clone();
-        let tile_storage = globals.tile_storage().clone();
-
-        Box::pin(async move {
-            let archive = archive.ok_or_else(|| anyhow!("Canvas {canvas} not found"))?;
-            for (layer, has_own_tiles) in layers? {
-                archive.insert_layer_node(&layer)?;
-                if has_own_tiles {
-                    tile_storage
-                        .write_layer(&device, &queue, &archive, LayerId(layer.id))
-                        .await?;
-                }
-            }
-            Ok(())
-        })
+            .collect();
+        insert_archive_layers(globals, self.canvas, layers)
     }
 }
 
@@ -982,6 +1104,20 @@ pub struct LayerPropertyChangeCommand {
     pub layer_id: LayerId,
     pub old: LayerProperties,
     pub new: LayerProperties,
+}
+
+fn write_archive_properties(
+    globals: &Globals,
+    canvas: CanvasId,
+    layer: LayerId,
+    properties: &LayerProperties,
+) -> BoxFuture<'static, anyhow::Result<()>> {
+    let archive = globals
+        .canvas(&canvas)
+        .map(|canvas| canvas.archive.clone())
+        .ok_or_else(|| anyhow!("Canvas {canvas} not found"));
+    let properties = properties.encode();
+    Box::pin(async move { archive?.write_layer_properties(*layer, &properties?) })
 }
 
 impl UndoCommand for LayerPropertyChangeCommand {
@@ -1022,25 +1158,36 @@ impl UndoCommand for LayerPropertyChangeCommand {
 
         Ok(())
     }
+
+    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        write_archive_properties(globals, self.canvas, self.layer_id, &self.new)
+    }
+
+    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        write_archive_properties(globals, self.canvas, self.layer_id, &self.old)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use std::array;
 
-    use {
-        crate::CanvasManager,
-        glam::UVec2,
-        lapiz_image::{
-            CImage,
-            layer::{LayerTypeRegistry, group_layer::GroupLayer, pixel_layer::PixelLayer},
+    use futures::executor::block_on;
+    use glam::UVec2;
+    use lapiz_image::{
+        CImage,
+        layer::{
+            LayerTypeRegistry, group_layer::GroupLayer, pixel_layer::PixelLayer,
+            properties::builtin::NameProp,
         },
-        lapiz_lazuli::LazuliArchive,
-        lapiz_undo::BatchedUndoCommand,
-        moxcms::ColorProfile,
     };
+    use lapiz_lazuli::LazuliArchive;
+    use lapiz_runtime::renderer::global_render_context;
+    use lapiz_undo::BatchedUndoCommand;
+    use moxcms::ColorProfile;
 
     use super::*;
+    use crate::CanvasManager;
 
     fn pixel() -> LayerStackNode {
         LayerStackNode::without_parent(
@@ -1077,6 +1224,13 @@ mod test {
 
         let mut globals = Globals::default();
         globals.insert_global(CanvasManager::default());
+        let render_context = global_render_context();
+        globals.insert_global(GpuTileStorage::new(
+            render_context.device.clone(),
+            render_context.queue.clone(),
+        ));
+        globals.insert_global(render_context);
+
         globals.add_canvas(CCanvas::new(
             None,
             image,
@@ -1096,10 +1250,79 @@ mod test {
             .children()
     }
 
+    fn seed_archive(globals: &Globals) -> &LazuliArchive {
+        let canvas = globals.current_canvas().unwrap();
+        canvas
+            .image
+            .layer_stack()
+            .write_entire_tree(&canvas.archive)
+            .unwrap();
+        &canvas.archive
+    }
+
+    fn assert_archive_matches_canvas(globals: &Globals) {
+        let canvas = globals.current_canvas().unwrap();
+        let expected = LazuliArchive::new_in_memory().unwrap();
+        canvas
+            .image
+            .layer_stack()
+            .write_entire_tree(&expected)
+            .unwrap();
+        assert_eq!(
+            canvas.archive.read_all_layer_nodes().unwrap(),
+            expected.read_all_layer_nodes().unwrap(),
+        );
+    }
+
+    #[test]
+    fn archive_batch_writes_properties_in_redo_and_undo_order() {
+        let (globals, _, [layer]) = canvas_with_layers();
+        let archive = seed_archive(&globals);
+        let make_props = |name: &str| {
+            let mut props = LayerProperties::new(HashMap::new());
+            props.set(NameProp(name.into()));
+            props
+        };
+        let initial = pixel().properties().clone();
+        let next = make_props("Next");
+        let last = make_props("Last");
+        let canvas = globals.current_canvas_id().unwrap();
+        let batch = BatchedUndoCommand::new(
+            "Rename".into(),
+            vec![
+                LayerPropertyChangeCommand {
+                    canvas,
+                    layer_id: layer,
+                    old: initial.clone(),
+                    new: next.clone(),
+                },
+                LayerPropertyChangeCommand {
+                    canvas,
+                    layer_id: layer,
+                    old: next,
+                    new: last.clone(),
+                },
+            ],
+        );
+        let original = archive.read_layer_node(*layer).unwrap();
+
+        block_on(batch.redo_write_archive(&globals)).unwrap();
+        assert_eq!(
+            archive.read_layer_node(*layer).unwrap(),
+            LayerNode {
+                properties: last.encode().unwrap(),
+                ..original.clone()
+            }
+        );
+        block_on(batch.undo_write_archive(&globals)).unwrap();
+        assert_eq!(archive.read_layer_node(*layer).unwrap(), original);
+    }
+
     #[test]
     fn insert_layer_restores_order_and_selection() {
         let (mut globals, root, [a, b]) = canvas_with_layers();
         globals.current_canvas_mut().unwrap().select_layer(b);
+        seed_archive(&globals);
         let first = pixel();
         let second = pixel();
         let first_id = *first.id();
@@ -1114,17 +1337,23 @@ mod test {
         );
 
         command.redo(&mut globals).unwrap();
+        block_on(command.redo_write_archive(&globals)).unwrap();
+        assert_archive_matches_canvas(&globals);
         assert_eq!(children(&globals, root), &[a, b, first_id, second_id]);
         assert_eq!(
             globals.current_canvas().unwrap().active_layer_id(),
             second_id
         );
         command.undo(&mut globals).unwrap();
+        block_on(command.undo_write_archive(&globals)).unwrap();
+        assert_archive_matches_canvas(&globals);
         assert_eq!(children(&globals, root), &[a, b]);
         let canvas = globals.current_canvas().unwrap();
         assert_eq!(canvas.active_layer_id(), a);
         assert_eq!(canvas.selected_layer_ids().as_slice(), &[a, b][..]);
         command.redo(&mut globals).unwrap();
+        block_on(command.redo_write_archive(&globals)).unwrap();
+        assert_archive_matches_canvas(&globals);
         assert_eq!(children(&globals, root), &[a, b, first_id, second_id]);
     }
 
@@ -1142,6 +1371,9 @@ mod test {
             .layer_stack_mut();
         stack.add_layer(root, 3, nested);
         stack.add_layer(d, 0, child);
+        seed_archive(&globals)
+            .write_tile_data(*child_id, 0, 0, [9])
+            .unwrap();
 
         let group = group();
         let id = *group.id();
@@ -1165,9 +1397,22 @@ mod test {
         };
 
         command.redo(&mut globals).unwrap();
+        block_on(command.redo_write_archive(&globals)).unwrap();
+        assert_archive_matches_canvas(&globals);
         assert_eq!(children(&globals, root), &[a, id, c]);
         assert_eq!(children(&globals, id), &[b, d]);
         command.undo(&mut globals).unwrap();
+        block_on(command.undo_write_archive(&globals)).unwrap();
+        assert_archive_matches_canvas(&globals);
+        assert_eq!(
+            globals
+                .current_canvas()
+                .unwrap()
+                .archive
+                .read_tile_data(*child_id, 0, 0)
+                .unwrap(),
+            Some(vec![9])
+        );
         assert_eq!(children(&globals, root), &[a, b, c, d]);
         assert_eq!(children(&globals, d), &[child_id]);
         assert!(
@@ -1185,6 +1430,7 @@ mod test {
     #[test]
     fn move_layers_preserves_order_and_restores_original_indices() {
         let (mut globals, root, [a, b, c, d, e]) = canvas_with_layers();
+        seed_archive(&globals);
         for (position, expected) in [
             (LayerPosition::above(e), [a, c, e, b, d]),
             (LayerPosition::background(), [b, d, a, c, e]),
@@ -1192,8 +1438,12 @@ mod test {
             let command =
                 MoveLayersCommand::new(globals.current_canvas().unwrap(), [d, b], root, position);
             command.redo(&mut globals).unwrap();
+            block_on(command.redo_write_archive(&globals)).unwrap();
+            assert_archive_matches_canvas(&globals);
             assert_eq!(children(&globals, root), &expected);
             command.undo(&mut globals).unwrap();
+            block_on(command.undo_write_archive(&globals)).unwrap();
+            assert_archive_matches_canvas(&globals);
             assert_eq!(children(&globals, root), &[a, b, c, d, e]);
             command.redo(&mut globals).unwrap();
             assert_eq!(children(&globals, root), &expected);
@@ -1213,13 +1463,18 @@ mod test {
         stack.add_layer(nested_id, 1, child);
         let command =
             MoveLayersCommand::new(canvas, [b, child_id], root, LayerPosition::foreground());
+        seed_archive(&globals);
         command.redo(&mut globals).unwrap();
+        block_on(command.redo_write_archive(&globals)).unwrap();
+        assert_archive_matches_canvas(&globals);
         assert_eq!(
             children(&globals, root),
             &[a, nested_id, c, d, e, child_id, b]
         );
         assert_eq!(children(&globals, nested_id), &[sibling_id]);
         command.undo(&mut globals).unwrap();
+        block_on(command.undo_write_archive(&globals)).unwrap();
+        assert_archive_matches_canvas(&globals);
         assert_eq!(children(&globals, root), &[a, nested_id, b, c, d, e]);
         assert_eq!(children(&globals, nested_id), &[sibling_id, child_id]);
     }
@@ -1238,8 +1493,11 @@ mod test {
         canvas.set_active_layer_and_clear_select(child_id);
         canvas.select_layer(b);
         let command = DeleteLayersCommand::new(canvas, vec![b, child_id, group_id]).unwrap();
+        seed_archive(&globals);
 
         command.redo(&mut globals).unwrap();
+        block_on(command.redo_write_archive(&globals)).unwrap();
+        assert_archive_matches_canvas(&globals);
         let canvas = globals.current_canvas().unwrap();
         assert_eq!(children(&globals, root), &[a]);
         assert!(!canvas.image.layer_stack().contains_layer(&child_id));
@@ -1253,6 +1511,8 @@ mod test {
             [a]
         );
         command.undo(&mut globals).unwrap();
+        block_on(command.undo_write_archive(&globals)).unwrap();
+        assert_archive_matches_canvas(&globals);
         let canvas = globals.current_canvas().unwrap();
         assert_eq!(children(&globals, root), &[a, b, group_id]);
         assert_eq!(children(&globals, group_id), &[child_id]);

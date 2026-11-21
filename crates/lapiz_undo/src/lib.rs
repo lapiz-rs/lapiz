@@ -258,18 +258,16 @@ pub struct UndoCommandData {
 /// - [`redo`](UndoCommand::redo): Applies (or re-applies) the command's mutation. Called automatically
 ///   when the command is first pushed onto an [`UndoStack`].
 /// - [`undo`](UndoCommand::undo): Reverts the mutation performed by [`redo`](UndoCommand::redo).
+/// - [`redo_write_archive`](UndoCommand::redo_write_archive) and
+///   [`undo_write_archive`](UndoCommand::undo_write_archive): Apply the corresponding change to the archive.
 /// - [`can_cancel_out`](UndoCommand::can_cancel_out): Optional check allowing two consecutive inverse
 ///   commands to cancel each other out and be removed from history.
 pub trait UndoCommand: 'static + Downcast {
     fn label(&self) -> Cow<'static, str>;
     fn redo(&self, globals: &mut Globals) -> anyhow::Result<()>;
     fn undo(&self, globals: &mut Globals) -> anyhow::Result<()>;
-    fn redo_write_archive(&self, _globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
-        todo!()
-    }
-    fn undo_write_archive(&self, _globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
-        todo!()
-    }
+    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>>;
+    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>>;
     fn can_cancel_out(&self, _: &dyn UndoCommand) -> bool {
         false
     }
@@ -281,6 +279,7 @@ downcast_rs::impl_downcast!(UndoCommand);
 /// During [`redo`](UndoCommand::redo), child commands are applied in forward order; if any command
 /// fails, previously applied children in the batch are rolled back in reverse order. During
 /// [`undo`](UndoCommand::undo), child commands are reverted in reverse order with forward recovery on error.
+/// Archive writes use the same order and stop on the first error without rolling back prior writes.
 pub struct BatchedUndoCommand {
     label: Cow<'static, str>,
     commands: Vec<Box<dyn UndoCommand>>,
@@ -334,5 +333,34 @@ impl UndoCommand for BatchedUndoCommand {
             }
         }
         Ok(())
+    }
+
+    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let writes = self
+            .commands
+            .iter()
+            .map(|cmd| cmd.redo_write_archive(globals));
+        let writes = writes.collect::<Vec<_>>();
+        Box::pin(async move {
+            for write in writes {
+                write.await?;
+            }
+            Ok(())
+        })
+    }
+
+    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let writes = self
+            .commands
+            .iter()
+            .rev()
+            .map(|cmd| cmd.undo_write_archive(globals));
+        let writes = writes.collect::<Vec<_>>();
+        Box::pin(async move {
+            for write in writes {
+                write.await?;
+            }
+            Ok(())
+        })
     }
 }

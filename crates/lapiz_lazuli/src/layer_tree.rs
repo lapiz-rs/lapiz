@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use rusqlite::{Connection, OptionalExtension as _, params};
 use uuid::Uuid;
 
@@ -16,6 +16,14 @@ pub struct LayerNode {
     pub sort_order: Option<u32>,
     pub layer_type: u32,
     pub properties: Vec<u8>,
+}
+
+impl LayerNode {
+    pub fn with_parent(mut self, parent_id: Uuid, sort_order: u32) -> Self {
+        self.parent_id = Some(parent_id);
+        self.sort_order = Some(sort_order);
+        self
+    }
 }
 
 pub(crate) fn initialize_table(conn: &Connection) -> Result<()> {
@@ -172,6 +180,91 @@ DELETE FROM layer_tree WHERE id IN (SELECT id FROM subtree)
             params![parent, index],
         )?;
         tx.commit()?;
+        Ok(())
+    }
+
+    /// Detaches all listed nodes, then inserts them in input order at the specified indices.
+    /// Descendants and tile data stay attached to their original node IDs.
+    pub fn move_layer_nodes(&self, moves: &[(Uuid, Uuid, usize)]) -> Result<()> {
+        if moves.is_empty() {
+            return Ok(());
+        }
+
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
+        for &(layer, _, _) in moves {
+            let id = layer.as_bytes().as_slice();
+            let position = tx.query_row(
+                "SELECT parent_id, sort_order FROM layer_tree WHERE id = ?1 AND parent_id IS NOT NULL",
+                params![id],
+                |row| Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, u32>(1)?)),
+            ).optional()?;
+            let (parent, index) = position.ok_or_else(|| {
+                anyhow!("Layer {layer} is missing, is the root, or was already detached")
+            })?;
+            tx.execute(
+                "UPDATE layer_tree SET parent_id = NULL, sort_order = NULL WHERE id = ?1",
+                params![id],
+            )?;
+            tx.execute(
+                "UPDATE layer_tree SET sort_order = sort_order - 1 WHERE parent_id = ?1 AND sort_order > ?2",
+                params![parent, index],
+            )?;
+        }
+
+        for &(layer, parent, index) in moves {
+            let id = layer.as_bytes().as_slice();
+            let parent = parent.as_bytes().as_slice();
+            let index = u32::try_from(index)?;
+            let child_count = tx.query_row(
+                "SELECT (SELECT COUNT(*) FROM layer_tree WHERE parent_id = ?1) FROM layer_tree WHERE id = ?1",
+                params![parent],
+                |row| row.get::<_, u32>(0),
+            ).optional()?.ok_or_else(|| anyhow!("Destination layer is missing"))?;
+            if index > child_count {
+                bail!("Layer insertion index is out of bounds");
+            }
+
+            tx.execute(
+                "UPDATE layer_tree SET sort_order = sort_order + 1 WHERE parent_id = ?1 AND sort_order >= ?2",
+                params![parent, index],
+            )?;
+            tx.execute(
+                "UPDATE layer_tree SET parent_id = ?2, sort_order = ?3 WHERE id = ?1",
+                params![id, parent, index],
+            )?;
+        }
+
+        for &(layer, _, _) in moves {
+            let cyclic = tx.query_row(
+                r#"
+WITH RECURSIVE ancestors(id) AS (
+    SELECT parent_id FROM layer_tree WHERE id = ?1
+    UNION
+    SELECT layer_tree.parent_id FROM layer_tree JOIN ancestors ON layer_tree.id = ancestors.id
+)
+SELECT EXISTS (SELECT 1 FROM ancestors WHERE id = ?1)
+"#,
+                params![layer.as_bytes().as_slice()],
+                |row| row.get::<_, bool>(0),
+            )?;
+            if cyclic {
+                bail!("Cannot move layer {layer} into its own subtree");
+            }
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn write_layer_properties(&self, layer: Uuid, properties: &[u8]) -> Result<()> {
+        let updated = self.conn().execute(
+            "UPDATE layer_tree SET properties = ?2 WHERE id = ?1",
+            params![layer.as_bytes().as_slice(), properties],
+        )?;
+        if updated == 0 {
+            bail!("Layer {layer} is missing");
+        }
         Ok(())
     }
 
@@ -367,6 +460,38 @@ mod tests {
         for node in [before, after] {
             assert_eq!(archive.read_tile_data(node.id, 0, 0)?, Some(vec![1]));
         }
+        Ok(())
+    }
+
+    #[test]
+    fn cyclic_move_leaves_layer_positions_unchanged() -> Result<()> {
+        let archive = LazuliArchive::new_in_memory()?;
+        let root = Uuid::new_v4();
+        let group = Uuid::new_v4();
+        let child = Uuid::new_v4();
+        let sibling = Uuid::new_v4();
+        for (id, parent_id, sort_order) in [
+            (root, None, None),
+            (group, Some(root), Some(0)),
+            (child, Some(group), Some(0)),
+            (sibling, Some(root), Some(1)),
+        ] {
+            archive.write_layer_node(&LayerNode {
+                id,
+                parent_id,
+                sort_order,
+                layer_type: 1,
+                properties: vec![],
+            })?;
+        }
+        let before = archive.read_all_layer_nodes()?;
+
+        assert!(
+            archive
+                .move_layer_nodes(&[(sibling, root, 0), (group, child, 0)])
+                .is_err()
+        );
+        assert_eq!(archive.read_all_layer_nodes()?, before);
         Ok(())
     }
 
