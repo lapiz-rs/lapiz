@@ -108,7 +108,7 @@ jobs:
 
       - run: just setup-format
 
-      - uses: tombi-toml/setup-tombi@v1.11.2
+      - uses: tombi-toml/setup-tombi@v1.11.3
 
       - run: just check-fmt
 
