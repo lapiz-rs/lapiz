@@ -169,6 +169,15 @@ impl UndoStack {
             .expect("Archive writer stopped while the undo stack is active");
     }
 
+    pub fn wait_for_archive_writes(&mut self) -> Receiver<()> {
+        let (sender, receiver) = oneshot::channel();
+        self.queue_archive_write(Box::pin(async move {
+            let _ = sender.send(());
+            Ok(())
+        }));
+        receiver
+    }
+
     async fn write_archive(mut receiver: UnboundedReceiver<ArchiveWriteFuture>) {
         while let Ok(write) = receiver.recv().await {
             let _ = write.await.logged_err();

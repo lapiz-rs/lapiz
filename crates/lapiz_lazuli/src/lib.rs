@@ -119,8 +119,18 @@ impl LazuliArchive {
             return Ok(());
         }
 
-        inner.conn.backup(MAIN_DB, &path, NO_PROGRESS)?;
-        let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)?;
+        File::create_new(&path)?;
+        let conn = inner
+            .conn
+            .backup(MAIN_DB, &path, NO_PROGRESS)
+            .and_then(|_| Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE));
+        let conn = match conn {
+            Ok(conn) => conn,
+            Err(error) => {
+                let _ = fs::remove_file(&path);
+                return Err(error.into());
+            }
+        };
         inner.conn = conn;
         inner.path = Some(path);
 
@@ -172,12 +182,13 @@ mod tests {
                 texel_type: 8,
             })
             .unwrap();
+        let queued_write_archive = archive.clone();
         archive.set_path(path.clone()).unwrap();
 
-        assert_eq!(archive.path(), Some(path.clone()));
+        assert_eq!(queued_write_archive.path(), Some(path.clone()));
         assert!(path.is_file());
 
-        archive
+        queued_write_archive
             .write_image_properties(&ImageProperties {
                 width: 512,
                 height: 256,
@@ -187,6 +198,7 @@ mod tests {
                 texel_type: 10,
             })
             .unwrap();
+        drop(queued_write_archive);
         drop(archive);
 
         let archive = LazuliArchive::open(&path).unwrap();
@@ -198,6 +210,23 @@ mod tests {
         assert_eq!(properties.root_layer, root_layer);
         assert_eq!(properties.texel_type, 10);
         drop(archive);
+
+        fs::remove_file(path).unwrap();
+        fs::remove_dir(directory).unwrap();
+    }
+
+    #[test]
+    fn set_path_does_not_overwrite_an_existing_archive() {
+        let directory = env::temp_dir().join(format!("lapiz_lazuli_set_path_{}", Uuid::new_v4()));
+        let path = directory.join("archive.lazuli");
+        let existing = LazuliArchive::new(&path).unwrap();
+        drop(existing);
+        let contents = fs::read(&path).unwrap();
+        let mut archive = LazuliArchive::new_in_memory().unwrap();
+
+        assert!(archive.set_path(path.clone()).is_err());
+        assert_eq!(archive.path(), None);
+        assert_eq!(fs::read(&path).unwrap(), contents);
 
         fs::remove_file(path).unwrap();
         fs::remove_dir(directory).unwrap();

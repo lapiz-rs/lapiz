@@ -1,7 +1,9 @@
 use std::{ffi::OsStr, iter, sync::Arc};
 
 use iced_runtime::Task;
-use lapiz_canvas::{CanvasAppExt as _, CanvasId, recent::RecentFiles};
+#[cfg(not(target_os = "android"))]
+use lapiz_canvas::CanvasUndoStackAppExt as _;
+use lapiz_canvas::{CCanvas, CanvasAppExt as _, CanvasId, recent::RecentFiles};
 use lapiz_config::Config;
 use lapiz_file_dialog::{FileDialog, LocalFile};
 use lapiz_i18n::t;
@@ -114,12 +116,17 @@ impl ActionFunction for SaveFileAction {
             return Task::none();
         };
 
-        // TODO incremental saving for lazuli file. Saving should happen at every canvas command.
         if let Some(file) = canvas.local_file().cloned() {
+            if file
+                .path()
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case(lapiz_lazuli::EXTENSION))
+            {
+                return Task::none();
+            }
             start_export(globals, canvas_id, true, file)
         } else {
-            // The canvas has not saved yet and only exists in memory.
-            ExportFileAction.trigger(globals)
+            choose_destination(globals)
         }
     }
 
@@ -127,15 +134,56 @@ impl ActionFunction for SaveFileAction {
         let ExportFileMessage::PathChosen(canvas_id, Some(local_file)) = message else {
             return Task::none();
         };
+        #[cfg(not(target_os = "android"))]
+        if local_file
+            .path()
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case(lapiz_lazuli::EXTENSION))
+        {
+            let Some(stack) = globals.undo_stack_mut(&canvas_id) else {
+                return Task::none();
+            };
+            let pending_writes = stack.wait_for_archive_writes();
+            let globals = globals.async_handle();
+            return Task::future(async move {
+                if pending_writes.await.is_err() {
+                    return;
+                }
+                globals
+                    .update(move |globals| {
+                        let Some(canvas) = globals.canvas_mut(&canvas_id) else {
+                            return;
+                        };
+                        if canvas.local_file().is_some() {
+                            return;
+                        }
+                        if canvas
+                            .archive
+                            .set_path(local_file.path().to_owned())
+                            .logged_err()
+                            .is_ok()
+                        {
+                            Config::<RecentFiles>::read_or_init_or_fallback()
+                                .update(|c| {
+                                    c.update(local_file.source(), local_file.name().to_owned())
+                                })
+                                .log_err();
+                            canvas.set_local_file(local_file.into());
+                        }
+                    })
+                    .await;
+            })
+            .discard();
+        }
+
         let Some(canvas) = globals.canvas_mut(&canvas_id) else {
             return Task::none();
         };
-
-        canvas.set_local_file(local_file.into());
-        let local_file = canvas.local_file().unwrap().clone();
+        let local_file = Arc::new(local_file);
         Config::<RecentFiles>::read_or_init_or_fallback()
             .update(|c| c.update(local_file.source(), local_file.name().to_owned()))
             .log_err();
+        canvas.set_local_file(local_file.clone());
         start_export(globals, canvas_id, false, local_file)
     }
 }
@@ -156,34 +204,7 @@ impl ActionFunction for ExportFileAction {
     }
 
     fn trigger(&self, globals: &mut Globals) -> Task<Self::Message> {
-        let Some(canvas) = globals.current_canvas() else {
-            return Task::none();
-        };
-        let mut dialog = FileDialog::new_maybe_from_global(globals);
-        let canvas_id = canvas.id();
-        let name = canvas
-            .local_file()
-            .map(|file| file.name())
-            .filter(|name| !name.is_empty());
-        dialog = dialog.set_file_name(name.unwrap_or("Untitled.png"));
-        for format in globals
-            .global::<ImageFormatExporterRegistry>()
-            .iter_formats()
-        {
-            let mut extensions = vec![format.extension];
-            extensions.extend(format.aliases);
-            dialog = dialog.add_filter(format.description, &extensions);
-        }
-
-        Task::future(async move {
-            match dialog.save_file().await {
-                Ok(file) => ExportFileMessage::PathChosen(canvas_id, file),
-                Err(error) => {
-                    log::error!("Unable to create document: {error}");
-                    ExportFileMessage::PathChosen(canvas_id, None)
-                }
-            }
-        })
+        choose_destination(globals)
     }
 
     fn handle_message(&self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
@@ -192,6 +213,37 @@ impl ActionFunction for ExportFileAction {
         };
         start_export(globals, canvas_id, false, local_file.into())
     }
+}
+
+fn choose_destination(globals: &mut Globals) -> Task<ExportFileMessage> {
+    let Some(canvas) = globals.current_canvas() else {
+        return Task::none();
+    };
+    let mut dialog = FileDialog::new_maybe_from_global(globals);
+    let canvas_id = canvas.id();
+    let name = canvas
+        .local_file()
+        .map(|file| file.name())
+        .filter(|name| !name.is_empty());
+    dialog = dialog.set_file_name(name.unwrap_or("Untitled.png"));
+    for format in globals
+        .global::<ImageFormatExporterRegistry>()
+        .iter_formats()
+    {
+        let mut extensions = vec![format.extension];
+        extensions.extend(format.aliases);
+        dialog = dialog.add_filter(format.description, &extensions);
+    }
+
+    Task::future(async move {
+        match dialog.save_file().await {
+            Ok(file) => ExportFileMessage::PathChosen(canvas_id, file),
+            Err(error) => {
+                log::error!("Unable to create document: {error}");
+                ExportFileMessage::PathChosen(canvas_id, None)
+            }
+        }
+    })
 }
 
 fn start_export(

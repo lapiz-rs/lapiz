@@ -20,7 +20,6 @@ use lapiz_image::{
     layer::{LayerTypeRegistryExt as _, properties::builtin::LayerTexelTypePropertyExt as _},
     tile::{GpuLayerInfo, TileStorageAppExt as _},
 };
-use lapiz_lazuli::LazuliArchive;
 use lapiz_runtime::{
     Renderer, Runtime, Theme,
     global::Globals,
@@ -337,39 +336,44 @@ impl WindowView for NewCanvasDialog {
             }
             NewCanvasDialogMessage::Create => {
                 let this = &self;
-                let tiles = globals.tile_storage();
-                let archive = match LazuliArchive::new_in_memory() {
-                    Ok(ok) => ok,
-                    Err(err) => {
-                        self.error = Some(t!("new_canvas_error", error = err.to_string()));
+                let document = match this.tab {
+                    CanvasTab::NewCanvas => {
+                        let image = CImage::new(
+                            UVec2::new(this.width, this.height),
+                            ColorProfile::new_srgb(),
+                            globals.layer_type_registry(),
+                        );
+                        image.new_in_memory_archive().map(|archive| {
+                            let tiles = globals.tile_storage();
+                            for layer in image.layer_stack().iter_layers() {
+                                if let Some(texel_type) = layer.properties().get_texel_type() {
+                                    tiles.declare_layer(*layer.id(), GpuLayerInfo { texel_type });
+                                }
+                            }
+                            (image, archive)
+                        })
+                    }
+                    CanvasTab::Clipboard => {
+                        let clipboard = this.clipboard_image.as_ref().unwrap();
+                        CImage::image_to_lazuli(
+                            DynamicImage::ImageRgba8(clipboard.pixels.clone()),
+                            clipboard.profile.clone(),
+                            globals.layer_type_registry(),
+                        )
+                        .and_then(|archive| {
+                            let image = CImage::from_lazuli(&archive, globals)?;
+                            Ok((image, archive))
+                        })
+                    }
+                };
+                let (image, archive) = match document {
+                    Ok(document) => document,
+                    Err(error) => {
+                        self.error = Some(t!("new_canvas_error", error = error.to_string()));
                         return Task::none();
                     }
                 };
-                let profile = ColorProfile::new_srgb();
-                let image = match this.tab {
-                    CanvasTab::NewCanvas => CImage::new(
-                        UVec2::new(this.width, this.height),
-                        profile,
-                        globals.layer_type_registry(),
-                    ),
-                    CanvasTab::Clipboard => {
-                        let image = this.clipboard_image.as_ref().unwrap();
-                        CImage::from_image(
-                            DynamicImage::ImageRgba8(image.pixels.clone()),
-                            image.profile.clone(),
-                            tiles,
-                            globals.layer_type_registry(),
-                        )
-                    }
-                };
-
                 let canvas = CCanvas::new(None, image, archive);
-                let tiles = globals.tile_storage();
-                for layer in canvas.image.layer_stack().iter_layers() {
-                    if let Some(texel_type) = layer.properties().get_texel_type() {
-                        tiles.declare_layer(*layer.id(), GpuLayerInfo { texel_type });
-                    }
-                }
 
                 globals.add_canvas(canvas);
                 close(self.window)

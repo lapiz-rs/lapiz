@@ -4004,7 +4004,6 @@ dependencies = [
  "lapiz_canvas",
  "lapiz_i18n",
  "lapiz_image",
- "lapiz_lazuli",
  "lapiz_runtime",
  "lapiz_widgets",
  "moxcms 0.9.1",
