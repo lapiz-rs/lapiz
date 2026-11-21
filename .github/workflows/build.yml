@@ -33,7 +33,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: workspace-deps
+          shared-key: test
           save-if: >-
             ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
             }}
@@ -66,13 +66,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: workspace-deps
-          save-if: >-
-            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
-            }}
-          cache-on-failure: >-
-            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
-            }}
+          shared-key: test
+          save-if: false
 
       - run: just setup-linux
 
@@ -157,9 +152,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: >-
-            ${{ matrix.platform == 'android' && 'workspace-deps-android' ||
-            'workspace-deps' }}
+          shared-key: clippy-${{ matrix.platform }}
           save-if: >-
             ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
             }}
@@ -188,13 +181,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: workspace-deps
-          save-if: >-
-            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
-            }}
-          cache-on-failure: >-
-            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
-            }}
+          shared-key: test
+          save-if: false
 
       - run: just setup-linux
 
@@ -214,13 +202,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: workspace-deps
-          save-if: >-
-            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
-            }}
-          cache-on-failure: >-
-            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
-            }}
+          shared-key: test
+          save-if: false
 
       - run: just setup-linux
 
@@ -240,13 +223,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: workspace-deps
-          save-if: >-
-            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
-            }}
-          cache-on-failure: >-
-            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
-            }}
+          shared-key: test
+          save-if: false
 
       - run: just setup-deny
 
@@ -311,9 +289,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: >-
-            ${{ matrix.platform == 'android' && 'workspace-deps-android' ||
-            'workspace-deps' }}
+          shared-key: package-${{ matrix.platform }}
           save-if: >-
             ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
             }}
