@@ -41,6 +41,7 @@ use lapiz_shader_graph::{
     },
     wgsl_std::types::handle::{LayerReference, LayerType, PreparedLayer, PreparedLayerPixels},
 };
+use log::warn;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use wgpu::{Buffer, BufferUsages, ComputePassDescriptor, Device, Queue};
@@ -61,8 +62,8 @@ pub mod graph;
 pub mod pipeline;
 pub mod stroke_preview;
 
-const MAX_SAMPLES_PER_INPUT_BATCH: u32 = 256;
-const MAX_INPUTS_PER_BATCH: usize = 32;
+const MAX_SAMPLES_PER_INPUT_BATCH: u32 = 1024;
+const MAX_INPUTS_PER_BATCH: usize = 128;
 const MAX_DABS_PER_SUBMISSION: usize = 8;
 
 /// Metadata describing an active brush stroke session on a specific canvas and target layer.
@@ -581,10 +582,10 @@ impl BrushStrokeWorker {
             loop {
                 let work = {
                     let mut mailbox = mailbox.lock();
-                    if !mailbox.inputs.is_empty() {
-                        Some(StrokeWork::Inputs(mem::take(&mut mailbox.inputs)))
-                    } else if let Some(request) = mailbox.preview_requests.pop_front() {
+                    if let Some(request) = mailbox.preview_requests.pop_front() {
                         Some(StrokeWork::Preview(request))
+                    } else if !mailbox.inputs.is_empty() {
+                        Some(StrokeWork::Inputs(mem::take(&mut mailbox.inputs)))
                     } else {
                         mailbox.finish.take().map(StrokeWork::Finish)
                     }
@@ -659,6 +660,12 @@ impl BrushStrokeWorker {
 
             let count = samples.n_samples as usize;
             has_more = samples.is_overflow != 0;
+            if has_more {
+                warn!(
+                    "Brush input sampling produced more than {} samples in a single batch.",
+                    MAX_SAMPLES_PER_INPUT_BATCH
+                );
+            }
             if count == 0 {
                 continue;
             }
