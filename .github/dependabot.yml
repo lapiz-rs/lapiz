@@ -4,8 +4,14 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    labels:
+      R-NeedsTriage
+      T-Dependencies
 
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
+    labels:
+      R-NeedsTriage
+      T-Dependencies
