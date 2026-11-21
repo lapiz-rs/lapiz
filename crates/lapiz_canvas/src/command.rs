@@ -407,7 +407,7 @@ pub struct InsertLayerCommand {
     canvas: CanvasId,
     layer: LayerStackNode,
     parent_id: LayerId,
-    position: LayerPosition,
+    index: usize,
     previous_active_layer: LayerId,
     previous_selected_layers: IndexSet<LayerId>,
 }
@@ -421,12 +421,16 @@ impl InsertLayerCommand {
     ) -> Self {
         let active_layer = canvas.active_layer_id();
         let selected_layers = canvas.selected_layer_ids().clone();
+        let parent_node = canvas.image.layer_stack().get_layer(&parent).unwrap();
+        let index = parent_node
+            .resolve_index(position.into())
+            .expect("Layer position must be valid");
 
         Self {
             canvas: canvas.id(),
-            layer,
             parent_id: parent,
-            position: position.into(),
+            index,
+            layer,
             previous_active_layer: active_layer,
             previous_selected_layers: selected_layers,
         }
@@ -449,7 +453,7 @@ impl UndoCommand for InsertLayerCommand {
             .update_canvas(&self.canvas, |canvas, _| {
                 canvas.image.layer_stack_mut().add_layer(
                     self.parent_id,
-                    self.position,
+                    self.index,
                     self.layer.clone(),
                 );
                 CanvasUpdated::broadcast(CanvasUpdated {
@@ -500,7 +504,7 @@ pub struct GroupLayerCommand {
 pub struct LayerWithPosition {
     pub id: LayerId,
     pub original_parent: LayerId,
-    pub original_above: Option<LayerId>,
+    pub original_index: usize,
 }
 
 impl UndoCommand for GroupLayerCommand {
@@ -542,22 +546,23 @@ impl UndoCommand for GroupLayerCommand {
     fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals
             .update_canvas(&self.canvas, |canvas, _| {
-                let mut removed_nodes = canvas
-                    .image
-                    .layer_stack_mut()
-                    .remove_layer_hierarchy(self.group.id());
+                let stack = canvas.image.layer_stack_mut();
+                let mut subtrees = self
+                    .children
+                    .iter()
+                    .map(|child| (child, stack.remove_layer_hierarchy(&child.id)))
+                    .collect::<Vec<_>>();
+                stack.remove_layer_hierarchy(self.group.id());
 
-                removed_nodes.remove(self.group.id()).unwrap();
-
-                for child in &self.children {
-                    canvas.image.layer_stack_mut().add_layer(
+                subtrees.sort_by_key(|(child, _)| child.original_index);
+                for (child, nodes) in subtrees {
+                    stack.add_layer_hierarchy(
                         child.original_parent,
-                        LayerPosition::Above(child.original_above),
-                        removed_nodes.remove(&child.id).unwrap(),
+                        child.original_index,
+                        child.id,
+                        nodes,
                     );
                 }
-
-                assert!(removed_nodes.is_empty());
                 CanvasUpdated::broadcast(CanvasUpdated {
                     id: self.canvas,
                     dirty_tiles: canvas.image.image_tile_rect(),
@@ -575,7 +580,7 @@ pub struct MoveLayersCommand {
     canvas: CanvasId,
     layers: Vec<LayerWithPosition>,
     new_parent: LayerId,
-    new_position: LayerPosition,
+    new_index: usize,
 }
 
 impl MoveLayersCommand {
@@ -585,32 +590,44 @@ impl MoveLayersCommand {
         new_parent: LayerId,
         new_position: impl Into<LayerPosition>,
     ) -> Self {
-        let reduced_layers = canvas.image.layer_stack().reduce_ancestors(layers);
-
-        let sorted = canvas
-            .image
-            .layer_stack()
-            .sort_by_depth_and_index(reduced_layers)
-            .unwrap();
-
-        let layers = sorted
+        let stack = canvas.image.layer_stack();
+        let moved = stack
+            .reduce_ancestors(layers)
             .into_iter()
-            .map(|l| {
-                let parent = canvas.image.layer_stack().get_parent_of(&l).unwrap();
-                let above = parent.child_below(&l);
+            .collect::<IndexSet<_>>();
+        let mut layers = stack
+            .iter_layers_dfs_display_order_without_root()
+            .map(|(node, _)| *node.id())
+            .filter(|id| moved.contains(id))
+            .map(|id| {
+                let (original_parent, original_index) = stack.get_layer_position(&id).unwrap();
                 LayerWithPosition {
-                    id: l,
-                    original_parent: *parent.id(),
-                    original_above: above,
+                    id,
+                    original_parent,
+                    original_index,
                 }
             })
-            .collect();
+            .collect::<Vec<_>>();
+        layers.reverse();
+
+        let position = new_position.into();
+        let new_parent_node = stack.get_layer(&new_parent).unwrap();
+        let mut new_index = new_parent_node.resolve_index(position).unwrap();
+        if !matches!(position, LayerPosition::Absolute(_)) {
+            // Relative positions refer to the list before the moved layers are removed.
+            new_index -= layers
+                .iter()
+                .filter(|layer| {
+                    layer.original_parent == new_parent && layer.original_index < new_index
+                })
+                .count();
+        }
 
         Self {
             canvas: canvas.id(),
             layers,
             new_parent,
-            new_position: new_position.into(),
+            new_index,
         }
     }
 }
@@ -621,57 +638,65 @@ impl UndoCommand for MoveLayersCommand {
     }
 
     fn redo(&self, globals: &mut Globals) -> anyhow::Result<()> {
-        globals.update_canvas(&self.canvas, |canvas, _| {
-            match self.new_position {
-                LayerPosition::Above(_) => {
-                    for layer in self.layers.iter().rev() {
-                        canvas.image.layer_stack_mut().move_layer(
-                            layer.id,
-                            self.new_parent,
-                            self.new_position,
-                        );
-                    }
+        globals
+            .update_canvas(&self.canvas, |canvas, _| {
+                let stack = canvas.image.layer_stack_mut();
+                let parent = stack
+                    .get_layer(&self.new_parent)
+                    .ok_or_else(|| anyhow!("Destination layer is missing"))?;
+                if self.layers.iter().any(|layer| {
+                    layer.id == self.new_parent || stack.is_ancestor(&layer.id, &self.new_parent)
+                }) {
+                    bail!("Cannot move layers into a moved subtree");
                 }
-                LayerPosition::Absolute(_) | LayerPosition::Below(_) => {
-                    for layer in self.layers.iter() {
-                        canvas.image.layer_stack_mut().move_layer(
-                            layer.id,
-                            self.new_parent,
-                            self.new_position,
-                        );
-                    }
+                if self.layers.iter().any(|layer| {
+                    stack.get_layer_position(&layer.id)
+                        != Some((layer.original_parent, layer.original_index))
+                }) {
+                    bail!("A moved layer is no longer at its original position");
                 }
-            }
-            CanvasUpdated::broadcast(CanvasUpdated {
-                id: self.canvas,
-                dirty_tiles: canvas.image.image_tile_rect(),
-            });
-        });
+                let removed_children = self
+                    .layers
+                    .iter()
+                    .filter(|layer| layer.original_parent == self.new_parent)
+                    .count();
+                if self.new_index > parent.n_children() - removed_children {
+                    bail!("Layer insertion index is out of bounds");
+                }
 
-        Ok(())
+                let subtrees = self
+                    .layers
+                    .iter()
+                    .map(|layer| (layer.id, stack.remove_layer_hierarchy(&layer.id)))
+                    .collect::<Vec<_>>();
+                for (offset, (id, nodes)) in subtrees.into_iter().enumerate() {
+                    stack.add_layer_hierarchy(self.new_parent, self.new_index + offset, id, nodes);
+                }
+                CanvasUpdated::broadcast(CanvasUpdated {
+                    id: self.canvas,
+                    dirty_tiles: canvas.image.image_tile_rect(),
+                });
+                Ok(())
+            })
+            .ok_or_else(|| anyhow!("Canvas {} not found", self.canvas))?
     }
 
     fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals.update_canvas(&self.canvas, |canvas, _| {
-            match self.new_position {
-                LayerPosition::Above(_) => {
-                    for layer in self.layers.iter().rev() {
-                        canvas.image.layer_stack_mut().move_layer(
-                            layer.id,
-                            layer.original_parent,
-                            LayerPosition::Above(layer.original_above),
-                        );
-                    }
-                }
-                LayerPosition::Absolute(_) | LayerPosition::Below(_) => {
-                    for layer in self.layers.iter() {
-                        canvas.image.layer_stack_mut().move_layer(
-                            layer.id,
-                            layer.original_parent,
-                            LayerPosition::Above(layer.original_above),
-                        );
-                    }
-                }
+            let stack = canvas.image.layer_stack_mut();
+            let mut subtrees = self
+                .layers
+                .iter()
+                .map(|layer| (layer, stack.remove_layer_hierarchy(&layer.id)))
+                .collect::<Vec<_>>();
+            subtrees.sort_by_key(|(layer, _)| layer.original_index);
+            for (layer, nodes) in subtrees {
+                stack.add_layer_hierarchy(
+                    layer.original_parent,
+                    layer.original_index,
+                    layer.id,
+                    nodes,
+                );
             }
             CanvasUpdated::broadcast(CanvasUpdated {
                 id: self.canvas,
@@ -693,7 +718,8 @@ struct DeletedNode {
 /// Undoable command that removes one or more layer subtrees from a canvas while preserving at least one child of the root layer.
 pub struct DeleteLayersCommand {
     canvas: CanvasId,
-    active_layer_from_to: Option<(LayerId, LayerId)>,
+    active_layer_from_to: (LayerId, LayerId),
+    previous_selected_layers: IndexSet<LayerId>,
     deleted: Vec<DeletedNode>,
 }
 
@@ -704,6 +730,9 @@ impl DeleteLayersCommand {
         // Reject if all layers are going to be deleted, other than the root layer.
         {
             let root = canvas.image.layer_stack().root_node();
+            if filtered_layers.contains(root.id()) {
+                bail!("Cannot delete the root layer");
+            }
             let mut reject = true;
             for child in root.children() {
                 if !filtered_layers.contains(child) {
@@ -730,8 +759,9 @@ impl DeleteLayersCommand {
             false
         };
 
-        let new_active_layer = if !is_layer_deleted(&canvas.active_layer_id()) {
-            None
+        let active_layer = canvas.active_layer_id();
+        let new_active_layer = if !is_layer_deleted(&active_layer) {
+            active_layer
         } else {
             let mut current = canvas.active_layer_id();
             let mut current_parent = canvas
@@ -749,12 +779,15 @@ impl DeleteLayersCommand {
                     .unwrap();
             }
 
-            let new_active_layer = current_parent
-                .child_below(&current)
-                .or_else(|| current_parent.child_above(&current))
-                .unwrap_or(*current_parent.id());
-
-            Some(new_active_layer)
+            let index = current_parent.child_index(&current).unwrap();
+            let siblings = current_parent.children();
+            siblings[..index]
+                .iter()
+                .rev()
+                .chain(&siblings[index + 1..])
+                .copied()
+                .find(|id| !is_layer_deleted(id))
+                .unwrap_or(*current_parent.id())
         };
 
         let sorted_layers = canvas
@@ -787,7 +820,8 @@ impl DeleteLayersCommand {
 
         Ok(Self {
             canvas: canvas.id(),
-            active_layer_from_to: new_active_layer.map(|new| (canvas.active_layer_id(), new)),
+            active_layer_from_to: (active_layer, new_active_layer),
+            previous_selected_layers: canvas.selected_layer_ids().clone(),
             deleted,
         })
     }
@@ -815,14 +849,14 @@ impl UndoCommand for DeleteLayersCommand {
                     layer_stack.remove_layer_hierarchy(&node.root);
                 }
 
+                canvas
+                    .selected_layers
+                    .retain(|id| layer_stack.contains_layer(id));
+                canvas.set_active_layer(self.active_layer_from_to.1);
                 CanvasUpdated::broadcast(CanvasUpdated {
                     id: self.canvas,
                     dirty_tiles: canvas.image.image_tile_rect(),
                 });
-
-                if let Some((_, new_active)) = self.active_layer_from_to {
-                    canvas.set_active_layer(new_active);
-                }
 
                 Ok(())
             })
@@ -853,14 +887,12 @@ impl UndoCommand for DeleteLayersCommand {
                     );
                 }
 
+                canvas.set_active_layer(self.active_layer_from_to.0);
+                canvas.selected_layers = self.previous_selected_layers.clone();
                 CanvasUpdated::broadcast(CanvasUpdated {
                     id: self.canvas,
                     dirty_tiles: canvas.image.image_tile_rect(),
                 });
-
-                if let Some((old_active, _)) = self.active_layer_from_to {
-                    canvas.set_active_layer(old_active);
-                }
 
                 Ok(())
             })
@@ -989,5 +1021,251 @@ impl UndoCommand for LayerPropertyChangeCommand {
         });
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::array;
+
+    use {
+        crate::CanvasManager,
+        glam::UVec2,
+        lapiz_image::{
+            CImage,
+            layer::{LayerTypeRegistry, group_layer::GroupLayer, pixel_layer::PixelLayer},
+        },
+        lapiz_lazuli::LazuliArchive,
+        lapiz_undo::BatchedUndoCommand,
+        moxcms::ColorProfile,
+    };
+
+    use super::*;
+
+    fn pixel() -> LayerStackNode {
+        LayerStackNode::without_parent(
+            LayerId::random(),
+            Box::new(PixelLayer),
+            LayerProperties::new(HashMap::new()),
+        )
+    }
+
+    fn group() -> LayerStackNode {
+        LayerStackNode::without_parent(
+            LayerId::random(),
+            Box::new(GroupLayer),
+            LayerProperties::new(HashMap::new()),
+        )
+    }
+
+    fn canvas_with_layers<const N: usize>() -> (Globals, LayerId, [LayerId; N]) {
+        let mut registry = LayerTypeRegistry::default();
+        registry.register::<GroupLayer>();
+        let mut image =
+            CImage::from_layer(UVec2::ONE, pixel(), ColorProfile::new_srgb(), &registry);
+        let stack = image.layer_stack_mut();
+        let root = *stack.root_id();
+        let layers = array::from_fn(|index| {
+            if index == 0 {
+                return stack.root_node().children()[0];
+            }
+            let layer = pixel();
+            let id = *layer.id();
+            stack.add_layer(root, index, layer);
+            id
+        });
+
+        let mut globals = Globals::default();
+        globals.insert_global(CanvasManager::default());
+        globals.add_canvas(CCanvas::new(
+            None,
+            image,
+            LazuliArchive::new_in_memory().unwrap(),
+        ));
+        (globals, root, layers)
+    }
+
+    fn children(globals: &Globals, parent: LayerId) -> &[LayerId] {
+        globals
+            .current_canvas()
+            .unwrap()
+            .image
+            .layer_stack()
+            .get_layer(&parent)
+            .unwrap()
+            .children()
+    }
+
+    #[test]
+    fn insert_layer_restores_order_and_selection() {
+        let (mut globals, root, [a, b]) = canvas_with_layers();
+        globals.current_canvas_mut().unwrap().select_layer(b);
+        let first = pixel();
+        let second = pixel();
+        let first_id = *first.id();
+        let second_id = *second.id();
+        let canvas = globals.current_canvas().unwrap();
+        let command = BatchedUndoCommand::new(
+            "Insert Layers".into(),
+            vec![
+                InsertLayerCommand::new(canvas, first, root, LayerPosition::above(b)),
+                InsertLayerCommand::new(canvas, second, root, 3),
+            ],
+        );
+
+        command.redo(&mut globals).unwrap();
+        assert_eq!(children(&globals, root), &[a, b, first_id, second_id]);
+        assert_eq!(
+            globals.current_canvas().unwrap().active_layer_id(),
+            second_id
+        );
+        command.undo(&mut globals).unwrap();
+        assert_eq!(children(&globals, root), &[a, b]);
+        let canvas = globals.current_canvas().unwrap();
+        assert_eq!(canvas.active_layer_id(), a);
+        assert_eq!(canvas.selected_layer_ids().as_slice(), &[a, b][..]);
+        command.redo(&mut globals).unwrap();
+        assert_eq!(children(&globals, root), &[a, b, first_id, second_id]);
+    }
+
+    #[test]
+    fn group_layers_restores_non_adjacent_siblings_and_subtrees() {
+        let (mut globals, root, [a, b, c]) = canvas_with_layers();
+        let nested = group();
+        let d = *nested.id();
+        let child = pixel();
+        let child_id = *child.id();
+        let stack = globals
+            .current_canvas_mut()
+            .unwrap()
+            .image
+            .layer_stack_mut();
+        stack.add_layer(root, 3, nested);
+        stack.add_layer(d, 0, child);
+
+        let group = group();
+        let id = *group.id();
+        let command = GroupLayerCommand {
+            canvas: globals.current_canvas_id().unwrap(),
+            group,
+            children: vec![
+                LayerWithPosition {
+                    id: b,
+                    original_parent: root,
+                    original_index: 1,
+                },
+                LayerWithPosition {
+                    id: d,
+                    original_parent: root,
+                    original_index: 3,
+                },
+            ],
+            parent_id: root,
+            index: 1,
+        };
+
+        command.redo(&mut globals).unwrap();
+        assert_eq!(children(&globals, root), &[a, id, c]);
+        assert_eq!(children(&globals, id), &[b, d]);
+        command.undo(&mut globals).unwrap();
+        assert_eq!(children(&globals, root), &[a, b, c, d]);
+        assert_eq!(children(&globals, d), &[child_id]);
+        assert!(
+            !globals
+                .current_canvas()
+                .unwrap()
+                .image
+                .layer_stack()
+                .contains_layer(&id)
+        );
+        command.redo(&mut globals).unwrap();
+        assert_eq!(children(&globals, id), &[b, d]);
+    }
+
+    #[test]
+    fn move_layers_preserves_order_and_restores_original_indices() {
+        let (mut globals, root, [a, b, c, d, e]) = canvas_with_layers();
+        for (position, expected) in [
+            (LayerPosition::above(e), [a, c, e, b, d]),
+            (LayerPosition::background(), [b, d, a, c, e]),
+        ] {
+            let command =
+                MoveLayersCommand::new(globals.current_canvas().unwrap(), [d, b], root, position);
+            command.redo(&mut globals).unwrap();
+            assert_eq!(children(&globals, root), &expected);
+            command.undo(&mut globals).unwrap();
+            assert_eq!(children(&globals, root), &[a, b, c, d, e]);
+            command.redo(&mut globals).unwrap();
+            assert_eq!(children(&globals, root), &expected);
+            command.undo(&mut globals).unwrap();
+        }
+
+        let nested = group();
+        let nested_id = *nested.id();
+        let child = pixel();
+        let child_id = *child.id();
+        let canvas = globals.current_canvas_mut().unwrap();
+        let stack = canvas.image.layer_stack_mut();
+        stack.add_layer(root, 1, nested);
+        let sibling = pixel();
+        let sibling_id = *sibling.id();
+        stack.add_layer(nested_id, 0, sibling);
+        stack.add_layer(nested_id, 1, child);
+        let command =
+            MoveLayersCommand::new(canvas, [b, child_id], root, LayerPosition::foreground());
+        command.redo(&mut globals).unwrap();
+        assert_eq!(
+            children(&globals, root),
+            &[a, nested_id, c, d, e, child_id, b]
+        );
+        assert_eq!(children(&globals, nested_id), &[sibling_id]);
+        command.undo(&mut globals).unwrap();
+        assert_eq!(children(&globals, root), &[a, nested_id, b, c, d, e]);
+        assert_eq!(children(&globals, nested_id), &[sibling_id, child_id]);
+    }
+
+    #[test]
+    fn delete_layers_restores_subtree_order_and_selection() {
+        let (mut globals, root, [a, b]) = canvas_with_layers();
+        let group = group();
+        let group_id = *group.id();
+        let child = pixel();
+        let child_id = *child.id();
+        let canvas = globals.current_canvas_mut().unwrap();
+        let stack = canvas.image.layer_stack_mut();
+        stack.add_layer(root, 2, group);
+        stack.add_layer(group_id, 0, child);
+        canvas.set_active_layer_and_clear_select(child_id);
+        canvas.select_layer(b);
+        let command = DeleteLayersCommand::new(canvas, vec![b, child_id, group_id]).unwrap();
+
+        command.redo(&mut globals).unwrap();
+        let canvas = globals.current_canvas().unwrap();
+        assert_eq!(children(&globals, root), &[a]);
+        assert!(!canvas.image.layer_stack().contains_layer(&child_id));
+        assert_eq!(canvas.active_layer_id(), a);
+        assert_eq!(
+            canvas
+                .selected_layer_ids()
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
+            [a]
+        );
+        command.undo(&mut globals).unwrap();
+        let canvas = globals.current_canvas().unwrap();
+        assert_eq!(children(&globals, root), &[a, b, group_id]);
+        assert_eq!(children(&globals, group_id), &[child_id]);
+        assert_eq!(canvas.active_layer_id(), child_id);
+        assert_eq!(
+            canvas
+                .selected_layer_ids()
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
+            [child_id, b]
+        );
+        command.redo(&mut globals).unwrap();
+        assert_eq!(children(&globals, root), &[a]);
     }
 }

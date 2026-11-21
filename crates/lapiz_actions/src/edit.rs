@@ -158,16 +158,22 @@ impl ActionFunction for PasteIntoNewLayerAction {
 
         let commands = globals
             .update_canvas(&canvas_id, |canvas, _| {
-                let mut commands = Vec::new();
-                let mut cur_position = position;
-                for layer in layers {
-                    let layer_id = *layer.id();
-                    commands.push(InsertLayerCommand::new(canvas, layer, parent, cur_position));
-                    cur_position = LayerPosition::above(layer_id);
-                }
-                commands
+                let parent_node = canvas.image.layer_stack().get_layer(&parent)?;
+                let index = parent_node.resolve_index(position)?;
+                Some(
+                    layers
+                        .into_iter()
+                        .enumerate()
+                        .map(|(offset, layer)| {
+                            InsertLayerCommand::new(canvas, layer, parent, index + offset)
+                        })
+                        .collect(),
+                )
             })
-            .unwrap();
+            .flatten();
+        let Some(commands) = commands else {
+            return Task::none();
+        };
 
         globals
             .push_undo_command(

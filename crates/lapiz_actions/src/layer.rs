@@ -107,21 +107,23 @@ impl ActionFunction for GroupSelectedLayersAction {
             let children_layers = sorted_selected_layers
                 .into_iter()
                 .map(|l| {
-                    let parent = canvas.image.layer_stack().get_parent_of(&l).unwrap();
-                    let above = parent.child_below(&l);
+                    let (original_parent, original_index) =
+                        canvas.image.layer_stack().get_layer_position(&l).unwrap();
                     LayerWithPosition {
                         id: l,
-                        original_parent: *parent.id(),
-                        original_above: above,
+                        original_parent,
+                        original_index,
                     }
                 })
-                .collect();
+                .collect::<Vec<_>>();
 
-            let (active_layer_parent, active_layer_index) = canvas
-                .image
-                .layer_stack()
-                .get_position_of(&canvas.active_layer_id())
-                .unwrap();
+            let stack = canvas.image.layer_stack();
+            let active = canvas.active_layer_id();
+            let anchor = stack
+                .ancestors(active)
+                .find(|id| children_layers.iter().any(|child| child.id == *id))
+                .unwrap_or(active);
+            let (parent_id, index) = stack.get_layer_position(&anchor).unwrap();
 
             let group_layer =
                 LayerStackNode::without_parent(LayerId::random(), Box::new(GroupLayer), {
@@ -137,8 +139,8 @@ impl ActionFunction for GroupSelectedLayersAction {
                 canvas: canvas.id(),
                 group: group_layer,
                 children: children_layers,
-                parent_id: *active_layer_parent.id(),
-                index: active_layer_index,
+                parent_id,
+                index,
             }
         });
 
