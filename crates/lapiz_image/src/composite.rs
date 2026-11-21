@@ -14,12 +14,15 @@ use lapiz_utils::wrapper;
 use log::error;
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
-use wgpu::{Buffer, ComputePassDescriptor, Device, Queue, TextureView};
+use wgpu::{
+    BindingResource, Buffer, BufferBinding, BufferSize, ComputePassDescriptor, Device, Queue,
+    TextureView,
+};
 
 use crate::{
     CImage,
     layer::LayerId,
-    tile::{DynamicLayerStorage, GpuTileStorage},
+    tile::{DynamicLayerStorage, GpuTileInfo, GpuTileStorage},
 };
 
 /// A shader-backed compositing function that blends a source pixel into a destination pixel.
@@ -226,17 +229,40 @@ impl Global for LayerPreviewOverriders {}
 
 /// GPU texture and tile metadata binding that overrides or supplements a [`PixelLayer`](crate::layer::pixel_layer::PixelLayer) during preview compositing.
 pub struct PixelPreviewOverrider {
-    pub texture: TextureView,
-    pub tile_info_buffer: Buffer,
+    texture: TextureView,
+    tile_info_buffer: Buffer,
+    tile_info_size: BufferSize,
 }
 
 impl PixelPreviewOverrider {
     pub fn from_layer_storage(layer: &DynamicLayerStorage) -> Self {
-        let binding = layer.binding_or_empty();
+        let (binding, tile_count) = if layer.is_empty() {
+            (
+                GpuTileStorage::get_empty_layer_binding(layer.layer_info().texel_type),
+                1,
+            )
+        } else {
+            (layer.binding().unwrap(), layer.len())
+        };
+
         Self {
             texture: binding.texture,
             tile_info_buffer: binding.tile_info_buffer,
+            tile_info_size: BufferSize::new(GpuTileInfo::min_size().get() * tile_count as u64)
+                .unwrap(),
         }
+    }
+
+    pub fn texture(&self) -> &TextureView {
+        &self.texture
+    }
+
+    pub fn tile_info_binding(&self) -> BindingResource<'_> {
+        BindingResource::Buffer(BufferBinding {
+            buffer: &self.tile_info_buffer,
+            offset: 0,
+            size: Some(self.tile_info_size),
+        })
     }
 }
 
