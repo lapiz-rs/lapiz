@@ -66,8 +66,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: test
-          save-if: false
+          shared-key: test-doc
+          save-if: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main'
+            }}
 
       - run: just setup-linux
 
