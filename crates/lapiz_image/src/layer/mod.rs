@@ -9,6 +9,7 @@ use anyhow::{Result, anyhow};
 use dyn_clone::DynClone;
 use indexmap::IndexSet;
 use lapiz_i18n::t;
+use lapiz_lazuli::layer_tree::LayerNode;
 use lapiz_runtime::global::{Global, Globals};
 use lapiz_utils::wrapper;
 use parse_display::Display;
@@ -871,6 +872,16 @@ impl LayerStackNode {
     ) {
         self.instance
             .dispatch_blend(compositor, pass, image, self.id, tiles)
+    }
+
+    pub fn as_archive_node(&self, index_in_parent: usize) -> Result<LayerNode> {
+        Ok(LayerNode {
+            id: *self.id,
+            parent_id: self.parent.map(|id| *id),
+            sort_order: Some(index_in_parent as u32),
+            layer_type: self.instance.layer_type(),
+            properties: self.properties.encode()?,
+        })
     }
 }
 

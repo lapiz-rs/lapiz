@@ -10,6 +10,7 @@ publish.workspace = true
 anyhow.workspace = true
 downcast-rs.workspace = true
 futures.workspace = true
+iced_runtime.workspace = true
 lapiz_runtime.workspace = true
 lapiz_utils.workspace = true
 tracing.workspace = true

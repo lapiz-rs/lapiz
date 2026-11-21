@@ -17,7 +17,7 @@ use lapiz_dock::dock::{Dock, DockId};
 use lapiz_image::{
     composite::BlendFunctionRegistry,
     layer::{
-        LayerId,
+        LayerId, LayerPosition,
         properties::{LayerProperties, builtin::NamePropertyExt as _},
     },
     tile::TileStorageAppExt as _,
@@ -163,28 +163,22 @@ impl Dock for LayersDock {
                     return Task::none();
                 };
                 let cmd = globals.update_canvas(&canvas_id, |canvas, _globals| {
-                    let dragged = layer_ids.first()?;
-                    let original_parent = canvas
-                        .image
-                        .layer_stack()
-                        .get_layer(dragged)
-                        .and_then(|n| n.parent().copied())?;
-                    let original_index = canvas
-                        .image
-                        .layer_stack()
-                        .get_layer(&original_parent)
-                        .and_then(|p| p.child_index(dragged))
-                        .unwrap_or(0);
-                    let resolved_index = canvas
-                        .image
-                        .layer_stack()
-                        .get_layer(&new_parent)
-                        .and_then(|p| p.resolve_index(new_position));
-                    if let Some(resolved_index) = resolved_index
-                        && original_parent == new_parent
-                        && original_index == resolved_index
-                    {
-                        return None;
+                    let stack = canvas.image.layer_stack();
+                    let resolved_index =
+                        stack.get_layer(&new_parent)?.resolve_index(new_position)?;
+                    if let [dragged] = layer_ids.as_slice() {
+                        let (original_parent, original_index) =
+                            stack.get_layer_position(dragged)?;
+                        if original_parent == new_parent {
+                            let final_index = resolved_index
+                                - usize::from(
+                                    original_index < resolved_index
+                                        && !matches!(new_position, LayerPosition::Absolute(_)),
+                                );
+                            if original_index == final_index {
+                                return None;
+                            }
+                        }
                     }
                     Some(MoveLayersCommand::new(
                         canvas,

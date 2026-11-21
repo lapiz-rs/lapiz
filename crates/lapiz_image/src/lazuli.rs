@@ -74,29 +74,39 @@ impl CImage {
         })
     }
 
+    fn archive_image_properties(&self) -> Result<ImageProperties> {
+        Ok(ImageProperties {
+            width: self.size.x,
+            height: self.size.y,
+            tile_size: GpuTileStorage::TILE_SIZE,
+            color_profile: self.profile.encode()?,
+            root_layer: **self.layers.root_id(),
+            texel_type: self.texel_type.encode(),
+        })
+    }
+
+    pub fn new_in_memory_archive(&self) -> Result<LazuliArchive> {
+        let archive = LazuliArchive::new_in_memory()?;
+        archive.write_image_properties(&self.archive_image_properties()?)?;
+        self.layers.write_entire_tree(&archive)?;
+        Ok(archive)
+    }
+
     pub fn write_archive(
         &self,
         path: PathBuf,
         globals: &Globals,
     ) -> impl Future<Output = Result<()>> + Send + use<> {
-        let size = self.size;
-        let profile = self.profile.clone();
-        let texel_type = self.texel_type;
+        let properties = self.archive_image_properties();
         let layers = self.layers.clone();
         let device = globals.render_device().clone();
         let queue = globals.render_queue().clone();
         let tile_storage = globals.tile_storage().clone();
 
         async move {
+            let properties = properties?;
             let archive = LazuliArchive::new(path)?;
-            archive.write_image_properties(&ImageProperties {
-                width: size.x,
-                height: size.y,
-                tile_size: GpuTileStorage::TILE_SIZE,
-                color_profile: profile.encode()?,
-                root_layer: **layers.root_id(),
-                texel_type: texel_type.encode(),
-            })?;
+            archive.write_image_properties(&properties)?;
             layers.write_entire_tree(&archive)?;
             let layer_ids = layers
                 .iter_layers()
@@ -140,16 +150,7 @@ impl CImage {
         layer.properties_mut().set_name(t!("background_layer"));
         let layer_id = *layer.id();
         let image = Self::from_layer(size, layer, profile, layer_registry);
-        let archive = LazuliArchive::new_in_memory()?;
-        archive.write_image_properties(&ImageProperties {
-            width: image.size.x,
-            height: image.size.y,
-            tile_size: GpuTileStorage::TILE_SIZE,
-            color_profile: image.profile.encode()?,
-            root_layer: **image.layers.root_node().id(),
-            texel_type: image.texel_type.encode(),
-        })?;
-        image.layers.write_entire_tree(&archive)?;
+        let archive = image.new_in_memory_archive()?;
 
         let texel_type = image
             .layers
@@ -245,11 +246,15 @@ impl GpuTileStorage {
         tile: IVec2,
         data: &[u8],
     ) -> Result<()> {
-        let mut e = DeflateEncoder::new(Vec::new(), Compression::default());
-        e.write_all(data)?;
-        let buf = e.finish()?;
-        archive.write_tile_data(layer_id.into_inner(), tile.x, tile.y, buf)?;
+        let data = Self::encode_tile_data(data)?;
+        archive.write_tile_data(layer_id.into_inner(), tile.x, tile.y, data)?;
         Ok(())
+    }
+
+    pub fn encode_tile_data(data: &[u8]) -> Result<Vec<u8>> {
+        let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(data)?;
+        Ok(encoder.finish()?)
     }
 
     pub fn read_tiles(

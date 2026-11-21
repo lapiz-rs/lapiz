@@ -532,7 +532,7 @@ impl WindowView for MainView {
                 globals
                     .global_mut::<ToolProxies>()
                     .insert(*e.id, tool_proxy);
-                let undo_stack = UndoStack::new(*e.id, 200);
+                let (undo_stack, undo_stack_task) = UndoStack::new(*e.id, 200);
                 globals.global_mut::<UndoStacks>().insert(*e.id, undo_stack);
 
                 let canvas = globals.canvas(&e.id).unwrap();
@@ -560,6 +560,7 @@ impl WindowView for MainView {
                 Task::batch([
                     tool_task.map(MainViewMessage::ToolFunctionMessage),
                     dock_task,
+                    undo_stack_task.discard(),
                 ])
             }
             MainViewMessage::CanvasRemoved(e) => {

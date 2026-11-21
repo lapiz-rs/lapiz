@@ -77,10 +77,7 @@ impl RenderContext {
         log::info!("Adapter limits: {:#?}", adapter.limits());
         log::info!("Adapter features: {:#?}", adapter.features());
 
-        #[cfg(target_os = "android")]
         let shader_f16 = adapter.features() & wgpu::Features::SHADER_F16;
-        #[cfg(not(target_os = "android"))]
-        let shader_f16 = wgpu::Features::SHADER_F16;
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {

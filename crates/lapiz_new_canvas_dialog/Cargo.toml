@@ -16,7 +16,6 @@ image.workspace = true
 lapiz_canvas.workspace = true
 lapiz_i18n.workspace = true
 lapiz_image.workspace = true
-lapiz_lazuli.workspace = true
 lapiz_runtime.workspace = true
 lapiz_widgets.workspace = true
 moxcms.workspace = true
