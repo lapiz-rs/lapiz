@@ -36,6 +36,7 @@ struct Inner {
 ///
 /// An archive created with [`new_in_memory`](Self::new_in_memory) can later be backed up and
 /// transitioned to a file on disk via [`set_path`](Self::set_path).
+#[derive(Clone)]
 pub struct LazuliArchive {
     inner: Arc<Mutex<Inner>>,
 }

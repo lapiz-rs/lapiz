@@ -245,11 +245,15 @@ impl GpuTileStorage {
         tile: IVec2,
         data: &[u8],
     ) -> Result<()> {
-        let mut e = DeflateEncoder::new(Vec::new(), Compression::default());
-        e.write_all(data)?;
-        let buf = e.finish()?;
-        archive.write_tile_data(layer_id.into_inner(), tile.x, tile.y, buf)?;
+        let data = Self::encode_tile_data(data)?;
+        archive.write_tile_data(layer_id.into_inner(), tile.x, tile.y, data)?;
         Ok(())
+    }
+
+    pub fn encode_tile_data(data: &[u8]) -> Result<Vec<u8>> {
+        let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(data)?;
+        Ok(encoder.finish()?)
     }
 
     pub fn read_tiles(

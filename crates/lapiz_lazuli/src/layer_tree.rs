@@ -1,5 +1,5 @@
-use anyhow::Result;
-use rusqlite::{Connection, params};
+use anyhow::{Result, anyhow};
+use rusqlite::{Connection, OptionalExtension as _, params};
 use uuid::Uuid;
 
 use crate::LazuliArchive;
@@ -108,6 +108,73 @@ ORDER BY parent_id, sort_order, id
         Ok(layers)
     }
 
+    pub fn insert_layer_node(&self, layer: &LayerNode) -> Result<()> {
+        let parent = layer
+            .parent_id
+            .ok_or_else(|| anyhow!("Missing parent layer"))?;
+        let index = layer
+            .sort_order
+            .ok_or_else(|| anyhow!("Missing layer order"))?;
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
+        tx.execute(
+            "UPDATE layer_tree SET sort_order = sort_order + 1 WHERE parent_id = ?1 AND sort_order >= ?2",
+            params![parent.as_bytes().as_slice(), index],
+        )?;
+        tx.execute(
+            "INSERT INTO layer_tree (id, parent_id, sort_order, layer_type, properties) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![layer.id.as_bytes().as_slice(), parent.as_bytes().as_slice(), index, layer.layer_type, layer.properties],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn remove_layer_hierarchy(&self, layer_id: Uuid) -> Result<()> {
+        let id = layer_id.as_bytes().as_slice();
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
+        let position = tx
+            .query_row(
+                "SELECT parent_id, sort_order FROM layer_tree WHERE id = ?1 AND parent_id IS NOT NULL",
+                params![id],
+                |row| Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, u32>(1)?)),
+            )
+            .optional()?;
+        let (parent, index) =
+            position.ok_or_else(|| anyhow!("Layer {layer_id} is missing or is the root"))?;
+
+        tx.execute(
+            r#"
+WITH RECURSIVE subtree(id) AS (
+    SELECT ?1
+    UNION ALL
+    SELECT layer_tree.id FROM layer_tree
+        JOIN subtree ON layer_tree.parent_id = subtree.id
+)
+DELETE FROM tile_data WHERE layer_id IN (SELECT id FROM subtree)
+"#,
+            params![id],
+        )?;
+        tx.execute(
+            r#"
+WITH RECURSIVE subtree(id) AS (
+    SELECT ?1
+    UNION ALL
+    SELECT layer_tree.id FROM layer_tree
+        JOIN subtree ON layer_tree.parent_id = subtree.id
+)
+DELETE FROM layer_tree WHERE id IN (SELECT id FROM subtree)
+"#,
+            params![id],
+        )?;
+        tx.execute(
+            "UPDATE layer_tree SET sort_order = sort_order - 1 WHERE parent_id = ?1 AND sort_order > ?2",
+            params![parent, index],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn write_layer_node(&self, layer: &LayerNode) -> Result<()> {
         let parent_id = layer
             .parent_id
@@ -211,6 +278,96 @@ mod tests {
                 properties: vec![4, 5, 6, 7],
             }
         );
+    }
+
+    #[test]
+    fn inserting_and_removing_a_leaf_updates_sibling_order() -> Result<()> {
+        let archive = LazuliArchive::new_in_memory()?;
+        let root = LayerNode {
+            id: Uuid::new_v4(),
+            parent_id: None,
+            sort_order: None,
+            layer_type: 1,
+            properties: vec![],
+        };
+        let sibling = LayerNode {
+            id: Uuid::new_v4(),
+            parent_id: Some(root.id),
+            sort_order: Some(0),
+            layer_type: 0,
+            properties: vec![],
+        };
+        let inserted = LayerNode {
+            id: Uuid::new_v4(),
+            ..sibling.clone()
+        };
+        archive.write_layer_node(&root)?;
+        archive.write_layer_node(&sibling)?;
+
+        archive.insert_layer_node(&inserted)?;
+        archive.write_tile_data(inserted.id, 0, 0, [1])?;
+        assert_eq!(archive.read_layer_node(inserted.id)?, inserted);
+        assert_eq!(archive.read_layer_node(sibling.id)?.sort_order, Some(1));
+
+        archive.remove_layer_hierarchy(inserted.id)?;
+        assert_eq!(archive.read_all_layer_nodes()?, [root, sibling]);
+        assert_eq!(archive.read_tile_data(inserted.id, 0, 0)?, None);
+        Ok(())
+    }
+
+    #[test]
+    fn removing_a_hierarchy_preserves_other_layers_and_tiles() -> Result<()> {
+        let archive = LazuliArchive::new_in_memory()?;
+        let root = LayerNode {
+            id: Uuid::new_v4(),
+            parent_id: None,
+            sort_order: None,
+            layer_type: 1,
+            properties: vec![],
+        };
+        archive.write_layer_node(&root)?;
+
+        let add_layer = |parent_id, sort_order| -> Result<_> {
+            let node = LayerNode {
+                id: Uuid::new_v4(),
+                parent_id: Some(parent_id),
+                sort_order: Some(sort_order),
+                layer_type: 1,
+                properties: vec![],
+            };
+            archive.write_layer_node(&node)?;
+            archive.write_tile_data(node.id, 0, 0, [1])?;
+            Ok(node)
+        };
+        let before = add_layer(root.id, 0)?;
+        let group = add_layer(root.id, 1)?;
+        let after = add_layer(root.id, 2)?;
+        let child = add_layer(group.id, 0)?;
+        let grandchild = add_layer(child.id, 0)?;
+
+        assert!(archive.remove_layer_hierarchy(root.id).is_err());
+        assert_eq!(archive.read_all_layer_nodes()?.len(), 6);
+
+        archive.remove_layer_hierarchy(group.id)?;
+
+        assert_eq!(
+            archive.read_all_layer_nodes()?,
+            [
+                root,
+                before.clone(),
+                LayerNode {
+                    sort_order: Some(1),
+                    ..after.clone()
+                }
+            ]
+        );
+        for node in [group, child, grandchild] {
+            assert_eq!(archive.read_tile_data(node.id, 0, 0)?, None);
+        }
+        for node in [before, after] {
+            assert_eq!(archive.read_tile_data(node.id, 0, 0)?, Some(vec![1]));
+        }
+        Ok(())
     }
 
     #[test]

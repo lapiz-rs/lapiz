@@ -7,7 +7,10 @@ use std::{
 
 use anyhow::{Result, bail};
 use downcast_rs::Downcast;
-use futures::channel::oneshot::{self, Canceled, Receiver, Sender};
+use futures::{
+    channel::oneshot::{self, Canceled, Receiver, Sender},
+    future::BoxFuture,
+};
 use lapiz_runtime::{
     Runtime,
     global::{Global, Globals},
@@ -261,6 +264,12 @@ pub trait UndoCommand: 'static + Downcast {
     fn label(&self) -> Cow<'static, str>;
     fn redo(&self, globals: &mut Globals) -> anyhow::Result<()>;
     fn undo(&self, globals: &mut Globals) -> anyhow::Result<()>;
+    fn redo_write_archive(&self, _globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        todo!()
+    }
+    fn undo_write_archive(&self, _globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        todo!()
+    }
     fn can_cancel_out(&self, _: &dyn UndoCommand) -> bool {
         false
     }

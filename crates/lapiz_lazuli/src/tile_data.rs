@@ -70,6 +70,38 @@ ON CONFLICT (layer_id, tile_x, tile_y) DO UPDATE SET
         Ok(())
     }
 
+    pub fn apply_tile_changes(
+        &self,
+        layer_id: Uuid,
+        writes: impl IntoIterator<Item = (IVec2, Vec<u8>)>,
+        deletes: impl IntoIterator<Item = IVec2>,
+    ) -> Result<()> {
+        let id = layer_id.as_bytes().as_slice();
+        let mut conn = self.conn();
+        let tx = conn.transaction()?;
+        {
+            let mut delete = tx.prepare(
+                "DELETE FROM tile_data WHERE layer_id = ?1 AND tile_x = ?2 AND tile_y = ?3",
+            )?;
+            for tile in deletes {
+                delete.execute(params![id, tile.x, tile.y])?;
+            }
+            let mut write = tx.prepare(
+                r#"
+INSERT INTO tile_data (layer_id, tile_x, tile_y, data)
+VALUES (?1, ?2, ?3, ?4)
+ON CONFLICT (layer_id, tile_x, tile_y) DO UPDATE SET
+    data = excluded.data
+            "#,
+            )?;
+            for (tile, data) in writes {
+                write.execute(params![id, tile.x, tile.y, data])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn read_tile_data(
         &self,
         layer_id: Uuid,
@@ -151,6 +183,32 @@ mod tests {
             archive.read_tile_data(layer_id, 4, 5).unwrap(),
             Some(vec![3, 4])
         );
+    }
+
+    #[test]
+    fn applies_tile_additions_replacements_and_deletions() -> Result<()> {
+        let archive = LazuliArchive::new_in_memory()?;
+        let layer = Uuid::new_v4();
+        let removed = IVec2::ZERO;
+        let replaced = IVec2::X;
+        let added = IVec2::Y;
+        let unchanged = IVec2::ONE;
+        archive.apply_tile_changes(
+            layer,
+            [
+                (removed, vec![1]),
+                (replaced, vec![2]),
+                (unchanged, vec![3]),
+            ],
+            [],
+        )?;
+
+        archive.apply_tile_changes(layer, [(replaced, vec![4]), (added, vec![5])], [removed])?;
+        assert_eq!(
+            archive.read_layer_data(layer)?,
+            HashMap::from([(replaced, vec![4]), (added, vec![5]), (unchanged, vec![3])]),
+        );
+        Ok(())
     }
 
     #[test]

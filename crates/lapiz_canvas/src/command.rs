@@ -1,23 +1,32 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, collections::HashMap, iter::from_fn};
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use bevy_math::IRect;
+use futures::future::BoxFuture;
 use glam::IVec2;
 use indexmap::IndexSet;
 use lapiz_image::{
     layer::{
         LayerId, LayerPosition, LayerStackNode,
-        properties::{LayerProperties, builtin::LayerTexelTypePropertyExt as _},
+        properties::{
+            LayerProperties,
+            builtin::{LayerTexelTypePropertyExt as _, TexelSource},
+        },
     },
     tile::{DynamicLayerStorage, GpuLayerInfo, GpuTileStorage, TileStorageAppExt as _},
 };
-use lapiz_render::render_context::RenderContextAppExt as _;
+use lapiz_lazuli::layer_tree::LayerNode;
+use lapiz_render::{
+    readback::readback_buffer_raw_on_submit_async, render_context::RenderContextAppExt as _,
+    util::DevicePollExt as _,
+};
 use lapiz_runtime::{event::Event as _, global::Globals};
 use lapiz_undo::UndoCommand;
 use lapiz_utils::log_err::LogErr as _;
 use wgpu::{
-    Device, Extent3d, ImageSubresourceRange, Origin3d, Queue, TexelCopyTextureInfo, Texture,
-    TextureAspect, TextureDescriptor, TextureDimension, TextureUsages,
+    BufferDescriptor, BufferUsages, Device, Extent3d, ImageSubresourceRange, Origin3d, Queue,
+    TexelCopyBufferInfo, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
+    TextureDescriptor, TextureDimension, TextureUsages,
 };
 
 use crate::{CCanvas, CanvasAppExt as _, CanvasId, event::CanvasUpdated};
@@ -251,6 +260,84 @@ fn apply_tile_replace(
     });
 }
 
+fn apply_archive_tile_replace(
+    globals: &Globals,
+    canvas: CanvasId,
+    layer: LayerId,
+    tiles: &Option<(Texture, Vec<IVec2>)>,
+    previous: &Option<(Texture, Vec<IVec2>)>,
+) -> BoxFuture<'static, anyhow::Result<()>> {
+    let archive = globals.canvas(&canvas).map(|canvas| canvas.archive.clone());
+    let tiles = tiles.clone();
+    let writes = tiles
+        .iter()
+        .flat_map(|(_, indices)| indices.iter().copied())
+        .collect::<IndexSet<_>>();
+    let deletes = previous
+        .iter()
+        .flat_map(|(_, indices)| indices.iter().copied())
+        .filter(|index| !writes.contains(index))
+        .collect::<Vec<_>>();
+    let device = globals.render_device().clone();
+    let queue = globals.render_queue().clone();
+
+    Box::pin(async move {
+        let archive = archive.ok_or_else(|| anyhow!("Canvas {canvas} not found"))?;
+        let mut writes = Vec::new();
+        if let Some((texture, indices)) = tiles.filter(|(_, indices)| !indices.is_empty()) {
+            let tile_size = GpuTileStorage::TILE_SIZE;
+            let bytes_per_row = tile_size
+                * texture
+                    .format()
+                    .block_copy_size(None)
+                    .ok_or_else(|| anyhow!("Unsupported tile texture format"))?;
+            let mut encoder = device.create_command_encoder(&Default::default());
+            let mut readbacks = Vec::with_capacity(indices.len());
+            for (index, tile) in indices.into_iter().enumerate() {
+                let buffer = device.create_buffer(&BufferDescriptor {
+                    label: None,
+                    size: u64::from(bytes_per_row) * u64::from(tile_size),
+                    usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
+                    mapped_at_creation: false,
+                });
+                encoder.copy_texture_to_buffer(
+                    TexelCopyTextureInfo {
+                        texture: &texture,
+                        mip_level: 0,
+                        origin: Origin3d {
+                            x: 0,
+                            y: 0,
+                            z: u32::try_from(index)?,
+                        },
+                        aspect: TextureAspect::All,
+                    },
+                    TexelCopyBufferInfo {
+                        buffer: &buffer,
+                        layout: TexelCopyBufferLayout {
+                            offset: 0,
+                            bytes_per_row: Some(bytes_per_row),
+                            rows_per_image: Some(tile_size),
+                        },
+                    },
+                    GpuTileStorage::TILE_COPY_SIZE,
+                );
+                readbacks.push((
+                    tile,
+                    readback_buffer_raw_on_submit_async(&mut encoder, &buffer, ..),
+                ));
+            }
+            let submission = queue.submit([encoder.finish()]);
+            device.poll_indefinitely_for(submission)?;
+
+            for (tile, readback) in readbacks {
+                let data = readback.into_inner().await??;
+                writes.push((tile, GpuTileStorage::encode_tile_data(&data)?));
+            }
+        }
+
+        archive.apply_tile_changes(*layer, writes, deletes)
+    })
+}
 impl UndoCommand for TileReplaceCommand {
     fn label(&self) -> Cow<'static, str> {
         self.reason.clone()
@@ -292,6 +379,26 @@ impl UndoCommand for TileReplaceCommand {
 
         apply_tile_replace(globals, self.canvas, self.layer, &self.old_tiles, to_clear);
         Ok(())
+    }
+
+    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        apply_archive_tile_replace(
+            globals,
+            self.canvas,
+            self.layer,
+            &self.new_tiles,
+            &self.old_tiles,
+        )
+    }
+
+    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        apply_archive_tile_replace(
+            globals,
+            self.canvas,
+            self.layer,
+            &self.old_tiles,
+            &self.new_tiles,
+        )
     }
 }
 
@@ -581,6 +688,7 @@ struct DeletedNode {
     nodes: HashMap<LayerId, LayerStackNode>,
     original_parent: LayerId,
     original_above: Option<LayerId>,
+    original_index: usize,
 }
 
 /// Undoable command that removes one or more layer subtrees from a canvas while preserving at least one child of the root layer.
@@ -674,6 +782,7 @@ impl DeleteLayersCommand {
                     nodes,
                     original_parent: *parent.id(),
                     original_above: parent.child_below(&root),
+                    original_index: parent.child_index(&root).unwrap(),
                 }
             })
             .collect();
@@ -760,6 +869,79 @@ impl UndoCommand for DeleteLayersCommand {
             .expect("Canvas should exist")?;
 
         Ok(())
+    }
+
+    fn redo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let canvas = self.canvas;
+        let archive = globals.canvas(&canvas).map(|canvas| canvas.archive.clone());
+        let roots = self
+            .deleted
+            .iter()
+            .map(|node| node.root)
+            .collect::<Vec<_>>();
+
+        Box::pin(async move {
+            let archive = archive.ok_or_else(|| anyhow!("Canvas {canvas} not found"))?;
+            for root in roots {
+                archive.remove_layer_hierarchy(*root)?;
+            }
+            Ok(())
+        })
+    }
+
+    fn undo_write_archive(&self, globals: &Globals) -> BoxFuture<'static, anyhow::Result<()>> {
+        let canvas = self.canvas;
+        let archive = globals.canvas(&canvas).map(|canvas| canvas.archive.clone());
+        let layers = self
+            .deleted
+            .iter()
+            .flat_map(|deleted| {
+                let mut pending = vec![(deleted.root, deleted.original_index)];
+                from_fn(move || {
+                    let (id, index) = pending.pop()?;
+                    let node = &deleted.nodes[&id];
+                    pending.extend(
+                        node.children()
+                            .iter()
+                            .copied()
+                            .enumerate()
+                            .rev()
+                            .map(|(index, id)| (id, index)),
+                    );
+                    Some((node, index))
+                })
+            })
+            .map(|(node, index)| {
+                let layer = LayerNode {
+                    id: **node.id(),
+                    parent_id: node.parent().map(|id| **id),
+                    sort_order: Some(index as u32),
+                    layer_type: node.instance().layer_type(),
+                    properties: node.properties().encode()?,
+                };
+                let has_own_tiles = node
+                    .properties()
+                    .get_texel_prop()
+                    .is_some_and(|p| p.source == TexelSource::DirectlyDefined);
+                Ok((layer, has_own_tiles))
+            })
+            .collect::<anyhow::Result<Vec<_>>>();
+        let device = globals.render_device().clone();
+        let queue = globals.render_queue().clone();
+        let tile_storage = globals.tile_storage().clone();
+
+        Box::pin(async move {
+            let archive = archive.ok_or_else(|| anyhow!("Canvas {canvas} not found"))?;
+            for (layer, has_own_tiles) in layers? {
+                archive.insert_layer_node(&layer)?;
+                if has_own_tiles {
+                    tile_storage
+                        .write_layer(&device, &queue, &archive, LayerId(layer.id))
+                        .await?;
+                }
+            }
+            Ok(())
+        })
     }
 }
 
