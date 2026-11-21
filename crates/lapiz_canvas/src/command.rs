@@ -257,7 +257,7 @@ impl UndoCommand for TileReplaceCommand {
     }
 
     #[tracing::instrument(skip_all)]
-    fn redo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         let to_clear = self
             .old_tiles
             .as_ref()
@@ -276,7 +276,7 @@ impl UndoCommand for TileReplaceCommand {
     }
 
     #[tracing::instrument(skip_all)]
-    fn undo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         let to_clear = self
             .new_tiles
             .as_ref()
@@ -331,7 +331,7 @@ impl UndoCommand for InsertLayerCommand {
         "Create Layer".into()
     }
 
-    fn redo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         if let Some(texel_type) = self.layer.properties().get_texel_type() {
             globals
                 .tile_storage()
@@ -357,7 +357,7 @@ impl UndoCommand for InsertLayerCommand {
         Ok(())
     }
 
-    fn undo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals
             .update_canvas(&self.canvas, |canvas, _| {
                 canvas
@@ -401,7 +401,7 @@ impl UndoCommand for GroupLayerCommand {
         "Group Layer".into()
     }
 
-    fn redo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         if let Some(texel_type) = self.group.properties().get_texel_type() {
             globals
                 .tile_storage()
@@ -432,7 +432,7 @@ impl UndoCommand for GroupLayerCommand {
         Ok(())
     }
 
-    fn undo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals
             .update_canvas(&self.canvas, |canvas, _| {
                 let mut removed_nodes = canvas
@@ -513,7 +513,7 @@ impl UndoCommand for MoveLayersCommand {
         "Move Layer".into()
     }
 
-    fn redo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals.update_canvas(&self.canvas, |canvas, _| {
             match self.new_position {
                 LayerPosition::Above(_) => {
@@ -544,7 +544,7 @@ impl UndoCommand for MoveLayersCommand {
         Ok(())
     }
 
-    fn undo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals.update_canvas(&self.canvas, |canvas, _| {
             match self.new_position {
                 LayerPosition::Above(_) => {
@@ -587,8 +587,7 @@ struct DeletedNode {
 pub struct DeleteLayersCommand {
     canvas: CanvasId,
     active_layer_from_to: Option<(LayerId, LayerId)>,
-    nodes: Option<Vec<DeletedNode>>,
-    delete_roots: Vec<LayerId>,
+    deleted: Vec<DeletedNode>,
 }
 
 impl DeleteLayersCommand {
@@ -657,11 +656,32 @@ impl DeleteLayersCommand {
             .sort_by_depth_and_index(filtered_layers)
             .unwrap();
 
+        let layer_stack = canvas.image.layer_stack();
+        let deleted = sorted_layers
+            .into_iter()
+            .map(|root| {
+                let parent = layer_stack.get_parent_of(&root).unwrap();
+                let mut nodes = HashMap::new();
+                let mut pending = vec![root];
+                while let Some(id) = pending.pop() {
+                    let node = layer_stack.get_layer(&id).unwrap();
+                    pending.extend_from_slice(node.children());
+                    nodes.insert(id, node.clone());
+                }
+
+                DeletedNode {
+                    root,
+                    nodes,
+                    original_parent: *parent.id(),
+                    original_above: parent.child_below(&root),
+                }
+            })
+            .collect();
+
         Ok(Self {
             canvas: canvas.id(),
             active_layer_from_to: new_active_layer.map(|new| (canvas.active_layer_id(), new)),
-            delete_roots: sorted_layers,
-            nodes: None,
+            deleted,
         })
     }
 }
@@ -672,28 +692,22 @@ impl UndoCommand for DeleteLayersCommand {
     }
 
     #[tracing::instrument(skip_all)]
-    fn redo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals
             .update_canvas(&self.canvas, |canvas, _| {
-                if self.nodes.is_some() {
-                    bail!("Called redo twice consecutively is not valid")
+                let layer_stack = canvas.image.layer_stack_mut();
+                if self
+                    .deleted
+                    .iter()
+                    .any(|node| !layer_stack.contains_layer(&node.root))
+                {
+                    bail!("Cannot delete layers: a layer is missing")
                 }
 
-                let mut nodes = Vec::with_capacity(self.delete_roots.len());
-
-                for root in &self.delete_roots {
-                    let parent = canvas.image.layer_stack().get_parent_of(root).unwrap();
-                    let parent_id = *parent.id();
-                    let above = parent.child_below(root);
-                    let deleted = canvas.image.layer_stack_mut().remove_layer_hierarchy(root);
-                    nodes.push(DeletedNode {
-                        root: *root,
-                        nodes: deleted,
-                        original_parent: parent_id,
-                        original_above: above,
-                    });
+                for node in &self.deleted {
+                    layer_stack.remove_layer_hierarchy(&node.root);
                 }
-                self.nodes = Some(nodes);
+
                 CanvasUpdated::broadcast(CanvasUpdated {
                     id: self.canvas,
                     dirty_tiles: canvas.image.image_tile_rect(),
@@ -711,21 +725,27 @@ impl UndoCommand for DeleteLayersCommand {
     }
 
     #[tracing::instrument(skip_all)]
-    fn undo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals
             .update_canvas(&self.canvas, |canvas, _| {
-                let Some(nodes) = self.nodes.take() else {
-                    bail!("Called undo twice consecutively is not valid")
-                };
+                let layer_stack = canvas.image.layer_stack_mut();
+                if self
+                    .deleted
+                    .iter()
+                    .any(|node| layer_stack.contains_layer(&node.root))
+                {
+                    bail!("Cannot restore layers: a layer already exists")
+                }
 
-                for node in nodes.into_iter() {
-                    canvas.image.layer_stack_mut().add_layer_hierarchy(
+                for node in &self.deleted {
+                    layer_stack.add_layer_hierarchy(
                         node.original_parent,
                         LayerPosition::Above(node.original_above),
                         node.root,
-                        node.nodes,
+                        node.nodes.clone(),
                     );
                 }
+
                 CanvasUpdated::broadcast(CanvasUpdated {
                     id: self.canvas,
                     dirty_tiles: canvas.image.image_tile_rect(),
@@ -757,7 +777,7 @@ impl UndoCommand for LayerPropertyChangeCommand {
         "Layer Property Change".into()
     }
 
-    fn redo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals.update_canvas(&self.canvas, |canvas, _| {
             let layer = canvas
                 .image
@@ -774,7 +794,7 @@ impl UndoCommand for LayerPropertyChangeCommand {
         Ok(())
     }
 
-    fn undo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         globals.update_canvas(&self.canvas, |canvas, _| {
             let layer = canvas
                 .image

@@ -122,7 +122,7 @@ impl UndoStack {
 
     fn push_internal(
         &mut self,
-        mut cmd: Box<dyn UndoCommand>,
+        cmd: Box<dyn UndoCommand>,
         globals: &mut Globals,
     ) -> anyhow::Result<()> {
         info!("Push command {}", cmd.label());
@@ -183,14 +183,14 @@ impl UndoStack {
         while self.cursor < cursor {
             self.cursor += 1;
 
-            let data = &mut self.history[self.cursor - 1];
+            let data = &self.history[self.cursor - 1];
             info!("Redo {}", data.command.label());
             data.command.redo(globals).logged_err()?;
         }
         while self.cursor > cursor {
             self.cursor -= 1;
 
-            let data = &mut self.history[self.cursor];
+            let data = &self.history[self.cursor];
             info!("Undo {}", data.command.label());
             data.command.undo(globals).logged_err()?;
         }
@@ -259,8 +259,8 @@ pub struct UndoCommandData {
 ///   commands to cancel each other out and be removed from history.
 pub trait UndoCommand: 'static + Downcast {
     fn label(&self) -> Cow<'static, str>;
-    fn redo(&mut self, globals: &mut Globals) -> anyhow::Result<()>;
-    fn undo(&mut self, globals: &mut Globals) -> anyhow::Result<()>;
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()>;
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()>;
     fn can_cancel_out(&self, _: &dyn UndoCommand) -> bool {
         false
     }
@@ -295,7 +295,7 @@ impl UndoCommand for BatchedUndoCommand {
         self.label.clone()
     }
 
-    fn redo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn redo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         let mut success = 0;
         for i in 0..self.commands.len() {
             match self.commands[i].redo(globals) {
@@ -311,7 +311,7 @@ impl UndoCommand for BatchedUndoCommand {
         Ok(())
     }
 
-    fn undo(&mut self, globals: &mut Globals) -> anyhow::Result<()> {
+    fn undo(&self, globals: &mut Globals) -> anyhow::Result<()> {
         let mut success = 0;
         for i in (0..self.commands.len()).rev() {
             match self.commands[i].undo(globals) {
