@@ -14,6 +14,8 @@ use lapiz_runtime::{
     plugin::Plugin,
     windows::{WindowView, WindowViewId},
 };
+use lapiz_tools::GlobalToolBindings;
+use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{column, label, panel, tabs::TabbedView, title_bar};
 
 use crate::tool_bindings::ToolBindingsPage;
@@ -109,7 +111,10 @@ impl WindowView for SettingsView {
             SettingsMessage::Maximize => toggle_maximize(self.window),
             SettingsMessage::Minimize => minimize(self.window, true),
             SettingsMessage::RebindTool(index, shortcut) => {
-                self.tool_bindings.rebind(index, shortcut, globals);
+                globals
+                    .global_mut::<GlobalToolBindings>()
+                    .rebind(index, shortcut)
+                    .log_err();
                 Task::none()
             }
         }

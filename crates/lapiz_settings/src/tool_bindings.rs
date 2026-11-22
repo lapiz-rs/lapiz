@@ -5,25 +5,16 @@ use lapiz_i18n::t;
 use lapiz_input::key::KeySequence;
 use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_tools::{GlobalToolBindings, ToolFunctionRegistry};
+use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{column, container, icon, kbd, label, row, scrollable};
 
 use crate::SettingsMessage;
 
 #[derive(Default)]
-pub struct ToolBindingsPage {
-    save_error: Option<String>,
-}
+pub struct ToolBindingsPage {}
 
 impl ToolBindingsPage {
-    pub(crate) fn rebind(&mut self, index: usize, shortcut: KeySequence, globals: &mut Globals) {
-        self.save_error = globals
-            .global_mut::<GlobalToolBindings>()
-            .rebind(index, shortcut)
-            .err()
-            .map(|error| error.to_string());
-    }
-
-    pub(crate) fn view(&self, globals: &Globals) -> Element<'_, SettingsMessage, Theme, Renderer> {
+    pub fn view(&self, globals: &Globals) -> Element<'_, SettingsMessage, Theme, Renderer> {
         let bindings = globals.global::<GlobalToolBindings>();
         let registry = globals.global::<ToolFunctionRegistry>();
         let manifest = bindings.manifest();

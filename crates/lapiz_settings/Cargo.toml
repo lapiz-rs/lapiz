@@ -14,6 +14,7 @@ lapiz_i18n.workspace = true
 lapiz_input.workspace = true
 lapiz_runtime.workspace = true
 lapiz_tools.workspace = true
+lapiz_utils.workspace = true
 lapiz_widgets.workspace = true
 rust-embed.workspace = true
 

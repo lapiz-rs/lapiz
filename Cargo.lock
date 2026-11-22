@@ -4162,6 +4162,7 @@ dependencies = [
  "lapiz_input",
  "lapiz_runtime",
  "lapiz_tools",
+ "lapiz_utils",
  "lapiz_widgets",
  "rust-embed",
 ]
