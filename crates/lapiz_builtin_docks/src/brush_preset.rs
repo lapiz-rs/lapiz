@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use iced_core::{Color, Element, Length, Theme, text::IntoFragment, window};
+use iced_core::{Element, Length, Theme, text::IntoFragment, window};
 use iced_runtime::Task;
 use lapiz_assets::{AssetAppExt as _, asset::UntypedAssetId, store::AssetRegistry, tag::TagId};
 use lapiz_brush::{

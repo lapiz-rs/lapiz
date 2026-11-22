@@ -5,7 +5,7 @@ use iced_core::{
     overlay,
     pointer::{self, mouse},
     renderer,
-    widget::{Operation, Tree as WidgetTree, Widget, tree},
+    widget::{self, Operation, Widget, tree},
     window,
 };
 use lapiz_runtime::{Renderer, Theme};
@@ -266,7 +266,7 @@ impl<Message, Id: Clone + Eq + Hash + 'static> Widget<Message, Theme, Renderer>
         })
     }
 
-    fn diff(&mut self, tree: &mut WidgetTree) {
+    fn diff(&mut self, tree: &mut widget::Tree) {
         let state = tree.state.downcast_mut::<State<Id>>();
         let mut previous = state
             .ids
@@ -278,7 +278,7 @@ impl<Message, Id: Clone + Eq + Hash + 'static> Widget<Message, Theme, Renderer>
             .iter()
             .zip(&mut self.children)
             .map(|(row, child)| {
-                let mut state = previous.remove(&row.id).unwrap_or_else(WidgetTree::empty);
+                let mut state = previous.remove(&row.id).unwrap_or_else(widget::Tree::empty);
                 state.diff(child.as_widget_mut());
                 state
             })
@@ -301,7 +301,7 @@ impl<Message, Id: Clone + Eq + Hash + 'static> Widget<Message, Theme, Renderer>
 
     fn layout(
         &mut self,
-        tree: &mut WidgetTree,
+        tree: &mut widget::Tree,
         renderer: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
@@ -334,7 +334,7 @@ impl<Message, Id: Clone + Eq + Hash + 'static> Widget<Message, Theme, Renderer>
 
     fn update(
         &mut self,
-        tree: &mut WidgetTree,
+        tree: &mut widget::Tree,
         event: &Event,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
@@ -430,7 +430,7 @@ impl<Message, Id: Clone + Eq + Hash + 'static> Widget<Message, Theme, Renderer>
 
     fn draw(
         &self,
-        tree: &WidgetTree,
+        tree: &widget::Tree,
         renderer: &mut Renderer,
         theme: &Theme,
         style: &renderer::Style,
@@ -469,7 +469,7 @@ impl<Message, Id: Clone + Eq + Hash + 'static> Widget<Message, Theme, Renderer>
 
     fn mouse_interaction(
         &self,
-        tree: &WidgetTree,
+        tree: &widget::Tree,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         viewport: &Rectangle,
@@ -511,7 +511,7 @@ impl<Message, Id: Clone + Eq + Hash + 'static> Widget<Message, Theme, Renderer>
 
     fn operate(
         &mut self,
-        tree: &mut WidgetTree,
+        tree: &mut widget::Tree,
         layout: Layout<'_>,
         renderer: &Renderer,
         operation: &mut dyn Operation,
@@ -533,7 +533,7 @@ impl<Message, Id: Clone + Eq + Hash + 'static> Widget<Message, Theme, Renderer>
 
     fn overlay<'b>(
         &'b mut self,
-        tree: &'b mut WidgetTree,
+        tree: &'b mut widget::Tree,
         layout: Layout<'b>,
         renderer: &Renderer,
         viewport: &Rectangle,
