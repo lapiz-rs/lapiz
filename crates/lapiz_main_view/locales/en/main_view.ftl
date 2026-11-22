@@ -7,6 +7,7 @@ menu_window = Window
 menu_about = About
 
 new_file_action = New Canvas
+create_new_file_action = { new_file_action }
 open_file_action = Open
 save_file_action = Save
 export_file_action = Export

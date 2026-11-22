@@ -1,11 +1,7 @@
-use std::sync::Arc;
-
 use iced_core::{Element, Length, Theme, alignment};
 use lapiz_i18n::t;
-use lapiz_input::key::KeySequence;
 use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_tools::{GlobalToolBindings, ToolFunctionRegistry};
-use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{column, container, icon, kbd, label, row, scrollable};
 
 use crate::SettingsMessage;

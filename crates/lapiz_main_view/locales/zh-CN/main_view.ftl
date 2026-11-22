@@ -7,6 +7,7 @@ menu_window = 窗口
 menu_about = 关于
 
 new_file_action = 新建画布
+create_new_file_action = { new_file_action }
 open_file_action = 打开
 save_file_action = 保存
 export_file_action = 导出

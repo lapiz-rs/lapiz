@@ -6,6 +6,7 @@ use iced_runtime::{
     Task,
     window::{close, drag, minimize, open, toggle_maximize},
 };
+use lapiz_actions::manifest::GlobalActionBindings;
 use lapiz_i18n::t;
 use lapiz_input::key::KeySequence;
 use lapiz_runtime::{
@@ -18,8 +19,9 @@ use lapiz_tools::GlobalToolBindings;
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{column, label, panel, tabs::TabbedView, title_bar};
 
-use crate::tool_bindings::ToolBindingsPage;
+use crate::{action_bindings::ActionBindingsPage, tool_bindings::ToolBindingsPage};
 
+pub mod action_bindings;
 pub mod tool_bindings;
 
 lapiz_i18n::define_i18n!("settings");
@@ -38,6 +40,8 @@ pub struct SettingsView {
     window: window::Id,
     windows: Arc<[window::Id]>,
     tool_bindings: ToolBindingsPage,
+    action_bindings: ActionBindingsPage,
+    selected_tab: usize,
 }
 
 #[derive(Clone)]
@@ -46,7 +50,9 @@ pub enum SettingsMessage {
     Drag,
     Maximize,
     Minimize,
+    SelectTab(usize),
     RebindTool(usize, KeySequence),
+    RebindAction(usize, KeySequence),
 }
 
 impl WindowView for SettingsView {
@@ -74,6 +80,8 @@ impl WindowView for SettingsView {
                 window,
                 windows: [window].into(),
                 tool_bindings: ToolBindingsPage::default(),
+                action_bindings: ActionBindingsPage::default(),
+                selected_tab: 0,
             },
             open.discard(),
         ))
@@ -95,7 +103,12 @@ impl WindowView for SettingsView {
                 t!("settings_tool_bindings_tab"),
                 self.tool_bindings.view(globals),
             )
-            .selected(0);
+            .tab(
+                t!("settings_action_bindings_tab"),
+                self.action_bindings.view(globals),
+            )
+            .selected(self.selected_tab)
+            .on_select(SettingsMessage::SelectTab);
 
         panel(column![titlebar, tabs])
     }
@@ -110,9 +123,20 @@ impl WindowView for SettingsView {
             SettingsMessage::Drag => drag(self.window),
             SettingsMessage::Maximize => toggle_maximize(self.window),
             SettingsMessage::Minimize => minimize(self.window, true),
+            SettingsMessage::SelectTab(index) => {
+                self.selected_tab = index;
+                Task::none()
+            }
             SettingsMessage::RebindTool(index, shortcut) => {
                 globals
                     .global_mut::<GlobalToolBindings>()
+                    .rebind(index, shortcut)
+                    .log_err();
+                Task::none()
+            }
+            SettingsMessage::RebindAction(index, shortcut) => {
+                globals
+                    .global_mut::<GlobalActionBindings>()
                     .rebind(index, shortcut)
                     .log_err();
                 Task::none()

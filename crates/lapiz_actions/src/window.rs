@@ -2,12 +2,8 @@ use iced_runtime::Task;
 use lapiz_asset_tag_editor::ASSET_TAG_EDITOR_VIEW_ID;
 use lapiz_runtime::{
     global::Globals,
-    windows::{
-        OpenWindowViewCommand, ToggleWindowViewCommand, WindowCommandBuffer, WindowView,
-        WindowViewId,
-    },
+    windows::{OpenWindowViewCommand, ToggleWindowViewCommand, WindowCommandBuffer, WindowViewId},
 };
-use lapiz_settings::SettingsView;
 
 use crate::{ActionFunction, ActionId};
 
@@ -65,7 +61,7 @@ impl ActionFunction for OpenSettingsAction {
     fn trigger(&self, globals: &mut Globals) -> Task<Self::Message> {
         globals
             .global_mut::<WindowCommandBuffer>()
-            .push(OpenWindowViewCommand::new(SettingsView::id()));
+            .push(OpenWindowViewCommand::new(WindowViewId::new("settings")));
         Task::none()
     }
 }

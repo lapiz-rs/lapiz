@@ -18,6 +18,7 @@ use crate::{
         CreateNewLayerAction, DeleteSelectedLayersAction, GroupSelectedLayersAction,
         MoveLayerDownAction, MoveLayerUpAction, SelectNextLayerAction, SelectPreviousLayerAction,
     },
+    manifest::GlobalActionBindings,
     selection::DeleteSelectionAction,
     window::{
         OpenAssetTagEditorAction, OpenBrushEditorAction, OpenSettingsAction,
@@ -47,6 +48,7 @@ pub struct ActionPlugin;
 impl Plugin for ActionPlugin {
     fn build(&self, app: &mut Runtime) {
         app.add_global::<ActionFunctionRegistry>();
+        app.add_global_instance(GlobalActionBindings::load());
         app.globals_mut()
             .add_action_function::<DeleteSelectionAction>()
             .add_action_function::<NewFileAction>()
