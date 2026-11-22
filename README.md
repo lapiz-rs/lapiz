@@ -6,6 +6,7 @@ _Project logo under construction_
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android-informational)](#features--highlights)
 [![Built with Rust](https://img.shields.io/badge/Built%20with-Rust-dca282.svg)](https://www.rust-lang.org/)
+[![Roadmap](https://img.shields.io/badge/Roadmap-View-blue)](https://443eb9.dev/lapiz/roadmap/)
 
 > [!WARNING]
 > This project is still in a pre-pre-pre-alpha stage and is **absolutely not** ready for production use. Expect plenty of bugs, missing features, and incomplete code!
