@@ -11,7 +11,7 @@ use iced_runtime::Task;
 use lapiz_canvas::{
     CanvasAppExt as _, CanvasUndoStackAppExt as _,
     command::{LayerPropertyChangeCommand, MoveLayersCommand},
-    widget::layer_stack::{DropInfo, LayerStackMessage, LayerStackView},
+    widget::layer_stack::{LayerStackMessage, LayerStackView},
 };
 use lapiz_dock::dock::{Dock, DockId};
 use lapiz_image::{
@@ -33,7 +33,6 @@ pub static LAYER_DOCK_ID: LazyLock<DockId> = LazyLock::new(|| DockId::new("layer
 pub struct LayersDock {
     renaming_layer: Option<LayerId>,
     rename_value: String,
-    drop_preview: Option<DropInfo>,
 }
 
 impl LayersDock {
@@ -96,7 +95,6 @@ impl Dock for LayersDock {
             tile_storage,
             self.renaming_layer,
             &self.rename_value,
-            self.drop_preview.clone(),
             &|m| LayersDockMessage::Layer(m),
         )
         .into()
@@ -113,9 +111,6 @@ impl Dock for LayersDock {
             LayersDockMessage::Layer(LayerStackMessage::LayerPropertyChanged(command)) => {
                 let canvas_id = command.canvas;
                 globals.push_undo_command(&canvas_id, command).log_err();
-            }
-            LayersDockMessage::Layer(LayerStackMessage::DropPreview(drop_preview)) => {
-                self.drop_preview = drop_preview;
             }
             LayersDockMessage::Layer(LayerStackMessage::SelectLayer(layer_id)) => {
                 let Some(canvas_id) = globals.current_canvas_id() else {
@@ -158,7 +153,6 @@ impl Dock for LayersDock {
                 new_parent,
                 new_position,
             }) => {
-                self.drop_preview = None;
                 let Some(canvas_id) = globals.current_canvas_id() else {
                     return Task::none();
                 };

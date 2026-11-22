@@ -11,7 +11,6 @@ pub mod combo_box;
 pub mod curve_edit;
 pub mod divider;
 pub mod drag_drop;
-pub mod drag_drop_column;
 pub mod flex;
 pub mod fluent_builder;
 pub mod form;
@@ -38,6 +37,7 @@ pub mod tag;
 pub mod text_input;
 pub mod title_bar;
 pub mod tooltip;
+pub mod tree;
 
 pub use iced_widget::{
     Id, canvas, component, container, image, overlay, pane_grid, shader, space, stack, svg,

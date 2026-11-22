@@ -18,6 +18,7 @@ layer_dock = 图层
 color_selector_dock = 拾色器
 color_selector_settings_title = 拾色器设置
 brush_presets_dock = 笔刷预设
+brush_presets_untagged = 未标记
 settings = 设置
 no_tool_options = 此工具没有选项
 canvas_dock = 画布 { $name }

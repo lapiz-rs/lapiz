@@ -16,7 +16,6 @@ use crate::{
     collapsible::Collapsible,
     combo_box::ComboBox,
     curve_edit::CurveEdit,
-    drag_drop_column::DragDropColumn,
     flex::Flex,
     form::Form,
     icon::Icon,
@@ -86,12 +85,6 @@ where
 
 pub fn curve_edit<'a, Message>(curve: CubicCurve) -> CurveEdit<'a, Message> {
     CurveEdit::new(curve)
-}
-
-pub fn drag_drop_column<'a, Message>(
-    children: impl Into<Vec<Element<'a, Message, Theme, Renderer>>>,
-) -> DragDropColumn<'a, Message> {
-    DragDropColumn::new(children)
 }
 
 pub fn form<'a, Message>() -> Form<'a, Message> {
