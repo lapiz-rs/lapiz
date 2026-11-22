@@ -1,17 +1,9 @@
-use iced_core::{
-    Element, Font, Layout, Length, Point, Rectangle, Size,
-    font::Weight,
-    layout::{self, Limits},
-    pointer::mouse,
-    renderer,
-    widget::Tree,
-};
-use indexmap::IndexMap;
+use iced_core::{Element, Font, Length, font::Weight};
 use lapiz_i18n::Translated;
 use lapiz_image::{
     composite::BlendFunctionRegistry,
     layer::{
-        LayerId, LayerPosition,
+        LayerId, LayerPosition, LayerStack, LayerStackNode,
         properties::{
             LayerProperties,
             builtin::{
@@ -23,17 +15,17 @@ use lapiz_image::{
     },
     tile::GpuTileStorage,
 };
+use lapiz_runtime::{Renderer, Theme};
 use lapiz_widgets::{
-    button, checkbox, column, combo_box, container, context_menu, drag_drop_column,
-    drag_drop_column::DragDropInfo, flex::Flex, icon, label, menu, panel, row, space,
-    spin_slider::SpinSlider, stack, text_input,
+    button, checkbox, column, combo_box, container, context_menu,
+    flex::Flex,
+    icon, label, menu, panel, space,
+    spin_slider::SpinSlider,
+    text_input,
+    tree::{Tree, TreeNode, TreePosition},
 };
 
 use crate::{CCanvas, command::LayerPropertyChangeCommand};
-
-/// The horizontal indent applied per nesting depth (matches the spacer width
-/// used in the row layout).
-const ROW_INDENT: f32 = 20.0;
 
 /// UI messages emitted by [`LayerStackView`] for layer selection, renaming, drag-and-drop reordering, and property edits.
 #[derive(Debug, Clone)]
@@ -48,150 +40,6 @@ pub enum LayerStackMessage {
     RenameLayer(LayerId),
     RenameChanged(String),
     RenameCommit(LayerId),
-    DropPreview(Option<DropInfo>),
-}
-
-/// Resolved drag-and-drop target location and indicator line geometry within [`LayerStackView`].
-#[derive(Debug, Clone)]
-pub struct DropInfo {
-    pub parent: LayerId,
-    pub child_position: LayerPosition,
-    pub position: Point,
-    pub length: f32,
-}
-
-fn resolve_drop_target(
-    canvas: &CCanvas,
-    rows: &IndexMap<LayerId, Rectangle>,
-    mouse_position: Point,
-    dragged_id: LayerId,
-) -> Option<DropInfo> {
-    let layer_stack = canvas.image.layer_stack();
-    let root_id = *layer_stack.root_id();
-
-    let (target_id, target_bounds) = rows
-        .iter()
-        .filter(|(id, _)| **id != dragged_id && !layer_stack.is_ancestor(&dragged_id, id))
-        .find(|(_, bounds)| mouse_position.y < bounds.y + bounds.height)?;
-    let (target_id, target_bounds) = (*target_id, *target_bounds);
-
-    // The cursor below the last row: drop at the end of the list (the root's
-    // background), previewed at the last row's bottom edge.
-    if target_id == root_id {
-        return Some(DropInfo {
-            parent: root_id,
-            child_position: LayerPosition::background(),
-            position: target_bounds.position(),
-            length: target_bounds.width,
-        });
-    }
-
-    if layer_stack.is_ancestor(&dragged_id, &target_id) {
-        return None;
-    }
-
-    let target_node = layer_stack.get_layer(&target_id)?;
-    let center_y = target_bounds.y + target_bounds.height / 2.0;
-
-    if mouse_position.y < center_y {
-        // Above the target's row: drop as a sibling, just above the target.
-        return Some(DropInfo {
-            parent: *target_node.parent()?,
-            child_position: LayerPosition::above(target_id),
-            position: target_bounds.position(),
-            length: target_bounds.width,
-        });
-    }
-
-    // Below the target's row.
-    let target_parent = target_node.parent().copied()?;
-    let target_parent_node = layer_stack.get_layer(&target_parent)?;
-    let target_index = target_parent_node.child_index(&target_id)?;
-
-    // If the target can hold children and the cursor is at the target's own
-    // indent (inside the target's row, not in a shallower ancestor's gutter),
-    // dropping on its lower half nests the dragged layer as the target's new
-    // top child (preview at the target's bottom edge). A shallower cursor
-    // falls through to the x-driven ancestor matching below.
-    if mouse_position.x >= target_bounds.x
-        && layer_stack.can_have_children_of(&target_id, &dragged_id)?
-    {
-        return Some(DropInfo {
-            parent: target_id,
-            child_position: LayerPosition::foreground(),
-            position: Point::new(target_bounds.x, target_bounds.y + target_bounds.height),
-            length: target_bounds.width,
-        });
-    }
-
-    // The target can't hold children (or the cursor is at a shallower indent),
-    // so the dragged layer lands below it as a sibling. When the target is the
-    // bottom child of its parent, "below it" is ambiguous: it could mean a new
-    // bottom of the target's parent, or the bottom of an ancestor further up.
-    // The cursor's horizontal indent picks which ancestor's bottom to append to.
-    if target_index != 0 {
-        // Target has a lower sibling, so "below the target" stays inside the
-        // target's parent, just under the target.
-        return Some(DropInfo {
-            parent: target_parent,
-            child_position: LayerPosition::below(target_id),
-            position: Point::new(target_bounds.x, target_bounds.y + target_bounds.height),
-            length: target_bounds.width,
-        });
-    }
-
-    // Target is the bottom child. Only ancestors for which the target's
-    // branch is also the bottom child are valid "append to bottom" targets.
-    let ancestors = layer_stack.ancestors(target_id).collect::<Vec<_>>();
-    let mut ambiguous_count = 0;
-    {
-        let mut previous_child = target_id;
-        for ancestor in &ancestors {
-            let ancestor_node = layer_stack.get_layer(ancestor)?;
-            if ancestor_node.child_index(&previous_child) == Some(0) {
-                ambiguous_count += 1;
-            } else {
-                break;
-            }
-            previous_child = *ancestor;
-        }
-    }
-
-    if ambiguous_count == 0 {
-        return None;
-    }
-
-    // The deepest candidate ancestor whose row the cursor is still inside is
-    // the new parent; the dragged layer becomes its new bottom child. If the
-    // cursor is left of every candidate, append to the shallowest one.
-    let mut resolved_parent_index = ambiguous_count - 1;
-    for (index, ancestor) in ancestors.iter().take(ambiguous_count).enumerate() {
-        let bounds = rows.get(ancestor)?;
-        if mouse_position.x >= bounds.x {
-            resolved_parent_index = index;
-            break;
-        }
-    }
-    let resolved_parent = ancestors[resolved_parent_index];
-    if layer_stack.is_ancestor(&dragged_id, &resolved_parent) {
-        return None;
-    }
-
-    let resolved_preview_bounds = if resolved_parent_index == 0 {
-        target_bounds
-    } else {
-        *rows.get(&ancestors[resolved_parent_index - 1])?
-    };
-
-    Some(DropInfo {
-        parent: resolved_parent,
-        child_position: LayerPosition::background(),
-        position: Point::new(
-            resolved_preview_bounds.x,
-            target_bounds.y + target_bounds.height,
-        ),
-        length: resolved_preview_bounds.width,
-    })
 }
 
 pub fn property_button_style(
@@ -250,51 +98,6 @@ fn property_command(
     }
 }
 
-fn resolve_target<'b>(
-    info: &DragDropInfo<'b>,
-    canvas: &CCanvas,
-    layers: &[LayerId],
-) -> Option<DropInfo> {
-    let layer_stack = canvas.image.layer_stack();
-    let root_id = *layer_stack.root_id();
-    let dragged_id = layers[info.dragged_index];
-    let mut rows = info
-        .column_layout
-        .children()
-        .zip(layers)
-        .map(|(node, id)| {
-            let depth = layer_stack.ancestors(*id).filter(|a| *a != root_id).count() as f32;
-            let bounds = node.bounds();
-            (
-                *id,
-                Rectangle {
-                    x: depth * ROW_INDENT,
-                    y: bounds.y,
-                    width: bounds.width,
-                    height: bounds.height,
-                },
-            )
-        })
-        .collect::<IndexMap<_, _>>();
-    let column_bounds = info.column_layout.bounds();
-    let root_bounds = Rectangle {
-        x: 0.0,
-        y: rows
-            .last()
-            .map(|(_, bounds)| bounds.y + bounds.height)
-            .unwrap_or(0.0),
-        width: column_bounds.size().width,
-        height: (column_bounds.size().height
-            - rows
-                .last()
-                .map(|(_, bounds)| bounds.y + bounds.height)
-                .unwrap_or(0.0))
-        .max(0.0),
-    };
-    rows.insert(root_id, root_bounds);
-    resolve_drop_target(canvas, &rows, info.mouse_position, dragged_id)
-}
-
 /// View builder that renders the hierarchical layer stack panel, blend mode/opacity controls, and drag-and-drop list for a [`CCanvas`].
 pub struct LayerStackView<'a, Message: Clone + 'a> {
     canvas: &'a CCanvas,
@@ -302,7 +105,6 @@ pub struct LayerStackView<'a, Message: Clone + 'a> {
     tile_storage: &'a GpuTileStorage,
     renaming_layer: Option<LayerId>,
     rename_value: &'a str,
-    drop_preview: Option<DropInfo>,
     on_message: &'a dyn Fn(LayerStackMessage) -> Message,
 }
 
@@ -313,7 +115,6 @@ impl<'a, Message: Clone + 'a> LayerStackView<'a, Message> {
         tile_storage: &'a GpuTileStorage,
         renaming_layer: Option<LayerId>,
         rename_value: &'a str,
-        drop_preview: Option<DropInfo>,
         on_message: &'a dyn Fn(LayerStackMessage) -> Message,
     ) -> Self {
         Self {
@@ -322,61 +123,8 @@ impl<'a, Message: Clone + 'a> LayerStackView<'a, Message> {
             tile_storage,
             renaming_layer,
             rename_value,
-            drop_preview,
             on_message,
         }
-    }
-}
-
-/// Overlay widget that draws a horizontal insertion line for an active [`DropInfo`] preview in [`LayerStackView`].
-pub struct DropIndicatorOverlay {
-    drop_preview: Option<DropInfo>,
-}
-
-impl DropIndicatorOverlay {
-    pub fn new(drop_preview: Option<DropInfo>) -> Self {
-        Self { drop_preview }
-    }
-}
-
-impl<Message, Theme, Renderer> iced_core::Widget<Message, Theme, Renderer> for DropIndicatorOverlay
-where
-    Renderer: iced_core::Renderer,
-{
-    fn size(&self) -> Size<Length> {
-        Size::new(Length::Fill, Length::Fill)
-    }
-
-    fn layout(&mut self, _tree: &mut Tree, _renderer: &Renderer, limits: &Limits) -> layout::Node {
-        layout::Node::new(limits.max())
-    }
-
-    fn draw(
-        &self,
-        _tree: &Tree,
-        renderer: &mut Renderer,
-        _theme: &Theme,
-        _style: &renderer::Style,
-        _layout: Layout<'_>,
-        _cursor: mouse::Cursor,
-        _viewport: &Rectangle,
-    ) {
-        let Some(drop_info) = &self.drop_preview else {
-            return;
-        };
-        let indicator = Rectangle {
-            x: drop_info.position.x,
-            y: drop_info.position.y,
-            width: drop_info.length.max(0.0),
-            height: 2.0,
-        };
-        renderer.fill_quad(
-            renderer::Quad {
-                bounds: indicator,
-                ..Default::default()
-            },
-            iced_core::Background::Color(iced_core::Color::from_rgb(0.3, 0.6, 1.0)),
-        );
     }
 }
 
@@ -387,22 +135,8 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
         let canvas = view.canvas;
         let on_message = view.on_message;
 
-        let layer_nodes = canvas
-            .image
-            .layer_stack()
-            .iter_layers_dfs_display_order_without_root()
-            .collect::<Vec<_>>();
-        let layers = layer_nodes
-            .iter()
-            .map(|(node, _)| *node.id())
-            .collect::<Vec<_>>();
-
-        let mut rows =
-            Vec::<Element<'a, Message, iced_core::Theme, lapiz_runtime::Renderer>>::with_capacity(
-                layer_nodes.len(),
-            );
-
-        for (node, depth) in &layer_nodes {
+        let stack = canvas.image.layer_stack();
+        let mut layer_widget = |node: &'a LayerStackNode| {
             let layer_id = *node.id();
             let properties = node.properties();
             let name = properties
@@ -447,14 +181,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
                     Font::default()
                 }))
             };
-            children.push(
-                row![
-                    space().width(Length::Fixed(20.0 * *depth as f32)),
-                    name_element,
-                ]
-                .width(Length::Fill)
-                .into(),
-            );
+            children.push(name_element);
 
             if let Some(locked) = properties.get_locked() {
                 let message = LayerStackMessage::LayerPropertyChanged(property_command(
@@ -539,47 +266,57 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
                 None,
                 on_message(LayerStackMessage::RenameLayer(layer_id)),
             );
-            rows.push(context_menu(content, menu).into());
+            context_menu(content, menu).into()
+        };
+
+        fn layer_tree_nodes<'a, Message>(
+            stack: &'a LayerStack,
+            parent: &'a LayerStackNode,
+            layer_widget: &mut impl FnMut(&'a LayerStackNode) -> Element<'a, Message, Theme, Renderer>,
+        ) -> Vec<TreeNode<'a, Message, LayerId>> {
+            parent
+                .iter_children_display_order()
+                .map(|id| {
+                    let node = stack.get_layer(id).unwrap();
+                    TreeNode::Branch {
+                        id: *id,
+                        label: layer_widget(node),
+                        children: layer_tree_nodes(stack, node, layer_widget),
+                    }
+                })
+                .collect()
         }
 
-        let on_press_layers = layers.clone();
-        let on_drag_layers = layers.clone();
-        let on_drop_layers = layers.clone();
-        let on_press = move |info: DragDropInfo| {
-            on_message(LayerStackMessage::SelectLayer(
-                on_press_layers[info.dragged_index],
-            ))
-        };
-        let on_drag = move |info: DragDropInfo| {
-            let target = resolve_target(&info, canvas, &on_drag_layers);
-            on_message(LayerStackMessage::DropPreview(target))
-        };
-        let on_drop = move |info: DragDropInfo| {
-            let target = resolve_target(&info, canvas, &on_drop_layers);
-            on_message(LayerStackMessage::DropPreview(None));
-            match target {
-                Some(target) => on_message(LayerStackMessage::MoveLayers {
-                    layer_ids: canvas.selected_layer_ids().iter().copied().collect(),
-                    new_parent: target.parent,
-                    new_position: target.child_position,
-                }),
-                None => on_message(LayerStackMessage::DropPreview(None)),
-            }
-        };
-
-        let list = drag_drop_column(rows)
+        let nodes = layer_tree_nodes(stack, stack.root_node(), &mut layer_widget);
+        let moved_roots = stack.reduce_ancestors(canvas.selected_layer_ids().iter().copied());
+        let list = Tree::new(nodes)
+            .height(Length::Fill)
             .spacing(1.0)
-            .on_press(on_press)
-            .on_drag(on_drag)
-            .on_drop(on_drop);
-        let overlay = Element::new(DropIndicatorOverlay::new(view.drop_preview));
-        let list_with_overlay = stack![list, overlay]
-            .width(Length::Fill)
-            .height(Length::Fill);
+            .draggable(true)
+            .on_press(move |&id| on_message(LayerStackMessage::SelectLayer(id)))
+            .can_be_child_of(move |parent, _| {
+                let parent = parent.unwrap_or_else(|| stack.root_id());
+                moved_roots.iter().all(|child| {
+                    parent != child
+                        && !stack.is_ancestor(child, parent)
+                        && stack.can_have_children_of(parent, child) == Some(true)
+                })
+            })
+            .on_drag_drop(move |info| {
+                on_message(LayerStackMessage::MoveLayers {
+                    layer_ids: canvas.selected_layer_ids().iter().copied().collect(),
+                    new_parent: *info.target_parent_id.unwrap_or_else(|| stack.root_id()),
+                    new_position: match info.position {
+                        TreePosition::Above(id) => LayerPosition::above(*id),
+                        TreePosition::Below(id) => LayerPosition::below(*id),
+                        TreePosition::First => LayerPosition::foreground(),
+                        TreePosition::Last => LayerPosition::background(),
+                    },
+                })
+            });
         let active_layer = canvas.active_layer_node().properties();
         let active_id = canvas.active_layer_id();
-        let mut params =
-            Vec::<Element<'_, Message, iced_core::Theme, lapiz_runtime::Renderer>>::new();
+        let mut params = Vec::<Element<'_, Message, Theme, Renderer>>::new();
 
         if let Some(blend) = active_layer.get_blend_function() {
             let all = view
@@ -622,7 +359,7 @@ impl<'a, Message: Clone + 'a> From<LayerStackView<'a, Message>>
             Element::from(panel(Flex::column(params).gap(4.0)).padding(6.0))
         };
 
-        column![params, list_with_overlay]
+        column![params, list]
             .gap(8.0)
             .width(Length::Fill)
             .height(Length::Fill)
