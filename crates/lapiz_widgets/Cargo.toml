@@ -13,6 +13,7 @@ iced_graphics.workspace = true
 iced_wgpu.workspace = true
 iced_widget.workspace = true
 lapiz_i18n.workspace = true
+lapiz_input.workspace = true
 lapiz_math.workspace = true
 lapiz_runtime.workspace = true
 num-traits.workspace = true

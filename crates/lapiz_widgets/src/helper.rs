@@ -6,6 +6,7 @@ use std::{
 
 use iced_core::{Element, text};
 use iced_widget::svg;
+use lapiz_input::key::KeySequence;
 use lapiz_math::curve::CubicCurve;
 use lapiz_runtime::{Renderer, Theme};
 use num_traits::AsPrimitive;
@@ -95,8 +96,8 @@ pub fn icon<'a>(handle: impl Into<svg::Handle>) -> Icon<'a> {
     Icon::new(handle)
 }
 
-pub fn kbd<'a>(content: impl text::IntoFragment<'a>) -> Kbd<'a> {
-    Kbd::new(content)
+pub fn kbd<'a, Message>(keys: KeySequence) -> Kbd<'a, Message> {
+    Kbd::new(keys)
 }
 
 pub fn label<'a>(content: impl text::IntoFragment<'a>) -> Label<'a> {
