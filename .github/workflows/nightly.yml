@@ -16,6 +16,8 @@ jobs:
     name: Build (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
     strategy:
       fail-fast: false
       matrix:
@@ -67,7 +69,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          shared-key: nightly-${{ matrix.name }}
+          shared-key: package-${{ matrix.platform }}
+          save-if: false
 
       - run: just setup-for-package
 
