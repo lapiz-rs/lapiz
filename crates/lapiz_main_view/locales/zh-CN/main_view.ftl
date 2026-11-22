@@ -24,6 +24,7 @@ delete_selection_action = 删除选区
 toggle_filter_panel_action = 切换滤镜面板
 open_asset_tag_editor = 资产管理器
 open_brush_editor_action = 打开笔刷编辑器
+open_settings_action = 设置
 open_about_action = 关于
 generate_report_action = 生成报告
 debug_manual_panic_action = 调试手动崩溃（真的会崩溃！）

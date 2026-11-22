@@ -2,8 +2,12 @@ use iced_runtime::Task;
 use lapiz_asset_tag_editor::ASSET_TAG_EDITOR_VIEW_ID;
 use lapiz_runtime::{
     global::Globals,
-    windows::{OpenWindowViewCommand, ToggleWindowViewCommand, WindowCommandBuffer, WindowViewId},
+    windows::{
+        OpenWindowViewCommand, ToggleWindowViewCommand, WindowCommandBuffer, WindowView,
+        WindowViewId,
+    },
 };
+use lapiz_settings::SettingsView;
 
 use crate::{ActionFunction, ActionId};
 
@@ -44,6 +48,24 @@ impl ActionFunction for OpenBrushEditorAction {
             .push(OpenWindowViewCommand::new(WindowViewId::new(
                 "brush_editor",
             )));
+        Task::none()
+    }
+}
+
+#[derive(Default)]
+pub struct OpenSettingsAction;
+
+impl ActionFunction for OpenSettingsAction {
+    type Message = ();
+
+    fn id(&self) -> ActionId {
+        ActionId::new("open_settings_action".into())
+    }
+
+    fn trigger(&self, globals: &mut Globals) -> Task<Self::Message> {
+        globals
+            .global_mut::<WindowCommandBuffer>()
+            .push(OpenWindowViewCommand::new(SettingsView::id()));
         Task::none()
     }
 }

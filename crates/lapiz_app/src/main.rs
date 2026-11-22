@@ -55,6 +55,7 @@ pub(crate) fn run(#[cfg(target_os = "android")] android_app: AndroidApp) {
         .add_plugin(lapiz_image_exporter::ImageExporterPlugin)
         .add_plugin(lapiz_asset_tag_editor::AssetTagEditorPlugin)
         .add_plugin(lapiz_about::AboutPlugin)
+        .add_plugin(lapiz_settings::SettingsPlugin)
         .add_plugin(lapiz_new_canvas_dialog::NewCanvasDialogPlugin)
         .add_plugin(lapiz_main_view::MainViewPlugin);
     app.build_plugins();
