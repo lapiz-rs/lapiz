@@ -3247,6 +3247,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "image",
+ "indexmap",
  "lapiz_abr",
  "lapiz_assets",
  "lapiz_image",
