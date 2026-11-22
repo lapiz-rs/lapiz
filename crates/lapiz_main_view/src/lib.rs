@@ -273,10 +273,7 @@ impl MainView {
                 let keyboard_state = globals.global::<KeyboardState>();
                 let seq = keyboard_state.get_sequence();
 
-                let config = globals
-                    .global::<GlobalToolBindings>()
-                    .binding_for(seq)
-                    .cloned();
+                let config = globals.global::<GlobalToolBindings>().binding_for(seq);
                 let Some(config) = config else {
                     return tool_proxy.switch_override_tool(None, globals);
                 };

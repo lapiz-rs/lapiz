@@ -7,13 +7,14 @@ use iced_runtime::{
     window::{close, drag, minimize, open, toggle_maximize},
 };
 use lapiz_i18n::t;
+use lapiz_input::key::KeySequence;
 use lapiz_runtime::{
     Renderer, Runtime,
     global::Globals,
     plugin::Plugin,
     windows::{WindowView, WindowViewId},
 };
-use lapiz_widgets::{column, component, label, panel, tabs::TabbedView, title_bar};
+use lapiz_widgets::{column, label, panel, tabs::TabbedView, title_bar};
 
 use crate::tool_bindings::ToolBindingsPage;
 
@@ -34,6 +35,7 @@ impl Plugin for SettingsPlugin {
 pub struct SettingsView {
     window: window::Id,
     windows: Arc<[window::Id]>,
+    tool_bindings: ToolBindingsPage,
 }
 
 #[derive(Clone)]
@@ -42,6 +44,7 @@ pub enum SettingsMessage {
     Drag,
     Maximize,
     Minimize,
+    RebindTool(usize, KeySequence),
 }
 
 impl WindowView for SettingsView {
@@ -68,6 +71,7 @@ impl WindowView for SettingsView {
             Self {
                 window,
                 windows: [window].into(),
+                tool_bindings: ToolBindingsPage::default(),
             },
             open.discard(),
         ))
@@ -76,7 +80,7 @@ impl WindowView for SettingsView {
     fn view<'a>(
         &'a self,
         _: window::Id,
-        _: &'a Globals,
+        globals: &'a Globals,
     ) -> impl Into<Element<'a, Self::Message, Theme, Renderer>> {
         let titlebar = title_bar(label(t!("settings_title")).window_title())
             .on_close(SettingsMessage::Close)
@@ -87,7 +91,7 @@ impl WindowView for SettingsView {
         let tabs = TabbedView::new()
             .tab(
                 t!("settings_tool_bindings_tab"),
-                component(ToolBindingsPage {}),
+                self.tool_bindings.view(globals),
             )
             .selected(0);
 
@@ -97,13 +101,17 @@ impl WindowView for SettingsView {
     fn update(
         &mut self,
         message: Self::Message,
-        _: &mut Globals,
+        globals: &mut Globals,
     ) -> impl Into<Task<Self::Message>> {
         match message {
             SettingsMessage::Close => close(self.window),
             SettingsMessage::Drag => drag(self.window),
             SettingsMessage::Maximize => toggle_maximize(self.window),
             SettingsMessage::Minimize => minimize(self.window, true),
+            SettingsMessage::RebindTool(index, shortcut) => {
+                self.tool_bindings.rebind(index, shortcut, globals);
+                Task::none()
+            }
         }
     }
 

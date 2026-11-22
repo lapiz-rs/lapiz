@@ -28,6 +28,15 @@ pub struct ToolBindingManifest {
     pub bindings: Vec<ToolBinding>,
 }
 
+impl ToolBindingManifest {
+    pub fn has_shortcut_conflict(&self, index: usize, shortcut: KeySequence) -> bool {
+        self.bindings
+            .iter()
+            .enumerate()
+            .any(|(other, binding)| other != index && binding.shortcut == shortcut)
+    }
+}
+
 impl Configuration for ToolBindingManifest {
     const NAME: &'static str = "tool_bindings.json";
 

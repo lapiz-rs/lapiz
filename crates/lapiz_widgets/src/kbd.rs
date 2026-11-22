@@ -145,8 +145,10 @@ impl<'a, Message> Component<'a, Message, Theme, Renderer> for Kbd<'a, Message> {
                         .is_some_and(|check| check(keys))
                 {
                     state.recording = Recording::Idle;
+                    if let Some(confirm) = &self.on_confirm {
+                        return Some(confirm(keys));
+                    }
                     state.confirmed = Some(keys);
-                    return self.on_confirm.as_ref().map(|confirm| confirm(keys));
                 }
             }
             Edit::Cancel => state.recording = Recording::Idle,
