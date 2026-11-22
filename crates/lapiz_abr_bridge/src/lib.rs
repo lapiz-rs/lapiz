@@ -35,7 +35,7 @@ use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
 use lapiz_abr::{Abr, hierarchy::HierarchyNode};
 use lapiz_assets::{
-    asset::{Asset, AssetId, ErasedAsset, UntypedAssetId},
+    asset::{Asset as _, AssetId, ErasedAsset, UntypedAssetId},
     bundle::{AssetBundle, AssetBundleMetadata, BundleId, BundleManifest, ErasedAssetBundle},
     loader::{AssetSerializer, ErasedAssetSerializer},
     source::{AssetSource, AssetSourceRegistryExt as _},
