@@ -4150,6 +4150,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "lapiz_settings"
+version = "0.1.0"
+
+[[package]]
 name = "lapiz_shader_graph"
 version = "0.1.0"
 dependencies = [
