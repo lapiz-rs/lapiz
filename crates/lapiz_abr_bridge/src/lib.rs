@@ -32,15 +32,18 @@ use std::{
 
 use anyhow::{Error, Result, anyhow, bail};
 use chrono::{DateTime, Utc};
-use lapiz_abr::Abr;
+use indexmap::IndexSet;
+use lapiz_abr::{Abr, hierarchy::HierarchyNode};
 use lapiz_assets::{
-    asset::{AssetId, ErasedAsset, UntypedAssetId},
+    asset::{Asset, AssetId, ErasedAsset, UntypedAssetId},
     bundle::{AssetBundle, AssetBundleMetadata, BundleId, BundleManifest, ErasedAssetBundle},
     loader::{AssetSerializer, ErasedAssetSerializer},
     source::{AssetSource, AssetSourceRegistryExt as _},
-    tag::{TagFile, TaggedAssets, TaggedTags},
+    tag::{TAG_EXT, TagFile, TagId, TaggedAssets, TaggedTags},
 };
-use lapiz_photoshop_brush_engine::asset::PhotoshopBrushSerializer;
+use lapiz_photoshop_brush_engine::{
+    asset::PhotoshopBrushSerializer, parameter::PhotoshopBrushPreset,
+};
 use lapiz_render::texture::Image;
 use lapiz_runtime::{Runtime, plugin::Plugin};
 use uuid::Uuid;
@@ -88,6 +91,9 @@ pub struct AbrAssetBundle {
     metadata: AssetBundleMetadata,
     manifest: BundleManifest,
     assets: HashMap<PathBuf, Arc<dyn ErasedAsset>>,
+    tags: HashMap<PathBuf, TagFile>,
+    tagged_assets: HashMap<PathBuf, TaggedAssets>,
+    tagged_tags: HashMap<PathBuf, TaggedTags>,
 }
 
 impl AbrAssetBundle {
@@ -150,12 +156,14 @@ impl AbrAssetBundle {
             }
         }
 
+        let mut brush_ids = Vec::with_capacity(abr.descriptors.len());
         for brush in &abr.descriptors {
             let asset_id = UntypedAssetId::new(Uuid::new_v5(&bundle_id.0, brush.name.as_bytes()));
             let path = PathBuf::from(format!(
                 "desc-{asset_id}.{}",
                 <PhotoshopBrushSerializer as AssetSerializer>::file_extension()
             ));
+            brush_ids.push(asset_id);
             match desc::parse_desc(brush, &sample_assets, &pattern_assets) {
                 Ok(asset) => {
                     manifest.assets.insert(asset_id, path.clone());
@@ -167,11 +175,82 @@ impl AbrAssetBundle {
             }
         }
 
+        fn iter_hierarchy(
+            manifest: &mut BundleManifest,
+            tags: &mut HashMap<PathBuf, TagFile>,
+            tagged_assets: &mut HashMap<PathBuf, TaggedAssets>,
+            tagged_tags: &mut HashMap<PathBuf, TaggedTags>,
+            brush_ids: &[UntypedAssetId],
+            node: HierarchyNode,
+            tag_id: TagId,
+        ) {
+            let tag_path = PathBuf::from(format!("tags/{tag_id}.{TAG_EXT}"));
+            manifest.tags.insert(tag_id, tag_path.clone());
+            tags.insert(
+                tag_path.clone(),
+                TagFile {
+                    id: tag_id,
+                    name: node.name,
+                    asset_ty: Some(PhotoshopBrushPreset::TYPE_NAME.to_string()),
+                },
+            );
+
+            let mut child_assets = IndexSet::with_capacity(node.brushes.len());
+            for index in node.brushes {
+                child_assets.insert(brush_ids[index]);
+            }
+
+            let mut child_tags = IndexSet::with_capacity(node.children.len());
+            for (index, child) in node.children.into_iter().enumerate() {
+                let child_id = TagId(
+                    child
+                        .id
+                        .unwrap_or_else(|| Uuid::new_v5(&tag_id.0, &(index as u64).to_be_bytes())),
+                );
+                child_tags.insert(child_id);
+                iter_hierarchy(
+                    manifest,
+                    tags,
+                    tagged_assets,
+                    tagged_tags,
+                    brush_ids,
+                    child,
+                    child_id,
+                );
+            }
+
+            tagged_assets.insert(
+                tag_path.clone(),
+                TaggedAssets {
+                    assets: child_assets,
+                },
+            );
+            tagged_tags.insert(tag_path, TaggedTags { tags: child_tags });
+        }
+
+        let mut tags = HashMap::new();
+        let mut tagged_assets = HashMap::new();
+        let mut tagged_tags = HashMap::new();
+        let mut root_node = abr.hierarchy;
+        root_node.name = metadata.name.clone();
+        iter_hierarchy(
+            &mut manifest,
+            &mut tags,
+            &mut tagged_assets,
+            &mut tagged_tags,
+            &brush_ids,
+            root_node,
+            TagId(bundle_id.0),
+        );
+
         Self {
             path,
             metadata,
             manifest,
             assets,
+            tags,
+            tagged_assets,
+            tagged_tags,
         }
     }
 
@@ -256,19 +335,22 @@ impl AssetBundle for AbrAssetBundle {
     }
 
     fn read_tag(&self, tag: &Path) -> Result<TagFile> {
-        bail!("Tag not found at path: {}", tag.display())
+        self.tags
+            .get(tag)
+            .cloned()
+            .ok_or_else(|| anyhow!("Tag not found at path: {}", tag.display()))
     }
 
     fn add_tag(&self, _: &Path, _: &TagFile) -> Result<()> {
         bail!("Unsupported writing to ABR asset bundle")
     }
 
-    fn read_tagged_assets(&self, _: &Path) -> Result<Option<TaggedAssets>> {
-        Ok(None)
+    fn read_tagged_assets(&self, tag: &Path) -> Result<Option<TaggedAssets>> {
+        Ok(self.tagged_assets.get(tag).cloned())
     }
 
-    fn read_tagged_tags(&self, _tag: &Path) -> Result<Option<TaggedTags>> {
-        Ok(None)
+    fn read_tagged_tags(&self, tag: &Path) -> Result<Option<TaggedTags>> {
+        Ok(self.tagged_tags.get(tag).cloned())
     }
 
     fn write_tagged_assets(&self, _: &Path, _: &TaggedAssets) -> Result<()> {
