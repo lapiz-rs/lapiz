@@ -4,7 +4,7 @@ use ::image::RgbaImage;
 use anyhow::Result;
 use futures::{
     channel::oneshot,
-    future::{AbortHandle, Abortable, BoxFuture},
+    future::{AbortHandle, Abortable, BoxFuture, FutureExt as _},
 };
 use iced_core::{
     ContentFit, Element, Event, Layout, Length, Point, Rectangle, Shell, Size, Theme, Widget,
@@ -17,17 +17,22 @@ use iced_core::{
     window::RedrawRequest,
 };
 use iced_futures::{Executor as _, backend::native::smol::Executor};
-use lapiz_assets::asset::{AssetHandle, UntypedAssetId};
+use lapiz_assets::{
+    AssetAppExt as _,
+    asset::{AssetHandle, UntypedAssetId},
+};
 use lapiz_runtime::{Renderer, global::Globals};
 
 use crate::{
     asset::BrushPreset,
-    engine::BrushEngine,
+    engine::{BrushEngine, BrushEngineId, BrushEngineRegistryExt as _},
     render::stroke_preview::{
         CACHED_STROKE_PREVIEW_SIZE, generate_stroke_preview, generate_stroke_preview_compiled,
     },
 };
 
+// TODO Cache preview with asset id on disk so we don't need to load the asset and actually run it
+//      every time.
 pub struct BrushPreview<'a, E: BrushEngine> {
     handle: AssetHandle<E::Brush>,
     globals: &'a Globals,
@@ -97,6 +102,55 @@ impl<'a, Message> From<BrushPreviewCompiled<'a>> for Element<'a, Message, Theme,
     }
 }
 
+pub struct UntypedBrushPreview<'a> {
+    engine_id: BrushEngineId,
+    asset_id: UntypedAssetId,
+    globals: &'a Globals,
+    generation: u64,
+}
+
+impl<'a> UntypedBrushPreview<'a> {
+    pub fn new(
+        engine_id: BrushEngineId,
+        asset_id: UntypedAssetId,
+        generation: u64,
+        globals: &'a Globals,
+    ) -> Self {
+        Self {
+            engine_id,
+            asset_id,
+            globals,
+            generation,
+        }
+    }
+}
+
+impl<'a, Message> From<UntypedBrushPreview<'a>> for Element<'a, Message, Theme, Renderer> {
+    fn from(value: UntypedBrushPreview<'a>) -> Self {
+        Element::new(Preview {
+            key: (Some(value.asset_id), value.generation),
+            generate: Box::new(move || {
+                let prepare = || -> Result<_> {
+                    let factory = value
+                        .globals
+                        .brush_engine_registry()
+                        .get(&value.engine_id)?;
+                    let engine =
+                        factory.load_brush_from_assets(value.asset_id, value.globals.assets())?;
+                    let brush = engine.compile_brush(value.globals)?;
+                    Ok(generate_stroke_preview_compiled(
+                        &brush,
+                        Some(value.asset_id),
+                        value.globals,
+                    ))
+                };
+                let preview = prepare();
+                async move { preview?.await }.boxed()
+            }),
+        })
+    }
+}
+
 type PreviewKey = (Option<UntypedAssetId>, u64);
 
 struct Preview<'a> {
@@ -146,12 +200,16 @@ impl<Message> Widget<Message, Theme, Renderer> for Preview<'_> {
         &mut self,
         tree: &mut widget::Tree,
         _: &Event,
-        _: Layout<'_>,
+        layout: Layout<'_>,
         _: mouse::Cursor,
         _: &Renderer,
         shell: &mut Shell<'_, Message>,
-        _: &Rectangle,
+        viewport: &Rectangle,
     ) {
+        if !layout.bounds().intersects(viewport) {
+            return;
+        }
+
         let state = tree.state.downcast_mut::<State>();
         if state.key != Some(self.key) {
             *state = State::default();

@@ -4,19 +4,20 @@ use std::{
 };
 
 use anyhow::Result;
-use iced_core::{Element, Length, Theme, text::IntoFragment, window};
+use iced_core::{Color, Element, Length, Theme, text::IntoFragment, window};
 use iced_runtime::Task;
 use lapiz_assets::{AssetAppExt as _, asset::UntypedAssetId, store::AssetRegistry, tag::TagId};
 use lapiz_brush::{
     engine::{BrushEngineId, BrushEngineRegistryExt as _, UntypedBrushPresetEntry},
     tool::CurrentBrushPresetExt as _,
+    widget::UntypedBrushPreview,
 };
 use lapiz_dock::dock::{Dock, DockId};
 use lapiz_i18n::t;
 use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{
-    button, column, icon, icon_button, label, row, scrollable, space,
+    button, column, container, icon, icon_button, label, row, scrollable, space,
     tree::{Tree, TreeNode},
 };
 
@@ -29,6 +30,7 @@ pub struct BrushPresetDock {
     brushes: Vec<(BrushEngineId, UntypedBrushPresetEntry)>,
     groups: BrushGroups,
     collapsed: HashSet<BrushGroupId>,
+    preview_generation: u64,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -156,6 +158,7 @@ impl BrushPresetDock {
         let groups = BrushGroups::read(assets, &brushes)?;
         self.brushes = brushes;
         self.groups = groups;
+        self.preview_generation += 1;
         Ok(())
     }
 
@@ -163,6 +166,7 @@ impl BrushPresetDock {
         &'a self,
         group: &'a BrushTagGroup,
         parent: &[TagId],
+        globals: &'a Globals,
     ) -> TreeNode<'a, BrushPresetDockMessage, BrushRowId> {
         let mut path = parent.to_vec();
         path.push(group.tag);
@@ -171,12 +175,12 @@ impl BrushPresetDock {
             group
                 .children
                 .iter()
-                .map(|group| self.tag_node(group, &path))
+                .map(|group| self.tag_node(group, &path, globals))
                 .chain(
                     group
                         .brushes
                         .iter()
-                        .map(|&index| self.brush_node(index, &id)),
+                        .map(|&index| self.brush_node(index, &id, globals)),
                 )
                 .collect()
         })
@@ -204,15 +208,26 @@ impl BrushPresetDock {
         }
     }
 
-    fn brush_node(
-        &self,
+    fn brush_node<'a>(
+        &'a self,
         index: usize,
         group: &BrushGroupId,
-    ) -> TreeNode<'_, BrushPresetDockMessage, BrushRowId> {
-        let (_, item) = &self.brushes[index];
+        globals: &'a Globals,
+    ) -> TreeNode<'a, BrushPresetDockMessage, BrushRowId> {
+        let (engine_id, item) = &self.brushes[index];
+        let preview = container(UntypedBrushPreview::new(
+            *engine_id,
+            item.id,
+            self.preview_generation,
+            globals,
+        ))
+        .width(Length::Fill)
+        .height(56)
+        .style(|_| container::Style::default().background(Color::from_rgb8(40, 40, 40)));
+
         TreeNode::Leaf(
             BrushRowId::Preset(group.clone(), item.id),
-            button(label(item.name.as_str()))
+            button(column![label(item.name.as_str()), preview].gap(4))
                 .width(Length::Fill)
                 .activated(Some(item.id) == self.selected)
                 .on_press(BrushPresetDockMessage::SelectBrush(item.id))
@@ -236,13 +251,13 @@ impl Dock for BrushPresetDock {
     fn view<'a>(
         &'a self,
         _window_id: window::Id,
-        _globals: &'a Globals,
+        globals: &'a Globals,
     ) -> Element<'a, Self::Message, Theme, Renderer> {
         let mut nodes = self
             .groups
             .tags
             .iter()
-            .map(|group| self.tag_node(group, &[]))
+            .map(|group| self.tag_node(group, &[], globals))
             .collect::<Vec<_>>();
         if !self.groups.untagged.is_empty() {
             nodes.push(self.group_node(
@@ -252,7 +267,7 @@ impl Dock for BrushPresetDock {
                     self.groups
                         .untagged
                         .iter()
-                        .map(|&index| self.brush_node(index, &BrushGroupId::Untagged))
+                        .map(|&index| self.brush_node(index, &BrushGroupId::Untagged, globals))
                         .collect()
                 },
             ));
