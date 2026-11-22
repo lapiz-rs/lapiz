@@ -184,7 +184,7 @@ impl<Message> Widget<Message, Theme, Renderer> for Preview<'_> {
     }
 
     fn size(&self) -> Size<Length> {
-        Size::new(Length::Fill, Length::Fixed(180.0))
+        Size::new(Length::Fill, Length::Fill)
     }
 
     fn layout(
@@ -193,7 +193,7 @@ impl<Message> Widget<Message, Theme, Renderer> for Preview<'_> {
         _: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
-        layout::atomic(limits, Length::Fill, Length::Fixed(180.0))
+        layout::atomic(limits, Length::Fill, Length::Fill)
     }
 
     fn update(

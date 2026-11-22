@@ -222,13 +222,13 @@ impl BrushPresetDock {
             globals,
         ))
         .width(Length::Fill)
-        .height(56)
-        .style(|_| container::Style::default().background(Color::from_rgb8(40, 40, 40)));
+        .height(40);
 
         TreeNode::Leaf(
             BrushRowId::Preset(group.clone(), item.id),
-            button(column![label(item.name.as_str()), preview].gap(4))
+            button(row![label(item.name.as_str()), preview].gap(6))
                 .width(Length::Fill)
+                .height(Length::Fit)
                 .activated(Some(item.id) == self.selected)
                 .on_press(BrushPresetDockMessage::SelectBrush(item.id))
                 .into(),
