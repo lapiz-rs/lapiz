@@ -28,6 +28,15 @@ pub struct ToolBindingManifest {
     pub bindings: Vec<ToolBinding>,
 }
 
+impl ToolBindingManifest {
+    pub fn binding_count(&self, shortcut: KeySequence) -> usize {
+        self.bindings
+            .iter()
+            .filter(|binding| binding.shortcut == shortcut)
+            .count()
+    }
+}
+
 impl Configuration for ToolBindingManifest {
     const NAME: &'static str = "tool_bindings.json";
 

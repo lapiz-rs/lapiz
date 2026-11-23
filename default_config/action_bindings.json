@@ -3,7 +3,7 @@
   "actions": [
     {
       "shortcut": "ctrl-n",
-      "action_name": "create_new_file_action",
+      "action_name": "new_file_action",
       "context": "main_view"
     },
     {

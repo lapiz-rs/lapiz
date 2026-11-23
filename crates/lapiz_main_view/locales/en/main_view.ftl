@@ -7,6 +7,7 @@ menu_window = Window
 menu_about = About
 
 new_file_action = New Canvas
+create_new_file_action = { new_file_action }
 open_file_action = Open
 save_file_action = Save
 export_file_action = Export
@@ -24,6 +25,7 @@ delete_selection_action = Delete Selection
 toggle_filter_panel_action = Toggle Filter Panel
 open_asset_tag_editor = Asset Manager
 open_brush_editor_action = Open Brush Editor
+open_settings_action = Settings
 open_about_action = About
 generate_report_action = Generate Report
 debug_manual_panic_action = Debug Manual Panic (really crashes!)

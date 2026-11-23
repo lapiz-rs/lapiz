@@ -8,7 +8,7 @@ use iced::{
 use iced_core::keyboard;
 use lapiz_actions::{
     ActionFunctionRegistry, ActionId,
-    manifest::{ActionBindingManifestConfig, ActionCollection, MenuBarItem, MenuBarManifestConfig},
+    manifest::{ActionCollection, GlobalActionBindings, MenuBarItem, MenuBarManifestConfig},
 };
 use lapiz_brush::tool::CurrentBrushPresetExt as _;
 use lapiz_builtin_docks::canvas::{CanvasDock, construct_canvas_dock_id};
@@ -78,7 +78,6 @@ impl Plugin for MainViewPlugin {
 /// - Processes keyboard events through [`KeyboardState`] to trigger registered actions in [`ActionFunctionRegistry`] or switch tools via [`GlobalToolBindings`].
 pub struct MainView {
     dock_manager: DockManager,
-    action_collection: ActionCollection,
     menu_manifest: MenuBarManifestConfig,
     last_canvas_dock: Option<DockId>,
     canvas_group_anchor: Option<DockGroupId>,
@@ -185,11 +184,9 @@ impl MainView {
 
         let mut menu_bar = menu_bar();
         let menu_manifest = self.menu_manifest.get();
+        let collection = globals.global::<GlobalActionBindings>().collection();
         for category in &menu_manifest.categories {
-            menu_bar = menu_bar.menu(
-                t!(&category.title),
-                build_menu(&category.items, &self.action_collection),
-            );
+            menu_bar = menu_bar.menu(t!(&category.title), build_menu(&category.items, collection));
         }
 
         let window_title = t!("menu_window");
@@ -273,10 +270,7 @@ impl MainView {
                 let keyboard_state = globals.global::<KeyboardState>();
                 let seq = keyboard_state.get_sequence();
 
-                let config = globals
-                    .global::<GlobalToolBindings>()
-                    .binding_for(seq)
-                    .cloned();
+                let config = globals.global::<GlobalToolBindings>().binding_for(seq);
                 let Some(config) = config else {
                     return tool_proxy.switch_override_tool(None, globals);
                 };
@@ -307,13 +301,12 @@ impl WindowView for MainView {
         _params: Option<Self::BootParams>,
         globals: &mut Globals,
     ) -> Result<(Self, Task<Self::Message>)> {
-        let action_bindings = ActionBindingManifestConfig::read_or_init_or_fallback().get();
+        let action_bindings = globals.global::<GlobalActionBindings>().manifest();
         log::info!(
             "Loading {} key bindings from manifest {}",
             action_bindings.actions.len(),
             action_bindings.name
         );
-        let action_collection = ActionCollection::new(&action_bindings);
 
         let menu_manifest = MenuBarManifestConfig::read_or_init_or_fallback();
 
@@ -339,7 +332,6 @@ impl WindowView for MainView {
         Ok((
             Self {
                 dock_manager,
-                action_collection,
                 menu_manifest,
                 last_canvas_dock: None,
                 canvas_group_anchor: None,
@@ -493,9 +485,11 @@ impl WindowView for MainView {
                         keyboard_state.press(*code);
 
                         // TODO prevent any action from triggering when a tool is updating.
-                        if let Some(action) = self
-                            .action_collection
-                            .get_action_id(keyboard_state.get_sequence())
+                        let shortcut = keyboard_state.get_sequence();
+                        if let Some(action) = globals
+                            .global::<GlobalActionBindings>()
+                            .collection()
+                            .get_action_id(shortcut)
                             && let Some(action_func) = globals
                                 .global_mut::<ActionFunctionRegistry>()
                                 .get(action.clone())

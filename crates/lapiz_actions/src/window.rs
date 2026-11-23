@@ -48,6 +48,24 @@ impl ActionFunction for OpenBrushEditorAction {
     }
 }
 
+#[derive(Default)]
+pub struct OpenSettingsAction;
+
+impl ActionFunction for OpenSettingsAction {
+    type Message = ();
+
+    fn id(&self) -> ActionId {
+        ActionId::new("open_settings_action".into())
+    }
+
+    fn trigger(&self, globals: &mut Globals) -> Task<Self::Message> {
+        globals
+            .global_mut::<WindowCommandBuffer>()
+            .push(OpenWindowViewCommand::new(WindowViewId::new("settings")));
+        Task::none()
+    }
+}
+
 /// Action that toggles the visibility of the filter panel window view.
 #[derive(Default)]
 pub struct ToggleFilterPanelAction;

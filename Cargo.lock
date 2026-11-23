@@ -3362,6 +3362,7 @@ dependencies = [
  "lapiz_report",
  "lapiz_runtime",
  "lapiz_selection_tool",
+ "lapiz_settings",
  "lapiz_shader_graph",
  "lapiz_tools",
  "lapiz_transform_tool",
@@ -4150,6 +4151,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "lapiz_settings"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "iced_core",
+ "iced_runtime",
+ "lapiz_actions",
+ "lapiz_i18n",
+ "lapiz_input",
+ "lapiz_runtime",
+ "lapiz_tools",
+ "lapiz_utils",
+ "lapiz_widgets",
+ "rust-embed",
+]
+
+[[package]]
 name = "lapiz_shader_graph"
 version = "0.1.0"
 dependencies = [
@@ -4299,6 +4317,7 @@ dependencies = [
  "iced_wgpu",
  "iced_widget",
  "lapiz_i18n",
+ "lapiz_input",
  "lapiz_math",
  "lapiz_runtime",
  "num-traits",

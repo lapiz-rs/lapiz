@@ -1,0 +1,13 @@
+settings_title = 设置
+settings_tool_bindings_tab = 工具绑定
+settings_action_bindings_tab = 操作绑定
+settings_temporary_tool = { $tool }（按住）
+settings_add_tool_binding = 添加工具绑定
+settings_delete_tool_binding = 删除绑定
+settings_select_tool = 选择工具
+settings_tool_mode_switch = 切换
+settings_tool_mode_hold = 按住
+settings_record_tool_shortcut = 录入快捷键
+settings_tool_shortcut_conflict = 此快捷键已绑定到工具。
+settings_tool_bindings_load_error = 无法加载工具绑定，当前显示默认绑定：{ $error }
+settings_tool_bindings_save_error = 无法保存工具绑定：{ $error }

@@ -50,6 +50,7 @@ lapiz_render.workspace = true
 lapiz_report.workspace = true
 lapiz_runtime.workspace = true
 lapiz_selection_tool.workspace = true
+lapiz_settings.workspace = true
 lapiz_shader_graph.workspace = true
 lapiz_tools.workspace = true
 lapiz_transform_tool.workspace = true

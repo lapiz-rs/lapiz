@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Error, Result, ensure};
 use lapiz_config::{Config, Configuration};
 use lapiz_input::key::KeySequence;
+use lapiz_runtime::global::Global;
 use serde::{Deserialize, Serialize};
 
 use crate::ActionId;
@@ -106,7 +107,7 @@ pub struct ActionBinding {
 }
 
 fn is_null(value: &serde_json::Value) -> bool {
-    matches!(value, serde_json::Value::Null)
+    value.is_null()
 }
 
 fn is_none<T>(value: &Option<T>) -> bool {
@@ -118,6 +119,15 @@ fn is_none<T>(value: &Option<T>) -> bool {
 pub struct ActionBindingManifest {
     pub name: String,
     pub actions: Vec<ActionBinding>,
+}
+
+impl ActionBindingManifest {
+    pub fn binding_count(&self, shortcut: KeySequence) -> usize {
+        self.actions
+            .iter()
+            .filter(|binding| binding.shortcut == shortcut)
+            .count()
+    }
 }
 
 impl Configuration for ActionBindingManifest {
@@ -169,5 +179,48 @@ impl ActionCollection {
 
     pub fn shortcut_for(&self, action: &ActionId) -> Option<KeySequence> {
         self.shortcuts_by_action.get(action).cloned()
+    }
+}
+
+pub struct GlobalActionBindings {
+    config: ActionBindingManifestConfig,
+    collection: ActionCollection,
+}
+
+impl Global for GlobalActionBindings {}
+
+impl GlobalActionBindings {
+    pub fn load() -> Self {
+        let config = ActionBindingManifestConfig::read_or_init_or_fallback();
+        let collection = ActionCollection::new(&config.get());
+        Self { config, collection }
+    }
+
+    pub fn manifest(&self) -> Arc<ActionBindingManifest> {
+        self.config.get()
+    }
+
+    pub fn collection(&self) -> &ActionCollection {
+        &self.collection
+    }
+
+    pub fn rebind(&mut self, index: usize, shortcut: KeySequence) -> Result<()> {
+        let manifest = self.manifest();
+        let binding = manifest
+            .actions
+            .get(index)
+            .ok_or_else(|| Error::msg(format!("Action binding does not exist: {index}")))?;
+        if binding.shortcut == shortcut {
+            return Ok(());
+        }
+        ensure!(
+            manifest.binding_count(shortcut) == 0,
+            "Action shortcut is already assigned: {shortcut}"
+        );
+
+        self.config
+            .update(|manifest| manifest.actions[index].shortcut = shortcut)?;
+        self.collection = ActionCollection::new(&self.manifest());
+        Ok(())
     }
 }

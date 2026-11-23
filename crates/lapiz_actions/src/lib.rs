@@ -18,8 +18,12 @@ use crate::{
         CreateNewLayerAction, DeleteSelectedLayersAction, GroupSelectedLayersAction,
         MoveLayerDownAction, MoveLayerUpAction, SelectNextLayerAction, SelectPreviousLayerAction,
     },
+    manifest::GlobalActionBindings,
     selection::DeleteSelectionAction,
-    window::{OpenAssetTagEditorAction, OpenBrushEditorAction, ToggleFilterPanelAction},
+    window::{
+        OpenAssetTagEditorAction, OpenBrushEditorAction, OpenSettingsAction,
+        ToggleFilterPanelAction,
+    },
 };
 
 pub mod about;
@@ -44,6 +48,7 @@ pub struct ActionPlugin;
 impl Plugin for ActionPlugin {
     fn build(&self, app: &mut Runtime) {
         app.add_global::<ActionFunctionRegistry>();
+        app.add_global_instance(GlobalActionBindings::load());
         app.globals_mut()
             .add_action_function::<DeleteSelectionAction>()
             .add_action_function::<NewFileAction>()
@@ -60,6 +65,7 @@ impl Plugin for ActionPlugin {
             .add_action_function::<PasteIntoNewLayerAction>()
             .add_action_function::<OpenAssetTagEditorAction>()
             .add_action_function::<OpenBrushEditorAction>()
+            .add_action_function::<OpenSettingsAction>()
             .add_action_function::<ToggleFilterPanelAction>()
             .add_action_function::<UndoAction>()
             .add_action_function::<RedoAction>()

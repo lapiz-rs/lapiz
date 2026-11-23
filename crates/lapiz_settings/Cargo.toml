@@ -1,0 +1,23 @@
+[package]
+name = "lapiz_settings"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+iced_core.workspace = true
+iced_runtime.workspace = true
+lapiz_actions.workspace = true
+lapiz_i18n.workspace = true
+lapiz_input.workspace = true
+lapiz_runtime.workspace = true
+lapiz_tools.workspace = true
+lapiz_utils.workspace = true
+lapiz_widgets.workspace = true
+rust-embed.workspace = true
+
+[lints]
+workspace = true

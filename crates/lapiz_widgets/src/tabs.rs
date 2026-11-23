@@ -127,6 +127,7 @@ impl<'a, Message: Clone + 'a> From<TabbedView<'a, Message>>
                 selected,
             })
         ]
+        .height(Length::Fill)
         .into()
     }
 }

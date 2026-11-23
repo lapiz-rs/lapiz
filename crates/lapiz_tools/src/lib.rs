@@ -1,5 +1,6 @@
 use std::{any::Any, collections::HashMap, rc::Rc, sync::Arc};
 
+use anyhow::{Result, bail, ensure};
 use iced_core::{Element, Length, Theme};
 use iced_runtime::{Task, futures::Subscription};
 use lapiz_input::{
@@ -11,13 +12,13 @@ use lapiz_runtime::{
     global::{Global, Globals},
     plugin::Plugin,
 };
-use lapiz_utils::{Deref, DerefMut, wrapper};
+use lapiz_utils::{Deref, DerefMut, log_err::LogErr as _, wrapper};
 use lapiz_widgets::{icon::Icon, space, stack};
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::manifest::{ToolBinding, ToolBindingManifestConfig};
+use crate::manifest::{ToolBinding, ToolBindingManifest, ToolBindingManifestConfig};
 
 pub mod manifest;
 
@@ -31,24 +32,13 @@ pub struct ToolsPlugin;
 impl Plugin for ToolsPlugin {
     fn build(&self, app: &mut Runtime) {
         app.add_global::<ToolFunctionRegistry>()
-            .add_global::<ToolProxies>()
-            .add_global::<GlobalToolBindings>();
+            .add_global::<ToolProxies>();
     }
 
     fn finish(&self, app: &mut Runtime) {
-        let tool_bindings = ToolBindingManifestConfig::read_or_init_or_fallback();
-
-        let bindings = tool_bindings
-            .get()
-            .bindings
-            .iter()
-            .cloned()
-            .map(|binding| (binding.shortcut, binding))
-            .collect();
-
-        app.globals_mut()
-            .global_mut::<GlobalToolBindings>()
-            .bindings = bindings;
+        if let Ok(config) = ToolBindingManifestConfig::read_or_init().logged_err() {
+            app.add_global_instance(GlobalToolBindings { config });
+        }
     }
 }
 
@@ -394,6 +384,10 @@ impl ToolFunctionRegistry {
             .insert(T::id(), Rc::new(|| Box::new(T::default())));
     }
 
+    pub fn tool_ids(&self) -> impl Iterator<Item = &ToolId> {
+        self.spawners.keys()
+    }
+
     pub fn icon(&self, id: &ToolId) -> Option<Icon<'static>> {
         let spawn = self.spawners.get(id)?;
         Some(spawn().icon())
@@ -696,18 +690,61 @@ pub struct ToolProxies {
 
 impl Global for ToolProxies {}
 
-/// Global lookup table of keyboard shortcuts mapped to [`ToolBinding`] definitions.
-#[derive(Default)]
 pub struct GlobalToolBindings {
-    bindings: Vec<(KeySequence, ToolBinding)>,
+    config: ToolBindingManifestConfig,
 }
 
 impl Global for GlobalToolBindings {}
 
 impl GlobalToolBindings {
-    pub fn binding_for(&self, shortcut: KeySequence) -> Option<&ToolBinding> {
-        self.bindings
+    pub fn manifest(&self) -> Arc<ToolBindingManifest> {
+        self.config.get()
+    }
+
+    pub fn binding_for(&self, shortcut: KeySequence) -> Option<ToolBinding> {
+        self.manifest()
+            .bindings
             .iter()
-            .find_map(|(key, binding)| (*key == shortcut).then_some(binding))
+            .find(|binding| binding.shortcut == shortcut)
+            .cloned()
+    }
+
+    pub fn add_binding(&mut self, binding: ToolBinding) -> Result<()> {
+        ensure!(
+            self.manifest().binding_count(binding.shortcut) == 0,
+            "Tool shortcut is already assigned: {}",
+            binding.shortcut
+        );
+
+        self.config
+            .update(|manifest| manifest.bindings.push(binding))
+    }
+
+    pub fn remove_binding(&mut self, index: usize) -> Result<()> {
+        ensure!(
+            index < self.manifest().bindings.len(),
+            "Tool binding does not exist: {index}"
+        );
+
+        self.config.update(|manifest| {
+            manifest.bindings.remove(index);
+        })
+    }
+
+    pub fn rebind(&mut self, index: usize, shortcut: KeySequence) -> Result<()> {
+        let manifest = self.manifest();
+        let Some(binding) = manifest.bindings.get(index) else {
+            bail!("Tool binding does not exist: {index}");
+        };
+        if binding.shortcut == shortcut {
+            return Ok(());
+        }
+        ensure!(
+            manifest.binding_count(shortcut) == 0,
+            "Tool shortcut is already assigned: {shortcut}"
+        );
+
+        self.config
+            .update(|manifest| manifest.bindings[index].shortcut = shortcut)
     }
 }
