@@ -75,6 +75,7 @@ impl Dock for ToolBoxDock {
                 .height(28)
                 .padding(8)
                 .transparent()
+                .activated(selected)
                 .on_press(ToolBoxDockMessage::Switch(tool.clone()));
             tooltip(button, label(t!(tool)), Position::Right).into()
         };
