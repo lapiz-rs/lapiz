@@ -10,8 +10,7 @@ use lapiz_tools::{
     ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId, manifest::ToolBoxManifestConfig,
 };
 use lapiz_widgets::{
-    button, divider::Divider, flex::Flex, icon, label, scrollable, svg, tooltip,
-    tooltip::Position,
+    button, divider::Divider, flex::Flex, icon, label, scrollable, svg, tooltip, tooltip::Position,
 };
 
 pub static TOOL_BOX_DOCK_ID: LazyLock<DockId> =
