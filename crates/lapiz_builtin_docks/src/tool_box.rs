@@ -10,7 +10,7 @@ use lapiz_tools::{
     ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId, manifest::ToolBoxManifestConfig,
 };
 use lapiz_widgets::{
-    button, divider::Divider, flex::Flex, icon, label, row, scrollable, svg, tooltip,
+    button, divider::Divider, flex::Flex, icon, label, scrollable, svg, tooltip,
     tooltip::Position,
 };
 
@@ -79,17 +79,11 @@ impl Dock for ToolBoxDock {
                 .on_press(ToolBoxDockMessage::Switch(tool.clone()));
             tooltip(button, label(t!(tool)), Position::Right).into()
         };
-        let separator = || {
-            row![Divider::horizontal(1)]
-                .height(7)
-                .padding([3, 0])
-                .into()
-        };
         let mut items = Vec::new();
         let manifest = self.manifest.get();
         for group in &manifest.groups {
             if !items.is_empty() {
-                items.push(separator());
+                items.push(Element::from(Divider::horizontal(1)));
             }
             let buttons = group.tools.iter().map(tool_button).collect::<Vec<_>>();
             items.push(
@@ -101,7 +95,7 @@ impl Dock for ToolBoxDock {
                     .into(),
             );
         }
-        let content = Flex::column(items).width(Length::Fill).gap(0).padding(4);
+        let content = Flex::column(items).width(Length::Fill).gap(8).padding(4);
 
         scrollable(content)
             .width(Length::Fill)
