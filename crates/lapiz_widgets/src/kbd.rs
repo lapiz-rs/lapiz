@@ -193,12 +193,11 @@ impl<'a, Message> Component<'a, Message, Theme, Renderer> for Kbd<'a, Message> {
             Recording::Candidate(keys) => Some(keys),
         };
         let editing = !matches!(state.recording, Recording::Idle);
-        let conflict = editing
-            && keys.is_some_and(|keys| {
+        let conflict = matches!(state.recording, Recording::Candidate(keys) if
                 self.check_conflict
                     .as_ref()
                     .is_some_and(|check| check(keys))
-            });
+        );
 
         let keycap = |label| {
             let class = Rc::clone(&self.class);

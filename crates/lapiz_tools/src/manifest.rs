@@ -29,11 +29,11 @@ pub struct ToolBindingManifest {
 }
 
 impl ToolBindingManifest {
-    pub fn has_shortcut_conflict(&self, index: usize, shortcut: KeySequence) -> bool {
+    pub fn binding_count(&self, shortcut: KeySequence) -> usize {
         self.bindings
             .iter()
-            .enumerate()
-            .any(|(other, binding)| other != index && binding.shortcut == shortcut)
+            .filter(|binding| binding.shortcut == shortcut)
+            .count()
     }
 }
 

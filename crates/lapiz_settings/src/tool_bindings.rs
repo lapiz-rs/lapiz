@@ -31,9 +31,12 @@ impl ToolBindingsPage {
                     name
                 };
                 let manifest = manifest.clone();
-                let keys = kbd(binding.shortcut)
+                let original = binding.shortcut;
+                let keys = kbd(original)
                     .listenable()
-                    .check_conflict(move |keys| manifest.has_shortcut_conflict(index, keys))
+                    .check_conflict(move |keys| {
+                        keys != original && manifest.binding_count(keys) != 0
+                    })
                     .on_confirm(move |keys| SettingsMessage::RebindTool(index, keys));
 
                 row![

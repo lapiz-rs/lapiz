@@ -122,11 +122,11 @@ pub struct ActionBindingManifest {
 }
 
 impl ActionBindingManifest {
-    pub fn has_shortcut_conflict(&self, index: usize, shortcut: KeySequence) -> bool {
+    pub fn binding_count(&self, shortcut: KeySequence) -> usize {
         self.actions
             .iter()
-            .enumerate()
-            .any(|(other, binding)| other != index && binding.shortcut == shortcut)
+            .filter(|binding| binding.shortcut == shortcut)
+            .count()
     }
 }
 
@@ -214,7 +214,7 @@ impl GlobalActionBindings {
             return Ok(());
         }
         ensure!(
-            !manifest.has_shortcut_conflict(index, shortcut),
+            manifest.binding_count(shortcut) == 0,
             "Action shortcut is already assigned: {shortcut}"
         );
 

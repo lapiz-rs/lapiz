@@ -714,7 +714,7 @@ impl GlobalToolBindings {
             return Ok(());
         }
         ensure!(
-            !manifest.has_shortcut_conflict(index, shortcut),
+            manifest.binding_count(shortcut) == 0,
             "Tool shortcut is already assigned: {shortcut}"
         );
 
