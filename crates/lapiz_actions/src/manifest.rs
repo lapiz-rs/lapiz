@@ -6,7 +6,7 @@ use lapiz_input::key::KeySequence;
 use lapiz_runtime::global::Global;
 use serde::{Deserialize, Serialize};
 
-use crate::{ActionId, file::NewFileAction};
+use crate::ActionId;
 
 pub type MenuBarManifestConfig = Config<MenuBarManifest>;
 

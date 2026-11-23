@@ -6,8 +6,6 @@ use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{column, container, kbd, label, row, scrollable};
 
-use crate::SettingsMessage;
-
 #[derive(Clone)]
 pub enum ActionBindingsMessage {
     RebindAction(usize, KeySequence),

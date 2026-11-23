@@ -9,8 +9,6 @@ use lapiz_widgets::{
     scrollable,
 };
 
-use crate::SettingsMessage;
-
 #[derive(Clone)]
 pub enum ToolBindingsMessage {
     AddToolBinding(AddToolBinding),

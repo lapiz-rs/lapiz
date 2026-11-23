@@ -6,17 +6,13 @@ use iced_runtime::{
     Task,
     window::{close, drag, minimize, open, toggle_maximize},
 };
-use lapiz_actions::manifest::GlobalActionBindings;
 use lapiz_i18n::t;
-use lapiz_input::key::KeySequence;
 use lapiz_runtime::{
     Renderer, Runtime,
     global::Globals,
     plugin::Plugin,
     windows::{WindowView, WindowViewId},
 };
-use lapiz_tools::GlobalToolBindings;
-use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{column, label, panel, tabs::TabbedView, title_bar};
 
 use crate::{
