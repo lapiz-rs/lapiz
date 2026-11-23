@@ -20,8 +20,8 @@ use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{column, label, panel, tabs::TabbedView, title_bar};
 
 use crate::{
-    action_bindings::ActionBindingsPage,
-    tool_bindings::{AddToolBinding, ToolBindingsPage},
+    action_bindings::{ActionBindingsMessage, ActionBindingsPage},
+    tool_bindings::{ToolBindingsMessage, ToolBindingsPage},
 };
 
 pub mod action_bindings;
@@ -54,9 +54,8 @@ pub enum SettingsMessage {
     Maximize,
     Minimize,
     SelectTab(usize),
-    AddToolBinding(AddToolBinding),
-    RebindTool(usize, KeySequence),
-    RebindAction(usize, KeySequence),
+    ToolBindings(ToolBindingsMessage),
+    ActionBindings(ActionBindingsMessage),
 }
 
 impl WindowView for SettingsView {
@@ -105,11 +104,15 @@ impl WindowView for SettingsView {
         let tabs = TabbedView::new()
             .tab(
                 t!("settings_tool_bindings_tab"),
-                self.tool_bindings.view(globals),
+                self.tool_bindings
+                    .view(globals)
+                    .map(SettingsMessage::ToolBindings),
             )
             .tab(
                 t!("settings_action_bindings_tab"),
-                self.action_bindings.view(globals),
+                self.action_bindings
+                    .view(globals)
+                    .map(SettingsMessage::ActionBindings),
             )
             .selected(self.selected_tab)
             .on_select(SettingsMessage::SelectTab);
@@ -131,22 +134,12 @@ impl WindowView for SettingsView {
                 self.selected_tab = index;
                 Task::none()
             }
-            SettingsMessage::AddToolBinding(message) => {
+            SettingsMessage::ToolBindings(message) => {
                 self.tool_bindings.update(message, globals);
                 Task::none()
             }
-            SettingsMessage::RebindTool(index, shortcut) => {
-                globals
-                    .global_mut::<GlobalToolBindings>()
-                    .rebind(index, shortcut)
-                    .log_err();
-                Task::none()
-            }
-            SettingsMessage::RebindAction(index, shortcut) => {
-                globals
-                    .global_mut::<GlobalActionBindings>()
-                    .rebind(index, shortcut)
-                    .log_err();
+            SettingsMessage::ActionBindings(message) => {
+                self.action_bindings.update(message, globals);
                 Task::none()
             }
         }

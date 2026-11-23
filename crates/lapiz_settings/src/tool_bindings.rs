@@ -3,11 +3,18 @@ use lapiz_i18n::t;
 use lapiz_input::key::KeySequence;
 use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_tools::{GlobalToolBindings, ToolFunctionRegistry, ToolId, manifest::ToolBinding};
+use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{
     button, column, combo_box::ComboBox, icon, icon_button, kbd, label, row, scrollable,
 };
 
 use crate::SettingsMessage;
+
+#[derive(Clone)]
+pub enum ToolBindingsMessage {
+    AddToolBinding(AddToolBinding),
+    RebindTool(usize, KeySequence),
+}
 
 #[derive(Clone)]
 pub enum AddToolBinding {
@@ -33,7 +40,7 @@ pub struct ToolBindingsPage {
 }
 
 impl ToolBindingsPage {
-    pub fn view(&self, globals: &Globals) -> Element<'_, SettingsMessage, Theme, Renderer> {
+    pub fn view(&self, globals: &Globals) -> Element<'_, ToolBindingsMessage, Theme, Renderer> {
         let bindings = globals.global::<GlobalToolBindings>();
         let registry = globals.global::<ToolFunctionRegistry>();
         let manifest = bindings.manifest();
@@ -60,7 +67,7 @@ impl ToolBindingsPage {
                     .check_conflict(move |keys| {
                         keys != original && manifest.binding_count(keys) != 0
                     })
-                    .on_confirm(move |keys| SettingsMessage::RebindTool(index, keys));
+                    .on_confirm(move |keys| ToolBindingsMessage::RebindTool(index, keys));
 
                 row![
                     glyph,
@@ -88,7 +95,7 @@ impl ToolBindingsPage {
                 ]
                 .gap(6),
             )
-            .on_press(SettingsMessage::AddToolBinding(AddToolBinding::Start))
+            .on_press(ToolBindingsMessage::AddToolBinding(AddToolBinding::Start))
             .into()
         };
 
@@ -109,7 +116,7 @@ impl ToolBindingsPage {
         draft: &BindingDraft,
         registry: &ToolFunctionRegistry,
         conflict: bool,
-    ) -> Element<'_, SettingsMessage, Theme, Renderer> {
+    ) -> Element<'_, ToolBindingsMessage, Theme, Renderer> {
         let mut tools = registry.tool_ids().cloned().collect::<Vec<_>>();
         tools.sort_by_cached_key(|tool| (t!(tool), tool.0.clone()));
 
@@ -122,7 +129,7 @@ impl ToolBindingsPage {
         let tool = ComboBox::new_with(
             tools,
             draft.tool.clone(),
-            |tool| SettingsMessage::AddToolBinding(AddToolBinding::SelectTool(tool)),
+            |tool| ToolBindingsMessage::AddToolBinding(AddToolBinding::SelectTool(tool)),
             |tool| label(t!(tool)).into(),
         )
         .placeholder(t!("settings_select_tool"))
@@ -130,7 +137,7 @@ impl ToolBindingsPage {
         let mode = ComboBox::new_with(
             [false, true],
             Some(draft.is_temporary),
-            |hold| SettingsMessage::AddToolBinding(AddToolBinding::SelectHoldMode(hold)),
+            |hold| ToolBindingsMessage::AddToolBinding(AddToolBinding::SelectHoldMode(hold)),
             |hold| {
                 label(if *hold {
                     t!("settings_tool_mode_hold")
@@ -148,7 +155,9 @@ impl ToolBindingsPage {
         .placeholder(t!("settings_record_tool_shortcut"))
         .listenable()
         .confirm_on_release()
-        .on_confirm(|keys| SettingsMessage::AddToolBinding(AddToolBinding::RecordShortcut(keys)));
+        .on_confirm(|keys| {
+            ToolBindingsMessage::AddToolBinding(AddToolBinding::RecordShortcut(keys))
+        });
         let can_submit = draft.tool.is_some() && draft.shortcut.is_some() && !conflict;
 
         let mut footer = column![
@@ -158,10 +167,11 @@ impl ToolBindingsPage {
                 mode,
                 row![keys].width(220),
                 icon_button(icon::check()).on_press_maybe(
-                    can_submit.then_some(SettingsMessage::AddToolBinding(AddToolBinding::Submit)),
+                    can_submit
+                        .then_some(ToolBindingsMessage::AddToolBinding(AddToolBinding::Submit)),
                 ),
                 icon_button(icon::close())
-                    .on_press(SettingsMessage::AddToolBinding(AddToolBinding::Cancel)),
+                    .on_press(ToolBindingsMessage::AddToolBinding(AddToolBinding::Cancel)),
             ]
             .width(Length::Fill)
             .gap(12)
@@ -179,7 +189,21 @@ impl ToolBindingsPage {
         footer.gap(4).width(Length::Fill).into()
     }
 
-    pub(crate) fn update(&mut self, message: AddToolBinding, globals: &mut Globals) {
+    pub(crate) fn update(&mut self, message: ToolBindingsMessage, globals: &mut Globals) {
+        match message {
+            ToolBindingsMessage::AddToolBinding(message) => {
+                self.update_add_tool_binding(message, globals);
+            }
+            ToolBindingsMessage::RebindTool(index, shortcut) => {
+                globals
+                    .global_mut::<GlobalToolBindings>()
+                    .rebind(index, shortcut)
+                    .log_err();
+            }
+        }
+    }
+
+    fn update_add_tool_binding(&mut self, message: AddToolBinding, globals: &mut Globals) {
         match (&mut self.draft, message) {
             (draft, AddToolBinding::Start) => {
                 draft.get_or_insert_with(BindingDraft::default);
