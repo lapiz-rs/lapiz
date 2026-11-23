@@ -30,6 +30,7 @@ use lapiz_widgets::{
     icon, icon_button, image, label, pane_grid, panel, row, scrollable, tag, text_input, title_bar,
     tooltip,
     tooltip::Position,
+    tree::{Tree, TreeNode},
 };
 
 use crate::{
@@ -349,59 +350,16 @@ impl AssetTagEditor {
                 .into()
             })
             .collect::<Vec<_>>();
-        let rows = self
+        let nodes = self
             .model
-            .rows()
-            .into_iter()
-            .map(|entry| {
-                let tag = &self.model.tags[&entry.id];
-                let expanded = self.model.is_tag_expanded(entry.id);
-                let toggle = if self.model.has_children(entry.id) {
-                    Element::from(
-                        icon_button(if expanded {
-                            icon::caret_down()
-                        } else {
-                            icon::caret_right()
-                        })
-                        .on_press(Message::ToggleTag(entry.id)),
-                    )
-                } else {
-                    panel(label("")).width(24).transparent().into()
-                };
-                let name = row![icon::folder(), label(&tag.name).width(Length::Fill)].gap(6.0);
-                let row = row![
-                    toggle,
-                    button(name)
-                        .width(Length::Fill)
-                        .height(30)
-                        .clip(true)
-                        .activated(self.model.current_tag == Some(entry.id))
-                        .on_press(Message::SelectTag(entry.id))
-                ]
-                .gap(2.0);
-                let row = panel(row)
-                    .transparent()
-                    .padding(iced_core::Padding {
-                        left: entry.depth as f32 * 14.0,
-                        ..Default::default()
-                    })
-                    .width(Length::Fill);
-                DragRegion::new(
-                    DragItem::Tag {
-                        id: entry.id,
-                        parent: entry.parent,
-                    },
-                    row,
-                )
-                .mode(DropMode::Tree)
-                .into()
-            })
-            .collect::<Vec<_>>();
-        let mut tree = Flex::column(rows).gap(2.0);
-        if self.model.rows().is_empty() {
-            tree = tree.push(label(t!("no_tags")).muted());
-        }
-        tree = tree.push(
+            .root
+            .map_or_else(Vec::new, |root| self.tag_nodes(root, &mut Vec::new()));
+        let tags = if nodes.is_empty() {
+            Element::from(label(t!("no_tags")).muted())
+        } else {
+            Tree::new(nodes).spacing(2.0).into()
+        };
+        let tree = column![tags].gap(2.0).push(
             DragRegion::new(
                 DragItem::TagRoot,
                 panel(label(t!("root_drop")).faint().size(11))
@@ -468,6 +426,72 @@ impl AssetTagEditor {
             .height(Length::Fill)
             .borderless()
             .into()
+    }
+
+    fn tag_nodes(
+        &self,
+        parent: TagId,
+        path: &mut Vec<TagId>,
+    ) -> Vec<TreeNode<'_, Message, Vec<TagId>>> {
+        if path.contains(&parent) {
+            return Vec::new();
+        }
+        path.push(parent);
+        let nodes = self
+            .model
+            .visible_children(parent)
+            .map(|tag| {
+                let id = tag.id;
+                let expanded = self.model.is_tag_expanded(id);
+                let branch = self.model.visible_children(id).next().is_some();
+                let toggle = if branch {
+                    Element::from(
+                        icon_button(if expanded {
+                            icon::caret_down()
+                        } else {
+                            icon::caret_right()
+                        })
+                        .on_press(Message::ToggleTag(id)),
+                    )
+                } else {
+                    panel(label("")).width(24).transparent().into()
+                };
+                let name = row![icon::folder(), label(&tag.name).width(Length::Fill)].gap(6.0);
+                let row = row![
+                    toggle,
+                    button(name)
+                        .width(Length::Fill)
+                        .height(30)
+                        .clip(true)
+                        .activated(self.model.current_tag == Some(id))
+                        .on_press(Message::SelectTag(id))
+                ]
+                .gap(2.0)
+                .width(Length::Fill);
+                let label = DragRegion::new(DragItem::Tag { id, parent }, row)
+                    .mode(DropMode::Tree)
+                    .into();
+
+                // A shared tag can appear under more than one path.
+                let mut key = path.clone();
+                key.push(id);
+                if branch {
+                    TreeNode::Branch {
+                        id: key,
+                        label,
+                        children: if expanded {
+                            self.tag_nodes(id, path)
+                        } else {
+                            Vec::new()
+                        },
+                    }
+                } else {
+                    TreeNode::Leaf(key, label)
+                }
+            })
+            .collect();
+        path.pop();
+        nodes
     }
 
     fn asset_list(&self, list: AssetList) -> Element<'_, Message, Theme, Renderer> {
