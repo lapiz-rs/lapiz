@@ -7,7 +7,7 @@ use std::{
 
 use dock::{DockAction, DockId, TabEvent};
 use group::DockGroupData;
-use iced_core::{Element, Length, Point, Size, Theme, Vector, pointer, widget::Void, window};
+use iced_core::{Element, Length, Point, Size, Theme, Vector, pointer, window};
 use iced_futures::{Subscription, event::listen_with};
 use iced_runtime::{
     Task,
@@ -833,7 +833,7 @@ impl DockManager {
     ) -> Option<Element<'a, DockMessage, Theme, Renderer>> {
         if window_id == self.main_window.id {
             let grid = self.main_window.layout.panes_state().map_or_else(
-                || Element::new(Void),
+                || Element::new(space()),
                 |panes| {
                     pane_grid::PaneGrid::new(panes, move |pane, group, _| {
                         let body = group.active().map_or_else(
@@ -894,25 +894,18 @@ impl DockManager {
                 },
             );
 
+            let mut layers = stack![grid].width(Length::Fill).height(Length::Fill);
             if let Some(AttachOrMergeInfo::Attach(attach_info)) =
                 self.current_attach_or_merge_info()
             {
-                Some(
-                    stack![
-                        grid,
-                        Element::new(PaneHintOverlay {
-                            state: &self.main_window.layout,
-                            attach_info,
-                            spacing: PANE_SPACING,
-                        })
-                    ]
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .into(),
-                )
-            } else {
-                Some(grid)
+                layers = layers.push(Element::new(PaneHintOverlay {
+                    state: &self.main_window.layout,
+                    attach_info,
+                    spacing: PANE_SPACING,
+                }));
             }
+
+            Some(layers.into())
         } else if let Some(info) = self.detached_window(window_id) {
             let group = info.layout.single_group()?;
             let ids = group.iter().cloned().collect::<Vec<_>>();
@@ -957,12 +950,15 @@ impl DockManager {
                 .width(Length::Fill)
                 .height(Length::Fill),
             );
+
+            let mut stack = stack![content].width(Length::Fill).height(Length::Fill);
+
             if matches!(self.current_attach_or_merge_info(), Some(AttachOrMergeInfo::Merge { dst }) if dst == window_id)
             {
-                Some(stack![Element::new(WindowHintOverlay), content].into())
-            } else {
-                Some(content)
+                stack = stack.push(Element::new(WindowHintOverlay))
             }
+
+            Some(stack.into())
         } else if let Some(dock_id) = self.sub_windows.get(&window_id)
             && let Some(dock) = self.docks.get(dock_id)
         {
