@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use iced_core::{Border, Color, Element, Length, Theme, window};
+use iced_core::{Element, Length, Theme, window};
 use iced_runtime::Task;
 use lapiz_canvas::CanvasToolProxyAppExt as _;
 use lapiz_dock::dock::{Dock, DockId};
@@ -10,11 +10,7 @@ use lapiz_tools::{
     ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId, manifest::ToolBoxManifestConfig,
 };
 use lapiz_widgets::{
-    button,
-    button::{Status, Style},
-    divider::Divider,
-    flex::Flex,
-    icon, label, row, scrollable, svg, tooltip,
+    button, divider::Divider, flex::Flex, icon, label, row, scrollable, svg, tooltip,
     tooltip::Position,
 };
 
