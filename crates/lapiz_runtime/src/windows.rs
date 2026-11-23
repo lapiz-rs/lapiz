@@ -7,8 +7,9 @@ use std::{
 
 use anyhow::{Result, bail};
 use iced_core::{Element, Theme, window};
-use iced_runtime::{Task, futures::Subscription};
+use iced_runtime::{Task, futures::Subscription, window::gain_focus};
 use lapiz_utils::{log_err::LogErr as _, wrapper};
+use log::warn;
 use parse_display::Display;
 
 use crate::global::{Global, Globals};
@@ -313,8 +314,13 @@ where
         params: Option<Box<dyn Any>>,
         globals: &mut Globals,
     ) -> Result<Task<WindowViewManagerMessage>> {
-        if self.opened_views.contains_key(&view_id) {
-            bail!("Window view already opened: {}", view_id.0);
+        if let Some(view) = self.opened_views.get(&view_id) {
+            warn!("Window view already opened: {}", view_id.0);
+            if let Some(root_window) = view.state.root_window() {
+                return Ok(gain_focus(root_window));
+            } else {
+                return Ok(Task::none());
+            }
         }
 
         let Some(boot) = self.registered_views.get(&view_id) else {
