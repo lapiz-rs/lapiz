@@ -12,12 +12,12 @@ use iced_wgpu::primitive::Renderer as _;
 use lapiz_image::{texel::TexelType, tile::GpuTileStorage};
 use moxcms::ColorProfile;
 
-use crate::{CCanvas, render::CanvasPrimitive};
+use crate::{Canvas, render::CanvasPrimitive};
 
 /// Interactive UI widget that renders a [`CCanvas`] via [`CanvasPrimitive`] and routes pointer and focus events.
 pub struct CanvasWidget<'a, Message> {
     pub is_focusing: bool,
-    pub canvas: &'a CCanvas,
+    pub canvas: &'a Canvas,
     pub tile_storage: GpuTileStorage,
     pub on_focus: Box<dyn Fn(Point) -> Message + 'a>,
     pub on_pointer_event: Box<dyn Fn(pointer::Event) -> Message + 'a>,

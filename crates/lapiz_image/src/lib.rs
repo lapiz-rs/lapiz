@@ -96,7 +96,7 @@ impl Plugin for ImagePlugin {
 /// (such as the active selection mask). Actual pixel tile data resides on the GPU inside
 /// [`GpuTileStorage`], indexed by each layer's [`LayerId`].
 #[derive(Debug)]
-pub struct CImage {
+pub struct Image {
     size: UVec2,
     profile: ColorProfile,
     texel_type: TexelType,
@@ -105,7 +105,7 @@ pub struct CImage {
     special_layers: SpecialLayers,
 }
 
-impl CImage {
+impl Image {
     pub fn new(size: UVec2, profile: ColorProfile, layer_registry: &LayerTypeRegistry) -> Self {
         let layers = LayerStack::with_empty_background(layer_registry);
 

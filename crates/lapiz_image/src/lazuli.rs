@@ -20,7 +20,7 @@ use uuid::Uuid;
 use wgpu::{Device, Queue};
 
 use crate::{
-    CImage,
+    Image,
     layer::{
         Layer as _, LayerId, LayerStack, LayerStackNode, LayerTypeRegistry, SpecialLayers,
         pixel_layer::PixelLayer,
@@ -33,7 +33,7 @@ use crate::{
     tile::{GpuLayerInfo, GpuTileStorage, TileStorageAppExt as _},
 };
 
-impl CImage {
+impl Image {
     pub fn from_lazuli(archive: &LazuliArchive, globals: &Globals) -> Result<Self> {
         let image_props = archive.read_image_properties()?;
         let layer_stack = LayerStack::read_entire_tree(

@@ -4,10 +4,10 @@ use anyhow::Result;
 use futures::executor::block_on;
 use iced_core::Element;
 use iced_runtime::Task;
-use lapiz_canvas::{CCanvas, CanvasAppExt as _};
+use lapiz_canvas::{Canvas, CanvasAppExt as _};
 use lapiz_config::Config;
 use lapiz_file_dialog::LocalFile;
-use lapiz_image::CImage;
+use lapiz_image::Image;
 use lapiz_lazuli::LazuliArchive;
 use lapiz_runtime::{
     Renderer, Runtime, Theme,
@@ -325,9 +325,9 @@ pub fn start_import(globals: &mut Globals, local_file: LocalFile) {
     } else {
         let archive = block_on(importer.import(globals, path)).logged_err();
         if let Ok(archive) = archive
-            && let Ok(image) = CImage::from_lazuli(&archive, globals).logged_err()
+            && let Ok(image) = Image::from_lazuli(&archive, globals).logged_err()
         {
-            globals.add_canvas(CCanvas::new(Some(local_file), image, archive));
+            globals.add_canvas(Canvas::new(Some(local_file), image, archive));
         }
     }
 }

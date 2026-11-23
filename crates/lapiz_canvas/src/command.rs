@@ -28,7 +28,7 @@ use wgpu::{
     TextureDescriptor, TextureDimension, TextureUsages,
 };
 
-use crate::{CCanvas, CanvasAppExt as _, CanvasId, event::CanvasUpdated};
+use crate::{Canvas, CanvasAppExt as _, CanvasId, event::CanvasUpdated};
 
 /// Undoable command that replaces or clears a set of GPU tiles on a target layer and broadcasts [`CanvasUpdated`].
 pub struct TileReplaceCommand {
@@ -441,7 +441,7 @@ pub struct InsertLayerCommand {
 
 impl InsertLayerCommand {
     pub fn new(
-        canvas: &CCanvas,
+        canvas: &Canvas,
         layer: LayerStackNode,
         parent: LayerId,
         position: impl Into<LayerPosition>,
@@ -681,7 +681,7 @@ pub struct MoveLayersCommand {
 
 impl MoveLayersCommand {
     pub fn new(
-        canvas: &CCanvas,
+        canvas: &Canvas,
         layers: impl IntoIterator<Item = LayerId>,
         new_parent: LayerId,
         new_position: impl Into<LayerPosition>,
@@ -842,7 +842,7 @@ pub struct DeleteLayersCommand {
 }
 
 impl DeleteLayersCommand {
-    pub fn new(canvas: &CCanvas, layers: Vec<LayerId>) -> anyhow::Result<Self> {
+    pub fn new(canvas: &Canvas, layers: Vec<LayerId>) -> anyhow::Result<Self> {
         let filtered_layers = canvas.image.layer_stack().reduce_ancestors(layers);
 
         // Reject if all layers are going to be deleted, other than the root layer.
@@ -1144,7 +1144,7 @@ mod test {
     use futures::executor::block_on;
     use glam::UVec2;
     use lapiz_image::{
-        CImage,
+        Image,
         layer::{
             LayerTypeRegistry, group_layer::GroupLayer, pixel_layer::PixelLayer,
             properties::builtin::NameProp,
@@ -1177,8 +1177,7 @@ mod test {
     fn canvas_with_layers<const N: usize>() -> (Globals, LayerId, [LayerId; N]) {
         let mut registry = LayerTypeRegistry::default();
         registry.register::<GroupLayer>();
-        let mut image =
-            CImage::from_layer(UVec2::ONE, pixel(), ColorProfile::new_srgb(), &registry);
+        let mut image = Image::from_layer(UVec2::ONE, pixel(), ColorProfile::new_srgb(), &registry);
         let stack = image.layer_stack_mut();
         let root = *stack.root_id();
         let layers = array::from_fn(|index| {
@@ -1200,7 +1199,7 @@ mod test {
         ));
         globals.insert_global(render_context);
 
-        globals.add_canvas(CCanvas::new(
+        globals.add_canvas(Canvas::new(
             None,
             image,
             LazuliArchive::new_in_memory().unwrap(),

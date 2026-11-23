@@ -20,7 +20,7 @@ use wgpu::{
 };
 
 use crate::{
-    CImage,
+    Image,
     layer::LayerId,
     tile::{DynamicLayerStorage, GpuTileInfo, GpuTileStorage},
 };
@@ -108,7 +108,7 @@ impl ImageCompositor {
     pub fn create_cache(
         &mut self,
         overriders: &mut LayerPreviewOverriders,
-        image: &CImage,
+        image: &Image,
         tiles: &GpuTileStorage,
         blend_funcs: &BlendFunctionRegistry,
         device: &Device,
@@ -127,7 +127,7 @@ impl ImageCompositor {
         &mut self,
         overriders: &LayerPreviewOverriders,
         _: IRect,
-        image: &CImage,
+        image: &Image,
         tiles: &GpuTileStorage,
         device: &Device,
         queue: &Queue,

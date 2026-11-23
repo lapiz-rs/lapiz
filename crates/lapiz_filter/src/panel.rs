@@ -10,7 +10,7 @@ use iced_runtime::{
 use indexmap::IndexMap;
 use lapiz_assets::{AssetAppExt as _, asset::AssetHandle};
 use lapiz_canvas::{
-    CCanvas, CanvasAppExt as _, CanvasId, CanvasUndoStackAppExt as _, command::TileReplaceCommand,
+    Canvas, CanvasAppExt as _, CanvasId, CanvasUndoStackAppExt as _, command::TileReplaceCommand,
     event::CanvasUpdated,
 };
 use lapiz_effect::asset::EffectInputSlotId;
@@ -561,7 +561,7 @@ impl FilterPanel {
         close(self.main_window)
     }
 
-    fn preview_dirty_tiles(&self, canvas: &CCanvas) -> bevy_math::IRect {
+    fn preview_dirty_tiles(&self, canvas: &Canvas) -> bevy_math::IRect {
         let mut dirty_tiles = GpuTileStorage::pixel_rect_to_tile(canvas.image.image_tile_rect());
         for storage in self.results.values() {
             dirty_tiles = dirty_tiles.union(storage.compute_tile_bounds());
@@ -580,7 +580,7 @@ impl FilterPanel {
     }
 }
 
-fn resolve_target_layers(canvas: &CCanvas) -> Vec<LayerId> {
+fn resolve_target_layers(canvas: &Canvas) -> Vec<LayerId> {
     let layer_stack = canvas.image.layer_stack();
     let mut targets = Vec::new();
     for &layer_id in canvas.selected_layer_ids() {
