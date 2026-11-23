@@ -26,6 +26,8 @@ pub struct Kbd<'a, Message> {
     height: Length,
     size: Pixels,
     listenable: bool,
+    placeholder: String,
+    confirm_on_release: bool,
     check_conflict: Option<Box<dyn Fn(KeySequence) -> bool + 'a>>,
     on_confirm: Option<Box<dyn Fn(KeySequence) -> Message + 'a>>,
     class: Rc<StyleFn<'a>>,
@@ -39,6 +41,8 @@ impl<'a, Message> Kbd<'a, Message> {
             height: Length::Fixed(20.0),
             size: Pixels(12.0),
             listenable: false,
+            placeholder: String::new(),
+            confirm_on_release: false,
             check_conflict: None,
             on_confirm: None,
             class: Rc::new(default),
@@ -62,6 +66,16 @@ impl<'a, Message> Kbd<'a, Message> {
 
     pub fn listenable(mut self) -> Self {
         self.listenable = true;
+        self
+    }
+
+    pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
+        self.placeholder = placeholder.into();
+        self
+    }
+
+    pub fn confirm_on_release(mut self) -> Self {
+        self.confirm_on_release = true;
         self
     }
 
@@ -177,6 +191,12 @@ impl<'a, Message> Component<'a, Message, Theme, Renderer> for Kbd<'a, Message> {
             }) => captured_keys(*code, *modifiers).map_or_else(Action::capture, |keys| {
                 Action::publish(Edit::Record(keys)).and_capture()
             }),
+            Event::Keyboard(keyboard::Event::KeyReleased { .. })
+                if self.confirm_on_release
+                    && matches!(state.recording, Recording::Candidate(_)) =>
+            {
+                Action::publish(Edit::Confirm).and_capture()
+            }
             Event::Keyboard(_) => Action::capture(),
             Event::Window(window::Event::Unfocused) => Action::publish(Edit::Cancel),
             Event::Pointer(event) if event.is_primary_press() && !cursor.is_over(bounds) => {
@@ -229,7 +249,13 @@ impl<'a, Message> Component<'a, Message, Theme, Renderer> for Kbd<'a, Message> {
         let keycaps = Row::new()
             .align_y(Alignment::Center)
             .spacing(6)
-            .push(keycap(labels.next().unwrap_or_default()))
+            .push(keycap(labels.next().unwrap_or_else(|| {
+                if editing {
+                    String::new()
+                } else {
+                    self.placeholder.clone()
+                }
+            })))
             .extend(labels.map(|label| keycap(label).into()));
 
         let badge = Badge {
@@ -249,7 +275,7 @@ impl<'a, Message> Component<'a, Message, Theme, Renderer> for Kbd<'a, Message> {
             }
         }
 
-        if editing {
+        if editing && !self.confirm_on_release {
             let confirm = (keys.is_some() && !conflict).then_some(Edit::Confirm);
             let check = if confirm.is_some() {
                 icon::check()

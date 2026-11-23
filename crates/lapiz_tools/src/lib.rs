@@ -384,6 +384,10 @@ impl ToolFunctionRegistry {
             .insert(T::id(), Rc::new(|| Box::new(T::default())));
     }
 
+    pub fn tool_ids(&self) -> impl Iterator<Item = &ToolId> {
+        self.spawners.keys()
+    }
+
     pub fn icon(&self, id: &ToolId) -> Option<Icon<'static>> {
         let spawn = self.spawners.get(id)?;
         Some(spawn().icon())
@@ -703,6 +707,17 @@ impl GlobalToolBindings {
             .iter()
             .find(|binding| binding.shortcut == shortcut)
             .cloned()
+    }
+
+    pub fn add_binding(&mut self, binding: ToolBinding) -> Result<()> {
+        ensure!(
+            self.manifest().binding_count(binding.shortcut) == 0,
+            "Tool shortcut is already assigned: {}",
+            binding.shortcut
+        );
+
+        self.config
+            .update(|manifest| manifest.bindings.push(binding))
     }
 
     pub fn rebind(&mut self, index: usize, shortcut: KeySequence) -> Result<()> {

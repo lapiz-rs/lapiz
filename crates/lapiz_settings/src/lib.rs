@@ -19,7 +19,10 @@ use lapiz_tools::GlobalToolBindings;
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{column, label, panel, tabs::TabbedView, title_bar};
 
-use crate::{action_bindings::ActionBindingsPage, tool_bindings::ToolBindingsPage};
+use crate::{
+    action_bindings::ActionBindingsPage,
+    tool_bindings::{AddToolBinding, ToolBindingsPage},
+};
 
 pub mod action_bindings;
 pub mod tool_bindings;
@@ -51,6 +54,7 @@ pub enum SettingsMessage {
     Maximize,
     Minimize,
     SelectTab(usize),
+    AddToolBinding(AddToolBinding),
     RebindTool(usize, KeySequence),
     RebindAction(usize, KeySequence),
 }
@@ -125,6 +129,10 @@ impl WindowView for SettingsView {
             SettingsMessage::Minimize => minimize(self.window, true),
             SettingsMessage::SelectTab(index) => {
                 self.selected_tab = index;
+                Task::none()
+            }
+            SettingsMessage::AddToolBinding(message) => {
+                self.tool_bindings.update(message, globals);
                 Task::none()
             }
             SettingsMessage::RebindTool(index, shortcut) => {
