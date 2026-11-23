@@ -93,6 +93,10 @@ impl<'a, Message> Panel<'a, Message> {
         self.style(transparent)
     }
 
+    pub fn outline(self) -> Self {
+        self.style(outline)
+    }
+
     pub fn borderless(self) -> Self {
         self.style(borderless)
     }
@@ -155,4 +159,13 @@ pub fn borderless(theme: &Theme) -> Style {
     Style::default()
         .background(p.background.weakest.color)
         .color(p.background.base.text)
+}
+
+pub fn outline(theme: &Theme) -> Style {
+    let p = theme.palette();
+    Style::default().border(Border {
+        radius: 0.0.into(),
+        width: 1.0,
+        color: p.background.strong.color,
+    })
 }

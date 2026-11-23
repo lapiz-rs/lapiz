@@ -25,7 +25,12 @@ impl PhotoshopBrushEngine {
             ),
             Err(error) => EditorElement::from(label(format!("{error:#}")).muted()),
         };
-        panel(preview).inset().padding(8).width(Length::Fill).into()
+        panel(preview)
+            .outline()
+            .padding(8)
+            .width(Length::Fill)
+            .height(200)
+            .into()
     }
 }
 
