@@ -318,7 +318,6 @@ impl AssetTagEditor {
                 .width(Length::Fill)
                 .height(34)
                 .clip(true)
-                .transparent()
                 .activated(self.model.current_asset_ty.as_ref() == Some(ty))
                 .on_press(Message::SelectType(ty.clone()))
                 .into()
@@ -350,7 +349,6 @@ impl AssetTagEditor {
                         .width(Length::Fill)
                         .height(30)
                         .clip(true)
-                        .transparent()
                         .activated(self.model.current_tag == Some(entry.id))
                         .on_press(Message::SelectTag(entry.id))
                 ]
@@ -428,9 +426,7 @@ impl AssetTagEditor {
                             button(label(t!("create"))).primary().on_press_maybe(
                                 (!form.name.trim().is_empty()).then_some(Message::CreateTag)
                             ),
-                            button(label(t!("cancel")))
-                                .transparent()
-                                .on_press(Message::CancelTag)
+                            button(label(t!("cancel"))).on_press(Message::CancelTag)
                         ]
                         .gap(6.0)
                     ]
@@ -502,7 +498,6 @@ impl AssetTagEditor {
                     .height(54)
                     .padding(8)
                     .clip(true)
-                    .transparent()
                     .activated(self.model.selected_asset == Some(asset.asset_id))
                     .on_press(Message::SelectAsset(asset.asset_id));
                 DragRegion::new(DragItem::Asset(asset.asset_id, list), item).into()
