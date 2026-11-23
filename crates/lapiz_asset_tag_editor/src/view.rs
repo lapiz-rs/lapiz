@@ -27,9 +27,8 @@ use lapiz_widgets::{
     button, column,
     drag_drop::{DragDrop, DragRegion, DropMode, DropZone},
     flex::Flex,
-    icon, icon_button, image, label, panel, row, scrollable,
-    splitter::Splitter,
-    tag, text_input, title_bar, tooltip,
+    icon, icon_button, image, label, pane_grid, panel, row, scrollable, tag, text_input, title_bar,
+    tooltip,
     tooltip::Position,
 };
 
@@ -45,13 +44,20 @@ pub struct AssetTagEditor {
     names: HashMap<UntypedAssetId, String>,
     engines: HashMap<UntypedAssetId, BrushEngineId>,
     searches: [String; 2],
-    ratios: [f32; 3],
+    panes: pane_grid::State<EditorPane>,
+    resize_limits: [(pane_grid::Split, f32, f32); 3],
     preview: Option<image::Handle>,
     preview_generation: u64,
     extra_metadata: Vec<(String, String)>,
     asset_tags: Vec<TagId>,
     error: Option<String>,
     tag_form: Option<TagForm>,
+}
+
+enum EditorPane {
+    Sidebar,
+    Assets(AssetList),
+    Inspector,
 }
 
 struct TagForm {
@@ -68,7 +74,7 @@ pub enum Message {
     Search(AssetList, String),
     ClearSearch(AssetList),
     Drop(DragItem, DragItem, DropZone),
-    Resize(usize, f32),
+    Resize(pane_grid::ResizeEvent),
     BeginTag(bool),
     TagName(String),
     CreateTag,
@@ -110,6 +116,21 @@ impl WindowView for AssetTagEditor {
             min_size: Some(Size::new(1000.0, 640.0)),
             ..Default::default()
         });
+        let (mut panes, sidebar) = pane_grid::State::new(EditorPane::Sidebar);
+        let axis = pane_grid::Axis::Vertical;
+        let (all, sidebar_split) = panes
+            .split(axis, sidebar, EditorPane::Assets(AssetList::All))
+            .expect("sidebar pane exists");
+        let (_, inspector_split) = panes
+            .split(axis, all, EditorPane::Inspector)
+            .expect("all assets pane exists");
+        let (_, lists_split) = panes
+            .split(axis, all, EditorPane::Assets(AssetList::Tagged))
+            .expect("all assets pane exists");
+        panes.resize(sidebar_split, 0.18);
+        panes.resize(inspector_split, 0.76);
+        panes.resize(lists_split, 0.5);
+
         let mut editor = Self {
             window,
             model,
@@ -117,7 +138,12 @@ impl WindowView for AssetTagEditor {
             names: HashMap::new(),
             engines: HashMap::new(),
             searches: Default::default(),
-            ratios: [0.18, 0.76, 0.5],
+            panes,
+            resize_limits: [
+                (sidebar_split, 0.13, 0.3),
+                (inspector_split, 0.55, 0.85),
+                (lists_split, 0.25, 0.75),
+            ],
             preview: None,
             preview_generation: 0,
             extra_metadata: Vec::new(),
@@ -140,16 +166,15 @@ impl WindowView for AssetTagEditor {
                 .on_maximize(Message::Maximize)
                 .on_minimize(Message::Minimize)
                 .on_drag(Message::Drag);
-        let lists = Splitter::horizontal(
-            self.asset_list(AssetList::All),
-            self.asset_list(AssetList::Tagged),
-            self.ratios[2],
-        )
-        .on_resize(|ratio| Message::Resize(2, ratio));
-        let content = Splitter::horizontal(lists, self.inspector(globals), self.ratios[1])
-            .on_resize(|ratio| Message::Resize(1, ratio));
-        let body = Splitter::horizontal(self.sidebar(), content, self.ratios[0])
-            .on_resize(|ratio| Message::Resize(0, ratio));
+        let body = pane_grid::PaneGrid::new(&self.panes, |_, pane, _| {
+            pane_grid::Content::new(match *pane {
+                EditorPane::Sidebar => self.sidebar(),
+                EditorPane::Assets(list) => self.asset_list(list),
+                EditorPane::Inspector => self.inspector(globals),
+            })
+        })
+        .spacing(5.0)
+        .on_resize(0.0, Message::Resize);
         let body = DragDrop::new(
             body,
             |source, target| self.model.accepts(source, target),
@@ -217,13 +242,14 @@ impl WindowView for AssetTagEditor {
                 self.record(result);
                 self.refresh_asset_tags(globals);
             }
-            Message::Resize(index, ratio) => {
-                let (min, max) = match index {
-                    0 => (0.13, 0.3),
-                    1 => (0.55, 0.85),
-                    _ => (0.25, 0.75),
-                };
-                self.ratios[index] = ratio.clamp(min, max);
+            Message::Resize(event) => {
+                if let Some(&(_, min, max)) = self
+                    .resize_limits
+                    .iter()
+                    .find(|(split, _, _)| *split == event.split)
+                {
+                    self.panes.resize(event.split, event.ratio.clamp(min, max));
+                }
             }
             Message::BeginTag(child) => {
                 if let Some(parent) = if child {
