@@ -461,7 +461,11 @@ where
                         bounds,
                         ..renderer::Quad::default()
                     },
-                    p.primary.base.color,
+                    if open {
+                        p.primary.base.color
+                    } else {
+                        p.primary.weak.color
+                    },
                 );
             }
 
@@ -476,7 +480,7 @@ where
                 if open {
                     p.primary.base.text
                 } else {
-                    p.background.base.text
+                    p.background.weak.text
                 },
                 bounds,
             );

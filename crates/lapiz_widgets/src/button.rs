@@ -426,8 +426,8 @@ pub fn transparent(theme: &Theme, status: Status) -> Style {
     match status {
         Status::Active => base,
         Status::Hovered => Style {
-            background: Some(Background::Color(p.primary.base.color)),
-            text_color: p.primary.base.color,
+            background: Some(Background::Color(p.primary.weak.color)),
+            text_color: p.primary.weak.color,
             ..base
         },
         Status::Pressed => Style {

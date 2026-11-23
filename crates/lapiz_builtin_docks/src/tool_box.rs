@@ -79,33 +79,7 @@ impl Dock for ToolBoxDock {
                 .width(28)
                 .height(28)
                 .padding(8)
-                .style(move |theme, status| {
-                    let p = theme.palette();
-                    let hovered = matches!(status, Status::Hovered | Status::Pressed);
-                    Style {
-                        background: Some(
-                            if selected {
-                                p.primary.base.color
-                            } else if hovered {
-                                p.primary.weak.color
-                            } else {
-                                Color::TRANSPARENT
-                            }
-                            .into(),
-                        ),
-                        text_color: if selected {
-                            p.primary.base.text
-                        } else {
-                            p.background.weak.text
-                        },
-                        border: Border {
-                            radius: 0.0.into(),
-                            width: if selected { 1.0 } else { 0.0 },
-                            color: p.primary.base.color,
-                        },
-                        ..Default::default()
-                    }
-                })
+                .transparent()
                 .on_press(ToolBoxDockMessage::Switch(tool.clone()));
             tooltip(button, label(t!(tool)), Position::Right).into()
         };
