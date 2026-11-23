@@ -115,7 +115,6 @@ impl BrushEngine for PhotoshopBrushEngine {
                 toggle,
                 button(label(section.label()))
                     .width(Length::Fill)
-                    .transparent()
                     .activated(self.section == section)
                     .on_press(PhotoshopBrushEngineMessage::SelectSection(section)),
             ]
