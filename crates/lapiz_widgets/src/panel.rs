@@ -92,6 +92,10 @@ impl<'a, Message> Panel<'a, Message> {
     pub fn transparent(self) -> Self {
         self.style(transparent)
     }
+
+    pub fn borderless(self) -> Self {
+        self.style(borderless)
+    }
 }
 
 impl<'a, Message: 'a> From<Panel<'a, Message>> for Element<'a, Message, Theme, Renderer> {
@@ -144,4 +148,11 @@ pub fn inset(theme: &Theme) -> Style {
 
 pub fn transparent(_theme: &Theme) -> Style {
     Style::default()
+}
+
+pub fn borderless(theme: &Theme) -> Style {
+    let p = theme.palette();
+    Style::default()
+        .background(p.background.weakest.color)
+        .color(p.background.base.text)
 }

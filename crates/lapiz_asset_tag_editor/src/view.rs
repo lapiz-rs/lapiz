@@ -440,6 +440,7 @@ impl AssetTagEditor {
             .padding(10)
             .width(Length::Fill)
             .height(Length::Fill)
+            .borderless()
             .into()
     }
 
@@ -547,6 +548,7 @@ impl AssetTagEditor {
             .padding(12)
             .width(Length::Fill)
             .height(Length::Fill)
+            .borderless()
             .into()
     }
 
@@ -570,6 +572,7 @@ impl AssetTagEditor {
             .padding(12)
             .width(Length::Fill)
             .height(Length::Fill)
+            .borderless()
             .into();
         };
         let mut content = column![
@@ -669,6 +672,7 @@ impl AssetTagEditor {
             .padding(12)
             .width(Length::Fill)
             .height(Length::Fill)
+            .borderless()
             .into()
     }
 
