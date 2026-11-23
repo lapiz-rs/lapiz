@@ -7,7 +7,7 @@ use iced_runtime::{
     Task,
     window::{close, open},
 };
-use lapiz_canvas::{CCanvas, CanvasAppExt as _};
+use lapiz_canvas::{Canvas, CanvasAppExt as _};
 use lapiz_config::Config;
 use lapiz_file_dialog::LocalFile;
 use lapiz_i18n::t;
@@ -151,7 +151,7 @@ impl WindowView for ImportDialogView {
                 if let Ok(archive) = archive
                     && let Ok(image) = CImage::from_lazuli(&archive, globals).logged_err()
                 {
-                    globals.add_canvas(CCanvas::new(self.local_file.take(), image, archive));
+                    globals.add_canvas(Canvas::new(self.local_file.take(), image, archive));
                 }
 
                 Config::<ImageImporterConfig>::read_or_init_or_fallback()

@@ -56,7 +56,7 @@ wrapper! {
 /// - Changing the active layer via [`set_active_layer`](Self::set_active_layer) automatically
 ///   ensures the active layer is included in `selected_layers` and broadcasts a
 ///   [`CanvasActiveLayerChanged`] event.
-pub struct CCanvas {
+pub struct Canvas {
     id: CanvasId,
     pub image: CImage,
     pub archive: LazuliArchive,
@@ -66,7 +66,7 @@ pub struct CCanvas {
     selected_layers: IndexSet<LayerId>,
 }
 
-impl CCanvas {
+impl Canvas {
     pub fn new(local_file: Option<LocalFile>, image: CImage, archive: LazuliArchive) -> Self {
         let background_layer = *image
             .layer_stack()
@@ -210,14 +210,14 @@ impl Plugin for CanvasPlugin {
 /// Most callers interact with `CanvasManager` through the [`CanvasAppExt`] extension trait on [`Globals`].
 #[derive(Default)]
 pub struct CanvasManager {
-    canvases: HashMap<CanvasId, CCanvas>,
+    canvases: HashMap<CanvasId, Canvas>,
     current_canvas: Option<CanvasId>,
 }
 
 impl Global for CanvasManager {}
 
 impl CanvasManager {
-    pub fn add_canvas(&mut self, canvas: CCanvas) -> CanvasId {
+    pub fn add_canvas(&mut self, canvas: Canvas) -> CanvasId {
         let id = canvas.id;
         self.current_canvas = Some(id);
         self.canvases.insert(id, canvas);
@@ -225,7 +225,7 @@ impl CanvasManager {
         id
     }
 
-    pub fn remove_canvas(&mut self, id: &CanvasId) -> Option<CCanvas> {
+    pub fn remove_canvas(&mut self, id: &CanvasId) -> Option<Canvas> {
         let removed = self.canvases.remove(id)?;
         if self.current_canvas.as_ref() == Some(id) {
             self.current_canvas = self.canvases.keys().next().copied();
@@ -233,19 +233,19 @@ impl CanvasManager {
         Some(removed)
     }
 
-    pub fn get(&self, id: &CanvasId) -> Option<&CCanvas> {
+    pub fn get(&self, id: &CanvasId) -> Option<&Canvas> {
         self.canvases.get(id)
     }
 
-    pub fn get_mut(&mut self, id: &CanvasId) -> Option<&mut CCanvas> {
+    pub fn get_mut(&mut self, id: &CanvasId) -> Option<&mut Canvas> {
         self.canvases.get_mut(id)
     }
 
-    pub fn current(&self) -> Option<&CCanvas> {
+    pub fn current(&self) -> Option<&Canvas> {
         self.get(&self.current_canvas?)
     }
 
-    pub fn current_mut(&mut self) -> Option<&mut CCanvas> {
+    pub fn current_mut(&mut self) -> Option<&mut Canvas> {
         self.get_mut(&self.current_canvas?)
     }
 
@@ -261,31 +261,31 @@ impl CanvasManager {
 
 /// Extension trait on [`Globals`] providing convenient access and mutation helpers for [`CanvasManager`].
 pub trait CanvasAppExt {
-    fn add_canvas(&mut self, canvas: CCanvas) -> CanvasId;
-    fn remove_canvas(&mut self, id: &CanvasId) -> Option<CCanvas>;
+    fn add_canvas(&mut self, canvas: Canvas) -> CanvasId;
+    fn remove_canvas(&mut self, id: &CanvasId) -> Option<Canvas>;
     fn current_canvas_id(&self) -> Option<CanvasId>;
-    fn current_canvas(&self) -> Option<&CCanvas>;
-    fn current_canvas_mut(&mut self) -> Option<&mut CCanvas>;
-    fn canvas(&self, id: &CanvasId) -> Option<&CCanvas>;
-    fn canvas_mut(&mut self, id: &CanvasId) -> Option<&mut CCanvas>;
+    fn current_canvas(&self) -> Option<&Canvas>;
+    fn current_canvas_mut(&mut self) -> Option<&mut Canvas>;
+    fn canvas(&self, id: &CanvasId) -> Option<&Canvas>;
+    fn canvas_mut(&mut self, id: &CanvasId) -> Option<&mut Canvas>;
     fn update_current_canvas<R>(
         &mut self,
-        update: impl FnOnce(&mut CCanvas, &mut Globals) -> R,
+        update: impl FnOnce(&mut Canvas, &mut Globals) -> R,
     ) -> Option<R>;
     fn update_canvas<R>(
         &mut self,
         id: &CanvasId,
-        update: impl FnOnce(&mut CCanvas, &mut Globals) -> R,
+        update: impl FnOnce(&mut Canvas, &mut Globals) -> R,
     ) -> Option<R>;
     fn set_current_canvas(&mut self, id: CanvasId);
 }
 
 impl CanvasAppExt for Globals {
-    fn add_canvas(&mut self, canvas: CCanvas) -> CanvasId {
+    fn add_canvas(&mut self, canvas: Canvas) -> CanvasId {
         self.global_mut::<CanvasManager>().add_canvas(canvas)
     }
 
-    fn remove_canvas(&mut self, id: &CanvasId) -> Option<CCanvas> {
+    fn remove_canvas(&mut self, id: &CanvasId) -> Option<Canvas> {
         self.global_mut::<CanvasManager>().remove_canvas(id)
     }
 
@@ -293,25 +293,25 @@ impl CanvasAppExt for Globals {
         self.global::<CanvasManager>().current_id()
     }
 
-    fn current_canvas(&self) -> Option<&CCanvas> {
+    fn current_canvas(&self) -> Option<&Canvas> {
         self.global::<CanvasManager>().current()
     }
 
-    fn current_canvas_mut(&mut self) -> Option<&mut CCanvas> {
+    fn current_canvas_mut(&mut self) -> Option<&mut Canvas> {
         self.global_mut::<CanvasManager>().current_mut()
     }
 
-    fn canvas(&self, id: &CanvasId) -> Option<&CCanvas> {
+    fn canvas(&self, id: &CanvasId) -> Option<&Canvas> {
         self.global::<CanvasManager>().get(id)
     }
 
-    fn canvas_mut(&mut self, id: &CanvasId) -> Option<&mut CCanvas> {
+    fn canvas_mut(&mut self, id: &CanvasId) -> Option<&mut Canvas> {
         self.global_mut::<CanvasManager>().get_mut(id)
     }
 
     fn update_current_canvas<R>(
         &mut self,
-        update: impl FnOnce(&mut CCanvas, &mut Globals) -> R,
+        update: impl FnOnce(&mut Canvas, &mut Globals) -> R,
     ) -> Option<R> {
         let id = self.current_canvas_id()?;
         self.update_canvas(&id, update)
@@ -320,7 +320,7 @@ impl CanvasAppExt for Globals {
     fn update_canvas<R>(
         &mut self,
         id: &CanvasId,
-        update: impl FnOnce(&mut CCanvas, &mut Globals) -> R,
+        update: impl FnOnce(&mut Canvas, &mut Globals) -> R,
     ) -> Option<R> {
         self.update_global::<CanvasManager, _>(|manager, globals| {
             let canvas = manager.get_mut(id)?;

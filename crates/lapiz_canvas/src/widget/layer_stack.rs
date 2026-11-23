@@ -25,7 +25,7 @@ use lapiz_widgets::{
     tree::{Tree, TreeNode, TreePosition},
 };
 
-use crate::{CCanvas, command::LayerPropertyChangeCommand};
+use crate::{Canvas, command::LayerPropertyChangeCommand};
 
 /// UI messages emitted by [`LayerStackView`] for layer selection, renaming, drag-and-drop reordering, and property edits.
 #[derive(Debug, Clone)]
@@ -83,7 +83,7 @@ pub fn property_button_style(
 }
 
 fn property_command(
-    canvas: &CCanvas,
+    canvas: &Canvas,
     layer_id: LayerId,
     old: &LayerProperties,
     apply: impl Fn(&mut LayerProperties),
@@ -100,7 +100,7 @@ fn property_command(
 
 /// View builder that renders the hierarchical layer stack panel, blend mode/opacity controls, and drag-and-drop list for a [`CCanvas`].
 pub struct LayerStackView<'a, Message: Clone + 'a> {
-    canvas: &'a CCanvas,
+    canvas: &'a Canvas,
     blend_functions: &'a BlendFunctionRegistry,
     tile_storage: &'a GpuTileStorage,
     renaming_layer: Option<LayerId>,
@@ -110,7 +110,7 @@ pub struct LayerStackView<'a, Message: Clone + 'a> {
 
 impl<'a, Message: Clone + 'a> LayerStackView<'a, Message> {
     pub fn new(
-        canvas: &'a CCanvas,
+        canvas: &'a Canvas,
         blend_functions: &'a BlendFunctionRegistry,
         tile_storage: &'a GpuTileStorage,
         renaming_layer: Option<LayerId>,

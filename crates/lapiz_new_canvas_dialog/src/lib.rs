@@ -13,7 +13,7 @@ use iced_runtime::{
     window::{close, drag, minimize, open, toggle_maximize},
 };
 use image::{DynamicImage, RgbaImage};
-use lapiz_canvas::{CCanvas, CanvasAppExt as _};
+use lapiz_canvas::{Canvas, CanvasAppExt as _};
 use lapiz_i18n::t;
 use lapiz_image::{
     CImage,
@@ -373,7 +373,7 @@ impl WindowView for NewCanvasDialog {
                         return Task::none();
                     }
                 };
-                let canvas = CCanvas::new(None, image, archive);
+                let canvas = Canvas::new(None, image, archive);
 
                 globals.add_canvas(canvas);
                 close(self.window)
