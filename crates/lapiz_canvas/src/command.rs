@@ -1144,7 +1144,7 @@ mod test {
     use futures::executor::block_on;
     use glam::UVec2;
     use lapiz_image::{
-        CImage,
+        Image,
         layer::{
             LayerTypeRegistry, group_layer::GroupLayer, pixel_layer::PixelLayer,
             properties::builtin::NameProp,
@@ -1178,7 +1178,7 @@ mod test {
         let mut registry = LayerTypeRegistry::default();
         registry.register::<GroupLayer>();
         let mut image =
-            CImage::from_layer(UVec2::ONE, pixel(), ColorProfile::new_srgb(), &registry);
+            Image::from_layer(UVec2::ONE, pixel(), ColorProfile::new_srgb(), &registry);
         let stack = image.layer_stack_mut();
         let root = *stack.root_id();
         let layers = array::from_fn(|index| {

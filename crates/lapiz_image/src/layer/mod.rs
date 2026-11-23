@@ -19,7 +19,7 @@ use uuid::Uuid;
 use wgpu::{ComputePass, Device, Queue};
 
 use crate::{
-    CImage,
+    Image,
     composite::{BlendFunctionRegistry, ImageCompositor, LayerPreviewOverriders},
     layer::{
         group_layer::GroupLayer,
@@ -210,7 +210,7 @@ pub trait Layer: Send + Sync + DynClone + 'static {
         &self,
         compositor: &mut ImageCompositor,
         overriders: &mut LayerPreviewOverriders,
-        image: &CImage,
+        image: &Image,
         layer_id: LayerId,
         tiles: &GpuTileStorage,
         blend_funcs: &BlendFunctionRegistry,
@@ -221,7 +221,7 @@ pub trait Layer: Send + Sync + DynClone + 'static {
         &self,
         compositor: &mut ImageCompositor,
         overriders: &LayerPreviewOverriders,
-        image: &CImage,
+        image: &Image,
         layer_id: LayerId,
         tiles: &GpuTileStorage,
         dst_layer: &LayerBinding,
@@ -233,7 +233,7 @@ pub trait Layer: Send + Sync + DynClone + 'static {
         &self,
         compositor: &ImageCompositor,
         pass: &mut ComputePass,
-        image: &CImage,
+        image: &Image,
         layer_id: LayerId,
         tiles: &GpuTileStorage,
     );
@@ -829,7 +829,7 @@ impl LayerStackNode {
         &self,
         compositor: &mut ImageCompositor,
         overriders: &mut LayerPreviewOverriders,
-        image: &CImage,
+        image: &Image,
         tiles: &GpuTileStorage,
         blend_funcs: &BlendFunctionRegistry,
         device: &Device,
@@ -851,7 +851,7 @@ impl LayerStackNode {
         &self,
         compositor: &mut ImageCompositor,
         overriders: &LayerPreviewOverriders,
-        image: &CImage,
+        image: &Image,
         tiles: &GpuTileStorage,
         dst_layer: &LayerBinding,
         output: &LayerBinding,
@@ -867,7 +867,7 @@ impl LayerStackNode {
         &self,
         compositor: &ImageCompositor,
         pass: &mut ComputePass,
-        image: &CImage,
+        image: &Image,
         tiles: &GpuTileStorage,
     ) {
         self.instance

@@ -16,7 +16,7 @@ use image::{DynamicImage, RgbaImage};
 use lapiz_canvas::{Canvas, CanvasAppExt as _};
 use lapiz_i18n::t;
 use lapiz_image::{
-    CImage,
+    Image,
     layer::{LayerTypeRegistryExt as _, properties::builtin::LayerTexelTypePropertyExt as _},
     tile::{GpuLayerInfo, TileStorageAppExt as _},
 };
@@ -26,9 +26,7 @@ use lapiz_runtime::{
     plugin::Plugin,
     windows::{WindowView, WindowViewId},
 };
-use lapiz_widgets::{
-    button, column, form, image::Image, label, panel, row, space, spin_box, tab_bar, title_bar,
-};
+use lapiz_widgets::{button, column, form, label, panel, row, space, spin_box, tab_bar, title_bar};
 use moxcms::ColorProfile;
 
 lapiz_i18n::define_i18n!("new_canvas_dialog");
@@ -109,7 +107,7 @@ impl ClipboardImage {
                         continue;
                     };
                     if let Ok((image, profile)) =
-                        CImage::load_image_with_profile(BufReader::new(file))
+                        Image::load_image_with_profile(BufReader::new(file))
                     {
                         let pixels = image.into_rgba8();
                         let (width, height) = pixels.dimensions();
@@ -246,6 +244,8 @@ impl WindowView for NewCanvasDialog {
             .height(Length::Fill);
         if self.tab == CanvasTab::Clipboard {
             if let Some(image) = &self.clipboard_image {
+                use lapiz_widgets::image::Image;
+
                 content = content.push(
                     Image::new(image.preview.clone())
                         .width(Length::Fill)
@@ -338,7 +338,7 @@ impl WindowView for NewCanvasDialog {
                 let this = &self;
                 let document = match this.tab {
                     CanvasTab::NewCanvas => {
-                        let image = CImage::new(
+                        let image = Image::new(
                             UVec2::new(this.width, this.height),
                             ColorProfile::new_srgb(),
                             globals.layer_type_registry(),
@@ -355,13 +355,13 @@ impl WindowView for NewCanvasDialog {
                     }
                     CanvasTab::Clipboard => {
                         let clipboard = this.clipboard_image.as_ref().unwrap();
-                        CImage::image_to_lazuli(
+                        Image::image_to_lazuli(
                             DynamicImage::ImageRgba8(clipboard.pixels.clone()),
                             clipboard.profile.clone(),
                             globals.layer_type_registry(),
                         )
                         .and_then(|archive| {
-                            let image = CImage::from_lazuli(&archive, globals)?;
+                            let image = Image::from_lazuli(&archive, globals)?;
                             Ok((image, archive))
                         })
                     }

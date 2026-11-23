@@ -19,7 +19,7 @@ use wgpu::{
 };
 
 use crate::{
-    CImage,
+    Image,
     composite::{
         BlendFunctionId, BlendFunctionRegistry, BlendLayerParams, ImageCompositor,
         LayerPreviewOverriders, PixelPreviewOverrider,
@@ -54,7 +54,7 @@ impl Layer for PixelLayer {
         &self,
         compositor: &mut ImageCompositor,
         _: &mut LayerPreviewOverriders,
-        image: &CImage,
+        image: &Image,
         layer_id: LayerId,
         tiles: &GpuTileStorage,
         blend_funcs: &BlendFunctionRegistry,
@@ -215,7 +215,7 @@ impl Layer for PixelLayer {
         &self,
         compositor: &mut ImageCompositor,
         overriders: &LayerPreviewOverriders,
-        image: &CImage,
+        image: &Image,
         layer_id: LayerId,
         tiles: &GpuTileStorage,
         dst_layer: &LayerBinding,
@@ -281,7 +281,7 @@ impl Layer for PixelLayer {
         &self,
         compositor: &ImageCompositor,
         pass: &mut ComputePass,
-        image: &CImage,
+        image: &Image,
         layer_id: LayerId,
         _: &GpuTileStorage,
     ) {
@@ -337,7 +337,7 @@ impl PixelLayer {
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        let (image, profile) = CImage::load_image_with_profile(BufReader::new(File::open(path)?))?;
+        let (image, profile) = Image::load_image_with_profile(BufReader::new(File::open(path)?))?;
 
         let mut layer = Self::from_image(image, tiles, layer_registry);
         layer.properties_mut().set_name(filename);

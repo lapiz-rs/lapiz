@@ -13,7 +13,7 @@ use lapiz_color::{
 };
 use lapiz_i18n::t;
 use lapiz_image::{
-    CImage,
+    Image,
     layer::{
         Layer, LayerId, group_layer::GroupLayer, pixel_layer::PixelLayer,
         properties::builtin::LayerTexelTypePropertyExt as _,
@@ -220,7 +220,7 @@ impl EyeDropperTool {
     fn start_sample(
         &mut self,
         request: SampleRequest,
-        image: &CImage,
+        image: &Image,
         globals: &Globals,
     ) -> Task<EyeDropperToolMessage> {
         let registry = globals.global::<EyeDropperTargetRegistry>();

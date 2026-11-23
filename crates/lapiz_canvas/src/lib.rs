@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::Path, sync::Arc};
 use indexmap::IndexSet;
 use lapiz_file_dialog::LocalFile;
 use lapiz_image::{
-    CImage,
+    Image,
     layer::{LayerId, LayerStackNode},
 };
 use lapiz_lazuli::LazuliArchive;
@@ -58,7 +58,7 @@ wrapper! {
 ///   [`CanvasActiveLayerChanged`] event.
 pub struct Canvas {
     id: CanvasId,
-    pub image: CImage,
+    pub image: Image,
     pub archive: LazuliArchive,
     local_file: Option<Arc<LocalFile>>,
     pub transform: CanvasTransform,
@@ -67,7 +67,7 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(local_file: Option<LocalFile>, image: CImage, archive: LazuliArchive) -> Self {
+    pub fn new(local_file: Option<LocalFile>, image: Image, archive: LazuliArchive) -> Self {
         let background_layer = *image
             .layer_stack()
             .root_node()

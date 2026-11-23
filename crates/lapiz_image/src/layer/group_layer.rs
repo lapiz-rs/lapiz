@@ -15,7 +15,7 @@ use wgpu::{
 };
 
 use crate::{
-    CImage,
+    Image,
     composite::{
         BlendFunctionId, BlendFunctionRegistry, BlendLayerParams, ImageCompositor,
         LayerPreviewOverriders,
@@ -50,7 +50,7 @@ impl Layer for GroupLayer {
         &self,
         compositor: &mut ImageCompositor,
         overriders: &mut LayerPreviewOverriders,
-        image: &CImage,
+        image: &Image,
         layer_id: LayerId,
         tiles: &GpuTileStorage,
         blend_funcs: &BlendFunctionRegistry,
@@ -172,7 +172,7 @@ impl Layer for GroupLayer {
         &self,
         compositor: &mut ImageCompositor,
         overriders: &LayerPreviewOverriders,
-        image: &CImage,
+        image: &Image,
         layer_id: LayerId,
         tiles: &GpuTileStorage,
         dst_layer: &LayerBinding,
@@ -278,7 +278,7 @@ impl Layer for GroupLayer {
         &self,
         compositor: &ImageCompositor,
         pass: &mut ComputePass,
-        image: &CImage,
+        image: &Image,
         layer_id: LayerId,
         tiles: &GpuTileStorage,
     ) {

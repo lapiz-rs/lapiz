@@ -3,7 +3,7 @@ use std::{fs::File, io::BufReader, path::Path};
 use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
-use lapiz_image::{CImage, layer::LayerTypeRegistry};
+use lapiz_image::{Image, layer::LayerTypeRegistry};
 use lapiz_lazuli::LazuliArchive;
 use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_widgets::column;
@@ -46,10 +46,10 @@ macro_rules! simple_importers {
 
                 #[tracing::instrument(skip_all)]
                 async fn import(&self, globals: &Globals, path: &Path) -> Result<LazuliArchive> {
-                    let (image, profile) = CImage::load_image_with_profile(BufReader::new(
+                    let (image, profile) = Image::load_image_with_profile(BufReader::new(
                         File::open(path)?,
                     ))?;
-                    CImage::image_to_lazuli(image, profile, globals.global::<LayerTypeRegistry>())
+                    Image::image_to_lazuli(image, profile, globals.global::<LayerTypeRegistry>())
                 }
 
                 fn to_toml(&self) -> Result<toml::Value> {
