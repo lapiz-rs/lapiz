@@ -142,6 +142,7 @@ pub fn default(theme: &Theme, status: Status) -> Style {
         }
         style.border.color.a *= 0.4;
         style.text_color.as_mut().unwrap().a *= 0.4;
+        style.icon_color.a *= 0.4;
     }
     style
 }
