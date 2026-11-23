@@ -18,7 +18,7 @@ use lapiz_runtime::{
     global::{Global, Globals},
     platform,
 };
-use lapiz_widgets::{column, context_menu, menu, pane_grid, space, stack, tab_bar};
+use lapiz_widgets::{column, context_menu, menu, pane_grid, panel, space, stack, tab_bar};
 use state::DockState;
 
 use crate::{
@@ -839,10 +839,14 @@ impl DockManager {
                         let body = group.active().map_or_else(
                             || Element::new(space()),
                             |id| {
-                                self.docks[id].view(window_id, globals).map({
+                                panel(self.docks[id].view(window_id, globals).map({
                                     let id = id.clone();
                                     move |m| DockMessage::Dock(id.clone(), m)
-                                })
+                                }))
+                                .width(Length::Fill)
+                                .height(Length::Fill)
+                                .borderless()
+                                .into()
                             },
                         );
 
@@ -939,13 +943,17 @@ impl DockManager {
                 move |m| DockMessage::Dock(active.clone(), m)
             });
             let content = Element::from(
-                column![
-                    Element::new(tabs).map(move |action| DockMessage::Float {
-                        id: window_id,
-                        action,
-                    }),
-                    body
-                ]
+                panel(
+                    column![
+                        Element::new(tabs).map(move |action| DockMessage::Float {
+                            id: window_id,
+                            action,
+                        }),
+                        body
+                    ]
+                    .width(Length::Fill)
+                    .height(Length::Fill),
+                )
                 .width(Length::Fill)
                 .height(Length::Fill),
             );
