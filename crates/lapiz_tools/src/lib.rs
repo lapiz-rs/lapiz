@@ -720,6 +720,17 @@ impl GlobalToolBindings {
             .update(|manifest| manifest.bindings.push(binding))
     }
 
+    pub fn remove_binding(&mut self, index: usize) -> Result<()> {
+        ensure!(
+            index < self.manifest().bindings.len(),
+            "Tool binding does not exist: {index}"
+        );
+
+        self.config.update(|manifest| {
+            manifest.bindings.remove(index);
+        })
+    }
+
     pub fn rebind(&mut self, index: usize, shortcut: KeySequence) -> Result<()> {
         let manifest = self.manifest();
         let Some(binding) = manifest.bindings.get(index) else {

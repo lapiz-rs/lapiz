@@ -3,6 +3,7 @@ settings_tool_bindings_tab = 工具绑定
 settings_action_bindings_tab = 操作绑定
 settings_temporary_tool = { $tool }（按住）
 settings_add_tool_binding = 添加工具绑定
+settings_delete_tool_binding = 删除绑定
 settings_select_tool = 选择工具
 settings_tool_mode_switch = 切换
 settings_tool_mode_hold = 按住

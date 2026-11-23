@@ -5,7 +5,8 @@ use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_tools::{GlobalToolBindings, ToolFunctionRegistry, ToolId, manifest::ToolBinding};
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{
-    button, column, combo_box::ComboBox, icon, icon_button, kbd, label, row, scrollable,
+    button, column, combo_box::ComboBox, context_menu, icon, icon_button, kbd, label, menu, row,
+    scrollable,
 };
 
 use crate::SettingsMessage;
@@ -14,6 +15,7 @@ use crate::SettingsMessage;
 pub enum ToolBindingsMessage {
     AddToolBinding(AddToolBinding),
     RebindTool(usize, KeySequence),
+    DeleteBinding(usize),
 }
 
 #[derive(Clone)]
@@ -44,14 +46,14 @@ impl ToolBindingsPage {
         let bindings = globals.global::<GlobalToolBindings>();
         let registry = globals.global::<ToolFunctionRegistry>();
         let manifest = bindings.manifest();
-        let mut bindings = manifest.bindings.clone();
-        bindings.sort_by(|a, b| {
+        let mut bindings = manifest.bindings.iter().enumerate().collect::<Vec<_>>();
+        bindings.sort_by(|(_, a), (_, b)| {
             a.tool
                 .cmp(&b.tool)
                 .then(a.is_temporary.cmp(&b.is_temporary))
         });
 
-        let rows = bindings.into_iter().enumerate().map(|(index, binding)| {
+        let rows = bindings.into_iter().map(|(index, binding)| {
             let glyph = registry
                 .icon(&binding.tool)
                 .unwrap_or_else(icon::info)
@@ -69,7 +71,7 @@ impl ToolBindingsPage {
                 .check_conflict(move |keys| keys != original && manifest.binding_count(keys) != 0)
                 .on_confirm(move |keys| ToolBindingsMessage::RebindTool(index, keys));
 
-            row![
+            let content = row![
                 glyph,
                 label(name)
                     .width(Length::Fill)
@@ -78,8 +80,13 @@ impl ToolBindingsPage {
                 row![keys].width(240)
             ]
             .width(Length::Fill)
-            .gap(12)
-            .into()
+            .gap(12);
+            let menu = menu().item(
+                t!("settings_delete_tool_binding"),
+                None,
+                ToolBindingsMessage::DeleteBinding(index),
+            );
+            context_menu(content, menu).into()
         });
 
         let footer = if let Some(draft) = &self.draft {
@@ -198,6 +205,12 @@ impl ToolBindingsPage {
                 globals
                     .global_mut::<GlobalToolBindings>()
                     .rebind(index, shortcut)
+                    .log_err();
+            }
+            ToolBindingsMessage::DeleteBinding(index) => {
+                globals
+                    .global_mut::<GlobalToolBindings>()
+                    .remove_binding(index)
                     .log_err();
             }
         }

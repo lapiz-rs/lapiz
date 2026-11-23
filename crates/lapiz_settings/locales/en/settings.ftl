@@ -3,6 +3,7 @@ settings_tool_bindings_tab = Tool Bindings
 settings_action_bindings_tab = Action Bindings
 settings_temporary_tool = { $tool } (hold)
 settings_add_tool_binding = Add tool binding
+settings_delete_tool_binding = Delete binding
 settings_select_tool = Select a tool
 settings_tool_mode_switch = Switch
 settings_tool_mode_hold = Hold
