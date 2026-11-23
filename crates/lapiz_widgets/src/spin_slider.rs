@@ -197,18 +197,22 @@ where
     fn text_input<'b, Renderer>(
         &'b self,
         value: &'b str,
+        height: f32,
     ) -> Element<'b, SpinSliderInputMessage, Theme, Renderer>
     where
         Renderer: text::Renderer + 'static,
         for<'c> <Theme as text_input::Catalog>::Class<'c>: From<text_input::StyleFn<'c, Theme>>,
     {
+        let line_height = LineHeight::Relative(1.0);
+        let vertical_padding = ((height - line_height.to_absolute(self.size).0) / 2.0).max(0.0);
+
         TextInput::new("", value)
             .on_input(SpinSliderInputMessage::Changed)
             .on_submit(SpinSliderInputMessage::Submitted)
             .width(Length::Fill)
-            .padding([0, 4])
+            .padding([vertical_padding, 4.0])
             .size(self.size)
-            .line_height(LineHeight::Relative(1.0))
+            .line_height(line_height)
             .align_x(Horizontal::Center)
             .style(|theme, status| {
                 let spin_style = <Theme as Catalog>::style(theme, &self.class, Status::Editing);
@@ -305,7 +309,7 @@ where
             SpinSliderState::Editing { value } => value.clone(),
             _ => format!("{:.*}", self.precision, self.value),
         };
-        let mut text_input = self.text_input::<Renderer>(&value);
+        let mut text_input = self.text_input::<Renderer>(&value, 0.0);
         tree.diff_children(&mut [&mut text_input]);
     }
 
@@ -327,7 +331,7 @@ where
             SpinSliderState::Editing { value } => value.clone(),
             _ => format!("{:.*}", self.precision, self.value),
         };
-        let mut input = self.text_input::<Renderer>(&value);
+        let mut input = self.text_input::<Renderer>(&value, input_size.height);
         let input = input
             .as_widget_mut()
             .layout(
@@ -353,6 +357,8 @@ where
         let state = tree.state.downcast_mut::<SpinSliderTreeState<T>>();
         let bounds = layout.bounds();
         let (minus, field, plus) = split_bounds(bounds);
+        let input_layout = layout.child(0);
+        let input_height = input_layout.bounds().height;
 
         if let Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)) = event {
             state.modifiers = *modifiers;
@@ -360,7 +366,7 @@ where
 
         if self.disabled {
             if matches!(state.interaction, SpinSliderState::Editing { .. }) {
-                let mut input = self.text_input::<Renderer>("");
+                let mut input = self.text_input::<Renderer>("", input_height);
                 unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
@@ -391,7 +397,7 @@ where
 
         if let SpinSliderState::Editing { value } = &state.interaction {
             let input_value = value.clone();
-            let mut input = self.text_input::<Renderer>(&input_value);
+            let mut input = self.text_input::<Renderer>(&input_value, input_height);
             let mut input_messages = Bus::new();
             let mut input_shell = shell.local(&mut input_messages);
             input.as_widget_mut().update(
@@ -455,7 +461,7 @@ where
             }
 
             if !matches!(state.interaction, SpinSliderState::Editing { .. }) {
-                let mut input = self.text_input::<Renderer>("");
+                let mut input = self.text_input::<Renderer>("", input_height);
                 unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
@@ -485,7 +491,7 @@ where
             let edited_value = value.parse::<T>().ok().map(|value| self.snap(value));
             state.interaction = SpinSliderState::Idle;
             {
-                let mut input = self.text_input::<Renderer>("");
+                let mut input = self.text_input::<Renderer>("", input_height);
                 unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
@@ -618,7 +624,7 @@ where
                             value: format!("{:.*}", self.precision, self.value),
                         };
                         let edit_value = format!("{:.*}", self.precision, self.value);
-                        let mut input = self.text_input::<Renderer>(&edit_value);
+                        let mut input = self.text_input::<Renderer>(&edit_value, input_height);
                         focus_and_select_all(|operation| {
                             input.as_widget_mut().operate(
                                 &mut tree.children[0],
@@ -792,15 +798,18 @@ where
         let text_color = style.text_color.unwrap_or(renderer_style.text_color);
         fill_text(renderer, minus, "−", self.size, text_color);
         if let SpinSliderState::Editing { value } = &state.interaction {
-            self.text_input::<Renderer>(value).as_widget().draw(
-                &tree.children[0],
-                renderer,
-                theme,
-                renderer_style,
-                layout.child(0),
-                cursor,
-                viewport,
-            );
+            let input_layout = layout.child(0);
+            self.text_input::<Renderer>(value, input_layout.bounds().height)
+                .as_widget()
+                .draw(
+                    &tree.children[0],
+                    renderer,
+                    theme,
+                    renderer_style,
+                    input_layout,
+                    cursor,
+                    viewport,
+                );
         } else {
             fill_text(
                 renderer,
@@ -825,10 +834,11 @@ where
             return mouse::Interaction::default();
         }
         let state = tree.state.downcast_ref::<SpinSliderTreeState<T>>();
+        let input_layout = layout.child(0);
         if let SpinSliderState::Editing { value } = &state.interaction
-            && cursor.is_over(layout.child(0).bounds())
+            && cursor.is_over(input_layout.bounds())
         {
-            self.text_input::<Renderer>(value)
+            self.text_input::<Renderer>(value, input_layout.bounds().height)
                 .as_widget()
                 .mouse_interaction(
                     &tree.children[0],
