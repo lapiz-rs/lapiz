@@ -19,7 +19,9 @@ pub struct ActionBindingsPage {}
 impl ActionBindingsPage {
     pub fn view(&self, globals: &Globals) -> Element<'_, ActionBindingsMessage, Theme, Renderer> {
         let manifest = globals.global::<GlobalActionBindings>().manifest();
-        let rows = manifest.actions.iter().enumerate().map(|(index, binding)| {
+        let mut actions = manifest.actions.clone();
+        actions.sort_by(|a, b| a.action_name.cmp(&b.action_name));
+        let rows = actions.into_iter().enumerate().map(|(index, binding)| {
             let name = t!(&binding.action_name);
             let manifest = manifest.clone();
             let original = binding.shortcut;

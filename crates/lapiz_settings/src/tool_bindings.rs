@@ -44,43 +44,43 @@ impl ToolBindingsPage {
         let bindings = globals.global::<GlobalToolBindings>();
         let registry = globals.global::<ToolFunctionRegistry>();
         let manifest = bindings.manifest();
+        let mut bindings = manifest.bindings.clone();
+        bindings.sort_by(|a, b| {
+            a.tool
+                .cmp(&b.tool)
+                .then(a.is_temporary.cmp(&b.is_temporary))
+        });
 
-        let rows = manifest
-            .bindings
-            .iter()
-            .enumerate()
-            .map(|(index, binding)| {
-                let glyph = registry
-                    .icon(&binding.tool)
-                    .unwrap_or_else(icon::info)
-                    .size(18);
-                let name = t!(&binding.tool);
-                let name = if binding.is_temporary {
-                    t!("settings_temporary_tool", tool = name)
-                } else {
-                    name
-                };
-                let manifest = manifest.clone();
-                let original = binding.shortcut;
-                let keys = kbd(original)
-                    .listenable()
-                    .check_conflict(move |keys| {
-                        keys != original && manifest.binding_count(keys) != 0
-                    })
-                    .on_confirm(move |keys| ToolBindingsMessage::RebindTool(index, keys));
+        let rows = bindings.into_iter().enumerate().map(|(index, binding)| {
+            let glyph = registry
+                .icon(&binding.tool)
+                .unwrap_or_else(icon::info)
+                .size(18);
+            let name = t!(&binding.tool);
+            let name = if binding.is_temporary {
+                t!("settings_temporary_tool", tool = name)
+            } else {
+                name
+            };
+            let manifest = manifest.clone();
+            let original = binding.shortcut;
+            let keys = kbd(original)
+                .listenable()
+                .check_conflict(move |keys| keys != original && manifest.binding_count(keys) != 0)
+                .on_confirm(move |keys| ToolBindingsMessage::RebindTool(index, keys));
 
-                row![
-                    glyph,
-                    label(name)
-                        .width(Length::Fill)
-                        .height(24)
-                        .align_y(alignment::Vertical::Center),
-                    row![keys].width(240)
-                ]
-                .width(Length::Fill)
-                .gap(12)
-                .into()
-            });
+            row![
+                glyph,
+                label(name)
+                    .width(Length::Fill)
+                    .height(24)
+                    .align_y(alignment::Vertical::Center),
+                row![keys].width(240)
+            ]
+            .width(Length::Fill)
+            .gap(12)
+            .into()
+        });
 
         let footer = if let Some(draft) = &self.draft {
             let conflict = draft
