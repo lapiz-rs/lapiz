@@ -1177,8 +1177,7 @@ mod test {
     fn canvas_with_layers<const N: usize>() -> (Globals, LayerId, [LayerId; N]) {
         let mut registry = LayerTypeRegistry::default();
         registry.register::<GroupLayer>();
-        let mut image =
-            Image::from_layer(UVec2::ONE, pixel(), ColorProfile::new_srgb(), &registry);
+        let mut image = Image::from_layer(UVec2::ONE, pixel(), ColorProfile::new_srgb(), &registry);
         let stack = image.layer_stack_mut();
         let root = *stack.root_id();
         let layers = array::from_fn(|index| {
