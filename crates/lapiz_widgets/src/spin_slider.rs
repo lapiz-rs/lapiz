@@ -219,19 +219,11 @@ where
                 let input_class = <Theme as text_input::Catalog>::default();
                 let input_style =
                     <Theme as text_input::Catalog>::style(theme, &input_class, status);
-                let text_color = spin_style.text_color.unwrap_or_else(|| {
-                    <Theme as text_input::Catalog>::style(
-                        theme,
-                        &input_class,
-                        text_input::Status::Active,
-                    )
-                    .value
-                });
                 text_input::Style {
                     background: Color::TRANSPARENT.into(),
                     border: Border::default(),
-                    placeholder: text_color,
-                    value: text_color,
+                    placeholder: spin_style.text_color,
+                    value: spin_style.text_color,
                     ..input_style
                 }
             })
@@ -795,8 +787,7 @@ where
             value_bar,
         );
 
-        let text_color = style.text_color.unwrap_or(renderer_style.text_color);
-        fill_text(renderer, minus, "−", self.size, text_color);
+        fill_text(renderer, minus, "−", self.size, style.text_color);
         if let SpinSliderState::Editing { value } = &state.interaction {
             let input_layout = layout.child(0);
             self.text_input::<Renderer>(value, input_layout.bounds().height)
@@ -816,10 +807,10 @@ where
                 field,
                 &format!("{}{:.*}{}", self.prefix, self.precision, value, self.suffix),
                 self.size,
-                text_color,
+                style.text_color,
             );
         }
-        fill_text(renderer, plus, "+", self.size, text_color);
+        fill_text(renderer, plus, "+", self.size, style.text_color);
     }
 
     fn mouse_interaction(
@@ -892,7 +883,7 @@ pub struct Style {
     pub value_bar: Background,
     pub button_background: Background,
     pub border_color: Color,
-    pub text_color: Option<Color>,
+    pub text_color: Color,
 }
 
 /// Internal message produced by the inline text editor of a [`SpinSlider`].
@@ -1017,17 +1008,34 @@ impl Catalog for iced_core::Theme {
 
 pub fn default(theme: &iced_core::Theme, status: Status) -> Style {
     let palette = theme.palette();
+    let background = palette.background.base.color.scale_alpha(match status {
+        Status::Active | Status::Hovered | Status::Dragged | Status::Editing => 1.0,
+        Status::Disabled => 0.4,
+    });
     let value_bar = palette.primary.base.color.scale_alpha(match status {
         Status::Hovered | Status::Editing => 0.22,
         Status::Dragged => 0.28,
-        Status::Disabled => 0.08,
+        Status::Disabled => 0.16 * 0.4,
         Status::Active => 0.16,
     });
+    let border_color = palette.background.strong.color.scale_alpha(match status {
+        Status::Active | Status::Hovered | Status::Dragged | Status::Editing => 1.0,
+        Status::Disabled => 0.4,
+    });
+    let button_background = palette.background.weakest.color.scale_alpha(match status {
+        Status::Active | Status::Hovered | Status::Dragged | Status::Editing => 1.0,
+        Status::Disabled => 0.4,
+    });
+    let text_color = palette.background.base.text.scale_alpha(match status {
+        Status::Active | Status::Hovered | Status::Dragged | Status::Editing => 1.0,
+        Status::Disabled => 0.4,
+    });
+
     Style {
-        background: palette.background.base.color.into(),
+        background: background.into(),
         value_bar: value_bar.into(),
-        button_background: theme.palette().background.weakest.color.into(),
-        border_color: palette.background.strong.color,
-        text_color: None,
+        button_background: button_background.into(),
+        border_color,
+        text_color,
     }
 }
