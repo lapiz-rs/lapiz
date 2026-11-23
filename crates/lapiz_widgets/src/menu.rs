@@ -461,14 +461,7 @@ where
                         bounds,
                         ..renderer::Quad::default()
                     },
-                    if open {
-                        p.primary.base.color
-                    } else {
-                        Color {
-                            a: 0.12,
-                            ..p.primary.base.color
-                        }
-                    },
+                    p.primary.base.color,
                 );
             }
 
