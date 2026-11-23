@@ -25,7 +25,12 @@ impl PhotoshopBrushEngine {
             ),
             Err(error) => EditorElement::from(label(format!("{error:#}")).muted()),
         };
-        panel(preview).inset().padding(8).width(Length::Fill).into()
+        panel(preview)
+            .outline()
+            .padding(8)
+            .width(Length::Fill)
+            .height(200)
+            .into()
     }
 }
 
@@ -115,7 +120,6 @@ impl BrushEngine for PhotoshopBrushEngine {
                 toggle,
                 button(label(section.label()))
                     .width(Length::Fill)
-                    .transparent()
                     .activated(self.section == section)
                     .on_press(PhotoshopBrushEngineMessage::SelectSection(section)),
             ]

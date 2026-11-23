@@ -283,7 +283,6 @@ fn view_pass_graph<'a>(
         .get(&pass_id)
         .expect("graph editor state is created when a pass is opened");
     let back = button(row![icon::chevron_left().size(13), label(t!("back_to_passes"))].gap(4.0))
-        .transparent()
         .on_press(EffectEditorMessage::BackToPassList);
     let choices = dispatch_choices(instance, pass_id);
     let selected_kind = DispatchStrategyKind::of(pass.dispatch_strategy);

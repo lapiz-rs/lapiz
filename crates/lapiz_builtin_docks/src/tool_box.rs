@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use iced_core::{Border, Color, Element, Length, Theme, window};
+use iced_core::{Element, Length, Theme, window};
 use iced_runtime::Task;
 use lapiz_canvas::CanvasToolProxyAppExt as _;
 use lapiz_dock::dock::{Dock, DockId};
@@ -10,12 +10,7 @@ use lapiz_tools::{
     ErasedToolFunctionMessage, ToolFunctionRegistry, ToolId, manifest::ToolBoxManifestConfig,
 };
 use lapiz_widgets::{
-    button,
-    button::{Status, Style},
-    divider::Divider,
-    flex::Flex,
-    icon, label, row, scrollable, svg, tooltip,
-    tooltip::Position,
+    button, divider::Divider, flex::Flex, icon, label, scrollable, svg, tooltip, tooltip::Position,
 };
 
 pub static TOOL_BOX_DOCK_ID: LazyLock<DockId> =
@@ -79,47 +74,16 @@ impl Dock for ToolBoxDock {
                 .width(28)
                 .height(28)
                 .padding(8)
-                .style(move |theme, status| {
-                    let p = theme.palette();
-                    let hovered = matches!(status, Status::Hovered | Status::Pressed);
-                    Style {
-                        background: Some(
-                            if selected {
-                                p.primary.base.color
-                            } else if hovered {
-                                p.primary.weak.color
-                            } else {
-                                Color::TRANSPARENT
-                            }
-                            .into(),
-                        ),
-                        text_color: if selected {
-                            p.primary.base.text
-                        } else {
-                            p.background.weak.text
-                        },
-                        border: Border {
-                            radius: 0.0.into(),
-                            width: if selected { 1.0 } else { 0.0 },
-                            color: p.primary.base.color,
-                        },
-                        ..Default::default()
-                    }
-                })
+                .transparent()
+                .activated(selected)
                 .on_press(ToolBoxDockMessage::Switch(tool.clone()));
             tooltip(button, label(t!(tool)), Position::Right).into()
-        };
-        let separator = || {
-            row![Divider::horizontal(1)]
-                .height(7)
-                .padding([3, 0])
-                .into()
         };
         let mut items = Vec::new();
         let manifest = self.manifest.get();
         for group in &manifest.groups {
             if !items.is_empty() {
-                items.push(separator());
+                items.push(Element::from(Divider::horizontal(1)));
             }
             let buttons = group.tools.iter().map(tool_button).collect::<Vec<_>>();
             items.push(
@@ -131,7 +95,7 @@ impl Dock for ToolBoxDock {
                     .into(),
             );
         }
-        let content = Flex::column(items).width(Length::Fill).gap(0).padding(4);
+        let content = Flex::column(items).width(Length::Fill).gap(8).padding(4);
 
         scrollable(content)
             .width(Length::Fill)

@@ -197,37 +197,33 @@ where
     fn text_input<'b, Renderer>(
         &'b self,
         value: &'b str,
+        height: f32,
     ) -> Element<'b, SpinSliderInputMessage, Theme, Renderer>
     where
         Renderer: text::Renderer + 'static,
         for<'c> <Theme as text_input::Catalog>::Class<'c>: From<text_input::StyleFn<'c, Theme>>,
     {
+        let line_height = LineHeight::Relative(1.0);
+        let vertical_padding = ((height - line_height.to_absolute(self.size).0) / 2.0).max(0.0);
+
         TextInput::new("", value)
             .on_input(SpinSliderInputMessage::Changed)
             .on_submit(SpinSliderInputMessage::Submitted)
             .width(Length::Fill)
-            .padding([0, 4])
+            .padding([vertical_padding, 4.0])
             .size(self.size)
-            .line_height(LineHeight::Relative(1.0))
+            .line_height(line_height)
             .align_x(Horizontal::Center)
             .style(|theme, status| {
                 let spin_style = <Theme as Catalog>::style(theme, &self.class, Status::Editing);
                 let input_class = <Theme as text_input::Catalog>::default();
                 let input_style =
                     <Theme as text_input::Catalog>::style(theme, &input_class, status);
-                let text_color = spin_style.text_color.unwrap_or_else(|| {
-                    <Theme as text_input::Catalog>::style(
-                        theme,
-                        &input_class,
-                        text_input::Status::Active,
-                    )
-                    .value
-                });
                 text_input::Style {
                     background: Color::TRANSPARENT.into(),
                     border: Border::default(),
-                    placeholder: text_color,
-                    value: text_color,
+                    placeholder: spin_style.text_color,
+                    value: spin_style.text_color,
                     ..input_style
                 }
             })
@@ -305,7 +301,7 @@ where
             SpinSliderState::Editing { value } => value.clone(),
             _ => format!("{:.*}", self.precision, self.value),
         };
-        let mut text_input = self.text_input::<Renderer>(&value);
+        let mut text_input = self.text_input::<Renderer>(&value, 0.0);
         tree.diff_children(&mut [&mut text_input]);
     }
 
@@ -327,7 +323,7 @@ where
             SpinSliderState::Editing { value } => value.clone(),
             _ => format!("{:.*}", self.precision, self.value),
         };
-        let mut input = self.text_input::<Renderer>(&value);
+        let mut input = self.text_input::<Renderer>(&value, input_size.height);
         let input = input
             .as_widget_mut()
             .layout(
@@ -353,6 +349,8 @@ where
         let state = tree.state.downcast_mut::<SpinSliderTreeState<T>>();
         let bounds = layout.bounds();
         let (minus, field, plus) = split_bounds(bounds);
+        let input_layout = layout.child(0);
+        let input_height = input_layout.bounds().height;
 
         if let Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)) = event {
             state.modifiers = *modifiers;
@@ -360,7 +358,7 @@ where
 
         if self.disabled {
             if matches!(state.interaction, SpinSliderState::Editing { .. }) {
-                let mut input = self.text_input::<Renderer>("");
+                let mut input = self.text_input::<Renderer>("", input_height);
                 unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
@@ -391,7 +389,7 @@ where
 
         if let SpinSliderState::Editing { value } = &state.interaction {
             let input_value = value.clone();
-            let mut input = self.text_input::<Renderer>(&input_value);
+            let mut input = self.text_input::<Renderer>(&input_value, input_height);
             let mut input_messages = Bus::new();
             let mut input_shell = shell.local(&mut input_messages);
             input.as_widget_mut().update(
@@ -455,7 +453,7 @@ where
             }
 
             if !matches!(state.interaction, SpinSliderState::Editing { .. }) {
-                let mut input = self.text_input::<Renderer>("");
+                let mut input = self.text_input::<Renderer>("", input_height);
                 unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
@@ -485,7 +483,7 @@ where
             let edited_value = value.parse::<T>().ok().map(|value| self.snap(value));
             state.interaction = SpinSliderState::Idle;
             {
-                let mut input = self.text_input::<Renderer>("");
+                let mut input = self.text_input::<Renderer>("", input_height);
                 unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
@@ -618,7 +616,7 @@ where
                             value: format!("{:.*}", self.precision, self.value),
                         };
                         let edit_value = format!("{:.*}", self.precision, self.value);
-                        let mut input = self.text_input::<Renderer>(&edit_value);
+                        let mut input = self.text_input::<Renderer>(&edit_value, input_height);
                         focus_and_select_all(|operation| {
                             input.as_widget_mut().operate(
                                 &mut tree.children[0],
@@ -789,28 +787,30 @@ where
             value_bar,
         );
 
-        let text_color = style.text_color.unwrap_or(renderer_style.text_color);
-        fill_text(renderer, minus, "−", self.size, text_color);
+        fill_text(renderer, minus, "−", self.size, style.text_color);
         if let SpinSliderState::Editing { value } = &state.interaction {
-            self.text_input::<Renderer>(value).as_widget().draw(
-                &tree.children[0],
-                renderer,
-                theme,
-                renderer_style,
-                layout.child(0),
-                cursor,
-                viewport,
-            );
+            let input_layout = layout.child(0);
+            self.text_input::<Renderer>(value, input_layout.bounds().height)
+                .as_widget()
+                .draw(
+                    &tree.children[0],
+                    renderer,
+                    theme,
+                    renderer_style,
+                    input_layout,
+                    cursor,
+                    viewport,
+                );
         } else {
             fill_text(
                 renderer,
                 field,
                 &format!("{}{:.*}{}", self.prefix, self.precision, value, self.suffix),
                 self.size,
-                text_color,
+                style.text_color,
             );
         }
-        fill_text(renderer, plus, "+", self.size, text_color);
+        fill_text(renderer, plus, "+", self.size, style.text_color);
     }
 
     fn mouse_interaction(
@@ -825,10 +825,11 @@ where
             return mouse::Interaction::default();
         }
         let state = tree.state.downcast_ref::<SpinSliderTreeState<T>>();
+        let input_layout = layout.child(0);
         if let SpinSliderState::Editing { value } = &state.interaction
-            && cursor.is_over(layout.child(0).bounds())
+            && cursor.is_over(input_layout.bounds())
         {
-            self.text_input::<Renderer>(value)
+            self.text_input::<Renderer>(value, input_layout.bounds().height)
                 .as_widget()
                 .mouse_interaction(
                     &tree.children[0],
@@ -882,7 +883,7 @@ pub struct Style {
     pub value_bar: Background,
     pub button_background: Background,
     pub border_color: Color,
-    pub text_color: Option<Color>,
+    pub text_color: Color,
 }
 
 /// Internal message produced by the inline text editor of a [`SpinSlider`].
@@ -1007,17 +1008,34 @@ impl Catalog for iced_core::Theme {
 
 pub fn default(theme: &iced_core::Theme, status: Status) -> Style {
     let palette = theme.palette();
+    let background = palette.background.base.color.scale_alpha(match status {
+        Status::Active | Status::Hovered | Status::Dragged | Status::Editing => 1.0,
+        Status::Disabled => 0.4,
+    });
     let value_bar = palette.primary.base.color.scale_alpha(match status {
         Status::Hovered | Status::Editing => 0.22,
         Status::Dragged => 0.28,
-        Status::Disabled => 0.08,
+        Status::Disabled => 0.16 * 0.4,
         Status::Active => 0.16,
     });
+    let border_color = palette.background.strong.color.scale_alpha(match status {
+        Status::Active | Status::Hovered | Status::Dragged | Status::Editing => 1.0,
+        Status::Disabled => 0.4,
+    });
+    let button_background = palette.background.weakest.color.scale_alpha(match status {
+        Status::Active | Status::Hovered | Status::Dragged | Status::Editing => 1.0,
+        Status::Disabled => 0.4,
+    });
+    let text_color = palette.background.base.text.scale_alpha(match status {
+        Status::Active | Status::Hovered | Status::Dragged | Status::Editing => 1.0,
+        Status::Disabled => 0.4,
+    });
+
     Style {
-        background: palette.background.base.color.into(),
+        background: background.into(),
         value_bar: value_bar.into(),
-        button_background: theme.palette().background.weakest.color.into(),
-        border_color: palette.background.strong.color,
-        text_color: None,
+        button_background: button_background.into(),
+        border_color,
+        text_color,
     }
 }

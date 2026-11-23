@@ -464,10 +464,7 @@ where
                     if open {
                         p.primary.base.color
                     } else {
-                        Color {
-                            a: 0.12,
-                            ..p.primary.base.color
-                        }
+                        p.primary.weak.color
                     },
                 );
             }
@@ -483,7 +480,7 @@ where
                 if open {
                     p.primary.base.text
                 } else {
-                    p.background.base.text
+                    p.background.weak.text
                 },
                 bounds,
             );

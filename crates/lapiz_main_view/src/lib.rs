@@ -50,7 +50,7 @@ use lapiz_widgets::{
     icon::{self, Icon},
     label, menu,
     menu::{Item, Menu, MenuBar},
-    menu_bar, row, status_bar, title_bar,
+    menu_bar, panel, row, status_bar, title_bar,
 };
 use moxcms::ProfileText;
 use unic_langid::LanguageIdentifier;
@@ -427,12 +427,15 @@ impl WindowView for MainView {
         let dock = sensor(dock)
             .on_show(|size| MainViewMessage::Dock(DockMessage::MainLayoutResized(size)))
             .on_resize(|size| MainViewMessage::Dock(DockMessage::MainLayoutResized(size)));
-        let content = Element::from(
-            column![title, dock, status]
+        let content = column![title, dock, status]
+            .width(Length::Fill)
+            .height(Length::Fill);
+        Some(
+            panel(content)
                 .width(Length::Fill)
-                .height(Length::Fill),
-        );
-        Some(content)
+                .height(Length::Fill)
+                .into(),
+        )
     }
 
     fn update(

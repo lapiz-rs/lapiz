@@ -426,12 +426,12 @@ pub fn transparent(theme: &Theme, status: Status) -> Style {
     match status {
         Status::Active => base,
         Status::Hovered => Style {
-            background: Some(Background::Color(with_alpha(p.primary.base.color, 0.1))),
-            text_color: p.primary.strong.color,
+            background: Some(Background::Color(p.primary.weak.color)),
+            text_color: p.primary.weak.color,
             ..base
         },
         Status::Pressed => Style {
-            background: Some(Background::Color(with_alpha(p.primary.base.color, 0.16))),
+            background: Some(Background::Color(p.primary.base.color)),
             text_color: p.primary.strong.color,
             ..base
         },
@@ -453,7 +453,7 @@ pub fn outline(theme: &Theme, status: Status) -> Style {
     match status {
         Status::Active => base,
         Status::Hovered | Status::Pressed => Style {
-            background: Some(Background::Color(with_alpha(p.primary.base.color, 0.08))),
+            background: Some(Background::Color(p.primary.base.color)),
             text_color: p.primary.strong.color,
             border: Border {
                 color: p.primary.base.color,

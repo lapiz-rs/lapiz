@@ -23,12 +23,6 @@ pub enum DragItem {
     TagRoot,
 }
 
-pub struct TagRow {
-    pub id: TagId,
-    pub parent: TagId,
-    pub depth: usize,
-}
-
 #[derive(Default)]
 pub struct EditorModel {
     pub current_asset_ty: Option<String>,
@@ -154,42 +148,13 @@ impl EditorModel {
         }
     }
 
-    pub fn rows(&self) -> Vec<TagRow> {
-        let mut rows = Vec::new();
-        if let Some(root) = self.root {
-            self.append_rows(root, 0, &mut HashSet::new(), &mut rows);
-        }
-        rows
-    }
-
-    fn append_rows(
-        &self,
-        parent: TagId,
-        depth: usize,
-        path: &mut HashSet<TagId>,
-        rows: &mut Vec<TagRow>,
-    ) {
-        if !path.insert(parent) {
-            return;
-        }
-        for &id in self.children.get(&parent).into_iter().flatten() {
-            if !self.tags.get(&id).is_some_and(|tag| self.visible(tag)) {
-                continue;
-            }
-            rows.push(TagRow { id, parent, depth });
-            if self.is_tag_expanded(id) {
-                self.append_rows(id, depth + 1, path, rows);
-            }
-        }
-        path.remove(&parent);
-    }
-
-    pub fn has_children(&self, id: TagId) -> bool {
-        self.children.get(&id).is_some_and(|children| {
-            children
-                .iter()
-                .any(|id| self.tags.get(id).is_some_and(|tag| self.visible(tag)))
-        })
+    pub fn visible_children(&self, parent: TagId) -> impl Iterator<Item = &Tag> {
+        self.children
+            .get(&parent)
+            .into_iter()
+            .flatten()
+            .filter_map(|id| self.tags.get(id))
+            .filter(|tag| self.visible(tag))
     }
 
     fn contains_tag(&self, ancestor: TagId, descendant: TagId) -> bool {
@@ -371,8 +336,9 @@ mod tests {
             ..Default::default()
         };
         model.refresh(&registry)?;
-        assert_eq!(model.rows().len(), 2);
-        assert!(model.rows().iter().all(|row| row.id != root.id));
+        let roots = model.visible_children(root.id).collect::<Vec<_>>();
+        assert_eq!(roots.len(), 2);
+        assert!(roots.iter().all(|tag| tag.id != root.id));
         model.drop_item(
             DragItem::Asset(b, AssetList::All),
             DragItem::Asset(a, AssetList::All),
@@ -420,7 +386,6 @@ mod tests {
             DropZone::Into,
             &registry,
         )?;
-        assert!(model.has_children(parent.id));
         assert!(!model.accepts(
             &DragItem::Tag {
                 id: parent.id,
@@ -431,11 +396,11 @@ mod tests {
                 parent: parent.id
             }
         ));
+        assert!(model.is_tag_expanded(parent.id));
         assert!(
             model
-                .rows()
-                .iter()
-                .any(|row| row.id == child.id && row.depth == 1)
+                .visible_children(parent.id)
+                .any(|tag| tag.id == child.id)
         );
         assert!(matches_search(
             &model.all_assets[0],
@@ -454,7 +419,11 @@ mod tests {
         model.refresh(&registry)?;
         assert_eq!(model.all_assets[0].asset_id, b);
         assert_eq!(model.tagged_assets[0].asset_id, b);
-        assert!(model.has_children(parent.id));
+        assert!(
+            model
+                .visible_children(parent.id)
+                .any(|tag| tag.id == child.id)
+        );
         model.drop_item(
             DragItem::Tag {
                 id: child.id,
@@ -464,12 +433,11 @@ mod tests {
             DropZone::Into,
             &registry,
         )?;
-        assert!(!model.has_children(parent.id));
+        assert!(model.visible_children(parent.id).next().is_none());
         assert!(
             model
-                .rows()
-                .iter()
-                .any(|row| row.id == child.id && row.depth == 0)
+                .visible_children(root.id)
+                .any(|tag| tag.id == child.id)
         );
         Ok(())
     }
