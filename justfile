@@ -159,7 +159,7 @@ setup-for-check: setup-rust setup-format setup-deny setup-reuse setup-linux
 # Run formatting, Clippy, and repository lints
 [arg("arch", pattern="(|aarch64|x86_64)", help="Android architecture (aarch64, x86_64)")]
 [arg("platform", pattern="desktop|android", help="Target platform (desktop, android)")]
-check platform="desktop" arch="": check-fmt (check-clippy platform arch) check-import-alias check-let-type-annotation check-deny check-reuse
+check platform="desktop" arch="": check-fmt (check-clippy platform arch) check-import-alias check-let-type-annotation check-relative-import check-deny check-reuse
 
 # Check Rust and TOML formatting
 check-fmt:
@@ -200,6 +200,10 @@ check-import-alias:
 # Check that let bindings omit redundant type annotations
 check-let-type-annotation:
     cargo run --locked --quiet -p xtask -- let-type-annotation-check --exclude iced_winit
+
+# Check that imports use crate paths instead of super or self
+check-relative-import:
+    cargo run --locked --quiet -p xtask -- relative-import-check --exclude vendor
 
 # Check dependency advisories, bans, licenses, and sources
 check-deny:

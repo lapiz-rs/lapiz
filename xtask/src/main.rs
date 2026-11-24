@@ -1,5 +1,6 @@
 mod import_alias;
 mod let_type_annotation;
+mod relative_import;
 
 use std::{
     ffi::OsStr,
@@ -19,8 +20,12 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Check {
-    ImportAliasCheck(CheckArgs),
-    LetTypeAnnotationCheck(CheckArgs),
+    #[command(name = import_alias::NAME)]
+    ImportAlias(CheckArgs),
+    #[command(name = let_type_annotation::NAME)]
+    LetTypeAnnotation(CheckArgs),
+    #[command(name = relative_import::NAME)]
+    RelativeImport(CheckArgs),
 }
 
 #[derive(Args)]
@@ -31,16 +36,22 @@ struct CheckArgs {
 
 fn main() {
     let result = match Cli::parse().check {
-        Check::ImportAliasCheck(args) => run_check(
+        Check::ImportAlias(args) => run_check(
             import_alias::NAME,
             import_alias::FOUND,
             import_alias::messages,
             &args.exclude,
         ),
-        Check::LetTypeAnnotationCheck(args) => run_check(
+        Check::LetTypeAnnotation(args) => run_check(
             let_type_annotation::NAME,
             let_type_annotation::FOUND,
             let_type_annotation::messages,
+            &args.exclude,
+        ),
+        Check::RelativeImport(args) => run_check(
+            relative_import::NAME,
+            relative_import::FOUND,
+            relative_import::messages,
             &args.exclude,
         ),
     };
@@ -206,7 +217,7 @@ mod tests {
             "lapiz_app",
         ])
         .unwrap();
-        let Check::ImportAliasCheck(args) = cli.check else {
+        let Check::ImportAlias(args) = cli.check else {
             panic!("expected import-alias-check");
         };
         assert_eq!(args.exclude, ["iced_winit", "lapiz_app"]);
