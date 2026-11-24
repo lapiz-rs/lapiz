@@ -55,7 +55,7 @@ default-members = ["crates/lapiz_app"]
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.99.1"
+rust-version = "1.100.0"
 license = "GPL-3.0-or-later"
 publish = false
 
@@ -222,6 +222,10 @@ windows = "0.62"
 winit = "0.31.0-beta.3"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zip = "9"
+
+[workspace.lints.cargo]
+unused_dependencies = "warn"
+unused_workspace_dependencies = "warn"
 
 [workspace.lints.clippy]
 absolute_paths = "warn"
