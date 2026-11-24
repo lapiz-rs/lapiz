@@ -111,7 +111,6 @@ arboard = { version = "3.6", default-features = false }
 arc-swap = "1"
 async-broadcast = "0.7"
 async-trait = "0.1"
-atomicow = "1"
 bevy_color = "0.18"
 bevy_math = {
     git = "https://github.com/443eb9/bevy.git",
@@ -192,7 +191,6 @@ raw-window-handle = { version = "0.6", features = ["std"] }
 rayon = "1"
 rfd = "0.17"
 ringbuffer = "0.16"
-rmp = "0.8"
 rmp-serde = "1"
 rusqlite = { version = "0.41", features = ["bundled-full"] }
 rust-embed = { version = "8", features = ["debug-embed"] }
@@ -224,8 +222,8 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zip = "9"
 
 [workspace.lints.cargo]
-unused_dependencies = "warn"
-unused_workspace_dependencies = "warn"
+unused_dependencies = "deny"
+unused_workspace_dependencies = "deny"
 
 [workspace.lints.clippy]
 absolute_paths = "warn"
