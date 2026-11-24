@@ -235,7 +235,7 @@ impl<T: ToString> fmt::Display for Translated<T> {
 mod tests {
     use std::sync::LazyLock;
 
-    use super::*;
+    use crate::*;
 
     #[test]
     fn available_ids_parse() {

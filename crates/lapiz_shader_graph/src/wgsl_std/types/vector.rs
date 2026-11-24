@@ -15,16 +15,18 @@ use serde::Deserialize as _;
 use wesl::syntax::{Expression, ExpressionNode, FunctionCall, Ident, TypeExpression};
 use wgpu::{Buffer, Device, Queue};
 
-use super::{
-    prepare_uniform_storage,
-    primitive::{F32Metadata, F32Type, I32Metadata, I32Type, ScalarMetadata, U32Metadata, U32Type},
-    push_buffer_binding, push_storage_layout,
-};
 use crate::{
     GraphRenderer, GraphTheme,
     graph::slot::{GraphShaderStage, GraphValueType},
     random_oklch_hue_chroma,
     save::GraphValueTypeId,
+    wgsl_std::types::{
+        prepare_uniform_storage,
+        primitive::{
+            F32Metadata, F32Type, I32Metadata, I32Type, ScalarMetadata, U32Metadata, U32Type,
+        },
+        push_buffer_binding, push_storage_layout,
+    },
 };
 
 /// Independent component settings and an optional shared metadata editing mode.

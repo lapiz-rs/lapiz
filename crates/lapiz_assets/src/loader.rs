@@ -112,7 +112,7 @@ impl<T: AssetSerializer> ErasedAssetSerializer for T {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::loader::*;
 
     #[test]
     fn serializer_lookup_errors_keep_path_and_extension() {

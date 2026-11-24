@@ -173,7 +173,7 @@ impl<'de> Deserialize<'de> for TexelType {
 
 #[cfg(test)]
 mod tests {
-    use super::TexelType;
+    use crate::texel::TexelType;
 
     #[test]
     fn reads_normalized_rgba_channels() {

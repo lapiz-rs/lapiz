@@ -39,12 +39,6 @@ use wgpu::{
     TextureViewDimension, util::DeviceExt as _,
 };
 
-use super::{
-    compound::{ColorType, RectType},
-    layer_bounds_ident, layer_load_ident, layer_store_ident, layer_tile_info_ident,
-    primitive::{F32Type, I32Type},
-    push_buffer_binding, push_storage_layout,
-};
 use crate::{
     GraphRenderer, GraphTheme,
     graph::{
@@ -57,6 +51,12 @@ use crate::{
     },
     random_oklch_hue_chroma,
     save::GraphValueTypeId,
+    wgsl_std::types::{
+        compound::{ColorType, RectType},
+        layer_bounds_ident, layer_load_ident, layer_store_ident, layer_tile_info_ident,
+        primitive::{F32Type, I32Type},
+        push_buffer_binding, push_storage_layout,
+    },
 };
 
 /// UI message emitted when a user selects a new [`Image`] asset for a [`TextureType`] literal.

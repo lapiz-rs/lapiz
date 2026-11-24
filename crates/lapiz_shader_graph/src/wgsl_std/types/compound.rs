@@ -16,17 +16,17 @@ use wesl::syntax::{
 use wesl_quote::quote_expression;
 use wgpu::{Buffer, Device, Queue};
 
-use super::{
-    prepare_uniform_storage,
-    primitive::{F32Message, F32Metadata, F32Type},
-    push_buffer_binding, push_storage_layout,
-    vector::{ComponentMessage, ComponentMetadata},
-};
 use crate::{
     GraphRenderer, GraphTheme,
     graph::slot::{GraphShaderStage, GraphValueType},
     random_oklch_hue_chroma,
     save::GraphValueTypeId,
+    wgsl_std::types::{
+        prepare_uniform_storage,
+        primitive::{F32Message, F32Metadata, F32Type},
+        push_buffer_binding, push_storage_layout,
+        vector::{ComponentMessage, ComponentMetadata},
+    },
 };
 
 /// Shader graph value type representing an RGBA color (`vec4f`).

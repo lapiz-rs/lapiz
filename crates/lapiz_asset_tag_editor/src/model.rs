@@ -278,7 +278,7 @@ mod tests {
         tag::TagFile,
     };
 
-    use super::*;
+    use crate::model::*;
 
     struct TestAsset;
     impl Asset for TestAsset {

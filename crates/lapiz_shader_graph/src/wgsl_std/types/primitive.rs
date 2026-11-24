@@ -20,7 +20,6 @@ use wesl::syntax::{
 use wesl_quote::quote_expression;
 use wgpu::{Buffer, Device, Queue};
 
-use super::{prepare_uniform_storage, push_buffer_binding, push_storage_layout};
 use crate::{
     GraphRenderer, GraphTheme,
     graph::{
@@ -29,6 +28,7 @@ use crate::{
     },
     random_oklch_hue_chroma,
     save::GraphValueTypeId,
+    wgsl_std::types::{prepare_uniform_storage, push_buffer_binding, push_storage_layout},
 };
 
 pub(crate) trait ScalarMetadata: Clone {

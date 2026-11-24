@@ -206,8 +206,7 @@ mod tests {
     use uuid::Uuid;
     use zip::{ZipWriter, write::SimpleFileOptions};
 
-    use super::*;
-    use crate::tag::TagId;
+    use crate::{bundle::standard::*, tag::TagId};
 
     #[test]
     fn archive_reads_tagged_tags_and_reports_invalid_content() -> Result<()> {

@@ -17,12 +17,12 @@ use lapiz_shader_graph::{
 };
 use uuid::Uuid;
 
-use super::{EffectEditorMessage, EffectEditorState, EffectEditorView, dispatch_choices};
 use crate::{
     asset::{
         EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassId,
         EffectPassInputSlotId, EffectPassOutputSlotId,
     },
+    editor::{EffectEditorMessage, EffectEditorState, EffectEditorView, dispatch_choices},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
     nodes::{
         DispatchIndexNode, PassInput, PassInputNode, PassOutput, PassOutputDef, PassOutputNode,

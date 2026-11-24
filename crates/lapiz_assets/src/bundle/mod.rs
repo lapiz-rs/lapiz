@@ -745,8 +745,7 @@ impl<T: AssetBundle> ErasedAssetBundle for T {
 mod tests {
     use std::{env, fs};
 
-    use super::*;
-    use crate::tag::TagId;
+    use crate::{bundle::*, tag::TagId};
 
     struct ReadonlyBundle {
         id: BundleId,

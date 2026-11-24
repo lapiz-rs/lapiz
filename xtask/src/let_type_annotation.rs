@@ -55,7 +55,7 @@ fn compact(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::hits;
+    use crate::let_type_annotation::hits;
 
     fn types(text: &str) -> Vec<(usize, String)> {
         hits(text)

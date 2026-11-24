@@ -141,7 +141,7 @@ mod tests {
 
     use clap::Parser as _;
 
-    use super::{Check, Cli, collect_violations};
+    use crate::{Check, Cli, collect_violations};
 
     struct TestRepo(PathBuf);
 

@@ -106,16 +106,18 @@ mod tests {
 
     use lapiz_image::texel::TexelType;
 
-    use super::{
-        compound::{ColorType, RectType},
-        handle::{ArrayType, LayerType, TextureType},
-        primitive::{BoolType, F32Type, I32Type, U32Type},
-        vector::{
-            Vec2FType, Vec2IType, Vec2UType, Vec3FType, Vec3IType, Vec3UType, Vec4FType, Vec4IType,
-            Vec4UType,
+    use crate::{
+        graph::slot::ErasedGraphValueType,
+        wgsl_std::types::{
+            compound::{ColorType, RectType},
+            handle::{ArrayType, LayerType, TextureType},
+            primitive::{BoolType, F32Type, I32Type, U32Type},
+            vector::{
+                Vec2FType, Vec2IType, Vec2UType, Vec3FType, Vec3IType, Vec3UType, Vec4FType,
+                Vec4IType, Vec4UType,
+            },
         },
     };
-    use crate::graph::slot::ErasedGraphValueType;
 
     // Runtime-sized array strides follow WGSL alignment rules, which round an
     // element's size up to its alignment; vec3 keeps 12 bytes of data in a

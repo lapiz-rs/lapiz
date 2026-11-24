@@ -19,7 +19,7 @@ use lapiz_assets::asset::{AssetHandle, AssetId};
 use lapiz_runtime::{Renderer, Theme};
 use lapiz_widgets::{image, label, row, space};
 
-use super::{Image, read_or_create_cached_thumbnail};
+use crate::texture::{Image, read_or_create_cached_thumbnail};
 
 type ThumbnailElement<'a, Message> = Element<'a, Message, Theme, Renderer>;
 

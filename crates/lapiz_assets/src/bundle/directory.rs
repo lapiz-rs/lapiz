@@ -251,10 +251,12 @@ mod tests {
     use indexmap::IndexSet;
     use uuid::Uuid;
 
-    use super::{AssetDirectory, asset_id_from_relative_path};
     use crate::{
         asset::UntypedAssetId,
-        bundle::{AssetBundle as _, BundleId},
+        bundle::{
+            AssetBundle as _, BundleId,
+            directory::{AssetDirectory, asset_id_from_relative_path},
+        },
         tag::{TagFile, TagId, TaggedAssets, TaggedTags},
     };
 

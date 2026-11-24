@@ -162,8 +162,7 @@ mod tests {
 
     use uuid::Uuid;
 
-    use super::*;
-    use crate::image_props::ImageProperties;
+    use crate::{image_props::ImageProperties, *};
 
     #[test]
     fn set_path_saves_an_in_memory_archive_and_switches_to_the_disk_database() {
