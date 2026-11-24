@@ -8,14 +8,14 @@ use iced_core::{
     keyboard::{self, key::Key},
     layout, pointer,
     pointer::mouse,
-    renderer,
+    renderer::{self, Renderer as _},
     shell::Bus,
-    text,
-    text::{Alignment, Ellipsis, LineHeight, Shaping, Wrapping},
+    text::{Alignment, Ellipsis, LineHeight, Renderer as _, Shaping, Wrapping},
     widget::tree::{self, Tree},
     window,
 };
 use iced_widget::{TextInput, text_input};
+use lapiz_runtime::{Renderer, Theme};
 use num_traits::AsPrimitive;
 
 use crate::text_input::{focus_and_select_all, unfocus};
@@ -39,10 +39,7 @@ use crate::text_input::{focus_and_select_all, unfocus};
 /// - **Stepping**: Clicking the `−` or `+` buttons, pressing `ArrowUp`/`ArrowDown` while hovered, or
 ///   scrolling with `Ctrl` held steps the value by [`step`](Self::step) and emits both `on_change`
 ///   and `on_confirm`.
-pub struct SpinSlider<'a, T, Message, Theme = iced_core::Theme>
-where
-    Theme: Catalog,
-{
+pub struct SpinSlider<'a, T, Message> {
     range: RangeInclusive<T>,
     value: T,
     step: T,
@@ -61,10 +58,9 @@ where
     class: <Theme as Catalog>::Class<'a>,
 }
 
-impl<'a, T, Message, Theme> SpinSlider<'a, T, Message, Theme>
+impl<'a, T, Message> SpinSlider<'a, T, Message>
 where
     T: Copy + PartialOrd + Display + FromStr + AsPrimitive<f64>,
-    Theme: Catalog,
     f64: AsPrimitive<T>,
 {
     pub const DEFAULT_HEIGHT: f32 = 24.0;
@@ -180,11 +176,8 @@ where
     }
 
     #[must_use]
-    pub fn style(mut self, style: impl Fn(&Theme, Status) -> Style + 'a) -> Self
-    where
-        <Theme as Catalog>::Class<'a>: From<StyleFn<'a, Theme>>,
-    {
-        self.class = (Box::new(style) as StyleFn<'a, Theme>).into();
+    pub fn style(mut self, style: impl Fn(&Theme, Status) -> Style + 'a) -> Self {
+        self.class = Box::new(style);
         self
     }
 
@@ -194,15 +187,11 @@ where
         self
     }
 
-    fn text_input<'b, Renderer>(
+    fn text_input<'b>(
         &'b self,
         value: &'b str,
         height: f32,
-    ) -> Element<'b, SpinSliderInputMessage, Theme, Renderer>
-    where
-        Renderer: text::Renderer + 'static,
-        for<'c> <Theme as text_input::Catalog>::Class<'c>: From<text_input::StyleFn<'c, Theme>>,
-    {
+    ) -> Element<'b, SpinSliderInputMessage, Theme, Renderer> {
         let line_height = LineHeight::Relative(1.0);
         let vertical_padding = ((height - line_height.to_absolute(self.size).0) / 2.0).max(0.0);
 
@@ -278,14 +267,10 @@ where
     }
 }
 
-impl<T, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
-    for SpinSlider<'_, T, Message, Theme>
+impl<T, Message> Widget<Message, Theme, Renderer> for SpinSlider<'_, T, Message>
 where
     T: Copy + PartialOrd + Display + FromStr + AsPrimitive<f64> + 'static,
-    Theme: Catalog,
     f64: AsPrimitive<T>,
-    Renderer: renderer::Renderer + text::Renderer + 'static,
-    for<'a> <Theme as text_input::Catalog>::Class<'a>: From<text_input::StyleFn<'a, Theme>>,
 {
     fn tag(&self) -> tree::Tag {
         tree::Tag::of::<SpinSliderTreeState<T>>()
@@ -301,7 +286,7 @@ where
             SpinSliderState::Editing { value } => value.clone(),
             _ => format!("{:.*}", self.precision, self.value),
         };
-        let mut text_input = self.text_input::<Renderer>(&value, 0.0);
+        let mut text_input = self.text_input(&value, 0.0);
         tree.diff_children(&mut [&mut text_input]);
     }
 
@@ -323,7 +308,7 @@ where
             SpinSliderState::Editing { value } => value.clone(),
             _ => format!("{:.*}", self.precision, self.value),
         };
-        let mut input = self.text_input::<Renderer>(&value, input_size.height);
+        let mut input = self.text_input(&value, input_size.height);
         let input = input
             .as_widget_mut()
             .layout(
@@ -358,7 +343,7 @@ where
 
         if self.disabled {
             if matches!(state.interaction, SpinSliderState::Editing { .. }) {
-                let mut input = self.text_input::<Renderer>("", input_height);
+                let mut input = self.text_input("", input_height);
                 unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
@@ -389,7 +374,7 @@ where
 
         if let SpinSliderState::Editing { value } = &state.interaction {
             let input_value = value.clone();
-            let mut input = self.text_input::<Renderer>(&input_value, input_height);
+            let mut input = self.text_input(&input_value, input_height);
             let mut input_messages = Bus::new();
             let mut input_shell = shell.local(&mut input_messages);
             input.as_widget_mut().update(
@@ -453,7 +438,7 @@ where
             }
 
             if !matches!(state.interaction, SpinSliderState::Editing { .. }) {
-                let mut input = self.text_input::<Renderer>("", input_height);
+                let mut input = self.text_input("", input_height);
                 unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
@@ -483,7 +468,7 @@ where
             let edited_value = value.parse::<T>().ok().map(|value| self.snap(value));
             state.interaction = SpinSliderState::Idle;
             {
-                let mut input = self.text_input::<Renderer>("", input_height);
+                let mut input = self.text_input("", input_height);
                 unfocus(|operation| {
                     input.as_widget_mut().operate(
                         &mut tree.children[0],
@@ -616,7 +601,7 @@ where
                             value: format!("{:.*}", self.precision, self.value),
                         };
                         let edit_value = format!("{:.*}", self.precision, self.value);
-                        let mut input = self.text_input::<Renderer>(&edit_value, input_height);
+                        let mut input = self.text_input(&edit_value, input_height);
                         focus_and_select_all(|operation| {
                             input.as_widget_mut().operate(
                                 &mut tree.children[0],
@@ -790,7 +775,7 @@ where
         fill_text(renderer, minus, "−", self.size, style.text_color);
         if let SpinSliderState::Editing { value } = &state.interaction {
             let input_layout = layout.child(0);
-            self.text_input::<Renderer>(value, input_layout.bounds().height)
+            self.text_input(value, input_layout.bounds().height)
                 .as_widget()
                 .draw(
                     &tree.children[0],
@@ -829,7 +814,7 @@ where
         if let SpinSliderState::Editing { value } = &state.interaction
             && cursor.is_over(input_layout.bounds())
         {
-            self.text_input::<Renderer>(value, input_layout.bounds().height)
+            self.text_input(value, input_layout.bounds().height)
                 .as_widget()
                 .mouse_interaction(
                     &tree.children[0],
@@ -846,17 +831,13 @@ where
     }
 }
 
-impl<'a, T, Message, Theme, Renderer> From<SpinSlider<'a, T, Message, Theme>>
-    for Element<'a, Message, Theme, Renderer>
+impl<'a, T, Message> From<SpinSlider<'a, T, Message>> for Element<'a, Message, Theme, Renderer>
 where
     T: Copy + PartialOrd + Display + FromStr + AsPrimitive<f64> + 'static,
     f64: AsPrimitive<T>,
     Message: 'a,
-    Theme: Catalog + 'a,
-    Renderer: renderer::Renderer + text::Renderer + 'static,
-    for<'b> <Theme as text_input::Catalog>::Class<'b>: From<text_input::StyleFn<'b, Theme>>,
 {
-    fn from(widget: SpinSlider<'a, T, Message, Theme>) -> Self {
+    fn from(widget: SpinSlider<'a, T, Message>) -> Self {
         Element::new(widget)
     }
 }
@@ -954,15 +935,7 @@ fn split_bounds(bounds: Rectangle) -> (Rectangle, Rectangle, Rectangle) {
     (minus, field, plus)
 }
 
-fn fill_text<Renderer>(
-    renderer: &mut Renderer,
-    bounds: Rectangle,
-    content: &str,
-    size: f32,
-    color: Color,
-) where
-    Renderer: renderer::Renderer + text::Renderer,
-{
+fn fill_text(renderer: &mut Renderer, bounds: Rectangle, content: &str, size: f32, color: Color) {
     renderer.fill_text(
         Text {
             content: content.to_owned(),
@@ -994,7 +967,7 @@ pub trait Catalog: text_input::Catalog + Sized {
 
 pub type StyleFn<'a, Theme> = Box<dyn Fn(&Theme, Status) -> Style + 'a>;
 
-impl Catalog for iced_core::Theme {
+impl Catalog for Theme {
     type Class<'a> = StyleFn<'a, Self>;
 
     fn default<'a>() -> <Self as Catalog>::Class<'a> {
@@ -1006,7 +979,7 @@ impl Catalog for iced_core::Theme {
     }
 }
 
-pub fn default(theme: &iced_core::Theme, status: Status) -> Style {
+pub fn default(theme: &Theme, status: Status) -> Style {
     let palette = theme.palette();
     let background = palette.background.base.color.scale_alpha(match status {
         Status::Active | Status::Hovered | Status::Dragged | Status::Editing => 1.0,

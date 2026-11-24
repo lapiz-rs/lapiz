@@ -188,10 +188,7 @@ where
     SpinBox::new(value, bounds, on_change)
 }
 
-pub fn spin_slider<'a, T, Message>(
-    range: RangeInclusive<T>,
-    value: T,
-) -> SpinSlider<'a, T, Message, Theme>
+pub fn spin_slider<'a, T, Message>(range: RangeInclusive<T>, value: T) -> SpinSlider<'a, T, Message>
 where
     T: Copy + PartialOrd + Display + FromStr + AsPrimitive<f64>,
     f64: AsPrimitive<T>,
