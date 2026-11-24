@@ -1,6 +1,5 @@
 use iced_core::Length;
 use lapiz_i18n::t;
-use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::{column, combo_box, text_input, text_input::default};
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +13,7 @@ use crate::{
         },
         slot::{ErasedGraphLiteralUpdateMessage, GraphDefaultInputSlot, GraphDefaultOutputSlot},
     },
+    random_oklch_hue_chroma,
 };
 
 /// A shader graph node that declares a typed external input parameter on the owning [`Graph`](crate::graph::Graph)'s signature.

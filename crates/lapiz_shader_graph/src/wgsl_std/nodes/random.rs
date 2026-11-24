@@ -1,6 +1,5 @@
 use glam::{Vec2, Vec3, Vec3Swizzles as _};
 use lapiz_shader_graph_derive::stateless;
-use lapiz_utils::random_oklch_hue_chroma;
 use wesl::syntax::{
     Declaration, DeclarationKind, Expression, FunctionCall, Ident, ModulePath, PathOrigin, Span,
     Spanned, Statement, TypeExpression,
@@ -15,6 +14,7 @@ use crate::{
         },
         slot::{GraphDefaultInputSlot, GraphDefaultOutputSlot},
     },
+    random_oklch_hue_chroma,
     wgsl_std::types::{primitive::F32Type, vector::Vec2FType},
 };
 

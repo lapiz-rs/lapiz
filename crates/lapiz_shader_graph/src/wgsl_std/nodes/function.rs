@@ -8,7 +8,6 @@ use lapiz_assets::{
     asset::{AssetHandle, AssetId},
     store::AssetRegistry,
 };
-use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::combo_box;
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +23,7 @@ use crate::{
         },
         slot::{ErasedGraphLiteralUpdateMessage, GraphDefaultInputSlot, GraphDefaultOutputSlot},
     },
+    random_oklch_hue_chroma,
     save::{GraphSerializable, SerializableGraphFunction},
 };
 

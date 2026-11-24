@@ -545,34 +545,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_color"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb41e8310a85811d14a4e75cfc2d6c07ac70661d6a4883509fc960f622970a8"
-dependencies = [
- "bevy_math 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "bevy_reflect 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "bytemuck",
- "derive_more",
- "encase",
- "serde",
- "thiserror 2.0.21",
- "wgpu-types 27.0.1",
-]
-
-[[package]]
-name = "bevy_macro_utils"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b147843b81a7ec548876ff97fa7bfdc646ef2567cb465566259237b39664438"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
- "toml_edit 0.23.10+spec-1.0.0",
-]
-
-[[package]]
 name = "bevy_macro_utils"
 version = "0.18.1"
 source = "git+https://github.com/443eb9/bevy.git?branch=release-0.18.1#0a6d3dabe481e0c3f2b65fa5fa7b41c03f8e9a61"
@@ -586,30 +558,11 @@ dependencies = [
 [[package]]
 name = "bevy_math"
 version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e931fa969f89c83498b22c97432383afe90e90fd1a5e04fa07be8da4d3bcac84"
-dependencies = [
- "approx",
- "arrayvec",
- "bevy_reflect 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "derive_more",
- "glam 0.30.10",
- "itertools 0.14.0",
- "rand 0.9.5",
- "rand_distr",
- "serde",
- "thiserror 2.0.21",
- "variadics_please 1.1.0",
-]
-
-[[package]]
-name = "bevy_math"
-version = "0.18.1"
 source = "git+https://github.com/443eb9/bevy.git?branch=release-0.18.1#0a6d3dabe481e0c3f2b65fa5fa7b41c03f8e9a61"
 dependencies = [
  "approx",
  "arrayvec",
- "bevy_reflect 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_reflect",
  "derive_more",
  "encase",
  "glam 0.30.10",
@@ -619,25 +572,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.21",
  "variadics_please 1.1.0",
-]
-
-[[package]]
-name = "bevy_platform"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec6b36504169b644acd26a5469fd8d371aa6f1d73ee5c01b1b1181ae1cefbf9b"
-dependencies = [
- "critical-section",
- "foldhash 0.2.0",
- "futures-channel",
- "hashbrown 0.16.1",
- "js-sys",
- "portable-atomic",
- "portable-atomic-util",
- "serde",
- "spin",
- "wasm-bindgen",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -661,38 +595,7 @@ dependencies = [
 [[package]]
 name = "bevy_ptr"
 version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7a9329e8dc4e01ced480eeec4902e6d7cb56e56ec37f6fbc4323e5c937290a7"
-
-[[package]]
-name = "bevy_ptr"
-version = "0.18.1"
 source = "git+https://github.com/443eb9/bevy.git?branch=release-0.18.1#0a6d3dabe481e0c3f2b65fa5fa7b41c03f8e9a61"
-
-[[package]]
-name = "bevy_reflect"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1dfeb67a9fe4f59003a84f5f99ba6302141c70e926601cbc6abfd4a1eea9ca9"
-dependencies = [
- "assert_type_match",
- "bevy_platform 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "bevy_ptr 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "bevy_reflect_derive 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "bevy_utils 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "derive_more",
- "disqualified",
- "downcast-rs 2.0.2",
- "erased-serde",
- "foldhash 0.2.0",
- "glam 0.30.10",
- "serde",
- "smol_str 0.2.2",
- "thiserror 2.0.21",
- "uuid",
- "variadics_please 1.1.0",
- "wgpu-types 27.0.1",
-]
 
 [[package]]
 name = "bevy_reflect"
@@ -700,10 +603,10 @@ version = "0.18.1"
 source = "git+https://github.com/443eb9/bevy.git?branch=release-0.18.1#0a6d3dabe481e0c3f2b65fa5fa7b41c03f8e9a61"
 dependencies = [
  "assert_type_match",
- "bevy_platform 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
- "bevy_ptr 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
- "bevy_reflect_derive 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
- "bevy_utils 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_platform",
+ "bevy_ptr",
+ "bevy_reflect_derive",
+ "bevy_utils",
  "derive_more",
  "disqualified",
  "downcast-rs 2.0.2",
@@ -721,23 +624,9 @@ dependencies = [
 [[package]]
 name = "bevy_reflect_derive"
 version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "475f68c93e9cd5f17e9167635c8533a4f388f12d38245a202359e4c2721d87ba"
-dependencies = [
- "bevy_macro_utils 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "indexmap",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
- "uuid",
-]
-
-[[package]]
-name = "bevy_reflect_derive"
-version = "0.18.1"
 source = "git+https://github.com/443eb9/bevy.git?branch=release-0.18.1#0a6d3dabe481e0c3f2b65fa5fa7b41c03f8e9a61"
 dependencies = [
- "bevy_macro_utils 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_macro_utils",
  "indexmap",
  "proc-macro2",
  "quote",
@@ -748,19 +637,9 @@ dependencies = [
 [[package]]
 name = "bevy_utils"
 version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2111910cd7a4b1e6ce07eaaeb6f68a2c0ea0ca609ed0d0d506e3eb161101435b"
-dependencies = [
- "bevy_platform 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "disqualified",
-]
-
-[[package]]
-name = "bevy_utils"
-version = "0.18.1"
 source = "git+https://github.com/443eb9/bevy.git?branch=release-0.18.1#0a6d3dabe481e0c3f2b65fa5fa7b41c03f8e9a61"
 dependencies = [
- "bevy_platform 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_platform",
  "disqualified",
 ]
 
@@ -3322,7 +3201,7 @@ name = "lapiz_app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "fs_extra",
  "futures",
  "i18n-embed",
@@ -3431,7 +3310,7 @@ name = "lapiz_brush"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "chrono",
  "dyn-clone",
  "encase",
@@ -3479,7 +3358,7 @@ dependencies = [
 name = "lapiz_bucket_tool"
 version = "0.1.0"
 dependencies = [
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "bytemuck",
  "encase",
  "glam 0.30.10",
@@ -3510,7 +3389,7 @@ name = "lapiz_builtin_docks"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "iced_core",
  "iced_futures",
  "iced_runtime",
@@ -3545,7 +3424,7 @@ name = "lapiz_canvas"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "bytemuck",
  "encase",
  "futures",
@@ -3678,7 +3557,7 @@ name = "lapiz_effect"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "bytemuck",
  "dyn-clone",
  "encase",
@@ -3748,7 +3627,7 @@ name = "lapiz_filter"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "bytemuck",
  "futures",
  "iced_core",
@@ -3801,7 +3680,7 @@ name = "lapiz_image"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "bytemuck",
  "dashmap",
  "downcast-rs 2.0.2",
@@ -3927,7 +3806,7 @@ name = "lapiz_main_view"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "futures",
  "i18n-embed",
  "iced",
@@ -3974,7 +3853,7 @@ dependencies = [
 name = "lapiz_math"
 version = "0.1.0"
 dependencies = [
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "glam 0.30.10",
  "iced_core",
  "moxcms 0.9.1",
@@ -4033,7 +3912,7 @@ name = "lapiz_render"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "bytemuck",
  "encase",
  "futures",
@@ -4117,7 +3996,7 @@ dependencies = [
 name = "lapiz_selection_tool"
 version = "0.1.0"
 dependencies = [
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "bytemuck",
  "encase",
  "glam 0.30.10",
@@ -4166,8 +4045,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
- "bevy_color",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "dashmap",
  "downcast-rs 2.0.2",
  "dyn-clone",
@@ -4182,6 +4060,7 @@ dependencies = [
  "iced_widget",
  "indexmap",
  "lapiz_assets",
+ "lapiz_color",
  "lapiz_i18n",
  "lapiz_image",
  "lapiz_math",
@@ -4239,7 +4118,7 @@ name = "lapiz_transform_tool"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bevy_math 0.18.1 (git+https://github.com/443eb9/bevy.git?branch=release-0.18.1)",
+ "bevy_math",
  "bitflags 2.13.2",
  "encase",
  "glam 0.30.10",
@@ -4282,7 +4161,6 @@ dependencies = [
 name = "lapiz_utils"
 version = "0.1.0"
 dependencies = [
- "bevy_color",
  "downcast-rs 2.0.2",
  "dyn-clone",
  "iced_core",

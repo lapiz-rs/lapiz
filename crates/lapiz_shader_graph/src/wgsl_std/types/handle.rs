@@ -20,7 +20,6 @@ use lapiz_render::{
     texture::{GpuImage, Image, thumbnail::ImageThumbnail},
     util::DevicePollExt as _,
 };
-use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::{combo_box::ComboBox, flex::Flex, label, row, space};
 use serde::{Deserialize, Serialize};
 use toml::map::Map;
@@ -56,6 +55,7 @@ use crate::{
         },
         variable::GraphLiteral,
     },
+    random_oklch_hue_chroma,
     save::GraphValueTypeId,
 };
 

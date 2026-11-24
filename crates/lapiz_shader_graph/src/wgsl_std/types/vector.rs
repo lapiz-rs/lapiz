@@ -10,7 +10,6 @@ use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
     bind_group_layout_entries::DynamicBindGroupLayoutEntries,
 };
-use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::{checkbox, flex::Flex, label, menu, row};
 use serde::Deserialize as _;
 use wesl::syntax::{Expression, ExpressionNode, FunctionCall, Ident, TypeExpression};
@@ -24,6 +23,7 @@ use super::{
 use crate::{
     GraphRenderer, GraphTheme,
     graph::slot::{GraphShaderStage, GraphValueType},
+    random_oklch_hue_chroma,
     save::GraphValueTypeId,
 };
 

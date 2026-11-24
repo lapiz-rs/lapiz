@@ -1,29 +1,20 @@
 use anyhow::{Result, anyhow};
-use moxcms::{ColorProfile, Matrix3f};
+use moxcms::{ColorProfile, Matrix3f, srgb_colorants};
 use serde::{Deserialize, Serialize};
 
 use crate::model::xyz::Xyz;
 
-/// Linear (scene-referred) RGB color in an arbitrary RGB working space.
+/// RGB components with no stored color space or transfer function.
 ///
-/// `Rgb` stores **linear** light values — no gamma / transfer function is
-/// applied. The color space (primaries, white point, tone curve) is NOT
-/// stored on the struct; it is supplied at conversion time via the
-/// `rgb_to_xyz` matrix parameter.
-///
-/// To convert to/from [`Xyz`], you must provide a 3×3 linear transformation
-/// matrix specific to the RGB working space (e.g. sRGB → XYZ, Display P3 → XYZ).
-///
-/// - **r** — linear red, `[0.0, 1.0]` for display-referenced, unbounded for scene
-/// - **g** — linear green, same range
-/// - **b** — linear blue, same range
+/// The generic XYZ conversions operate on linear RGB and require a matrix for
+/// the working space. The `srgb_*` XYZ conversions use sRGB-encoded components.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Rgb {
-    /// Linear red component in `[0.0, 1.0]`.
+    /// Red component.
     pub r: f32,
-    /// Linear green component in `[0.0, 1.0]`.
+    /// Green component.
     pub g: f32,
-    /// Linear blue component in `[0.0, 1.0]`.
+    /// Blue component.
     pub b: f32,
 }
 
@@ -37,10 +28,43 @@ impl Rgb {
         Self::new(rgb.r, rgb.g, rgb.b)
     }
 
+    /// Converts D50 XYZ to sRGB-encoded components without clipping.
+    pub fn srgb_from_xyz(xyz: Xyz) -> Self {
+        Self::from_xyz(xyz, srgb_colorants().inverse().to_f32()).delinearize_to_srgb()
+    }
+
     pub fn into_xyz(&self, rgb_to_xyz: Matrix3f) -> Xyz {
         let xyz =
             moxcms::Xyz::from_linear_rgb(moxcms::Rgb::new(self.r, self.g, self.b), rgb_to_xyz);
         Xyz::new(xyz.x, xyz.y, xyz.z)
+    }
+
+    pub fn srgb_into_xyz(&self) -> Xyz {
+        self.linearize_srgb().into_xyz(srgb_colorants().to_f32())
+    }
+
+    pub fn linearize_srgb(self) -> Self {
+        fn decode(value: f32) -> f32 {
+            if value <= 0.04045 {
+                value / 12.92
+            } else {
+                ((value + 0.055) / 1.055).powf(2.4)
+            }
+        }
+
+        Self::new(decode(self.r), decode(self.g), decode(self.b))
+    }
+
+    pub fn delinearize_to_srgb(self) -> Self {
+        fn encode(value: f32) -> f32 {
+            if value <= 0.0031308 {
+                12.92 * value
+            } else {
+                1.055 * value.powf(1.0 / 2.4) - 0.055
+            }
+        }
+
+        Self::new(encode(self.r), encode(self.g), encode(self.b))
     }
 
     pub fn from_color_with_profile(

@@ -111,7 +111,6 @@ arboard = { version = "3.6", default-features = false }
 arc-swap = "1"
 async-broadcast = "0.7"
 async-trait = "0.1"
-bevy_color = "0.18"
 bevy_math = {
     git = "https://github.com/443eb9/bevy.git",
     branch = "release-0.18.1",

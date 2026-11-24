@@ -13,7 +13,7 @@ use iced_core::{
 use iced_widget::scrollable::{Direction, Scrollbar};
 use indexmap::IndexMap;
 use lapiz_i18n::t;
-use lapiz_utils::{random_oklch_hue_chroma, wrapper};
+use lapiz_utils::wrapper;
 use lapiz_widgets::{
     button, column, combo_box, container, fluent_builder::When as _, label, popover, row,
     scrollable, text_editor, text_input, text_input::default,
@@ -41,6 +41,7 @@ use crate::{
             GraphDefaultOutputSlot, GraphValueType,
         },
     },
+    random_oklch_hue_chroma,
     save::GraphSerializable,
 };
 

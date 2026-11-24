@@ -6,7 +6,6 @@ use std::{
     time::Instant,
 };
 
-use bevy_color::{Oklcha, Srgba};
 use iced_core::{
     Background, Border, Color, Element, Event, Layout, Length, Point, Rectangle, Renderer as _,
     Shell, Size, Transformation, Vector, Widget,
@@ -26,6 +25,7 @@ use iced_graphics::{
     gradient::Linear,
 };
 use indexmap::IndexMap;
+use lapiz_color::model::{oklch::OkLch, rgb::Rgb};
 use lapiz_i18n::t;
 use lapiz_widgets::{button, column, container, icon, label, overlay::menu, row, space, stack};
 use uuid::Uuid;
@@ -1577,7 +1577,7 @@ enum MarqueeMode {
 }
 
 pub fn themed_color(theme: &GraphTheme, hue: f32, chroma: f32) -> Color {
-    let oklch = Oklcha::new(
+    let oklch = OkLch::new(
         match theme.mode() {
             Mode::None => 0.6,
             Mode::Light => 0.7,
@@ -1585,13 +1585,12 @@ pub fn themed_color(theme: &GraphTheme, hue: f32, chroma: f32) -> Color {
         },
         chroma,
         hue,
-        1.0,
     );
-    let rgb = Srgba::from(oklch);
+    let rgb = Rgb::srgb_from_xyz(oklch.into_xyz());
     Color {
-        r: rgb.red,
-        g: rgb.green,
-        b: rgb.blue,
-        a: rgb.alpha,
+        r: rgb.r,
+        g: rgb.g,
+        b: rgb.b,
+        a: 1.0,
     }
 }

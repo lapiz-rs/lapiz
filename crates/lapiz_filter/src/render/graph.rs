@@ -12,9 +12,9 @@ use lapiz_shader_graph::{
         slot::{GraphDefaultInputSlot, GraphDefaultOutputSlot},
         variable::GraphTypeRegistry,
     },
+    random_oklch_hue_chroma,
     wgsl_std::{builtin_types, types::vector::Vec2IType},
 };
-use lapiz_utils::random_oklch_hue_chroma;
 use wesl::syntax::{
     Declaration, DeclarationKind, Expression, Ident, Span, Spanned, Statement, TypeExpression,
 };
