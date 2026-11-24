@@ -12,7 +12,7 @@ use iced_core::Length;
 use indexmap::IndexMap;
 use lapiz_i18n::t;
 use lapiz_shader_graph_derive::stateless;
-use lapiz_utils::{random_oklch_hue_chroma, wrapper};
+use lapiz_utils::wrapper;
 use lapiz_widgets::{
     button, column, combo_box, container, flex::Flex, fluent_builder::When as _, label, popover,
     row, text_input, text_input::default,
@@ -41,6 +41,7 @@ use crate::{
             GraphDefaultOutputSlot, GraphValueType,
         },
     },
+    random_oklch_hue_chroma,
     save::{GraphSerializable, SerializableGraph},
     wgsl_std::types::primitive::I32Type,
 };

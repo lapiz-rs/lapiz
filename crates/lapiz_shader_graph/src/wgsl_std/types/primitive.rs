@@ -9,7 +9,6 @@ use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
     bind_group_layout_entries::DynamicBindGroupLayoutEntries,
 };
-use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::{
     checkbox, context_menu, label, menu, menu::Menu, row, spin_box, spin_slider,
     spin_slider::SliderScale,
@@ -28,6 +27,7 @@ use crate::{
         node::GraphNodeCodeGenContext,
         slot::{GraphShaderStage, GraphValueType},
     },
+    random_oklch_hue_chroma,
     save::GraphValueTypeId,
 };
 

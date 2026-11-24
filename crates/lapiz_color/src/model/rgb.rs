@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use moxcms::{ColorProfile, Matrix3f};
+use moxcms::{ColorProfile, Matrix3f, srgb_colorants};
 use serde::{Deserialize, Serialize};
 
 use crate::model::xyz::Xyz;
@@ -37,10 +37,18 @@ impl Rgb {
         Self::new(rgb.r, rgb.g, rgb.b)
     }
 
+    pub fn srgb_from_xyz(xyz: Xyz) -> Self {
+        Self::from_xyz(xyz, srgb_colorants().inverse().to_f32())
+    }
+
     pub fn into_xyz(&self, rgb_to_xyz: Matrix3f) -> Xyz {
         let xyz =
             moxcms::Xyz::from_linear_rgb(moxcms::Rgb::new(self.r, self.g, self.b), rgb_to_xyz);
         Xyz::new(xyz.x, xyz.y, xyz.z)
+    }
+
+    pub fn srgb_into_xyz(&self) -> Xyz {
+        self.into_xyz(srgb_colorants().to_f32())
     }
 
     pub fn from_color_with_profile(

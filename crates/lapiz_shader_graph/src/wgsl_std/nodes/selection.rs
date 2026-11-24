@@ -1,7 +1,6 @@
 use iced_core::Length;
 use lapiz_i18n::Translated;
 use lapiz_shader_graph_derive::stateless;
-use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::combo_box;
 use parse_display::Display;
 use serde::{Deserialize, Serialize};
@@ -21,6 +20,7 @@ use crate::{
         },
         slot::{ErasedGraphLiteralUpdateMessage, GraphDefaultInputSlot, GraphDefaultOutputSlot},
     },
+    random_oklch_hue_chroma,
     wgsl_std::types::{
         primitive::{BoolType, F32Type},
         vector::Vec2FType,

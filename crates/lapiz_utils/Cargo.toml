@@ -7,7 +7,6 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-bevy_color.workspace = true
 downcast-rs.workspace = true
 dyn-clone.workspace = true
 iced_core.workspace = true

@@ -32,6 +32,7 @@ use lapiz_shader_graph::{
         },
         variable::GraphTypeRegistry,
     },
+    random_oklch_hue_chroma,
     save::GraphValueTypeId,
     wgsl_std::{
         builtin_types,
@@ -44,7 +45,6 @@ use lapiz_shader_graph::{
         },
     },
 };
-use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::combo_box;
 use serde::{Deserialize, Serialize};
 use wesl::syntax::{

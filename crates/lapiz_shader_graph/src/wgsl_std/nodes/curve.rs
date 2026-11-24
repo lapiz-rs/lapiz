@@ -1,7 +1,6 @@
 use glam::Vec2;
 use iced_core::Length;
 use lapiz_math::curve::CubicCurve;
-use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::curve_edit;
 use serde::{Deserialize, Serialize};
 use wesl::syntax::{
@@ -19,6 +18,7 @@ use crate::{
         },
         slot::{ErasedGraphLiteralUpdateMessage, GraphDefaultInputSlot, GraphDefaultOutputSlot},
     },
+    random_oklch_hue_chroma,
     wgsl_std::types::primitive::F32Type,
 };
 

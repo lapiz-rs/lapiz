@@ -21,13 +21,13 @@ use lapiz_shader_graph::{
         },
         variable::GraphTypeRegistry,
     },
+    random_oklch_hue_chroma,
     save::GraphSerializable,
     wgsl_std::{
         builtin_nodes, builtin_types,
         types::{primitive::U32Type, vector::Vec2IType},
     },
 };
-use lapiz_utils::random_oklch_hue_chroma;
 use lapiz_widgets::{column, combo_box, flex::Flex, label, row, text_input};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
