@@ -53,7 +53,7 @@ pub struct GraphNodeInputDef {
     pub target: GraphNodeInputTarget,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum GraphNodeInputTarget {
     Pass(EffectPassOutputSlotId),
     Effect(EffectInputSlotId),
@@ -145,10 +145,10 @@ pub trait GraphNode: Send + Sync + 'static + DynClone {
     fn subgraphs_mut<'a>(&mut self, _state: &'a mut Self::State) -> Vec<&'a mut Graph> {
         Vec::new()
     }
-    fn as_input_port<'a>(&self, _state: &'a Self::State) -> Option<GraphNodeInputDef> {
+    fn as_input_port(&self, _state: &Self::State) -> Option<GraphNodeInputDef> {
         None
     }
-    fn as_output_port<'a>(&self, _state: &'a Self::State) -> Option<GraphNodeOutputDef> {
+    fn as_output_port(&self, _state: &Self::State) -> Option<GraphNodeOutputDef> {
         None
     }
 }
@@ -218,8 +218,8 @@ pub trait ErasedGraphNode: Send + Sync + 'static + DynClone + Downcast {
     ) -> Result<Box<dyn Any + Send + Sync>>;
     fn subgraphs<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Vec<&'a Graph>;
     fn subgraphs_mut<'a>(&mut self, state: &'a mut (dyn Any + Send + Sync)) -> Vec<&'a mut Graph>;
-    fn as_input_port<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Option<GraphNodeInputDef>;
-    fn as_output_port<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef>;
+    fn as_input_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeInputDef>;
+    fn as_output_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef>;
 }
 
 dyn_clone::clone_trait_object!(ErasedGraphNode);
@@ -367,7 +367,7 @@ impl<T: GraphNode> ErasedGraphNode for T {
         )
     }
 
-    fn as_input_port<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Option<GraphNodeInputDef> {
+    fn as_input_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeInputDef> {
         self.as_input_port(
             state
                 .downcast_ref::<T::State>()
@@ -375,7 +375,7 @@ impl<T: GraphNode> ErasedGraphNode for T {
         )
     }
 
-    fn as_output_port<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef> {
+    fn as_output_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef> {
         self.as_output_port(
             state
                 .downcast_ref::<T::State>()

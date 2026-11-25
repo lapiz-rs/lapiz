@@ -12,14 +12,14 @@ use lapiz_effect::{
         EffectPassOutputSlotId,
     },
     instance::{EffectInputs, EffectInstance},
-    nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
+    nodes::{PassInput, PassInputNode},
     render::{EffectRenderer, pass_input_ident, pass_output_ident},
     shader_graph::{
         builtin::types::handle::LayerType,
         graph::{
             GraphResources, GraphVarIdentGenerator,
             function::GraphFunction,
-            node::GraphNodeRegistry,
+            node::{GraphNodeInputTarget, GraphNodeOutputTarget, GraphNodeRegistry},
             slot::{ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphShaderStage},
             variable::{GraphLiteral, GraphShaderLiteral},
         },
@@ -281,8 +281,8 @@ impl BrushPresetInstance {
         let mut main_inputs = Vec::new();
         let output_port = pass_output_port_of(&self.main_effect, main_dab_output)?;
         for node in pass.graph.iter_nodes() {
-            if let Some(state) = node.data.state::<PassInputNode>() {
-                let Some(PassInput::Effect(id)) = state.input else {
+            if let Some(input) = node.data.as_input_port() {
+                let GraphNodeInputTarget::Effect(id) = input.target else {
                     bail!("Brush main pass inputs must reference effect parameters");
                 };
                 let parameter = self
@@ -298,12 +298,12 @@ impl BrushPresetInstance {
                     .clone();
                 let value = ty.prepare_to_shader(parameter.value.value(), device, queue)?;
                 main_inputs.push((
-                    pass_input_ident(state.id),
+                    pass_input_ident(input.id),
                     GraphShaderLiteral::new_boxed(value, ty),
                 ));
             }
-            if let Some(state) = node.data.state::<PassOutputNode>()
-                && state.id != output_port
+            if let Some(output) = node.data.as_output_port()
+                && output.id != output_port
             {
                 bail!("Brush main pass must have a single dab output node");
             }
@@ -511,11 +511,11 @@ fn pass_input_port_of(
 ) -> Result<EffectPassInputSlotId> {
     for pass in effect.passes.values() {
         for node in pass.graph.iter_nodes() {
-            let Some(state) = node.data.state::<PassInputNode>() else {
+            let Some(input) = node.data.as_input_port() else {
                 continue;
             };
-            if state.input == Some(PassInput::Effect(effect_input)) {
-                return Ok(state.id);
+            if input.target == GraphNodeInputTarget::Effect(effect_input) {
+                return Ok(input.id);
             }
         }
     }
@@ -528,11 +528,11 @@ fn pass_output_port_of(
 ) -> Result<EffectPassOutputSlotId> {
     for pass in effect.passes.values() {
         for node in pass.graph.iter_nodes() {
-            let Some(state) = node.data.state::<PassOutputNode>() else {
+            let Some(output) = node.data.as_output_port() else {
                 continue;
             };
-            if matches!(state.output, Some(PassOutput::Effect(id)) if id == effect_output) {
-                return Ok(state.id);
+            if matches!(output.target, GraphNodeOutputTarget::Effect(id) if id == effect_output) {
+                return Ok(output.id);
             }
         }
     }

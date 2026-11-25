@@ -278,7 +278,7 @@ impl GraphNode for PassInputNode {
         Ok(ty.handle_input_values(&name, 0, &mut ctx)?)
     }
 
-    fn as_input_port<'a>(&self, state: &'a Self::State) -> Option<GraphNodeInputDef> {
+    fn as_input_port(&self, state: &Self::State) -> Option<GraphNodeInputDef> {
         let input = state.input.as_ref()?;
         Some(GraphNodeInputDef {
             id: state.id,
@@ -592,7 +592,7 @@ impl GraphNode for PassOutputNode {
         Ok(ty.handle_output_values(&name, 0, &mut ctx)?)
     }
 
-    fn as_output_port<'a>(&self, state: &'a Self::State) -> Option<GraphNodeOutputDef> {
+    fn as_output_port(&self, state: &Self::State) -> Option<GraphNodeOutputDef> {
         let output = state.output.as_ref()?;
         Some(GraphNodeOutputDef {
             id: state.id,

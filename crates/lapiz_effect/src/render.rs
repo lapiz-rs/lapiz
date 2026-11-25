@@ -35,7 +35,6 @@ use crate::{
         EffectInputSlot, EffectInputs, EffectInputsDecl, EffectInstance, EffectOutputs,
         EffectPassInputsDecl, EffectPassOutputTypes, EffectPassOutputs, EffectPassOutputsDecl,
     },
-    nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
     shader_graph::{
         builtin::types::{
             atomic::{ArrayAtomicI32Type, ArrayAtomicU32Type, PreparedAtomicArray},

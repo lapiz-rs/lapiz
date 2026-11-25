@@ -16,7 +16,8 @@ use crate::{
     },
     render::{EffectPassInputSlotSource, EffectPassOutputSlotTarget},
     shader_graph::graph::{
-        Graph, GraphResources, slot::ErasedGraphValueType, variable::GraphShaderLiteral,
+        Graph, GraphResources, node::GraphNodeOutputTarget, slot::ErasedGraphValueType,
+        variable::GraphShaderLiteral,
     },
 };
 
@@ -254,7 +255,8 @@ impl EffectInstance {
             for node in pass.graph.iter_nodes_mut() {
                 if let Some(state) = node.data.state_mut::<DispatchIndexNode>() {
                     state.cached_dispatch_strategy = pass.dispatch_strategy;
-                } else if let Some(state) = node.data.state_mut::<PassInputNode>() {
+                }
+                if let Some(state) = node.data.state_mut::<PassInputNode>() {
                     state.available_sources = sources.clone();
                     state.cached_ty = match state.input {
                         Some(PassInput::Effect(id)) => Some(
@@ -272,7 +274,8 @@ impl EffectInstance {
                         ),
                         None => None,
                     };
-                } else if let Some(state) = node.data.state_mut::<PassOutputNode>() {
+                }
+                if let Some(state) = node.data.state_mut::<PassOutputNode>() {
                     state.available_targets = available_targets.clone();
                     state.available_types = available_types.clone();
                     state.cached_ty = match &state.output {
@@ -296,18 +299,15 @@ impl EffectInstance {
         let mut outputs = HashMap::new();
         for (pass_id, pass) in &self.passes {
             for node in pass.graph.iter_nodes() {
-                let Some(state) = node.data.state::<PassOutputNode>() else {
+                let Some(output) = node.data.as_output_port() else {
                     continue;
                 };
-                let Some(output) = &state.output else {
-                    continue;
-                };
-                let (ty, name) = match output {
-                    PassOutput::Pass(def) => (def.ty.clone(), def.name.clone()),
-                    PassOutput::Effect(id) => {
+                let (ty, name) = match output.target {
+                    GraphNodeOutputTarget::Pass(def) => (def.ty.clone(), def.name.clone()),
+                    GraphNodeOutputTarget::Effect(id) => {
                         let slot = self
                             .outputs
-                            .get(id)
+                            .get(&id)
                             .with_context(|| format!("Unknown effect output {id:?}"))?;
                         (slot.ty.clone(), slot.name.clone())
                     }
@@ -317,8 +317,8 @@ impl EffectInstance {
                     ty,
                     name,
                 };
-                if outputs.insert(state.id, info).is_some() {
-                    bail!("Duplicate pass output ID {:?}", state.id);
+                if outputs.insert(output.id, info).is_some() {
+                    bail!("Duplicate pass output ID {:?}", output.id);
                 }
             }
         }
