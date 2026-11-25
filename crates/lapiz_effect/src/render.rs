@@ -43,7 +43,7 @@ use crate::{
         },
         graph::{
             Graph, GraphVarIdentGenerator,
-            node::{GraphNodeInputTarget, GraphNodeOutputTarget},
+            node::{GraphNodeInputSource, GraphNodeOutputTarget},
             slot::{ErasedGraphValueType, GraphShaderStage},
             variable::GraphShaderLiteral,
         },
@@ -127,11 +127,11 @@ impl EffectRenderer {
                 if let Some(input_port) = node.data.as_input_port() {
                     pass_input_decl.insert(
                         input_port.id,
-                        match input_port.target {
-                            GraphNodeInputTarget::Pass(id) => {
+                        match input_port.source {
+                            GraphNodeInputSource::Pass(id) => {
                                 EffectPassInputSlotSource::PassOutput(id)
                             }
-                            GraphNodeInputTarget::Effect(id) => {
+                            GraphNodeInputSource::Effect(id) => {
                                 ensure!(inputs.contains_key(&id), "Unknown effect input {id:?}");
                                 EffectPassInputSlotSource::EffectInput(id)
                             }

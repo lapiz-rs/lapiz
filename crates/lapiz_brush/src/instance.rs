@@ -19,7 +19,7 @@ use lapiz_effect::{
         graph::{
             GraphResources, GraphVarIdentGenerator,
             function::GraphFunction,
-            node::{GraphNodeInputTarget, GraphNodeOutputTarget, GraphNodeRegistry},
+            node::{GraphNodeInputSource, GraphNodeOutputTarget, GraphNodeRegistry},
             slot::{ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphShaderStage},
             variable::{GraphLiteral, GraphShaderLiteral},
         },
@@ -282,7 +282,7 @@ impl BrushPresetInstance {
         let output_port = pass_output_port_of(&self.main_effect, main_dab_output)?;
         for node in pass.graph.iter_nodes() {
             if let Some(input) = node.data.as_input_port() {
-                let GraphNodeInputTarget::Effect(id) = input.target else {
+                let GraphNodeInputSource::Effect(id) = input.source else {
                     bail!("Brush main pass inputs must reference effect parameters");
                 };
                 let parameter = self
@@ -514,7 +514,7 @@ fn pass_input_port_of(
             let Some(input) = node.data.as_input_port() else {
                 continue;
             };
-            if input.target == GraphNodeInputTarget::Effect(effect_input) {
+            if input.source == GraphNodeInputSource::Effect(effect_input) {
                 return Ok(input.id);
             }
         }

@@ -50,11 +50,11 @@ wrapper! {
 #[derive(Clone)]
 pub struct GraphNodeInputDef {
     pub id: EffectPassInputSlotId,
-    pub target: GraphNodeInputTarget,
+    pub source: GraphNodeInputSource,
 }
 
 #[derive(Clone, PartialEq)]
-pub enum GraphNodeInputTarget {
+pub enum GraphNodeInputSource {
     Pass(EffectPassOutputSlotId),
     Effect(EffectInputSlotId),
 }

@@ -32,7 +32,7 @@ use crate::{
             node::{
                 GraphNode, GraphNodeCodeGenContext, GraphNodeCodeGenError,
                 GraphNodeCreateSlotsContext, GraphNodeDefaultStateContext, GraphNodeInputDef,
-                GraphNodeInputTarget, GraphNodeOutputDef, GraphNodeOutputTarget, GraphNodeRegistry,
+                GraphNodeInputSource, GraphNodeOutputDef, GraphNodeOutputTarget, GraphNodeRegistry,
                 GraphNodeUpdateContext, GraphNodeViewContext,
             },
             slot::{
@@ -282,9 +282,9 @@ impl GraphNode for PassInputNode {
         let input = state.input.as_ref()?;
         Some(GraphNodeInputDef {
             id: state.id,
-            target: match input {
-                PassInput::Pass(id) => GraphNodeInputTarget::Pass(*id),
-                PassInput::Effect(id) => GraphNodeInputTarget::Effect(*id),
+            source: match input {
+                PassInput::Pass(id) => GraphNodeInputSource::Pass(*id),
+                PassInput::Effect(id) => GraphNodeInputSource::Effect(*id),
             },
         })
     }
