@@ -6,10 +6,10 @@ use std::{
 use anyhow::Result;
 use indexmap::IndexMap;
 use lapiz_assets::{asset::Asset, loader::AssetSerializer};
-use lapiz_effect::asset::{
-    EffectAsset, EffectAssetSerializer, EffectAssetSerializerError, EffectInputSlotId,
+use lapiz_effect::{
+    asset::{EffectAsset, EffectAssetSerializer, EffectAssetSerializerError, EffectInputSlotId},
+    shader_graph::save::SerializableGraphLiteral,
 };
-use lapiz_shader_graph::save::SerializableGraphLiteral;
 use serde::{Deserialize, Serialize};
 use toml::{de, ser};
 use zip::{ZipArchive, ZipWriter, result::ZipError, write::FileOptions};

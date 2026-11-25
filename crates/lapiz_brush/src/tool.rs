@@ -8,7 +8,10 @@ use lapiz_canvas::{
     CanvasAppExt as _, CanvasUndoStackAppExt as _, command::TileReplaceCommand,
     event::CanvasUpdated,
 };
-use lapiz_effect::asset::EffectInputSlotId;
+use lapiz_effect::{
+    asset::EffectInputSlotId,
+    shader_graph::graph::slot::{ErasedGraphLiteralUpdateMessage, GraphInputSlotId},
+};
 use lapiz_i18n::t;
 use lapiz_image::{composite::LayerPreviewOverriders, tile::TileStorageAppExt as _};
 use lapiz_input::{key::KeyboardState, mouse::PressedMouseState};
@@ -18,7 +21,6 @@ use lapiz_runtime::{
     event::Event as _,
     global::{Global, Globals},
 };
-use lapiz_shader_graph::graph::slot::{ErasedGraphLiteralUpdateMessage, GraphInputSlotId};
 use lapiz_tools::{ToolFunction, ToolId};
 use lapiz_undo::QueuedUndoCommand;
 use lapiz_utils::log_err::LogErr as _;

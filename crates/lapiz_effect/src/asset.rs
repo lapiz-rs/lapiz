@@ -7,11 +7,12 @@ use std::{
 
 use anyhow::Result;
 use lapiz_assets::{asset::Asset, loader::AssetSerializer};
-use lapiz_shader_graph::save::SerializableGraph;
 use lapiz_utils::wrapper;
 use serde::{Deserialize, Serialize};
 use toml::{de, ser};
 use uuid::Uuid;
+
+use crate::shader_graph::save::SerializableGraph;
 
 wrapper! {
     /// A strongly-typed unique identifier for a pass within an [`EffectAsset`] or [`EffectInstance`](crate::instance::EffectInstance).

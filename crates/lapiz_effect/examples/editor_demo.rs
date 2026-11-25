@@ -18,19 +18,19 @@ use lapiz_effect::{
     editor::{EffectEditorMessage, EffectEditorState, EffectEditorView},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
     nodes::{PassInput, PassInputNode, PassOutput, PassOutputDef, PassOutputNode, effect_nodes},
-};
-use lapiz_shader_graph::{
-    GraphRenderer, GraphTheme,
-    graph::{
-        Graph, GraphResources,
-        node::{GraphNodeId, GraphNodeRegistry},
-        slot::ErasedGraphValueType,
-        variable::GraphTypeRegistry,
-    },
-    wgsl_std::{
-        builtin_types,
-        nodes::math::{ScalarMathNode, ScalarMathNodeMode},
-        types::primitive::F32Type,
+    shader_graph::{
+        GraphRenderer, GraphTheme,
+        builtin::{
+            builtin_types,
+            nodes::math::{ScalarMathNode, ScalarMathNodeMode},
+            types::primitive::F32Type,
+        },
+        graph::{
+            Graph, GraphResources,
+            node::{GraphNodeId, GraphNodeRegistry},
+            slot::ErasedGraphValueType,
+            variable::GraphTypeRegistry,
+        },
     },
 };
 use uuid::Uuid;
@@ -271,8 +271,6 @@ fn demo_effect() -> EffectInstance {
 }
 
 fn main() -> iced::Result {
-    lapiz_shader_graph::init_i18n();
-    lapiz_effect::init_i18n();
     iced::application(DemoEditor::new, DemoEditor::update, DemoEditor::view)
         .window_size((1280.0, 800.0))
         .title("Effect Editor Demo")

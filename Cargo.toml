@@ -20,6 +20,7 @@ members = [
     "crates/lapiz_dirs",
     "crates/lapiz_dock",
     "crates/lapiz_effect",
+    "crates/lapiz_effect_derive",
     "crates/lapiz_eye_dropper",
     "crates/lapiz_file_dialog/",
     "crates/lapiz_filter",
@@ -39,8 +40,6 @@ members = [
     "crates/lapiz_runtime_derive",
     "crates/lapiz_selection_tool",
     "crates/lapiz_settings",
-    "crates/lapiz_shader_graph",
-    "crates/lapiz_shader_graph_derive",
     "crates/lapiz_tools",
     "crates/lapiz_transform_tool",
     "crates/lapiz_undo",
@@ -78,6 +77,7 @@ lapiz_config = { path = "crates/lapiz_config", version = "0.1.0" }
 lapiz_dirs = { path = "crates/lapiz_dirs", version = "0.1.0" }
 lapiz_dock = { path = "crates/lapiz_dock", version = "0.1.0" }
 lapiz_effect = { path = "crates/lapiz_effect", version = "0.1.0" }
+lapiz_effect_derive = { path = "crates/lapiz_effect_derive", version = "0.1.0" }
 lapiz_eye_dropper = { path = "crates/lapiz_eye_dropper", version = "0.1.0" }
 lapiz_file_dialog = { path = "crates/lapiz_file_dialog", version = "0.1.0" }
 lapiz_filter = { path = "crates/lapiz_filter", version = "0.1.0" }
@@ -97,8 +97,6 @@ lapiz_runtime = { path = "crates/lapiz_runtime", version = "0.1.0" }
 lapiz_runtime_derive = { path = "crates/lapiz_runtime_derive", version = "0.1.0" }
 lapiz_selection_tool = { path = "crates/lapiz_selection_tool", version = "0.1.0" }
 lapiz_settings = { path = "crates/lapiz_settings", version = "0.1.0" }
-lapiz_shader_graph = { path = "crates/lapiz_shader_graph", version = "0.1.0" }
-lapiz_shader_graph_derive = { path = "crates/lapiz_shader_graph_derive", version = "0.1.0" }
 lapiz_tools = { path = "crates/lapiz_tools", version = "0.1.0" }
 lapiz_transform_tool = { path = "crates/lapiz_transform_tool", version = "0.1.0" }
 lapiz_undo = { path = "crates/lapiz_undo", version = "0.1.0" }
@@ -177,7 +175,6 @@ moxcms = "0.9"
 mundy = { version = "0.2", default-features = false }
 num_enum = "0.7"
 num-traits = "0.2"
-palette = "0.7"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 parse-display = "0.11"
 paste = { package = "pastey", version = "0.2" }

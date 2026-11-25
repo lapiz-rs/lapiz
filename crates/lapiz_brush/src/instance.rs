@@ -14,20 +14,20 @@ use lapiz_effect::{
     instance::{EffectInputs, EffectInstance},
     nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
     render::{EffectRenderer, pass_input_ident, pass_output_ident},
+    shader_graph::{
+        builtin::types::handle::LayerType,
+        graph::{
+            GraphResources, GraphVarIdentGenerator,
+            function::GraphFunction,
+            node::GraphNodeRegistry,
+            slot::{ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphShaderStage},
+            variable::{GraphLiteral, GraphShaderLiteral},
+        },
+        save::SerializableGraphLiteral,
+    },
 };
 use lapiz_image::{image, texel::TexelType};
 use lapiz_render::{bind_group_layout_entries::DynamicBindGroupLayoutEntries, render, wesl_jit};
-use lapiz_shader_graph::{
-    graph::{
-        GraphResources, GraphVarIdentGenerator,
-        function::GraphFunction,
-        node::GraphNodeRegistry,
-        slot::{ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphShaderStage},
-        variable::{GraphLiteral, GraphShaderLiteral},
-    },
-    save::SerializableGraphLiteral,
-    wgsl_std::types::handle::LayerType,
-};
 use wgpu::{BindGroupLayoutEntry, Device, Queue, ShaderStages};
 
 use crate::{

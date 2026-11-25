@@ -6,28 +6,6 @@ use std::{
 use anyhow::{Context as _, Result};
 use iced_core::{Length, widget::Void};
 use lapiz_i18n::t;
-use lapiz_shader_graph::{
-    GraphElement,
-    graph::{
-        GraphResources,
-        node::{
-            GraphNode, GraphNodeCodeGenContext, GraphNodeCodeGenError, GraphNodeCreateSlotsContext,
-            GraphNodeDefaultStateContext, GraphNodeRegistry, GraphNodeUpdateContext,
-            GraphNodeViewContext,
-        },
-        slot::{
-            ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphDefaultInputSlot,
-            GraphDefaultOutputSlot,
-        },
-        variable::GraphTypeRegistry,
-    },
-    random_oklch_hue_chroma,
-    save::GraphSerializable,
-    wgsl_std::{
-        builtin_nodes, builtin_types,
-        types::{primitive::U32Type, vector::Vec2IType},
-    },
-};
 use lapiz_widgets::{column, combo_box, flex::Flex, label, row, text_input};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -41,7 +19,29 @@ use crate::{
         EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassInputSlotId,
         EffectPassOutputSlotId,
     },
+    random_oklch_hue_chroma,
     render::{pass_input_ident, pass_output_ident},
+    shader_graph::{
+        GraphElement,
+        builtin::{
+            builtin_nodes, builtin_types,
+            types::{primitive::U32Type, vector::Vec2IType},
+        },
+        graph::{
+            GraphResources,
+            node::{
+                GraphNode, GraphNodeCodeGenContext, GraphNodeCodeGenError,
+                GraphNodeCreateSlotsContext, GraphNodeDefaultStateContext, GraphNodeRegistry,
+                GraphNodeUpdateContext, GraphNodeViewContext,
+            },
+            slot::{
+                ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphDefaultInputSlot,
+                GraphDefaultOutputSlot,
+            },
+            variable::GraphTypeRegistry,
+        },
+        save::GraphSerializable,
+    },
 };
 
 /// A shader graph node that reads an external effect input or an upstream pass's output into the current pass.

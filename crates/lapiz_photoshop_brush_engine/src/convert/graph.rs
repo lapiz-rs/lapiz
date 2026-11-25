@@ -19,26 +19,26 @@ use lapiz_effect::{
         SerializableEffectOutputSlot, SerializableEffectPass,
     },
     nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
+    shader_graph::{
+        builtin::{
+            nodes::custom_expression::{CustomExpressionNode, CustomExpressionNodeState},
+            types::{
+                compound::{ColorType, RectType},
+                handle::{LayerType, TextureType},
+                primitive::{F32Type, I32Type},
+                vector::Vec2FType,
+            },
+        },
+        graph::{
+            Graph,
+            node::{GraphNode, GraphNodeId},
+            slot::{ErasedGraphValueType, GraphValueType},
+        },
+        save::{SerializableGraph, SerializableGraphLiteral},
+    },
 };
 use lapiz_image::{blend_modes::BlendMode, texel::TexelType};
 use lapiz_render::texture::Image;
-use lapiz_shader_graph::{
-    graph::{
-        Graph,
-        node::{GraphNode, GraphNodeId},
-        slot::{ErasedGraphValueType, GraphValueType},
-    },
-    save::{SerializableGraph, SerializableGraphLiteral},
-    wgsl_std::{
-        nodes::custom_expression::{CustomExpressionNode, CustomExpressionNodeState},
-        types::{
-            compound::{ColorType, RectType},
-            handle::{LayerType, TextureType},
-            primitive::{F32Type, I32Type},
-            vector::Vec2FType,
-        },
-    },
-};
 use toml::map::Map;
 use uuid::Uuid;
 

@@ -1,19 +1,21 @@
 use std::sync::{Arc, LazyLock};
 
 use lapiz_assets::store::AssetRegistry;
-use lapiz_effect::nodes::effect_nodes;
-use lapiz_shader_graph::{
-    graph::{
-        GraphResources,
-        node::{
-            GraphNodeCodeGenContext, GraphNodeCodeGenError, GraphNodeCreateSlotsContext,
-            GraphNodeRegistry, StatelessCommonGraphNode, stateless,
-        },
-        slot::{GraphDefaultInputSlot, GraphDefaultOutputSlot},
-        variable::GraphTypeRegistry,
-    },
+use lapiz_effect::{
+    nodes::effect_nodes,
     random_oklch_hue_chroma,
-    wgsl_std::{builtin_types, types::vector::Vec2IType},
+    shader_graph::{
+        builtin::{builtin_types, types::vector::Vec2IType},
+        graph::{
+            GraphResources,
+            node::{
+                GraphNodeCodeGenContext, GraphNodeCodeGenError, GraphNodeCreateSlotsContext,
+                GraphNodeRegistry, StatelessCommonGraphNode, stateless,
+            },
+            slot::{GraphDefaultInputSlot, GraphDefaultOutputSlot},
+            variable::GraphTypeRegistry,
+        },
+    },
 };
 use wesl::syntax::{
     Declaration, DeclarationKind, Expression, Ident, Span, Spanned, Statement, TypeExpression,

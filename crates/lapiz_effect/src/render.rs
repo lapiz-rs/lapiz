@@ -10,18 +10,6 @@ use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
     bind_group_layout_entries::DynamicBindGroupLayoutEntries, render, wesl_jit,
 };
-use lapiz_shader_graph::{
-    graph::{
-        Graph, GraphVarIdentGenerator,
-        slot::{ErasedGraphValueType, GraphShaderStage},
-        variable::GraphShaderLiteral,
-    },
-    wgsl_std::types::{
-        atomic::{ArrayAtomicI32Type, ArrayAtomicU32Type, PreparedAtomicArray},
-        handle::{ArrayType, LayerType, PreparedArray, PreparedLayer, PreparedLayerPixels},
-        layer_tile_info_ident,
-    },
-};
 use wesl::{
     CodegenPkg,
     syntax::{
@@ -48,6 +36,18 @@ use crate::{
         EffectPassInputsDecl, EffectPassOutputTypes, EffectPassOutputs, EffectPassOutputsDecl,
     },
     nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
+    shader_graph::{
+        builtin::types::{
+            atomic::{ArrayAtomicI32Type, ArrayAtomicU32Type, PreparedAtomicArray},
+            handle::{ArrayType, LayerType, PreparedArray, PreparedLayer, PreparedLayerPixels},
+            layer_tile_info_ident,
+        },
+        graph::{
+            Graph, GraphVarIdentGenerator,
+            slot::{ErasedGraphValueType, GraphShaderStage},
+            variable::GraphShaderLiteral,
+        },
+    },
 };
 
 pub fn pass_input_ident(slot: EffectPassInputSlotId) -> String {

@@ -13,7 +13,10 @@ use lapiz_canvas::{
     Canvas, CanvasAppExt as _, CanvasId, CanvasUndoStackAppExt as _, command::TileReplaceCommand,
     event::CanvasUpdated,
 };
-use lapiz_effect::asset::EffectInputSlotId;
+use lapiz_effect::{
+    asset::EffectInputSlotId,
+    shader_graph::graph::slot::{ErasedGraphLiteralUpdateMessage, GraphInputSlotId},
+};
 use lapiz_i18n::t;
 use lapiz_image::{
     composite::{LayerPreviewOverriders, PixelPreviewOverrider},
@@ -30,7 +33,6 @@ use lapiz_runtime::{
     global::Globals,
     windows::{OpenWindowViewCommand, WindowCommandBuffer, WindowView, WindowViewId},
 };
-use lapiz_shader_graph::graph::slot::{ErasedGraphLiteralUpdateMessage, GraphInputSlotId};
 use lapiz_undo::BatchedUndoCommand;
 use lapiz_widgets::{button, column, flex::Flex, label, panel, row, scrollable, space, title_bar};
 

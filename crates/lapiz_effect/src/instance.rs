@@ -3,9 +3,6 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::{Context as _, Result, bail};
 use indexmap::IndexMap;
 use lapiz_i18n::t;
-use lapiz_shader_graph::graph::{
-    Graph, GraphResources, slot::ErasedGraphValueType, variable::GraphShaderLiteral,
-};
 
 use crate::{
     asset::{
@@ -18,6 +15,9 @@ use crate::{
         PassOutputChoiceTarget, PassOutputNode, TypeChoice,
     },
     render::{EffectPassInputSlotSource, EffectPassOutputSlotTarget},
+    shader_graph::graph::{
+        Graph, GraphResources, slot::ErasedGraphValueType, variable::GraphShaderLiteral,
+    },
 };
 
 pub type EffectInputsDecl = HashMap<EffectInputSlotId, Arc<dyn ErasedGraphValueType>>;

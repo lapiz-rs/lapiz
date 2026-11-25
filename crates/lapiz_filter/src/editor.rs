@@ -13,17 +13,17 @@ use lapiz_effect::{
     editor::{EffectEditorMessage, EffectEditorState, EffectEditorView},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot},
     nodes::{PassInput, PassInputNode},
+    shader_graph::{
+        GraphElement,
+        builtin::types::handle::LayerType,
+        editor::parameters::{ParametersEditor, ParametersEditorMessage},
+    },
 };
 use lapiz_i18n::t;
 use lapiz_image::texel::TexelType;
 use lapiz_runtime::{
     global::Globals,
     windows::{WindowView, WindowViewId},
-};
-use lapiz_shader_graph::{
-    GraphElement,
-    editor::parameters::{ParametersEditor, ParametersEditorMessage},
-    wgsl_std::types::handle::LayerType,
 };
 use lapiz_widgets::{
     button, column, component::component, flex::Flex, label, panel, row, scrollable, text_input,

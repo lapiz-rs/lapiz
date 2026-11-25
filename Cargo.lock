@@ -771,12 +771,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
 
 [[package]]
-name = "by_address"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64fa3c856b712db6612c019f14756e64e4bcea13337a6b33b696333a9eaa2d06"
-
-[[package]]
 name = "bytemuck"
 version = "1.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3242,7 +3236,6 @@ dependencies = [
  "lapiz_runtime",
  "lapiz_selection_tool",
  "lapiz_settings",
- "lapiz_shader_graph",
  "lapiz_tools",
  "lapiz_transform_tool",
  "lapiz_undo",
@@ -3333,7 +3326,6 @@ dependencies = [
  "lapiz_math",
  "lapiz_render",
  "lapiz_runtime",
- "lapiz_shader_graph",
  "lapiz_tools",
  "lapiz_undo",
  "lapiz_utils",
@@ -3557,25 +3549,36 @@ name = "lapiz_effect"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "bevy_math",
  "bytemuck",
+ "dashmap",
+ "downcast-rs 2.0.2",
  "dyn-clone",
  "encase",
  "futures",
  "glam 0.30.10",
  "iced",
  "iced_core",
+ "iced_graphics",
  "iced_runtime",
+ "iced_wgpu",
+ "iced_widget",
  "image",
  "indexmap",
  "lapiz_assets",
+ "lapiz_color",
+ "lapiz_effect_derive",
  "lapiz_i18n",
  "lapiz_image",
+ "lapiz_math",
  "lapiz_render",
  "lapiz_runtime",
- "lapiz_shader_graph",
  "lapiz_utils",
  "lapiz_widgets",
+ "log",
+ "parking_lot",
+ "parse-display",
  "rust-embed",
  "serde",
  "thiserror 2.0.21",
@@ -3584,6 +3587,15 @@ dependencies = [
  "wesl",
  "wesl-quote",
  "wgpu",
+]
+
+[[package]]
+name = "lapiz_effect_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.5",
 ]
 
 [[package]]
@@ -3640,7 +3652,6 @@ dependencies = [
  "lapiz_image",
  "lapiz_render",
  "lapiz_runtime",
- "lapiz_shader_graph",
  "lapiz_undo",
  "lapiz_utils",
  "lapiz_widgets",
@@ -3700,7 +3711,6 @@ dependencies = [
  "log",
  "moxcms 0.9.1",
  "num_enum",
- "palette",
  "parking_lot",
  "parse-display",
  "rayon",
@@ -3833,7 +3843,6 @@ dependencies = [
  "lapiz_render",
  "lapiz_report",
  "lapiz_runtime",
- "lapiz_shader_graph",
  "lapiz_tools",
  "lapiz_undo",
  "lapiz_utils",
@@ -3894,7 +3903,6 @@ dependencies = [
  "lapiz_image",
  "lapiz_render",
  "lapiz_runtime",
- "lapiz_shader_graph",
  "lapiz_widgets",
  "rust-embed",
  "serde",
@@ -4035,58 +4043,6 @@ dependencies = [
  "lapiz_utils",
  "lapiz_widgets",
  "rust-embed",
-]
-
-[[package]]
-name = "lapiz_shader_graph"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arc-swap",
- "bevy_math",
- "dashmap",
- "downcast-rs 2.0.2",
- "dyn-clone",
- "encase",
- "futures",
- "glam 0.30.10",
- "iced",
- "iced_core",
- "iced_graphics",
- "iced_runtime",
- "iced_wgpu",
- "iced_widget",
- "indexmap",
- "lapiz_assets",
- "lapiz_color",
- "lapiz_i18n",
- "lapiz_image",
- "lapiz_math",
- "lapiz_render",
- "lapiz_runtime",
- "lapiz_shader_graph_derive",
- "lapiz_utils",
- "lapiz_widgets",
- "log",
- "parking_lot",
- "parse-display",
- "rust-embed",
- "serde",
- "thiserror 2.0.21",
- "toml 1.1.6+spec-1.1.0",
- "uuid",
- "wesl",
- "wesl-quote",
- "wgpu",
-]
-
-[[package]]
-name = "lapiz_shader_graph_derive"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.5",
 ]
 
 [[package]]
@@ -5174,36 +5130,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "palette"
-version = "0.7.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddeed8580d347d2abf3dcf06a5f0b3dc020258338526b277847cd4248a70fc64"
-dependencies = [
- "approx",
- "palette_derive",
- "palette_math",
- "phf",
-]
-
-[[package]]
-name = "palette_derive"
-version = "0.7.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88537020289b719d81be994ccf1bbf4990f477e2f69ee52fe3e45f43a02e56be"
-dependencies = [
- "by_address",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "palette_math"
-version = "0.7.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e6eb142958d64335fb0e345c5b9ead2ecd6fc438c307e9d7d3c4fd428dbaf12"
-
-[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5318,15 +5244,6 @@ dependencies = [
  "fixedbitset 0.5.7",
  "hashbrown 0.15.5",
  "indexmap",
-]
-
-[[package]]
-name = "phf"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
-dependencies = [
- "phf_shared",
 ]
 
 [[package]]
