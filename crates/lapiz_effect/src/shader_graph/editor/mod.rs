@@ -1588,9 +1588,9 @@ pub fn themed_color(theme: &GraphTheme, hue: f32, chroma: f32) -> Color {
     );
     let rgb = Rgb::srgb_from_xyz(oklch.into_xyz());
     Color {
-        r: rgb.r,
-        g: rgb.g,
-        b: rgb.b,
+        r: rgb.r.clamp(0.0, 1.0),
+        g: rgb.g.clamp(0.0, 1.0),
+        b: rgb.b.clamp(0.0, 1.0),
         a: 1.0,
     }
 }
