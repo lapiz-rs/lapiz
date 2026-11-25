@@ -10,6 +10,7 @@ pub mod editor;
 pub mod instance;
 pub mod nodes;
 pub mod render;
+pub mod shader_graph;
 
 pub fn init_i18n() {
     i18n::init();

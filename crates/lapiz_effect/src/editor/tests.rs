@@ -3,18 +3,6 @@ use std::sync::Arc;
 use iced_core::Point;
 use lapiz_assets::store::AssetRegistry;
 use lapiz_image::texel::TexelType;
-use lapiz_shader_graph::{
-    GraphElement,
-    graph::{Graph, GraphResources, node::GraphNodeId, slot::ErasedGraphValueType},
-    wgsl_std::{
-        builtin_types,
-        types::{
-            atomic::{ArrayAtomicI32Type, ArrayAtomicU32Type},
-            handle::{ArrayType, LayerType},
-            primitive::F32Type,
-        },
-    },
-};
 use uuid::Uuid;
 
 use crate::{
@@ -27,6 +15,18 @@ use crate::{
     nodes::{
         DispatchIndexNode, PassInput, PassInputNode, PassOutput, PassOutputDef, PassOutputNode,
         effect_nodes,
+    },
+    shader_graph::{
+        GraphElement,
+        builtin::{
+            builtin_types,
+            types::{
+                atomic::{ArrayAtomicI32Type, ArrayAtomicU32Type},
+                handle::{ArrayType, LayerType},
+                primitive::F32Type,
+            },
+        },
+        graph::{Graph, GraphResources, node::GraphNodeId, slot::ErasedGraphValueType},
     },
 };
 

@@ -5,15 +5,6 @@ use std::{
 
 use iced_core::Length;
 use lapiz_i18n::t;
-use lapiz_shader_graph::{
-    GraphElement,
-    editor::{GraphEditor, GraphEditorMessage, GraphEditorState},
-    graph::{Graph, GraphResources},
-    wgsl_std::types::{
-        atomic::{ArrayAtomicI32Type, ArrayAtomicU32Type},
-        handle::{ArrayType, LayerType},
-    },
-};
 use lapiz_widgets::{
     button, column, combo_box, flex::Flex, icon, icon_button, label, panel, row, scrollable,
     text_input,
@@ -24,6 +15,15 @@ use crate::{
     asset::{EffectPassDispatchStrategy, EffectPassId, EffectPassOutputSlotId},
     instance::{EffectInstance, EffectPass},
     nodes::{PassInput, PassInputNode, PassOutput, PassOutputChoiceTarget, PassOutputNode},
+    shader_graph::{
+        GraphElement,
+        builtin::types::{
+            atomic::{ArrayAtomicI32Type, ArrayAtomicU32Type},
+            handle::{ArrayType, LayerType},
+        },
+        editor::{GraphEditor, GraphEditorMessage, GraphEditorState},
+        graph::{Graph, GraphResources},
+    },
 };
 
 pub mod io;

@@ -8,41 +8,43 @@ use anyhow::{Result, bail};
 use glam::Vec4;
 use iced_core::widget::Void;
 use lapiz_assets::store::AssetRegistry;
-use lapiz_effect::nodes::effect_nodes;
+use lapiz_effect::{
+    nodes::effect_nodes,
+    random_oklch_hue_chroma,
+    shader_graph::{
+        GraphElement,
+        builtin::{
+            builtin_types,
+            types::{
+                compound::{ColorType, RectType},
+                handle::LayerType,
+                layer_load_ident,
+                primitive::{F32Type, I32Type, U32Type},
+                vector::Vec2FType,
+            },
+        },
+        graph::{
+            GraphResources,
+            node::{
+                ExtraShaderBody, GraphNode, GraphNodeCodeGenContext, GraphNodeCodeGenError,
+                GraphNodeCreateSlotsContext, GraphNodeDefaultStateContext,
+                GraphNodeInjectShaderBodyContext, GraphNodeRegistry, GraphNodeUpdateContext,
+                GraphNodeViewContext, StatelessCommonGraphNode, stateless,
+            },
+            slot::{
+                ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphDefaultInputSlot,
+                GraphDefaultOutputSlot, GraphShaderStage, GraphValueType,
+            },
+            variable::GraphTypeRegistry,
+        },
+        save::GraphValueTypeId,
+    },
+};
 use lapiz_image::{blend_modes::BlendMode, texel::TexelType};
 use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
     bind_group_layout_entries::{
         DynamicBindGroupLayoutEntries, binding_types::storage_buffer_read_only_sized,
-    },
-};
-use lapiz_shader_graph::{
-    GraphElement,
-    graph::{
-        GraphResources,
-        node::{
-            ExtraShaderBody, GraphNode, GraphNodeCodeGenContext, GraphNodeCodeGenError,
-            GraphNodeCreateSlotsContext, GraphNodeDefaultStateContext,
-            GraphNodeInjectShaderBodyContext, GraphNodeRegistry, GraphNodeUpdateContext,
-            GraphNodeViewContext, StatelessCommonGraphNode, stateless,
-        },
-        slot::{
-            ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphDefaultInputSlot,
-            GraphDefaultOutputSlot, GraphShaderStage, GraphValueType,
-        },
-        variable::GraphTypeRegistry,
-    },
-    random_oklch_hue_chroma,
-    save::GraphValueTypeId,
-    wgsl_std::{
-        builtin_types,
-        types::{
-            compound::{ColorType, RectType},
-            handle::LayerType,
-            layer_load_ident,
-            primitive::{F32Type, I32Type, U32Type},
-            vector::Vec2FType,
-        },
     },
 };
 use lapiz_widgets::combo_box;

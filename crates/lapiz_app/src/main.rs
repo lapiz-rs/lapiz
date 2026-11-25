@@ -1,5 +1,6 @@
 use std::env;
 
+use lapiz_effect::shader_graph::ShaderGraphPlugin;
 use lapiz_runtime::Application;
 #[cfg(target_os = "android")]
 use winit::platform::android::activity::AndroidApp;
@@ -34,7 +35,7 @@ pub(crate) fn run(#[cfg(target_os = "android")] android_app: AndroidApp) {
         .add_plugin(lapiz_abr_bridge::AbrBridgePlugin)
         .add_plugin(lapiz_undo::UndoPlugin)
         .add_plugin(lapiz_render::RenderPlugin)
-        .add_plugin(lapiz_shader_graph::ShaderGraphPlugin)
+        .add_plugin(ShaderGraphPlugin)
         .add_plugin(lapiz_effect::EffectPlugin)
         .add_plugin(lapiz_tools::ToolsPlugin)
         .add_plugin(lapiz_image::ImagePlugin)

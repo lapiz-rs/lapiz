@@ -7,6 +7,17 @@ use std::{
 use anyhow::{Context as _, Result};
 use bevy_math::IRect;
 use glam::UVec2;
+use lapiz_effect::shader_graph::{
+    builtin::types::{
+        handle::{LayerReference, LayerType, PreparedLayer},
+        layer_bounds_ident,
+    },
+    graph::{
+        Graph, GraphVarIdentGenerator,
+        slot::{ErasedGraphValueType, GraphShaderStage, GraphValueType},
+        variable::GraphShaderLiteral,
+    },
+};
 use lapiz_image::image;
 use lapiz_render::{
     bind_group_entries::{BindGroupEntries, DynamicBindGroupEntries},
@@ -17,17 +28,6 @@ use lapiz_render::{
     storage_buffer::StorageBuffer,
     uniform_buffer::DynamicUniformBuffer,
     wesl_jit,
-};
-use lapiz_shader_graph::{
-    graph::{
-        Graph, GraphVarIdentGenerator,
-        slot::{ErasedGraphValueType, GraphShaderStage, GraphValueType},
-        variable::GraphShaderLiteral,
-    },
-    wgsl_std::types::{
-        handle::{LayerReference, LayerType, PreparedLayer},
-        layer_bounds_ident,
-    },
 };
 #[allow(
     clippy::wildcard_imports,

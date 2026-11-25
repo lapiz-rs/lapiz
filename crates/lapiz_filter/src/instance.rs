@@ -3,11 +3,14 @@ use lapiz_assets::{
     asset::{AssetHandle, AssetId},
     store::AssetRegistry,
 };
-use lapiz_effect::{asset::EffectInputSlotId, instance::EffectInstance};
-use lapiz_shader_graph::{
-    graph::{GraphResources, slot::ErasedGraphLiteralUpdateMessage, variable::GraphLiteral},
-    save::SerializableGraphLiteral,
-    wgsl_std::types::handle::LayerType,
+use lapiz_effect::{
+    asset::EffectInputSlotId,
+    instance::EffectInstance,
+    shader_graph::{
+        builtin::types::handle::LayerType,
+        graph::{GraphResources, slot::ErasedGraphLiteralUpdateMessage, variable::GraphLiteral},
+        save::SerializableGraphLiteral,
+    },
 };
 
 use crate::{

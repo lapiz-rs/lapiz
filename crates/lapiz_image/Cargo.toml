@@ -30,7 +30,6 @@ lapiz_widgets.workspace = true
 log.workspace = true
 moxcms.workspace = true
 num_enum.workspace = true
-palette.workspace = true
 parking_lot.workspace = true
 parse-display.workspace = true
 rayon.workspace = true

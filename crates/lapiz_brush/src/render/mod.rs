@@ -16,6 +16,13 @@ use glam::{IVec2, IVec4, Vec2, Vec4, Vec4Swizzles as _};
 use iced_runtime::Task;
 use lapiz_canvas::{CanvasAppExt as _, CanvasId};
 use lapiz_color::ForegroundBackgroundColorExt as _;
+use lapiz_effect::shader_graph::{
+    builtin::types::handle::{LayerReference, LayerType, PreparedLayer, PreparedLayerPixels},
+    graph::{
+        slot::{ErasedGraphValueType, GraphShaderStage, GraphValueType},
+        variable::{GraphLiteral, GraphShaderLiteral, GraphShaderLiteralValue},
+    },
+};
 use lapiz_image::{
     composite::PixelPreviewOverrider,
     layer::{
@@ -34,13 +41,6 @@ use lapiz_render::{
     storage_buffer::StorageBuffer,
 };
 use lapiz_runtime::global::Globals;
-use lapiz_shader_graph::{
-    graph::{
-        slot::{ErasedGraphValueType, GraphShaderStage, GraphValueType},
-        variable::{GraphLiteral, GraphShaderLiteral, GraphShaderLiteralValue},
-    },
-    wgsl_std::types::handle::{LayerReference, LayerType, PreparedLayer, PreparedLayerPixels},
-};
 use log::warn;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};

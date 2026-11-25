@@ -3,10 +3,6 @@ use std::{mem, sync::Arc};
 use iced_core::Length;
 use indexmap::IndexMap;
 use lapiz_i18n::t;
-use lapiz_shader_graph::{
-    GraphElement, GraphRenderer, GraphTheme,
-    graph::{slot::ErasedGraphValueType, variable::GraphTypeRegistry},
-};
 use lapiz_widgets::{
     button, column, combo_box, component::Component, flex::Flex, icon, icon_button, label, row,
     scrollable, text_input,
@@ -17,6 +13,10 @@ use crate::{
     asset::{EffectInputSlotId, EffectOutputSlotId},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot},
     nodes::TypeChoice,
+    shader_graph::{
+        GraphElement, GraphRenderer, GraphTheme,
+        graph::{slot::ErasedGraphValueType, variable::GraphTypeRegistry},
+    },
 };
 
 /// A UI [`Component`] for adding, removing, renaming, retyping, and reordering external input and output slots on an [`EffectInstance`].

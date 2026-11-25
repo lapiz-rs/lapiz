@@ -10,19 +10,19 @@ use lapiz_effect::{
     editor::{EffectEditorMessage, EffectEditorState, EffectEditorView},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
     nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
+    shader_graph::{
+        GraphElement,
+        builtin::types::{handle::LayerType, primitive::F32Type},
+        editor::{
+            GraphEditor,
+            parameters::{ParametersEditor, ParametersEditorMessage},
+        },
+        graph::{Graph, slot::ErasedGraphValueType},
+    },
 };
 use lapiz_i18n::t;
 use lapiz_image::texel::TexelType;
 use lapiz_runtime::{Renderer, global::Globals};
-use lapiz_shader_graph::{
-    GraphElement,
-    editor::{
-        GraphEditor,
-        parameters::{ParametersEditor, ParametersEditorMessage},
-    },
-    graph::{Graph, slot::ErasedGraphValueType},
-    wgsl_std::types::{handle::LayerType, primitive::F32Type},
-};
 use lapiz_widgets::{column, component::component, label, panel, row, tab_bar, text_input};
 use uuid::Uuid;
 

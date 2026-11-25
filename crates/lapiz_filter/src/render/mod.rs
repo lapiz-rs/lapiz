@@ -9,6 +9,10 @@ use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId},
     instance::{EffectInputSlot, EffectInputs},
     render::EffectRenderer,
+    shader_graph::{
+        builtin::types::handle::{LayerReference, LayerType, PreparedLayer, PreparedLayerPixels},
+        graph::{slot::GraphValueType as _, variable::GraphShaderLiteral},
+    },
 };
 use lapiz_image::{
     layer::LayerId,
@@ -17,10 +21,6 @@ use lapiz_image::{
 };
 use lapiz_render::render_context::RenderContextAppExt as _;
 use lapiz_runtime::global::Globals;
-use lapiz_shader_graph::{
-    graph::{slot::GraphValueType as _, variable::GraphShaderLiteral},
-    wgsl_std::types::handle::{LayerReference, LayerType, PreparedLayer, PreparedLayerPixels},
-};
 use parking_lot::Mutex;
 use wgpu::{Device, Queue};
 

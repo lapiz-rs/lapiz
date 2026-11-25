@@ -22,7 +22,6 @@ lapiz_i18n.workspace = true
 lapiz_image.workspace = true
 lapiz_render.workspace = true
 lapiz_runtime.workspace = true
-lapiz_shader_graph.workspace = true
 lapiz_undo.workspace = true
 lapiz_utils.workspace = true
 lapiz_widgets.workspace = true
