@@ -58,9 +58,7 @@ impl WindowView for ImportDialogView {
         let registry = globals.global::<ImageImporterRegistry>();
         let extension = pending
             .local_file
-            .path()
             .extension()
-            .and_then(|extension| extension.to_str())
             .and_then(|extension| registry.find_extension(extension))
             .expect("Import dialog opened for a path without a registered format");
         let config = Config::<ImageImporterConfig>::read_or_init_or_fallback();
@@ -112,9 +110,7 @@ impl WindowView for ImportDialogView {
                         self.local_file
                             .as_ref()
                             .expect("import is active")
-                            .path()
-                            .display()
-                            .to_string()
+                            .display_path(),
                     )
                     .muted(),
                     options
@@ -146,8 +142,10 @@ impl WindowView for ImportDialogView {
                 let Some(local_file) = self.local_file.as_ref() else {
                     return close(self.window);
                 };
-                let archive =
-                    block_on(self.importer.import(globals, local_file.path())).logged_err();
+                let archive = local_file
+                    .materialize_path()
+                    .and_then(|path| block_on(self.importer.import(globals, path)))
+                    .logged_err();
                 if let Ok(archive) = archive
                     && let Ok(image) = Image::from_lazuli(&archive, globals).logged_err()
                 {

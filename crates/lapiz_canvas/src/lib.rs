@@ -1,4 +1,6 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+#[cfg(not(target_os = "android"))]
+use std::path::Path;
+use std::{collections::HashMap, sync::Arc};
 
 use indexmap::IndexSet;
 use lapiz_file_dialog::LocalFile;
@@ -90,8 +92,13 @@ impl Canvas {
         self.id
     }
 
+    #[cfg(not(target_os = "android"))]
     pub fn file_path(&self) -> Option<&Path> {
         self.local_file.as_ref().map(|file| file.path())
+    }
+
+    pub fn file_name(&self) -> Option<&str> {
+        self.local_file.as_ref().and_then(|file| file.file_name())
     }
 
     pub fn local_file(&self) -> Option<&Arc<LocalFile>> {

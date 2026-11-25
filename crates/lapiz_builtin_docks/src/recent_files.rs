@@ -39,8 +39,6 @@ impl LandingDock {
 /// Messages handled by [`LandingDock`].
 pub enum LandingDockMessage {
     OpenFile(usize),
-    #[cfg(target_os = "android")]
-    Opened(anyhow::Result<LocalFile>),
     RecentFilesChanged,
 }
 
@@ -111,9 +109,8 @@ impl Dock for LandingDock {
                     let app = globals.android_app().clone();
                     let uri = file.path_or_uri.clone();
                     let name = file.name.clone();
-                    Task::future(async move {
-                        LandingDockMessage::Opened(LocalFile::open_android(app, uri, name))
-                    })
+                    start_import(globals, LocalFile::open_android(app, uri, name));
+                    Task::none()
                 }
 
                 #[cfg(not(target_os = "android"))]
@@ -121,14 +118,6 @@ impl Dock for LandingDock {
                     start_import(globals, LocalFile::native(file.path_or_uri.clone().into()));
                     Task::none()
                 }
-            }
-            #[cfg(target_os = "android")]
-            LandingDockMessage::Opened(result) => {
-                match result {
-                    Ok(file) => start_import(globals, file),
-                    Err(error) => log::error!("Unable to reopen document: {error}"),
-                }
-                Task::none()
             }
             LandingDockMessage::RecentFilesChanged => {
                 self.files = self.config.get();

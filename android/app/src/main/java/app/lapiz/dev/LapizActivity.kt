@@ -47,6 +47,9 @@ class LapizActivity : NativeActivity() {
         }
     }
 
+    fun openDocumentFd(uri: String, mode: String): Int =
+        DocumentFiles.openFd(contentResolver, uri, mode)
+
     fun copyDocument(uri: String, path: String): Boolean =
         DocumentFiles.copy(contentResolver, uri, path)
 

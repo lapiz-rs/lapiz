@@ -297,17 +297,16 @@ pub struct PendingImport {
 }
 
 pub fn start_import(globals: &mut Globals, local_file: LocalFile) {
-    let path = local_file.path();
-    let Some(path_extension) = path.extension().and_then(|extension| extension.to_str()) else {
+    let Some(path_extension) = local_file.extension() else {
         log::warn!(
-            "Cannot import a path without an extension: {}",
-            path.display()
+            "Cannot import a file without an extension: {}",
+            local_file.display_path()
         );
         return;
     };
     let registry = globals.global::<ImageImporterRegistry>();
     let Some(extension) = registry.find_extension(path_extension) else {
-        log::warn!("No image importer matches {}", path.display());
+        log::warn!("No image importer matches {}", local_file.display_path());
         return;
     };
     let config = Config::<ImageImporterConfig>::read_or_init_or_fallback();
@@ -323,7 +322,24 @@ pub fn start_import(globals: &mut Globals, local_file: LocalFile) {
                 PendingImport { local_file },
             ));
     } else {
-        let archive = block_on(importer.import(globals, path)).logged_err();
+        #[cfg(target_os = "android")]
+        let archive = if extension == lapiz_lazuli::EXTENSION {
+            local_file
+                .open_read_write()
+                .and_then(LazuliArchive::open_file)
+                .logged_err()
+        } else {
+            local_file
+                .materialize_path()
+                .and_then(|path| block_on(importer.import(globals, path)))
+                .logged_err()
+        };
+        #[cfg(not(target_os = "android"))]
+        let archive = local_file
+            .materialize_path()
+            .and_then(|path| block_on(importer.import(globals, path)))
+            .logged_err();
+
         if let Ok(archive) = archive
             && let Ok(image) = Image::from_lazuli(&archive, globals).logged_err()
         {

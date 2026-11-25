@@ -1,4 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::{
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
+#[cfg(target_os = "android")]
+use std::{
+    fs::File,
+    sync::{Mutex, OnceLock},
+};
 
 #[cfg(target_os = "android")]
 use anyhow::Context as _;
@@ -105,7 +113,11 @@ impl FileDialog {
             let Some(document) = android::pick(&self.app, false, "").await? else {
                 return Ok(None);
             };
-            LocalFile::open_android(self.app, document.uri, document.name).map(Some)
+            Ok(Some(LocalFile::open_android(
+                self.app,
+                document.uri,
+                document.name,
+            )))
         }
     }
 
@@ -124,24 +136,32 @@ impl FileDialog {
             let Some(document) = android::pick(&self.app, true, &name).await? else {
                 return Ok(None);
             };
-            let (path, directory) = android::temp_file(&document.name)?;
             Ok(Some(LocalFile {
-                path,
                 name: document.name,
                 app: self.app,
                 uri: document.uri,
-                _temp: directory,
+                existing: false,
+                staged: OnceLock::new(),
+                stage_lock: Mutex::new(()),
             }))
         }
     }
 }
 
+#[cfg(target_os = "android")]
+struct StagedFile {
+    path: PathBuf,
+    _temp: tempfile::TempDir,
+}
+
 /// A local filesystem handle to a file chosen through [`FileDialog`].
 ///
-/// On desktop platforms this points directly to the selected path. On Android, it manages a
-/// temporary staging file copied from or written back to the underlying content URI when
-/// [`commit`](LocalFile::commit) is called.
+/// On desktop platforms this points directly to the selected path. On Android, it holds the
+/// Storage Access Framework content URI and supports either direct file-descriptor access via
+/// [`open_read_write`](LocalFile::open_read_write) or lazy temporary staging via
+/// [`materialize_path`](LocalFile::materialize_path) and [`commit`](LocalFile::commit).
 pub struct LocalFile {
+    #[cfg(not(target_os = "android"))]
     path: PathBuf,
     name: String,
     #[cfg(target_os = "android")]
@@ -149,7 +169,11 @@ pub struct LocalFile {
     #[cfg(target_os = "android")]
     uri: String,
     #[cfg(target_os = "android")]
-    _temp: tempfile::TempDir,
+    existing: bool,
+    #[cfg(target_os = "android")]
+    staged: OnceLock<StagedFile>,
+    #[cfg(target_os = "android")]
+    stage_lock: Mutex<()>,
 }
 
 impl LocalFile {
@@ -166,20 +190,86 @@ impl LocalFile {
 
     // TODO: maybe query the name on the fly?
     #[cfg(target_os = "android")]
-    pub fn open_android(app: AndroidApp, uri: String, name: String) -> Result<Self> {
-        let (path, directory) = android::temp_file(&name)?;
-        android::copy_file(&app, &uri, &path)?;
-        Ok(LocalFile {
-            path,
+    pub fn open_android(app: AndroidApp, uri: String, name: String) -> Self {
+        LocalFile {
             name,
             app,
             uri,
-            _temp: directory,
-        })
+            existing: true,
+            staged: OnceLock::new(),
+            stage_lock: Mutex::new(()),
+        }
     }
 
+    #[cfg(not(target_os = "android"))]
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub fn materialize_path(&self) -> Result<&Path> {
+        #[cfg(not(target_os = "android"))]
+        {
+            Ok(&self.path)
+        }
+        #[cfg(target_os = "android")]
+        {
+            if let Some(staged) = self.staged.get() {
+                return Ok(&staged.path);
+            }
+
+            let _guard = self.stage_lock.lock().expect("Stage lock poisoned");
+            if let Some(staged) = self.staged.get() {
+                return Ok(&staged.path);
+            }
+
+            let (path, directory) = android::temp_file(&self.name)?;
+            if self.existing {
+                android::copy_file(&self.app, &self.uri, &path)?;
+            }
+            let staged = self.staged.get_or_init(|| StagedFile {
+                path,
+                _temp: directory,
+            });
+            Ok(&staged.path)
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn open_read_write(&self) -> Result<File> {
+        android::open_file(&self.app, &self.uri, "rw")
+    }
+
+    pub fn extension(&self) -> Option<&str> {
+        #[cfg(not(target_os = "android"))]
+        {
+            self.path.extension().and_then(OsStr::to_str)
+        }
+        #[cfg(target_os = "android")]
+        {
+            Path::new(&self.name).extension().and_then(OsStr::to_str)
+        }
+    }
+
+    pub fn file_name(&self) -> Option<&str> {
+        #[cfg(not(target_os = "android"))]
+        {
+            self.path.file_name().and_then(OsStr::to_str)
+        }
+        #[cfg(target_os = "android")]
+        {
+            Path::new(&self.name).file_name().and_then(OsStr::to_str)
+        }
+    }
+
+    pub fn display_path(&self) -> String {
+        #[cfg(not(target_os = "android"))]
+        {
+            self.path.display().to_string()
+        }
+        #[cfg(target_os = "android")]
+        {
+            self.name.clone()
+        }
     }
 
     pub fn name(&self) -> &str {
@@ -199,7 +289,9 @@ impl LocalFile {
 
     pub fn commit(&self) -> Result<()> {
         #[cfg(target_os = "android")]
-        android::write_file(&self.app, &self.uri, &self.path)?;
+        if let Some(staged) = self.staged.get() {
+            android::write_file(&self.app, &self.uri, &staged.path)?;
+        }
 
         Ok(())
     }

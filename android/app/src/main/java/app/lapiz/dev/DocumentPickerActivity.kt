@@ -37,6 +37,7 @@ class DocumentPickerActivity : ComponentActivity() {
             val save = intent.getBooleanExtra(EXTRA_SAVE, false)
             val picker = Intent(if (save) Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
+                putExtra(Intent.EXTRA_LOCAL_ONLY, true)
                 addFlags(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or
                         Intent.FLAG_GRANT_WRITE_URI_PERMISSION or

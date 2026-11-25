@@ -1,6 +1,7 @@
 use std::{
     ffi::c_void,
-    fs,
+    fs::{self, File},
+    os::fd::FromRawFd as _,
     path::{Path, PathBuf},
 };
 
@@ -162,4 +163,24 @@ pub fn write_file(app: &AndroidApp, uri: &str, path: &Path) -> Result<()> {
         bail!("Unable to write selected document");
     }
     Ok(())
+}
+
+pub fn open_file(app: &AndroidApp, uri: &str, mode: &str) -> Result<File> {
+    let fd = with_activity(app, |env, activity| -> errors::Result<jint> {
+        let uri = env.new_string(uri)?;
+        let mode = env.new_string(mode)?;
+        env.call_method(
+            activity,
+            "openDocumentFd",
+            "(Ljava/lang/String;Ljava/lang/String;)I",
+            &[JValue::Object(uri.as_ref()), JValue::Object(mode.as_ref())],
+        )?
+        .i()
+    })?;
+    if fd < 0 {
+        bail!("Unable to open document file descriptor");
+    }
+    // SAFETY: `detachFd` transfers sole ownership of the open file descriptor to Rust.
+    let file = unsafe { File::from_raw_fd(fd) };
+    Ok(file)
 }

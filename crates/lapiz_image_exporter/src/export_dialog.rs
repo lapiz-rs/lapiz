@@ -65,9 +65,7 @@ impl WindowView for ExportDialogView {
         let registry = globals.global::<ImageFormatExporterRegistry>();
         let extension = pending
             .local_file
-            .path()
             .extension()
-            .and_then(|extension| extension.to_str())
             .and_then(|extension| registry.find_extension(extension))
             .expect("Export dialog opened for a path without a registered format");
         let config = Config::<ImageExporterConfig>::read_or_init_or_fallback();
@@ -135,16 +133,10 @@ impl WindowView for ExportDialogView {
             .gap(10.0);
 
         column![
-            panel(
-                column![
-                    label(self.local_file.path().display().to_string()).muted(),
-                    options,
-                ]
-                .gap(10.0),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .padding(12),
+            panel(column![label(self.local_file.display_path()).muted(), options,].gap(10.0),)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding(12),
             footer,
         ]
         .width(Length::Fill)
@@ -184,10 +176,13 @@ impl WindowView for ExportDialogView {
                 let file = self.local_file.clone();
                 let canvas = self.canvas_id;
                 Task::future(async move {
-                    let result = adapter
-                        .export(globals, canvas, file.path())
-                        .await
-                        .and_then(|_| file.commit());
+                    let result = match file.materialize_path() {
+                        Ok(path) => adapter
+                            .export(globals, canvas, path)
+                            .await
+                            .and_then(|_| file.commit()),
+                        Err(err) => Err(err),
+                    };
                     ExportDialogMessage::Finished(adapter, result)
                 })
             }

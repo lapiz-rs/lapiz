@@ -25,6 +25,14 @@ internal object DocumentFiles {
         return if (name.isNullOrEmpty()) uri.lastPathSegment else name
     }
 
+    fun openFd(resolver: ContentResolver, uri: String, mode: String): Int {
+        return try {
+            resolver.openFileDescriptor(uri.toUri(), mode)?.detachFd() ?: -1
+        } catch (_: Exception) {
+            -1
+        }
+    }
+
     fun copy(resolver: ContentResolver, uri: String, path: String): Boolean {
         return try {
             resolver.openInputStream(uri.toUri()).use { input ->
