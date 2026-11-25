@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::{convert::identity, sync::Arc};
 
 use iced_core::Point;
 use lapiz_assets::store::AssetRegistry;
 use lapiz_image::texel::TexelType;
+use lapiz_widgets::component::{Component as _, component};
 use uuid::Uuid;
 
 use crate::{
@@ -10,14 +11,13 @@ use crate::{
         EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassId,
         EffectPassInputSlotId, EffectPassOutputSlotId,
     },
-    editor::{EffectEditorMessage, EffectEditorState, EffectEditorView, dispatch_choices},
+    editor::{EffectEditor, EffectEditorMessage, EffectEditorState, dispatch_choices},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
     nodes::{
         DispatchIndexNode, PassInput, PassInputNode, PassOutput, PassOutputDef, PassOutputNode,
         effect_nodes,
     },
     shader_graph::{
-        GraphElement,
         builtin::{
             builtin_types,
             types::{
@@ -201,8 +201,10 @@ fn selecting_dispatch_updates_graph_slots_and_saved_strategy() {
     let index = graph.add_node(Point::ORIGIN, DispatchIndexNode);
     let resources = graph.resources().clone();
     instance.sync_pass_graph_effect_properties().unwrap();
-    let mut editor = EffectEditorState::new(resources.clone());
-    editor.update(&mut instance, EffectEditorMessage::OpenPass(pass_id));
+    let state = EffectEditorState {
+        open_pass: Some(pass_id),
+        renaming_pass: None,
+    };
 
     for strategy in [
         EffectPassDispatchStrategy::EveryOutputLayerPixel(output),
@@ -211,9 +213,9 @@ fn selecting_dispatch_updates_graph_slots_and_saved_strategy() {
         EffectPassDispatchStrategy::EveryBufferElement(array_input),
         EffectPassDispatchStrategy::Once,
     ] {
-        editor.update(
-            &mut instance,
+        instance.update(
             EffectEditorMessage::PassDispatchStrategySelected(pass_id, strategy),
+            &resources,
         );
         let pass = instance.single_pass().unwrap();
         let node = pass.graph.get_node(&index).unwrap();
@@ -229,9 +231,8 @@ fn selecting_dispatch_updates_graph_slots_and_saved_strategy() {
             node.outputs.len(),
             usize::from(strategy != EffectPassDispatchStrategy::Once)
         );
-        drop(GraphElement::from(EffectEditorView::new(
-            &instance, &editor,
-        )));
+        drop(EffectEditor::new(&instance, identity).view(&state));
+        drop(component(EffectEditor::new(&instance, identity)));
 
         let asset = instance.as_asset().unwrap();
         let saved = toml::to_string(&asset).unwrap();
@@ -255,39 +256,63 @@ fn deleted_or_wrong_pass_targets_are_not_selected() {
     let pass_id = instance.single_pass_id().unwrap();
     let resources = instance.single_pass().unwrap().graph.resources().clone();
     instance.sync_pass_graph_effect_properties().unwrap();
-    let mut editor = EffectEditorState::new(resources);
-    editor.update(&mut instance, EffectEditorMessage::OpenPass(pass_id));
+    let state = EffectEditorState {
+        open_pass: Some(pass_id),
+        renaming_pass: None,
+    };
     let strategy = EffectPassDispatchStrategy::EveryOutputLayerPixel(output);
-    editor.update(
-        &mut instance,
+    instance.update(
         EffectEditorMessage::PassDispatchStrategySelected(pass_id, strategy),
+        &resources,
     );
     instance.single_pass_mut().unwrap().graph.delete_node(&node);
     instance.sync_pass_graph_effect_properties().unwrap();
-    drop(GraphElement::from(EffectEditorView::new(
-        &instance, &editor,
-    )));
+    drop(EffectEditor::new(&instance, identity).view(&state));
 
-    editor.update(
-        &mut instance,
+    instance.update(
         EffectEditorMessage::PassDispatchStrategySelected(
             pass_id,
             EffectPassDispatchStrategy::Once,
         ),
+        &resources,
     );
-    editor.update(
-        &mut instance,
+    instance.update(
         EffectEditorMessage::PassDispatchStrategySelected(pass_id, strategy),
+        &resources,
     );
-    editor.update(
-        &mut instance,
+    instance.update(
         EffectEditorMessage::PassDispatchStrategySelected(
             EffectPassId::new(Uuid::new_v4()),
             strategy,
         ),
+        &resources,
     );
     assert_eq!(
         instance.single_pass().unwrap().dispatch_strategy,
         EffectPassDispatchStrategy::Once
     );
+}
+
+#[test]
+fn diff_clears_stale_open_and_renaming_pass_ids() {
+    let instance = test_instance();
+    let valid_pass = instance.single_pass_id().unwrap();
+    let missing_pass = EffectPassId::new(Uuid::new_v4());
+    let mut editor = EffectEditor::new(&instance, identity);
+
+    let mut state = EffectEditorState {
+        open_pass: Some(missing_pass),
+        renaming_pass: Some(missing_pass),
+    };
+    editor.diff(&mut state);
+    assert_eq!(state.open_pass, None);
+    assert_eq!(state.renaming_pass, None);
+
+    let mut valid_state = EffectEditorState {
+        open_pass: Some(valid_pass),
+        renaming_pass: Some(valid_pass),
+    };
+    editor.diff(&mut valid_state);
+    assert_eq!(valid_state.open_pass, Some(valid_pass));
+    assert_eq!(valid_state.renaming_pass, Some(valid_pass));
 }

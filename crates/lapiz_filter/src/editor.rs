@@ -10,13 +10,14 @@ use iced_runtime::{
 use lapiz_assets::{AssetAppExt as _, asset::AssetHandle};
 use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId},
-    editor::{EffectEditorMessage, EffectEditorState, EffectEditorView},
+    editor::{EffectEditor, EffectEditorMessage},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot},
     nodes::{PassInput, PassInputNode},
     shader_graph::{
         GraphElement,
         builtin::types::handle::LayerType,
         editor::parameters::{ParametersEditor, ParametersEditorMessage},
+        graph::GraphResources,
     },
 };
 use lapiz_i18n::t;
@@ -41,7 +42,7 @@ use crate::{
 ///
 /// `FilterEditor` provides a three-pane authoring environment:
 /// - A preset browser sidebar for selecting existing [`FilterPreset`] assets or creating new ones.
-/// - A central [`EffectEditorView`] for editing the filter's multi-pass shader graphs and pass topology.
+/// - A central [`EffectEditor`] for editing the filter's multi-pass shader graphs and pass topology.
 /// - A right-hand [`ParametersEditor`] panel for adding, renaming, removing, and configuring default values
 ///   for external filter parameters, while validating that the underlying effect exposes exactly one
 ///   [`LayerType`] input and one [`LayerType`] output.
@@ -51,7 +52,7 @@ pub struct FilterEditor {
     filters: Vec<AssetHandle<FilterPreset>>,
     selected_index: Option<usize>,
     selected: Option<SelectedFilter>,
-    effect_editor_state: EffectEditorState,
+    graph_resources: GraphResources,
     filter_name_buffer: String,
     dirty: bool,
     validation_error: Option<String>,
@@ -116,9 +117,7 @@ impl WindowView for FilterEditor {
                 filters,
                 selected_index: None,
                 selected: None,
-                effect_editor_state: EffectEditorState::new(filter_graph_resources(
-                    globals.assets().clone(),
-                )),
+                graph_resources: filter_graph_resources(globals.assets().clone()),
                 filter_name_buffer: String::new(),
                 dirty: false,
                 validation_error: None,
@@ -208,8 +207,10 @@ impl WindowView for FilterEditor {
             FilterEditorMessage::Save => self.save(globals),
             FilterEditorMessage::Effect(message) => {
                 if let Some(selected) = self.selected.as_mut() {
-                    self.effect_editor_state
-                        .update(selected.instance.effect_mut(), message);
+                    selected
+                        .instance
+                        .effect_mut()
+                        .update(message, &self.graph_resources);
                     self.dirty = true;
                     self.revalidate();
                 }
@@ -334,13 +335,12 @@ impl FilterEditor {
         };
 
         // Region 2 bottom: the effect editor (passes and their graphs).
-        let effect_editor = GraphElement::from(EffectEditorView::new(
+        let effect_editor = component(EffectEditor::new(
             selected.instance.effect(),
-            &self.effect_editor_state,
-        ))
-        .map(FilterEditorMessage::Effect);
+            FilterEditorMessage::Effect,
+        ));
 
-        let resources = &self.effect_editor_state.resources;
+        let resources = &self.graph_resources;
         let parameter_editor = component(ParametersEditor::new(
             selected
                 .instance
@@ -374,8 +374,6 @@ impl FilterEditor {
         self.selected_index = Some(index);
         self.filter_name_buffer = instance.metadata().name.clone();
         self.selected = Some(SelectedFilter { handle, instance });
-        self.effect_editor_state =
-            EffectEditorState::new(filter_graph_resources(globals.assets().clone()));
         self.dirty = false;
         self.validation_error = None;
         Task::none()
