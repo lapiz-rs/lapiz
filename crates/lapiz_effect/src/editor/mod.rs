@@ -1,13 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fmt,
-};
+use std::{collections::HashSet, fmt};
 
 use iced_core::Length;
 use lapiz_i18n::t;
 use lapiz_widgets::{
-    button, column, combo_box, flex::Flex, icon, icon_button, label, panel, row, scrollable,
-    text_input,
+    button, column, combo_box, component::component, flex::Flex, icon, icon_button, label, panel,
+    row, scrollable, text_input,
 };
 use uuid::Uuid;
 
@@ -21,7 +18,7 @@ use crate::{
             atomic::{ArrayAtomicI32Type, ArrayAtomicU32Type},
             handle::{ArrayType, LayerType},
         },
-        editor::{GraphEditor, GraphEditorMessage, GraphEditorState},
+        editor::{GraphEditor, GraphEditorMessage},
         graph::{Graph, GraphResources},
     },
 };
@@ -34,11 +31,9 @@ mod tests;
 /// Persistent UI state for editing an [`EffectInstance`] in [`EffectEditorView`].
 ///
 /// `EffectEditorState` tracks whether the user is viewing the top-level pass list or a specific
-/// pass's [`GraphEditor`], maintains per-pass [`GraphEditorState`]s, and resynchronizes pass I/O
-/// bindings after every edit.
+/// pass's [`GraphEditor`], and resynchronizes pass I/O bindings after every edit.
 pub struct EffectEditorState {
     pub open_pass: Option<EffectPassId>,
-    pub graph_editor_states: HashMap<EffectPassId, GraphEditorState>,
     pub resources: GraphResources,
     pub renaming_pass: Option<EffectPassId>,
 }
@@ -47,7 +42,6 @@ impl EffectEditorState {
     pub fn new(resources: GraphResources) -> Self {
         Self {
             open_pass: None,
-            graph_editor_states: HashMap::new(),
             resources,
             renaming_pass: None,
         }
@@ -56,7 +50,6 @@ impl EffectEditorState {
     pub fn update(&mut self, instance: &mut EffectInstance, message: EffectEditorMessage) {
         match message {
             EffectEditorMessage::OpenPass(pass_id) => {
-                self.graph_editor_states.entry(pass_id).or_default();
                 self.open_pass = Some(pass_id);
             }
             EffectEditorMessage::BackToPassList => self.open_pass = None,
@@ -68,11 +61,7 @@ impl EffectEditorState {
                     .passes
                     .get_mut(&pass_id)
                     .expect("the open pass exists");
-                let editor_state = self
-                    .graph_editor_states
-                    .get_mut(&pass_id)
-                    .expect("graph editor state is created when a pass is opened");
-                editor_state.update(&mut pass.graph, message);
+                pass.graph.update(message);
                 resync(instance);
             }
             EffectEditorMessage::Io(message) => {
@@ -107,7 +96,6 @@ impl EffectEditorState {
             }
             EffectEditorMessage::PassRemoveRequested(pass_id) => {
                 instance.passes.shift_remove(&pass_id);
-                self.graph_editor_states.remove(&pass_id);
                 if self.open_pass == Some(pass_id) {
                     self.open_pass = None;
                 }
@@ -124,7 +112,6 @@ impl EffectEditorState {
                         dispatch_strategy: EffectPassDispatchStrategy::Once,
                     },
                 );
-                self.graph_editor_states.entry(pass_id).or_default();
                 self.open_pass = Some(pass_id);
             }
         }
@@ -162,7 +149,7 @@ impl<'a> From<EffectEditorView<'a>> for GraphElement<'a, EffectEditorMessage> {
     fn from(value: EffectEditorView<'a>) -> Self {
         let EffectEditorView { instance, state } = value;
         match state.open_pass {
-            Some(pass_id) => view_pass_graph(instance, state, pass_id),
+            Some(pass_id) => view_pass_graph(instance, pass_id),
             None => view_pass_list(instance, state),
         }
     }
@@ -274,14 +261,9 @@ fn io_column<'a>(title: String, labels: &[String]) -> GraphElement<'a, EffectEdi
 
 fn view_pass_graph<'a>(
     instance: &'a EffectInstance,
-    state: &'a EffectEditorState,
     pass_id: EffectPassId,
 ) -> GraphElement<'a, EffectEditorMessage> {
     let pass = &instance.passes[&pass_id];
-    let graph_state = state
-        .graph_editor_states
-        .get(&pass_id)
-        .expect("graph editor state is created when a pass is opened");
     let back = button(row![icon::chevron_left().size(13), label(t!("back_to_passes"))].gap(4.0))
         .on_press(EffectEditorMessage::BackToPassList);
     let choices = dispatch_choices(instance, pass_id);
@@ -335,8 +317,7 @@ fn view_pass_graph<'a>(
 
     column![
         header,
-        GraphElement::from(GraphEditor::new(&pass.graph, graph_state))
-            .map(EffectEditorMessage::Graph),
+        component(GraphEditor::new(&pass.graph, EffectEditorMessage::Graph)),
     ]
     .gap(4.0)
     .width(Length::Fill)

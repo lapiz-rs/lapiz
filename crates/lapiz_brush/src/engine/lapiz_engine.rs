@@ -271,18 +271,12 @@ impl LapizBrushEngine {
 
         let effect_editor = match self.active_slot {
             BrushEffectSlot::Spacing | BrushEffectSlot::Main => {
-                let state = selected.editor_states.get(self.active_slot);
                 let instance = effect(&selected.instance, self.active_slot);
-                let (pass_id, pass) = (
-                    instance.single_pass_id().unwrap(),
-                    instance.single_pass().unwrap(),
-                );
+                let pass = instance.single_pass().unwrap();
 
-                GraphElement::from(GraphEditor::new(
-                    &pass.graph,
-                    &state.graph_editor_states[&pass_id],
-                ))
-                .map(|message| LapizBrushEngineMessage::Effect(EffectEditorMessage::Graph(message)))
+                component(GraphEditor::new(&pass.graph, |message| {
+                    LapizBrushEngineMessage::Effect(EffectEditorMessage::Graph(message))
+                }))
             }
             BrushEffectSlot::Postprocess => GraphElement::from(EffectEditorView::new(
                 effect(&selected.instance, self.active_slot),
