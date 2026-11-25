@@ -77,6 +77,11 @@ impl LazuliArchive {
         Ok(archive)
     }
 
+    /// Creates a new archive backed by an already-opened read-write [`File`] handle, truncating it first.
+    ///
+    /// Intended for handle-only storage without a filesystem path (such as Android SAF). Uses an
+    /// internal file-handle SQLite VFS with an in-memory journal and no OS file locking. Prefer
+    /// [`new`](Self::new) when a path is available.
     pub fn new_file(file: File) -> Result<Self> {
         file.set_len(0)?;
         let conn = vfs::open_connection(file)?;
@@ -119,6 +124,11 @@ impl LazuliArchive {
         Ok(archive)
     }
 
+    /// Opens an existing archive from an already-opened read-write [`File`] handle.
+    ///
+    /// Intended for handle-only storage without a filesystem path (such as Android SAF). Uses an
+    /// internal file-handle SQLite VFS with an in-memory journal and no OS file locking. Prefer
+    /// [`open`](Self::open) when a path is available.
     pub fn open_file(file: File) -> Result<Self> {
         let conn = vfs::open_connection(file)?;
         let archive = Self {
