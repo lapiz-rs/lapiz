@@ -23,7 +23,8 @@ use uuid::Uuid;
 use wesl::syntax::{Expression, Ident};
 
 use crate::{
-    asset::{EffectOutputSlotId, EffectPassOutputSlotId},
+    asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassInputSlotId, EffectPassOutputSlotId},
+    nodes::PassOutputDef,
     shader_graph::{
         GraphElement,
         editor::slot::{input_slot, output_slot},
@@ -46,15 +47,27 @@ wrapper! {
     pub GraphNodeId : Uuid
 }
 
-pub enum GraphNodeInputTarget {
-    Node,
-    Pass(EffectPassOutputSlotId),
-    Effect(EffectOutputSlotId),
+#[derive(Clone)]
+pub struct GraphNodeInputDef {
+    pub id: EffectPassInputSlotId,
+    pub target: GraphNodeInputTarget,
 }
 
-pub enum GraphNodeOutputTarget {
-    Node,
+#[derive(Clone)]
+pub enum GraphNodeInputTarget {
     Pass(EffectPassOutputSlotId),
+    Effect(EffectInputSlotId),
+}
+
+#[derive(Clone)]
+pub struct GraphNodeOutputDef {
+    pub id: EffectPassOutputSlotId,
+    pub target: GraphNodeOutputTarget,
+}
+
+#[derive(Clone)]
+pub enum GraphNodeOutputTarget {
+    Pass(PassOutputDef),
     Effect(EffectOutputSlotId),
 }
 
@@ -132,11 +145,11 @@ pub trait GraphNode: Send + Sync + 'static + DynClone {
     fn subgraphs_mut<'a>(&mut self, _state: &'a mut Self::State) -> Vec<&'a mut Graph> {
         Vec::new()
     }
-    fn input_target<'a>(&self, _state: &'a Self::State) -> GraphNodeInputTarget {
-        GraphNodeInputTarget::Node
+    fn as_input_port<'a>(&self, _state: &'a Self::State) -> Option<GraphNodeInputDef> {
+        None
     }
-    fn output_target<'a>(&self, _state: &'a Self::State) -> GraphNodeOutputTarget {
-        GraphNodeOutputTarget::Node
+    fn as_output_port<'a>(&self, _state: &'a Self::State) -> Option<GraphNodeOutputDef> {
+        None
     }
 }
 
@@ -205,8 +218,8 @@ pub trait ErasedGraphNode: Send + Sync + 'static + DynClone + Downcast {
     ) -> Result<Box<dyn Any + Send + Sync>>;
     fn subgraphs<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Vec<&'a Graph>;
     fn subgraphs_mut<'a>(&mut self, state: &'a mut (dyn Any + Send + Sync)) -> Vec<&'a mut Graph>;
-    fn input_target<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> GraphNodeInputTarget;
-    fn output_target<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> GraphNodeOutputTarget;
+    fn as_input_port<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Option<GraphNodeInputDef>;
+    fn as_output_port<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef>;
 }
 
 dyn_clone::clone_trait_object!(ErasedGraphNode);
@@ -354,16 +367,16 @@ impl<T: GraphNode> ErasedGraphNode for T {
         )
     }
 
-    fn input_target<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> GraphNodeInputTarget {
-        self.input_target(
+    fn as_input_port<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Option<GraphNodeInputDef> {
+        self.as_input_port(
             state
                 .downcast_ref::<T::State>()
                 .expect("failed to downcast graph node state"),
         )
     }
 
-    fn output_target<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> GraphNodeOutputTarget {
-        self.output_target(
+    fn as_output_port<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef> {
+        self.as_output_port(
             state
                 .downcast_ref::<T::State>()
                 .expect("failed to downcast graph node state"),
@@ -472,12 +485,12 @@ impl StatefulGraphNode {
         self.state.downcast_mut()
     }
 
-    pub fn input_target(&self) -> GraphNodeInputTarget {
-        self.data.input_target(self.state.as_ref())
+    pub fn as_input_port(&self) -> Option<GraphNodeInputDef> {
+        self.data.as_input_port(self.state.as_ref())
     }
 
-    pub fn output_target(&self) -> GraphNodeOutputTarget {
-        self.data.output_target(self.state.as_ref())
+    pub fn as_output_port(&self) -> Option<GraphNodeOutputDef> {
+        self.data.as_output_port(self.state.as_ref())
     }
 }
 
@@ -503,11 +516,11 @@ pub trait StatelessCommonGraphNode: Send + Sync + 'static + DynClone {
         &self,
         ctx: GraphNodeCodeGenContext<'_>,
     ) -> Result<String, GraphNodeCodeGenError>;
-    fn input_target(&self) -> GraphNodeInputTarget {
-        GraphNodeInputTarget::Node
+    fn as_input_port(&self) -> Option<GraphNodeInputDef> {
+        None
     }
-    fn output_target(&self) -> GraphNodeOutputTarget {
-        GraphNodeOutputTarget::Node
+    fn as_output_port(&self) -> Option<GraphNodeOutputDef> {
+        None
     }
 }
 

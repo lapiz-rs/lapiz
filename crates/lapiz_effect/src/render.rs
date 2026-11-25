@@ -44,6 +44,7 @@ use crate::{
         },
         graph::{
             Graph, GraphVarIdentGenerator,
+            node::{GraphNodeInputTarget, GraphNodeOutputTarget},
             slot::{ErasedGraphValueType, GraphShaderStage},
             variable::GraphShaderLiteral,
         },
@@ -124,46 +125,43 @@ impl EffectRenderer {
             let mut pass_output_decl = IndexMap::new();
 
             for node in pass.graph.iter_nodes() {
-                if let Some(state) = node.data.state::<PassInputNode>() {
-                    let Some(input) = &state.input else {
-                        bail!("Pass input node has no input: {:?}", state.id);
-                    };
-
+                if let Some(input_port) = node.data.as_input_port() {
                     pass_input_decl.insert(
-                        state.id,
-                        match input {
-                            PassInput::Pass(id) => EffectPassInputSlotSource::PassOutput(*id),
-                            PassInput::Effect(id) => {
-                                ensure!(inputs.contains_key(id), "Unknown effect input {id:?}");
-                                EffectPassInputSlotSource::EffectInput(*id)
+                        input_port.id,
+                        match input_port.target {
+                            GraphNodeInputTarget::Pass(id) => {
+                                EffectPassInputSlotSource::PassOutput(id)
+                            }
+                            GraphNodeInputTarget::Effect(id) => {
+                                ensure!(inputs.contains_key(&id), "Unknown effect input {id:?}");
+                                EffectPassInputSlotSource::EffectInput(id)
                             }
                         },
                     );
-                } else if let Some(state) = node.data.state::<PassOutputNode>() {
-                    let Some(output) = &state.output else {
-                        bail!("Pass output node has no output: {:?}", state.id);
-                    };
-                    let ty = match output {
-                        PassOutput::Pass(def) => def.ty.clone(),
-                        PassOutput::Effect(external) => {
-                            let output = outputs.get(external).context("Unknown effect output")?;
+                } else if let Some(output_port) = node.data.as_output_port() {
+                    let ty = match output_port.target {
+                        GraphNodeOutputTarget::Pass(def) => def.ty.clone(),
+                        GraphNodeOutputTarget::Effect(external) => {
+                            let output = outputs.get(&external).context("Unknown effect output")?;
                             ensure!(
-                                exports.insert(*external, state.id).is_none(),
+                                exports.insert(external, output_port.id).is_none(),
                                 "Multiple nodes target effect output {external:?}"
                             );
                             output.ty.clone()
                         }
                     };
                     ensure!(
-                        pass_output_types.insert(state.id, ty.clone()).is_none(),
+                        pass_output_types
+                            .insert(output_port.id, ty.clone())
+                            .is_none(),
                         "Duplicate pass output ID {:?}",
-                        state.id
+                        output_port.id
                     );
-                    pass_output_decl.insert(state.id, EffectPassOutputSlotTarget { ty });
+                    pass_output_decl.insert(output_port.id, EffectPassOutputSlotTarget { ty });
                     ensure!(
-                        pass_output_ids.insert(state.id, *id).is_none(),
+                        pass_output_ids.insert(output_port.id, *id).is_none(),
                         "Duplicate pass output ID {:?}",
-                        state.id
+                        output_port.id
                     );
                 }
             }

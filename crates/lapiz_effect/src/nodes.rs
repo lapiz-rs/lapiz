@@ -31,7 +31,8 @@ use crate::{
             GraphResources,
             node::{
                 GraphNode, GraphNodeCodeGenContext, GraphNodeCodeGenError,
-                GraphNodeCreateSlotsContext, GraphNodeDefaultStateContext, GraphNodeRegistry,
+                GraphNodeCreateSlotsContext, GraphNodeDefaultStateContext, GraphNodeInputDef,
+                GraphNodeInputTarget, GraphNodeOutputDef, GraphNodeOutputTarget, GraphNodeRegistry,
                 GraphNodeUpdateContext, GraphNodeViewContext,
             },
             slot::{
@@ -275,6 +276,17 @@ impl GraphNode for PassInputNode {
         let name = pass_input_ident(state.id);
 
         Ok(ty.handle_input_values(&name, 0, &mut ctx)?)
+    }
+
+    fn as_input_port<'a>(&self, state: &'a Self::State) -> Option<GraphNodeInputDef> {
+        let input = state.input.as_ref()?;
+        Some(GraphNodeInputDef {
+            id: state.id,
+            target: match input {
+                PassInput::Pass(id) => GraphNodeInputTarget::Pass(*id),
+                PassInput::Effect(id) => GraphNodeInputTarget::Effect(*id),
+            },
+        })
     }
 }
 
@@ -578,6 +590,17 @@ impl GraphNode for PassOutputNode {
         let name = pass_output_ident(state.id);
 
         Ok(ty.handle_output_values(&name, 0, &mut ctx)?)
+    }
+
+    fn as_output_port<'a>(&self, state: &'a Self::State) -> Option<GraphNodeOutputDef> {
+        let output = state.output.as_ref()?;
+        Some(GraphNodeOutputDef {
+            id: state.id,
+            target: match output {
+                PassOutput::Pass(def) => GraphNodeOutputTarget::Pass(def.clone()),
+                PassOutput::Effect(id) => GraphNodeOutputTarget::Effect(*id),
+            },
+        })
     }
 }
 
