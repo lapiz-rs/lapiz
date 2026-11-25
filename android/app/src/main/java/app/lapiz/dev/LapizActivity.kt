@@ -12,7 +12,13 @@ class LapizActivity : NativeActivity() {
     private var documentRequest = 0L
 
     @Synchronized
-    fun requestDocument(request: Long, save: Boolean, name: String): Boolean {
+    fun requestDocument(
+        request: Long,
+        save: Boolean,
+        name: String,
+        filterLabels: Array<String>,
+        filterExtensions: Array<String>,
+    ): Boolean {
         if (documentRequest != 0L || isFinishing || isDestroyed) {
             return false
         }
@@ -22,7 +28,16 @@ class LapizActivity : NativeActivity() {
                 return@runOnUiThread
             }
             try {
-                startActivity(DocumentPickerActivity.createIntent(this, request, save, name))
+                startActivity(
+                    DocumentPickerActivity.createIntent(
+                        this,
+                        request,
+                        save,
+                        name,
+                        filterLabels,
+                        filterExtensions,
+                    ),
+                )
             } catch (_: Exception) {
                 completeDocument(-1, null, null)
             }
@@ -47,11 +62,8 @@ class LapizActivity : NativeActivity() {
         }
     }
 
-    fun copyDocument(uri: String, path: String): Boolean =
-        DocumentFiles.copy(contentResolver, uri, path)
-
-    fun writeDocument(uri: String, path: String): Boolean =
-        DocumentFiles.write(contentResolver, uri, path)
+    fun openDocumentFd(uri: String, mode: String): Int =
+        DocumentFiles.openFd(contentResolver, uri, mode)
 
     override fun onDestroy() {
         completeDocument(0, null, null)

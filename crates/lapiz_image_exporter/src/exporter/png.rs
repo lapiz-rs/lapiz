@@ -1,5 +1,3 @@
-use std::{fs::File, path::Path};
-
 use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
@@ -8,6 +6,7 @@ use image::{
     codecs::png::{CompressionType, FilterType, PngEncoder},
 };
 use lapiz_canvas::CanvasId;
+use lapiz_file_dialog::LocalFile;
 use lapiz_i18n::{Translated, t};
 use lapiz_runtime::{
     Renderer,
@@ -166,9 +165,14 @@ impl ImageFormatExporter for PngExporter {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn export(&self, globals: GlobalHandle, canvas: CanvasId, path: &Path) -> Result<()> {
+    async fn export(
+        &self,
+        globals: GlobalHandle,
+        canvas: CanvasId,
+        file: &LocalFile,
+    ) -> Result<()> {
         let (rgba, profile) = readback_root_layer(globals, canvas, self.embed_profile).await?;
-        let file = File::create(path)?;
+        let file = file.open_write()?;
         let mut encoder =
             PngEncoder::new_with_quality(file, self.compression.into(), self.filter.into());
         if let Some(profile) = profile {

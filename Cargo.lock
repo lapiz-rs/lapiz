@@ -3616,10 +3616,8 @@ dependencies = [
  "anyhow",
  "futures",
  "jni 0.21.1",
- "lapiz_dirs",
  "lapiz_runtime",
  "rfd",
- "tempfile",
 ]
 
 [[package]]

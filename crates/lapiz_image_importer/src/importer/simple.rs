@@ -1,8 +1,9 @@
-use std::{fs::File, io::BufReader, path::Path};
+use std::io::BufReader;
 
 use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
+use lapiz_file_dialog::LocalFile;
 use lapiz_image::{Image, layer::LayerTypeRegistry};
 use lapiz_lazuli::LazuliArchive;
 use lapiz_runtime::{Renderer, global::Globals};
@@ -45,9 +46,9 @@ macro_rules! simple_importers {
                 }
 
                 #[tracing::instrument(skip_all)]
-                async fn import(&self, globals: &Globals, path: &Path) -> Result<LazuliArchive> {
+                async fn import(&self, globals: &Globals, file: &LocalFile) -> Result<LazuliArchive> {
                     let (image, profile) = Image::load_image_with_profile(BufReader::new(
-                        File::open(path)?,
+                        file.open_read()?,
                     ))?;
                     Image::image_to_lazuli(image, profile, globals.global::<LayerTypeRegistry>())
                 }

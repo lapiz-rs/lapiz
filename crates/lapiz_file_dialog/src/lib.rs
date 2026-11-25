@@ -1,4 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::{ffi::OsStr, fs::File, path::Path};
+#[cfg(not(target_os = "android"))]
+use std::{fs::OpenOptions, path::PathBuf};
 
 #[cfg(target_os = "android")]
 use anyhow::Context as _;
@@ -25,6 +27,8 @@ pub struct FileDialog {
     app: AndroidApp,
     #[cfg(target_os = "android")]
     file_name: Option<String>,
+    #[cfg(target_os = "android")]
+    filters: Vec<android::FileFilter>,
 }
 
 impl FileDialog {
@@ -59,6 +63,7 @@ impl FileDialog {
         Self {
             app,
             file_name: None,
+            filters: Vec::new(),
         }
     }
 
@@ -77,16 +82,25 @@ impl FileDialog {
     }
 
     #[must_use]
-    pub fn add_filter(self, name: impl Into<String>, extensions: &[impl ToString]) -> Self {
+    pub fn add_filter(mut self, name: impl Into<String>, extensions: &[impl ToString]) -> Self {
         #[cfg(not(target_os = "android"))]
         {
-            Self {
-                dialog: self.dialog.add_filter(name, extensions),
-            }
+            self.dialog = self.dialog.add_filter(name, extensions);
+            self
         }
         #[cfg(target_os = "android")]
         {
-            let _ = (name, extensions);
+            let extensions = extensions
+                .iter()
+                .map(|ext| ext.to_string().trim_start_matches('.').to_owned())
+                .filter(|ext| !ext.is_empty())
+                .collect::<Vec<_>>();
+            if !extensions.is_empty() {
+                self.filters.push(android::FileFilter {
+                    name: name.into(),
+                    extensions,
+                });
+            }
             self
         }
     }
@@ -102,10 +116,14 @@ impl FileDialog {
         }
         #[cfg(target_os = "android")]
         {
-            let Some(document) = android::pick(&self.app, false, "").await? else {
+            let Some(document) = android::pick(&self.app, false, "", &[]).await? else {
                 return Ok(None);
             };
-            LocalFile::open_android(self.app, document.uri, document.name).map(Some)
+            Ok(Some(LocalFile::open_android(
+                self.app,
+                document.uri,
+                document.name,
+            )))
         }
     }
 
@@ -121,16 +139,13 @@ impl FileDialog {
         #[cfg(target_os = "android")]
         {
             let name = self.file_name.context("Document name is required")?;
-            let Some(document) = android::pick(&self.app, true, &name).await? else {
+            let Some(document) = android::pick(&self.app, true, &name, &self.filters).await? else {
                 return Ok(None);
             };
-            let (path, directory) = android::temp_file(&document.name)?;
             Ok(Some(LocalFile {
-                path,
                 name: document.name,
                 app: self.app,
                 uri: document.uri,
-                _temp: directory,
             }))
         }
     }
@@ -138,18 +153,18 @@ impl FileDialog {
 
 /// A local filesystem handle to a file chosen through [`FileDialog`].
 ///
-/// On desktop platforms this points directly to the selected path. On Android, it manages a
-/// temporary staging file copied from or written back to the underlying content URI when
-/// [`commit`](LocalFile::commit) is called.
+/// On desktop platforms this points directly to the selected path. On Android, it holds the
+/// Storage Access Framework content URI and opens file descriptors directly via
+/// [`open_read`](LocalFile::open_read), [`open_write`](LocalFile::open_write), and
+/// [`open_read_write`](LocalFile::open_read_write).
 pub struct LocalFile {
+    #[cfg(not(target_os = "android"))]
     path: PathBuf,
     name: String,
     #[cfg(target_os = "android")]
     app: AndroidApp,
     #[cfg(target_os = "android")]
     uri: String,
-    #[cfg(target_os = "android")]
-    _temp: tempfile::TempDir,
 }
 
 impl LocalFile {
@@ -164,22 +179,80 @@ impl LocalFile {
         LocalFile { path, name }
     }
 
-    // TODO: maybe query the name on the fly?
     #[cfg(target_os = "android")]
-    pub fn open_android(app: AndroidApp, uri: String, name: String) -> Result<Self> {
-        let (path, directory) = android::temp_file(&name)?;
-        android::copy_file(&app, &uri, &path)?;
-        Ok(LocalFile {
-            path,
-            name,
-            app,
-            uri,
-            _temp: directory,
-        })
+    pub fn open_android(app: AndroidApp, uri: String, name: String) -> Self {
+        LocalFile { name, app, uri }
     }
 
+    #[cfg(not(target_os = "android"))]
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub fn open_read(&self) -> Result<File> {
+        #[cfg(not(target_os = "android"))]
+        {
+            Ok(File::open(&self.path)?)
+        }
+        #[cfg(target_os = "android")]
+        {
+            android::open_file(&self.app, &self.uri, "r")
+        }
+    }
+
+    pub fn open_write(&self) -> Result<File> {
+        #[cfg(not(target_os = "android"))]
+        {
+            Ok(File::create(&self.path)?)
+        }
+        #[cfg(target_os = "android")]
+        {
+            android::open_file(&self.app, &self.uri, "wt")
+        }
+    }
+
+    pub fn open_read_write(&self) -> Result<File> {
+        #[cfg(not(target_os = "android"))]
+        {
+            Ok(OpenOptions::new().read(true).write(true).open(&self.path)?)
+        }
+        #[cfg(target_os = "android")]
+        {
+            android::open_file(&self.app, &self.uri, "rw")
+        }
+    }
+
+    pub fn extension(&self) -> Option<&str> {
+        #[cfg(not(target_os = "android"))]
+        {
+            self.path.extension().and_then(OsStr::to_str)
+        }
+        #[cfg(target_os = "android")]
+        {
+            Path::new(&self.name).extension().and_then(OsStr::to_str)
+        }
+    }
+
+    pub fn file_name(&self) -> Option<&str> {
+        #[cfg(not(target_os = "android"))]
+        {
+            self.path.file_name().and_then(OsStr::to_str)
+        }
+        #[cfg(target_os = "android")]
+        {
+            Path::new(&self.name).file_name().and_then(OsStr::to_str)
+        }
+    }
+
+    pub fn display_path(&self) -> String {
+        #[cfg(not(target_os = "android"))]
+        {
+            self.path.display().to_string()
+        }
+        #[cfg(target_os = "android")]
+        {
+            self.name.clone()
+        }
     }
 
     pub fn name(&self) -> &str {
@@ -195,12 +268,5 @@ impl LocalFile {
         {
             self.path.to_string_lossy().into_owned()
         }
-    }
-
-    pub fn commit(&self) -> Result<()> {
-        #[cfg(target_os = "android")]
-        android::write_file(&self.app, &self.uri, &self.path)?;
-
-        Ok(())
     }
 }

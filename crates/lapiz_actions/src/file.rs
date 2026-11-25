@@ -1,9 +1,7 @@
-use std::{ffi::OsStr, iter, sync::Arc};
+use std::{iter, sync::Arc};
 
 use iced_runtime::Task;
-#[cfg(not(target_os = "android"))]
-use lapiz_canvas::CanvasUndoStackAppExt as _;
-use lapiz_canvas::{CanvasAppExt as _, CanvasId, recent::RecentFiles};
+use lapiz_canvas::{CanvasAppExt as _, CanvasId, CanvasUndoStackAppExt as _, recent::RecentFiles};
 use lapiz_config::Config;
 use lapiz_file_dialog::{FileDialog, LocalFile};
 use lapiz_i18n::t;
@@ -118,7 +116,6 @@ impl ActionFunction for SaveFileAction {
 
         if let Some(file) = canvas.local_file().cloned() {
             if file
-                .path()
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case(lapiz_lazuli::EXTENSION))
             {
@@ -134,9 +131,7 @@ impl ActionFunction for SaveFileAction {
         let ExportFileMessage::PathChosen(canvas_id, Some(local_file)) = message else {
             return Task::none();
         };
-        #[cfg(not(target_os = "android"))]
         if local_file
-            .path()
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case(lapiz_lazuli::EXTENSION))
         {
@@ -157,12 +152,14 @@ impl ActionFunction for SaveFileAction {
                         if canvas.local_file().is_some() {
                             return;
                         }
-                        if canvas
-                            .archive
-                            .set_path(local_file.path().to_owned())
-                            .logged_err()
-                            .is_ok()
-                        {
+                        #[cfg(not(target_os = "android"))]
+                        let switched = canvas.archive.set_path(local_file.path().to_owned());
+                        #[cfg(target_os = "android")]
+                        let switched = local_file
+                            .open_read_write()
+                            .and_then(|file| canvas.archive.set_file(file));
+
+                        if switched.logged_err().is_ok() {
                             Config::<RecentFiles>::read_or_init_or_fallback()
                                 .update(|c| {
                                     c.update(local_file.source(), local_file.name().to_owned())
@@ -221,11 +218,12 @@ fn choose_destination(globals: &mut Globals) -> Task<ExportFileMessage> {
     };
     let mut dialog = FileDialog::new_maybe_from_global(globals);
     let canvas_id = canvas.id();
+    let default_name = format!("Untitled.{}", lapiz_lazuli::EXTENSION);
     let name = canvas
         .local_file()
         .map(|file| file.name())
         .filter(|name| !name.is_empty());
-    dialog = dialog.set_file_name(name.unwrap_or("Untitled.png"));
+    dialog = dialog.set_file_name(name.unwrap_or(&default_name));
     for format in globals
         .global::<ImageFormatExporterRegistry>()
         .iter_formats()
@@ -255,8 +253,7 @@ fn start_export(
     if globals.canvas(&canvas_id).is_none() {
         return Task::none();
     }
-    let path = local_file.path();
-    let Some(path_extension) = path.extension().and_then(OsStr::to_str) else {
+    let Some(path_extension) = local_file.extension() else {
         return Task::none();
     };
 
@@ -264,7 +261,7 @@ fn start_export(
     let Some(extension) = exporters.find_extension(path_extension) else {
         log::warn!(
             "No image format adapter matches {}, cannot export",
-            path.display()
+            local_file.display_path()
         );
         return Task::none();
     };
@@ -292,9 +289,8 @@ fn start_export(
         let globals = globals.async_handle();
         Task::future(async move {
             exporter
-                .export(globals, canvas_id, local_file.path())
+                .export(globals, canvas_id, &local_file)
                 .await
-                .and_then(|_| local_file.commit())
                 .log_err();
         })
         .discard()

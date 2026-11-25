@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fs::File,
     io::{Read as _, Write as _},
     path::PathBuf,
     result,
@@ -97,6 +98,25 @@ impl Image {
         path: PathBuf,
         globals: &Globals,
     ) -> impl Future<Output = Result<()>> + Send + use<> {
+        self.write_archive_with(move || LazuliArchive::new(path), globals)
+    }
+
+    pub fn write_archive_file(
+        &self,
+        file: File,
+        globals: &Globals,
+    ) -> impl Future<Output = Result<()>> + Send + use<> {
+        self.write_archive_with(move || LazuliArchive::new_file(file), globals)
+    }
+
+    fn write_archive_with<F>(
+        &self,
+        create_archive: F,
+        globals: &Globals,
+    ) -> impl Future<Output = Result<()>> + Send + use<F>
+    where
+        F: FnOnce() -> Result<LazuliArchive> + Send + 'static,
+    {
         let properties = self.archive_image_properties();
         let layers = self.layers.clone();
         let device = globals.render_device().clone();
@@ -105,7 +125,7 @@ impl Image {
 
         async move {
             let properties = properties?;
-            let archive = LazuliArchive::new(path)?;
+            let archive = create_archive()?;
             archive.write_image_properties(&properties)?;
             layers.write_entire_tree(&archive)?;
             let layer_ids = layers

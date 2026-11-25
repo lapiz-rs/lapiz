@@ -1,9 +1,8 @@
-use std::path::Path;
-
 use anyhow::{Result, anyhow};
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
 use lapiz_canvas::{CanvasAppExt as _, CanvasId};
+use lapiz_file_dialog::LocalFile;
 use lapiz_i18n::t;
 use lapiz_runtime::{
     Renderer,
@@ -41,17 +40,37 @@ impl ImageFormatExporter for LazuliExporter {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn export(&self, globals: GlobalHandle, canvas: CanvasId, path: &Path) -> Result<()> {
-        let path = path.to_owned();
-        globals
-            .update(move |globals| -> Result<_> {
-                let canvas = globals
-                    .canvas(&canvas)
-                    .ok_or_else(|| anyhow!("Canvas is missing"))?;
-                Ok(canvas.image.write_archive(path, globals))
-            })
-            .await?
-            .await
+    async fn export(
+        &self,
+        globals: GlobalHandle,
+        canvas: CanvasId,
+        file: &LocalFile,
+    ) -> Result<()> {
+        #[cfg(not(target_os = "android"))]
+        let future = {
+            let path = file.path().to_owned();
+            globals
+                .update(move |globals| -> Result<_> {
+                    let canvas = globals
+                        .canvas(&canvas)
+                        .ok_or_else(|| anyhow!("Canvas is missing"))?;
+                    Ok(canvas.image.write_archive(path, globals))
+                })
+                .await?
+        };
+        #[cfg(target_os = "android")]
+        let future = {
+            let file = file.open_read_write()?;
+            globals
+                .update(move |globals| -> Result<_> {
+                    let canvas = globals
+                        .canvas(&canvas)
+                        .ok_or_else(|| anyhow!("Canvas is missing"))?;
+                    Ok(canvas.image.write_archive_file(file, globals))
+                })
+                .await?
+        };
+        future.await
     }
 
     fn to_toml(&self) -> Result<toml::Value> {

@@ -188,9 +188,8 @@ impl Dock for CanvasDock {
     fn display_name(&self, globals: &Globals) -> String {
         globals
             .canvas(&self.canvas)
-            .and_then(|canvas| canvas.file_path())
-            .and_then(|path| path.file_name())
-            .map(|name| name.to_string_lossy().into_owned())
+            .and_then(|canvas| canvas.file_name())
+            .map(str::to_owned)
             .unwrap_or_else(|| t!("canvas_dock_untitled"))
     }
 

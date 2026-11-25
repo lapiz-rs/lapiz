@@ -1,17 +1,19 @@
-use std::{
-    ffi::c_void,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{ffi::c_void, fs::File, os::fd::FromRawFd as _};
 
 use anyhow::{Context as _, Result, anyhow, bail};
 use futures::channel::oneshot;
 use jni::{
     JNIEnv, JavaVM, NativeMethod, errors,
-    objects::{JClass, JObject, JString, JValue},
-    sys::{jint, jlong},
+    objects::{JClass, JObject, JObjectArray, JString, JValue},
+    sys::{jint, jlong, jsize},
 };
 use lapiz_runtime::android::AndroidApp;
+
+/// File format filter passed to the Android document picker when saving.
+pub struct FileFilter {
+    pub name: String,
+    pub extensions: Vec<String>,
+}
 
 /// Metadata returned by the Android document picker, containing the content URI and display name.
 pub struct Document {
@@ -71,14 +73,54 @@ fn with_activity<R>(
     result.map_err(Into::into)
 }
 
-pub async fn pick(app: &AndroidApp, save: bool, name: &str) -> Result<Option<Document>> {
-    let receiver = start_pick(app, save, name)?;
+fn new_string_array<'a>(
+    env: &mut JNIEnv<'a>,
+    items: &[String],
+) -> errors::Result<JObjectArray<'a>> {
+    let string_class = env.find_class("java/lang/String")?;
+    let array = env.new_object_array(items.len() as jsize, string_class, JObject::null())?;
+    for (index, item) in items.iter().enumerate() {
+        let value = env.new_string(item)?;
+        env.set_object_array_element(&array, index as jsize, value)?;
+    }
+    Ok(array)
+}
+
+pub async fn pick(
+    app: &AndroidApp,
+    save: bool,
+    name: &str,
+    filters: &[FileFilter],
+) -> Result<Option<Document>> {
+    let receiver = start_pick(app, save, name, filters)?;
     receiver
         .await
         .context("Document picker did not return a result")?
 }
 
-fn start_pick(app: &AndroidApp, save: bool, name: &str) -> Result<oneshot::Receiver<PickerResult>> {
+fn start_pick(
+    app: &AndroidApp,
+    save: bool,
+    name: &str,
+    filters: &[FileFilter],
+) -> Result<oneshot::Receiver<PickerResult>> {
+    let filter_labels = filters
+        .iter()
+        .map(|filter| {
+            let exts = filter
+                .extensions
+                .iter()
+                .map(|ext| format!(".{ext}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{} ({exts})", filter.name)
+        })
+        .collect::<Vec<_>>();
+    let filter_extensions = filters
+        .iter()
+        .map(|filter| filter.extensions.join(","))
+        .collect::<Vec<_>>();
+
     let (sender, receiver) = oneshot::channel();
     let request = Box::into_raw(Box::new(sender));
     let shown = with_activity(app, |env, activity| -> errors::Result<bool> {
@@ -92,14 +134,18 @@ fn start_pick(app: &AndroidApp, save: bool, name: &str) -> Result<oneshot::Recei
             }],
         )?;
         let name = env.new_string(name)?;
+        let labels = new_string_array(env, &filter_labels)?;
+        let extensions = new_string_array(env, &filter_extensions)?;
         env.call_method(
             activity,
             "requestDocument",
-            "(JZLjava/lang/String;)Z",
+            "(JZLjava/lang/String;[Ljava/lang/String;[Ljava/lang/String;)Z",
             &[
                 JValue::Long(request as jlong),
                 JValue::Bool(if save { 1 } else { 0 }),
                 JValue::Object(name.as_ref()),
+                JValue::Object(labels.as_ref()),
+                JValue::Object(extensions.as_ref()),
             ],
         )?
         .z()
@@ -121,45 +167,22 @@ fn start_pick(app: &AndroidApp, save: bool, name: &str) -> Result<oneshot::Recei
     Ok(receiver)
 }
 
-fn with_document(app: &AndroidApp, method: &str, uri: &str, path: &Path) -> Result<bool> {
-    let path = path.to_str().context("Document path is not UTF-8")?;
-    let ok = with_activity(app, |env, activity| -> errors::Result<bool> {
+pub fn open_file(app: &AndroidApp, uri: &str, mode: &str) -> Result<File> {
+    let fd = with_activity(app, |env, activity| -> errors::Result<jint> {
         let uri = env.new_string(uri)?;
-        let path = env.new_string(path)?;
+        let mode = env.new_string(mode)?;
         env.call_method(
             activity,
-            method,
-            "(Ljava/lang/String;Ljava/lang/String;)Z",
-            &[JValue::Object(uri.as_ref()), JValue::Object(path.as_ref())],
+            "openDocumentFd",
+            "(Ljava/lang/String;Ljava/lang/String;)I",
+            &[JValue::Object(uri.as_ref()), JValue::Object(mode.as_ref())],
         )?
-        .z()
+        .i()
     })?;
-    Ok(ok)
-}
-
-pub fn temp_file(name: &str) -> Result<(PathBuf, tempfile::TempDir)> {
-    let cache = lapiz_dirs::cache_dir();
-    fs::create_dir_all(cache)?;
-    let directory = tempfile::Builder::new()
-        .prefix("document-")
-        .tempdir_in(cache)?;
-    let name = Path::new(name)
-        .file_name()
-        .filter(|name| !name.is_empty())
-        .context("Document has no file name")?;
-    Ok((directory.path().join(name), directory))
-}
-
-pub fn copy_file(app: &AndroidApp, uri: &str, path: &Path) -> Result<()> {
-    if !with_document(app, "copyDocument", uri, path)? {
-        bail!("Unable to read selected document");
+    if fd < 0 {
+        bail!("Unable to open document file descriptor");
     }
-    Ok(())
-}
-
-pub fn write_file(app: &AndroidApp, uri: &str, path: &Path) -> Result<()> {
-    if !with_document(app, "writeDocument", uri, path)? {
-        bail!("Unable to write selected document");
-    }
-    Ok(())
+    // SAFETY: `detachFd` transfers sole ownership of the open file descriptor to Rust.
+    let file = unsafe { File::from_raw_fd(fd) };
+    Ok(file)
 }

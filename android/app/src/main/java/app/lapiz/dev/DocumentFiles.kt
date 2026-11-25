@@ -3,8 +3,6 @@ package app.lapiz.dev
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import androidx.core.net.toUri
 
 internal object DocumentFiles {
@@ -25,35 +23,11 @@ internal object DocumentFiles {
         return if (name.isNullOrEmpty()) uri.lastPathSegment else name
     }
 
-    fun copy(resolver: ContentResolver, uri: String, path: String): Boolean {
+    fun openFd(resolver: ContentResolver, uri: String, mode: String): Int {
         return try {
-            resolver.openInputStream(uri.toUri()).use { input ->
-                FileOutputStream(path).use { output ->
-                    if (input == null) {
-                        return false
-                    }
-                    input.copyTo(output, 64 * 1024)
-                }
-            }
-            true
+            resolver.openFileDescriptor(uri.toUri(), mode)?.detachFd() ?: -1
         } catch (_: Exception) {
-            false
-        }
-    }
-
-    fun write(resolver: ContentResolver, uri: String, path: String): Boolean {
-        return try {
-            FileInputStream(path).use { input ->
-                resolver.openOutputStream(uri.toUri(), "wt").use { output ->
-                    if (output == null) {
-                        return false
-                    }
-                    input.copyTo(output, 64 * 1024)
-                }
-            }
-            true
-        } catch (_: Exception) {
-            false
+            -1
         }
     }
 }

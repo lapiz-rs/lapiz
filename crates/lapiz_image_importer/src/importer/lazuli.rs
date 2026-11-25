@@ -1,8 +1,7 @@
-use std::path::Path;
-
 use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
+use lapiz_file_dialog::LocalFile;
 use lapiz_i18n::t;
 use lapiz_lazuli::LazuliArchive;
 use lapiz_runtime::{Renderer, global::Globals};
@@ -38,8 +37,15 @@ impl ImageFormatImporter for LazuliImporter {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn import(&self, _: &Globals, path: &Path) -> Result<LazuliArchive> {
-        LazuliArchive::open(path)
+    async fn import(&self, _: &Globals, file: &LocalFile) -> Result<LazuliArchive> {
+        #[cfg(not(target_os = "android"))]
+        {
+            LazuliArchive::open(file.path())
+        }
+        #[cfg(target_os = "android")]
+        {
+            LazuliArchive::open_file(file.open_read_write()?)
+        }
     }
 
     fn to_toml(&self) -> Result<toml::Value> {

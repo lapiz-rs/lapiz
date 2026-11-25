@@ -1,10 +1,9 @@
-use std::{fs::File, path::Path};
-
 use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
 use image::{ExtendedColorType, ImageEncoder as _, codecs::avif::AvifEncoder};
 use lapiz_canvas::CanvasId;
+use lapiz_file_dialog::LocalFile;
 use lapiz_i18n::t;
 use lapiz_runtime::{
     Renderer,
@@ -70,9 +69,14 @@ impl ImageFormatExporter for AvifExporter {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn export(&self, globals: GlobalHandle, canvas: CanvasId, path: &Path) -> Result<()> {
+    async fn export(
+        &self,
+        globals: GlobalHandle,
+        canvas: CanvasId,
+        file: &LocalFile,
+    ) -> Result<()> {
         let (rgba, _) = readback_root_layer(globals, canvas, false).await?;
-        let file = File::create(path)?;
+        let file = file.open_write()?;
         AvifEncoder::new_with_speed_quality(file, AVIF_SPEED, self.quality).write_image(
             rgba.as_raw(),
             rgba.width(),

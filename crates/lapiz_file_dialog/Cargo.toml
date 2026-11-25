@@ -16,8 +16,6 @@ rfd.workspace = true
 [target.'cfg(target_os = "android")'.dependencies]
 futures.workspace = true
 jni.workspace = true
-lapiz_dirs.workspace = true
-tempfile.workspace = true
 
 [lints]
 workspace = true
