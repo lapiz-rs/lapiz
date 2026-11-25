@@ -287,13 +287,9 @@ fn start_export(
     } else {
         let globals = globals.async_handle();
         Task::future(async move {
-            let Ok(path) = local_file.materialize_path().logged_err() else {
-                return;
-            };
             exporter
-                .export(globals, canvas_id, path)
+                .export(globals, canvas_id, &local_file)
                 .await
-                .and_then(|_| local_file.commit())
                 .log_err();
         })
         .discard()

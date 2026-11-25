@@ -142,10 +142,7 @@ impl WindowView for ImportDialogView {
                 let Some(local_file) = self.local_file.as_ref() else {
                     return close(self.window);
                 };
-                let archive = local_file
-                    .materialize_path()
-                    .and_then(|path| block_on(self.importer.import(globals, path)))
-                    .logged_err();
+                let archive = block_on(self.importer.import(globals, local_file)).logged_err();
                 if let Ok(archive) = archive
                     && let Ok(image) = Image::from_lazuli(&archive, globals).logged_err()
                 {

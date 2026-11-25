@@ -77,6 +77,18 @@ impl LazuliArchive {
         Ok(archive)
     }
 
+    pub fn new_file(file: File) -> Result<Self> {
+        file.set_len(0)?;
+        let conn = vfs::open_connection(file)?;
+        let archive = Self {
+            inner: Arc::new(Mutex::new(Inner { path: None, conn })),
+        };
+        archive.initialize_tables()?;
+        archive.write_metadata(Metadata { version: VERSION })?;
+
+        Ok(archive)
+    }
+
     pub fn new_in_memory() -> Result<Self> {
         let archive = Self {
             inner: Arc::new(Mutex::new(Inner {

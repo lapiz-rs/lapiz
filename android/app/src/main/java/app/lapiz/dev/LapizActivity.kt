@@ -50,12 +50,6 @@ class LapizActivity : NativeActivity() {
     fun openDocumentFd(uri: String, mode: String): Int =
         DocumentFiles.openFd(contentResolver, uri, mode)
 
-    fun copyDocument(uri: String, path: String): Boolean =
-        DocumentFiles.copy(contentResolver, uri, path)
-
-    fun writeDocument(uri: String, path: String): Boolean =
-        DocumentFiles.write(contentResolver, uri, path)
-
     override fun onDestroy() {
         completeDocument(0, null, null)
         super.onDestroy()

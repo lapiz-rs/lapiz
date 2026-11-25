@@ -3,7 +3,6 @@ use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
     future::Future,
     iter,
-    path::Path,
     pin::Pin,
     sync::Arc,
 };
@@ -120,7 +119,7 @@ pub trait ImageFormatExporter: 'static {
         &self,
         globals: GlobalHandle,
         canvas: CanvasId,
-        path: &Path,
+        file: &LocalFile,
     ) -> impl Future<Output = Result<()>> + Send;
 
     fn to_toml(&self) -> Result<toml::Value>;
@@ -155,7 +154,7 @@ pub trait ErasedImageFormatExporter: Send + Sync + 'static {
         &'a self,
         globals: GlobalHandle,
         canvas: CanvasId,
-        path: &'a Path,
+        file: &'a LocalFile,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
 
     fn to_toml(&self) -> Result<toml::Value>;
@@ -207,9 +206,9 @@ where
         &'a self,
         globals: GlobalHandle,
         canvas: CanvasId,
-        path: &'a Path,
+        file: &'a LocalFile,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
-        Box::pin(ImageFormatExporter::export(self, globals, canvas, path))
+        Box::pin(ImageFormatExporter::export(self, globals, canvas, file))
     }
 
     fn to_toml(&self) -> Result<toml::Value> {

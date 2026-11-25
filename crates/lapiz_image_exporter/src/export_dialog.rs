@@ -176,13 +176,7 @@ impl WindowView for ExportDialogView {
                 let file = self.local_file.clone();
                 let canvas = self.canvas_id;
                 Task::future(async move {
-                    let result = match file.materialize_path() {
-                        Ok(path) => adapter
-                            .export(globals, canvas, path)
-                            .await
-                            .and_then(|_| file.commit()),
-                        Err(err) => Err(err),
-                    };
+                    let result = adapter.export(globals, canvas, &file).await;
                     ExportDialogMessage::Finished(adapter, result)
                 })
             }

@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, future::Future, iter, path::Path, pin::Pin};
+use std::{any::Any, collections::HashMap, future::Future, iter, pin::Pin};
 
 use anyhow::Result;
 use futures::executor::block_on;
@@ -110,7 +110,7 @@ pub trait ImageFormatImporter: 'static {
         async_fn_in_trait,
         reason = "callers await this method directly; the erased trait boxes the future"
     )]
-    async fn import(&self, globals: &Globals, path: &Path) -> Result<LazuliArchive>;
+    async fn import(&self, globals: &Globals, file: &LocalFile) -> Result<LazuliArchive>;
 
     fn to_toml(&self) -> Result<toml::Value>;
 
@@ -141,7 +141,7 @@ pub trait ErasedImageFormatImporter: Send + Sync + 'static {
     fn import<'a>(
         &'a self,
         globals: &'a Globals,
-        path: &'a Path,
+        file: &'a LocalFile,
     ) -> Pin<Box<dyn Future<Output = Result<LazuliArchive>> + 'a>>;
 
     fn to_toml(&self) -> Result<toml::Value>;
@@ -192,9 +192,9 @@ where
     fn import<'a>(
         &'a self,
         globals: &'a Globals,
-        path: &'a Path,
+        file: &'a LocalFile,
     ) -> Pin<Box<dyn Future<Output = Result<LazuliArchive>> + 'a>> {
-        Box::pin(ImageFormatImporter::import(self, globals, path))
+        Box::pin(ImageFormatImporter::import(self, globals, file))
     }
 
     fn to_toml(&self) -> Result<toml::Value> {
@@ -322,23 +322,7 @@ pub fn start_import(globals: &mut Globals, local_file: LocalFile) {
                 PendingImport { local_file },
             ));
     } else {
-        #[cfg(target_os = "android")]
-        let archive = if extension == lapiz_lazuli::EXTENSION {
-            local_file
-                .open_read_write()
-                .and_then(LazuliArchive::open_file)
-                .logged_err()
-        } else {
-            local_file
-                .materialize_path()
-                .and_then(|path| block_on(importer.import(globals, path)))
-                .logged_err()
-        };
-        #[cfg(not(target_os = "android"))]
-        let archive = local_file
-            .materialize_path()
-            .and_then(|path| block_on(importer.import(globals, path)))
-            .logged_err();
+        let archive = block_on(importer.import(globals, &local_file)).logged_err();
 
         if let Ok(archive) = archive
             && let Ok(image) = Image::from_lazuli(&archive, globals).logged_err()

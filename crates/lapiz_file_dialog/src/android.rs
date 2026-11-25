@@ -1,9 +1,4 @@
-use std::{
-    ffi::c_void,
-    fs::{self, File},
-    os::fd::FromRawFd as _,
-    path::{Path, PathBuf},
-};
+use std::{ffi::c_void, fs::File, os::fd::FromRawFd as _};
 
 use anyhow::{Context as _, Result, anyhow, bail};
 use futures::channel::oneshot;
@@ -120,49 +115,6 @@ fn start_pick(app: &AndroidApp, save: bool, name: &str) -> Result<oneshot::Recei
     }
 
     Ok(receiver)
-}
-
-fn with_document(app: &AndroidApp, method: &str, uri: &str, path: &Path) -> Result<bool> {
-    let path = path.to_str().context("Document path is not UTF-8")?;
-    let ok = with_activity(app, |env, activity| -> errors::Result<bool> {
-        let uri = env.new_string(uri)?;
-        let path = env.new_string(path)?;
-        env.call_method(
-            activity,
-            method,
-            "(Ljava/lang/String;Ljava/lang/String;)Z",
-            &[JValue::Object(uri.as_ref()), JValue::Object(path.as_ref())],
-        )?
-        .z()
-    })?;
-    Ok(ok)
-}
-
-pub fn temp_file(name: &str) -> Result<(PathBuf, tempfile::TempDir)> {
-    let cache = lapiz_dirs::cache_dir();
-    fs::create_dir_all(cache)?;
-    let directory = tempfile::Builder::new()
-        .prefix("document-")
-        .tempdir_in(cache)?;
-    let name = Path::new(name)
-        .file_name()
-        .filter(|name| !name.is_empty())
-        .context("Document has no file name")?;
-    Ok((directory.path().join(name), directory))
-}
-
-pub fn copy_file(app: &AndroidApp, uri: &str, path: &Path) -> Result<()> {
-    if !with_document(app, "copyDocument", uri, path)? {
-        bail!("Unable to read selected document");
-    }
-    Ok(())
-}
-
-pub fn write_file(app: &AndroidApp, uri: &str, path: &Path) -> Result<()> {
-    if !with_document(app, "writeDocument", uri, path)? {
-        bail!("Unable to write selected document");
-    }
-    Ok(())
 }
 
 pub fn open_file(app: &AndroidApp, uri: &str, mode: &str) -> Result<File> {

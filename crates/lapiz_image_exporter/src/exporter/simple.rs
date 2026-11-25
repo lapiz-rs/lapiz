@@ -1,10 +1,11 @@
-use std::{io::BufWriter, path::Path};
+use std::io::BufWriter;
 
 use anyhow::Result;
 use iced_core::{Element, Theme};
 use iced_runtime::Task;
 use image::{DynamicImage, ImageFormat};
 use lapiz_canvas::CanvasId;
+use lapiz_file_dialog::LocalFile;
 use lapiz_runtime::{
     Renderer,
     global::{GlobalHandle, Globals},
@@ -52,11 +53,11 @@ macro_rules! simple_exporters {
                     &self,
                     globals: GlobalHandle,
                     canvas: CanvasId,
-                    path: &Path,
+                    file: &LocalFile,
                 ) -> Result<()> {
                     let (rgba, _) = readback_root_layer(globals, canvas, false).await?;
                     DynamicImage::ImageRgba8(rgba)
-                        .write_to(&mut BufWriter::new(std::fs::File::create(path)?), $format)?;
+                        .write_to(&mut BufWriter::new(file.open_write()?), $format)?;
                     Ok(())
                 }
 
