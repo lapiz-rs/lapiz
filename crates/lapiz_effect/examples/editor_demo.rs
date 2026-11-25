@@ -271,8 +271,6 @@ fn demo_effect() -> EffectInstance {
 }
 
 fn main() -> iced::Result {
-    shader_graph::init_i18n();
-    lapiz_effect::init_i18n();
     iced::application(DemoEditor::new, DemoEditor::update, DemoEditor::view)
         .window_size((1280.0, 800.0))
         .title("Effect Editor Demo")

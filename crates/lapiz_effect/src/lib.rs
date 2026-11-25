@@ -12,10 +12,6 @@ pub mod nodes;
 pub mod render;
 pub mod shader_graph;
 
-pub fn init_i18n() {
-    i18n::init();
-}
-
 /// Registers effect localization and the [`EffectAssetSerializer`] with the [`Runtime`].
 pub struct EffectPlugin;
 

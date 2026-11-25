@@ -22,10 +22,6 @@ pub type GraphElement<'a, Message> = Element<'a, Message, GraphTheme, GraphRende
 
 lapiz_i18n::define_i18n!("shader_graph");
 
-pub fn init_i18n() {
-    i18n::init();
-}
-
 /// Registers shader graph localization, function asset serialization, and global texture storage with the [`Runtime`].
 pub struct ShaderGraphPlugin;
 
