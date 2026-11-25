@@ -110,6 +110,14 @@ fn generate_graph_node_impl(
             ) {
                 <Self as #graph_path::graph::node::StatelessCommonGraphNode>::update_signature(self, ctx);
             }
+
+            fn input_target(&self, _state: &Self::State) -> #graph_path::graph::node::GraphNodeInputTarget {
+                <Self as #graph_path::graph::node::StatelessCommonGraphNode>::input_target(self)
+            }
+
+            fn output_target(&self, _state: &Self::State) -> #graph_path::graph::node::GraphNodeOutputTarget {
+                <Self as #graph_path::graph::node::StatelessCommonGraphNode>::output_target(self)
+            }
         }
     }
 }

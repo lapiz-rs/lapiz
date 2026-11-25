@@ -22,25 +22,40 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use wesl::syntax::{Expression, Ident};
 
-use crate::shader_graph::{
-    GraphElement,
-    editor::slot::{input_slot, output_slot},
-    graph::{
-        Graph, GraphResources, GraphSignature, GraphVarIdentGenerator,
-        slot::{
-            ErasedGraphLiteralUpdateMessage, GraphDefaultInputSlot, GraphDefaultOutputSlot,
-            GraphInputSlotData, GraphInputSlotId, GraphOutputSlotData, GraphOutputSlotId,
-            GraphSlots,
+use crate::{
+    asset::{EffectOutputSlotId, EffectPassOutputSlotId},
+    shader_graph::{
+        GraphElement,
+        editor::slot::{input_slot, output_slot},
+        graph::{
+            Graph, GraphResources, GraphSignature, GraphVarIdentGenerator,
+            slot::{
+                ErasedGraphLiteralUpdateMessage, GraphDefaultInputSlot, GraphDefaultOutputSlot,
+                GraphInputSlotData, GraphInputSlotId, GraphOutputSlotData, GraphOutputSlotId,
+                GraphSlots,
+            },
+            variable::{GraphLiteralValue, GraphVariable},
         },
-        variable::{GraphLiteralValue, GraphVariable},
+        save::GraphSerializable,
     },
-    save::GraphSerializable,
 };
 
 wrapper! {
     /// A strongly-typed unique identifier for a node instance within a [`Graph`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub GraphNodeId : Uuid
+}
+
+pub enum GraphNodeInputTarget {
+    Node,
+    Pass(EffectPassOutputSlotId),
+    Effect(EffectOutputSlotId),
+}
+
+pub enum GraphNodeOutputTarget {
+    Node,
+    Pass(EffectPassOutputSlotId),
+    Effect(EffectOutputSlotId),
 }
 
 /// The core trait defining a shader graph node's state, slot layout, editor UI, and WGSL code generation.
@@ -117,6 +132,12 @@ pub trait GraphNode: Send + Sync + 'static + DynClone {
     fn subgraphs_mut<'a>(&mut self, _state: &'a mut Self::State) -> Vec<&'a mut Graph> {
         Vec::new()
     }
+    fn input_target<'a>(&self, _state: &'a Self::State) -> GraphNodeInputTarget {
+        GraphNodeInputTarget::Node
+    }
+    fn output_target<'a>(&self, _state: &'a Self::State) -> GraphNodeOutputTarget {
+        GraphNodeOutputTarget::Node
+    }
 }
 
 /// A type-erased UI message emitted by a node view and tagged with the target [`GraphNodeId`].
@@ -184,6 +205,8 @@ pub trait ErasedGraphNode: Send + Sync + 'static + DynClone + Downcast {
     ) -> Result<Box<dyn Any + Send + Sync>>;
     fn subgraphs<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Vec<&'a Graph>;
     fn subgraphs_mut<'a>(&mut self, state: &'a mut (dyn Any + Send + Sync)) -> Vec<&'a mut Graph>;
+    fn input_target<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> GraphNodeInputTarget;
+    fn output_target<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> GraphNodeOutputTarget;
 }
 
 dyn_clone::clone_trait_object!(ErasedGraphNode);
@@ -330,6 +353,22 @@ impl<T: GraphNode> ErasedGraphNode for T {
                 .expect("failed to downcast graph node state"),
         )
     }
+
+    fn input_target<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> GraphNodeInputTarget {
+        self.input_target(
+            state
+                .downcast_ref::<T::State>()
+                .expect("failed to downcast graph node state"),
+        )
+    }
+
+    fn output_target<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> GraphNodeOutputTarget {
+        self.output_target(
+            state
+                .downcast_ref::<T::State>()
+                .expect("failed to downcast graph node state"),
+        )
+    }
 }
 
 /// A type-erased [`ErasedGraphNode`] paired with its boxed per-instance state.
@@ -432,6 +471,14 @@ impl StatefulGraphNode {
     pub fn state_mut<T: GraphNode>(&mut self) -> Option<&mut T::State> {
         self.state.downcast_mut()
     }
+
+    pub fn input_target(&self) -> GraphNodeInputTarget {
+        self.data.input_target(self.state.as_ref())
+    }
+
+    pub fn output_target(&self) -> GraphNodeOutputTarget {
+        self.data.output_target(self.state.as_ref())
+    }
 }
 
 /// Empty state type used by stateless [`GraphNode`] implementations.
@@ -456,6 +503,12 @@ pub trait StatelessCommonGraphNode: Send + Sync + 'static + DynClone {
         &self,
         ctx: GraphNodeCodeGenContext<'_>,
     ) -> Result<String, GraphNodeCodeGenError>;
+    fn input_target(&self) -> GraphNodeInputTarget {
+        GraphNodeInputTarget::Node
+    }
+    fn output_target(&self) -> GraphNodeOutputTarget {
+        GraphNodeOutputTarget::Node
+    }
 }
 
 /// Per-node entry stored in a [`Graph`], combining canvas position, [`StatefulGraphNode`], and slot IDs.
