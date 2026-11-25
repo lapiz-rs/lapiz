@@ -19,7 +19,7 @@ use lapiz_effect::{
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
     nodes::{PassInput, PassInputNode, PassOutput, PassOutputDef, PassOutputNode, effect_nodes},
     shader_graph::{
-        self, GraphRenderer, GraphTheme,
+        GraphRenderer, GraphTheme,
         builtin::{
             builtin_types,
             nodes::math::{ScalarMathNode, ScalarMathNodeMode},
