@@ -1155,8 +1155,7 @@ mod test {
     use lapiz_undo::BatchedUndoCommand;
     use moxcms::ColorProfile;
 
-    use super::*;
-    use crate::CanvasManager;
+    use crate::{CanvasManager, command::*};
 
     fn pixel() -> LayerStackNode {
         LayerStackNode::without_parent(

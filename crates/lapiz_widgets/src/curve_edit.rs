@@ -474,7 +474,7 @@ fn normalized_to_local(point: Vec2, size: Size) -> Vec2 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::curve_edit::*;
 
     #[test]
     fn converts_between_local_and_normalized_coordinates() {

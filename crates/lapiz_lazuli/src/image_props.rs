@@ -97,7 +97,7 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6)
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::image_props::*;
 
     #[test]
     fn image_table_has_exactly_the_requested_columns() {

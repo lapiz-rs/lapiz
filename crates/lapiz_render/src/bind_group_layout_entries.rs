@@ -381,7 +381,9 @@ pub mod binding_types {
         TextureSampleType, TextureViewDimension,
     };
 
-    use super::{BindGroupLayoutEntryBuilder, BindingType, IntoBindGroupLayoutEntryBuilder as _};
+    use crate::bind_group_layout_entries::{
+        BindGroupLayoutEntryBuilder, BindingType, IntoBindGroupLayoutEntryBuilder as _,
+    };
 
     pub fn storage_buffer<T: ShaderType>(has_dynamic_offset: bool) -> BindGroupLayoutEntryBuilder {
         storage_buffer_sized(has_dynamic_offset, Some(T::min_size()))

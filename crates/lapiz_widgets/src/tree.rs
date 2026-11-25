@@ -562,7 +562,7 @@ impl<'a, Message: 'a, Id: Clone + Eq + Hash + 'static> From<Tree<'a, Message, Id
 mod tests {
     use iced_core::widget::Void;
 
-    use super::*;
+    use crate::tree::*;
 
     fn leaf(id: u8) -> TreeNode<'static, (), u8> {
         TreeNode::Leaf(id, Void.into())

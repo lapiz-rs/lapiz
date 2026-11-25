@@ -59,7 +59,7 @@ pub(crate) fn messages(text: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::hits;
+    use crate::import_alias::hits;
 
     fn aliases(text: &str) -> Vec<(usize, String, String)> {
         hits(text)

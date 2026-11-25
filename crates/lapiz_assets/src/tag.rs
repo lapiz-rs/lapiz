@@ -155,7 +155,7 @@ impl TaggedTags {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::tag::*;
 
     #[test]
     fn tag_positions_insert_and_move_without_changing_other_members() -> Result<()> {

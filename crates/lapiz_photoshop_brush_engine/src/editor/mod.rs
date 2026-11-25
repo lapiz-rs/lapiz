@@ -11,8 +11,9 @@ use lapiz_i18n::t;
 use lapiz_runtime::{Renderer, global::Globals};
 use lapiz_widgets::{button, column, flex::Flex, label, panel, row, scrollable, text_input};
 
-use self::controls::Section;
-use crate::{asset::PhotoshopBrushSerializer, parameter::PhotoshopBrushPreset};
+use crate::{
+    asset::PhotoshopBrushSerializer, editor::controls::Section, parameter::PhotoshopBrushPreset,
+};
 
 pub mod controls;
 

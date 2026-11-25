@@ -1202,7 +1202,7 @@ fn validate_tag_hierarchy(conn: &Connection) -> Result<()> {
 mod tests {
     use chrono::TimeZone as _;
 
-    use super::*;
+    use crate::index_db::*;
 
     struct TestAsset;
 

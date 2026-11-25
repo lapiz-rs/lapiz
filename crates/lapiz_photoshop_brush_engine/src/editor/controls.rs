@@ -10,9 +10,11 @@ use lapiz_widgets::{
     spin_slider::SpinSlider,
 };
 
-use super::{EditorElement, PhotoshopBrushEngine, PhotoshopBrushEngineMessage};
-use crate::parameter::{
-    BrushTip, ComputedBrushTip, DynamicsControl, PhotoshopBrushPreset, SampledBrushTip,
+use crate::{
+    editor::{EditorElement, PhotoshopBrushEngine, PhotoshopBrushEngineMessage},
+    parameter::{
+        BrushTip, ComputedBrushTip, DynamicsControl, PhotoshopBrushPreset, SampledBrushTip,
+    },
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

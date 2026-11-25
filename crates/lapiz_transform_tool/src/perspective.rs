@@ -1237,7 +1237,7 @@ pub struct PerspectiveTransformParams {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::perspective::*;
 
     #[test]
     fn perspective_shader_compiles_for_all_formats() {

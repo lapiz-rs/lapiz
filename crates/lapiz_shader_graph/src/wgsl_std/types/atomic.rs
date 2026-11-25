@@ -15,11 +15,6 @@ use wesl::syntax::{
 use wesl_quote::{quote_declaration, quote_expression, quote_statement};
 use wgpu::{Buffer, Device, Queue};
 
-use super::{
-    prepare_uniform_storage,
-    primitive::{I32Type, U32Type},
-    push_buffer_binding, write_storage_buffer,
-};
 use crate::{
     GraphRenderer, GraphTheme,
     graph::{
@@ -28,6 +23,11 @@ use crate::{
     },
     random_oklch_hue_chroma,
     save::GraphValueTypeId,
+    wgsl_std::types::{
+        prepare_uniform_storage,
+        primitive::{I32Type, U32Type},
+        push_buffer_binding, write_storage_buffer,
+    },
 };
 
 /// A GPU storage [`Buffer`] and element count prepared for an atomic array shader binding.

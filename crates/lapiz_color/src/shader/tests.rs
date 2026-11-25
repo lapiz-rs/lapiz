@@ -26,7 +26,7 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt as _},
 };
 
-use super::*;
+use crate::shader::*;
 
 // ICC shaders use f32 and storage buffers, so their tests only require base device features.
 static TEST_CONTEXT: LazyLock<RenderContext> = LazyLock::new(|| {

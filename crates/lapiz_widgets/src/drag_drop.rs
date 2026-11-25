@@ -520,7 +520,7 @@ impl<'a, T: Clone + Send + 'static, Message: 'a> From<DragDrop<'a, T, Message>>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::drag_drop::*;
 
     #[test]
     fn drop_zones_distinguish_insertion_from_parenting() {

@@ -51,7 +51,7 @@ pub fn recent_file_thumbnail_path(source: &str) -> PathBuf {
 mod tests {
     use lapiz_config::Configuration as _;
 
-    use super::RecentFiles;
+    use crate::recent::RecentFiles;
 
     #[test]
     fn reopening_document_keeps_one_record_and_updates_its_name() {

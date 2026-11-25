@@ -299,7 +299,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::layer_tree::*;
 
     #[test]
     fn layer_tree_has_the_requested_columns() {

@@ -443,11 +443,11 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use uuid::Uuid;
 
-    use super::*;
     use crate::{
         asset::UntypedAssetId,
         bundle::directory::AssetDirectory,
         loader::AssetSerializer,
+        store::*,
         tag::{PositionInTag, TagFile, TaggedTags},
     };
 

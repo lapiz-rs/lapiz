@@ -55,7 +55,7 @@ use wesl::syntax::{
 use wesl_quote::quote_statement;
 use wgpu::{Buffer, Device, Queue, util::DeviceExt as _};
 
-use super::ComputedPenInput;
+use crate::render::ComputedPenInput;
 
 /// Foreground and background RGBA colors supplied as built-in uniforms when rendering a brush stroke.
 #[derive(Debug, Default, Clone, Copy)]

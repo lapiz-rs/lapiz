@@ -125,7 +125,7 @@ WHERE layer_id = ?1 AND tile_x = ?2 AND tile_y = ?3
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::tile_data::*;
 
     #[test]
     fn tile_data_table_has_the_requested_columns() {
