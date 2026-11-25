@@ -52,11 +52,11 @@ impl Plugin for ImageExporterPlugin {
 
         app.globals_mut()
             .global_mut::<ImageFormatExporterRegistry>()
+            .register::<LazuliExporter>()
             .register::<PngExporter>()
             .register::<JpgExporter>()
             .register::<WebPExporter>()
             .register::<AvifExporter>()
-            .register::<LazuliExporter>()
             .register::<GifExporter>()
             .register::<BmpExporter>()
             .register::<TiffExporter>()

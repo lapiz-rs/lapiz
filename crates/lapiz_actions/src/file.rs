@@ -218,11 +218,12 @@ fn choose_destination(globals: &mut Globals) -> Task<ExportFileMessage> {
     };
     let mut dialog = FileDialog::new_maybe_from_global(globals);
     let canvas_id = canvas.id();
+    let default_name = format!("Untitled.{}", lapiz_lazuli::EXTENSION);
     let name = canvas
         .local_file()
         .map(|file| file.name())
         .filter(|name| !name.is_empty());
-    dialog = dialog.set_file_name(name.unwrap_or("Untitled.png"));
+    dialog = dialog.set_file_name(name.unwrap_or(&default_name));
     for format in globals
         .global::<ImageFormatExporterRegistry>()
         .iter_formats()

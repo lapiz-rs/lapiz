@@ -27,6 +27,8 @@ pub struct FileDialog {
     app: AndroidApp,
     #[cfg(target_os = "android")]
     file_name: Option<String>,
+    #[cfg(target_os = "android")]
+    filters: Vec<android::FileFilter>,
 }
 
 impl FileDialog {
@@ -61,6 +63,7 @@ impl FileDialog {
         Self {
             app,
             file_name: None,
+            filters: Vec::new(),
         }
     }
 
@@ -79,16 +82,25 @@ impl FileDialog {
     }
 
     #[must_use]
-    pub fn add_filter(self, name: impl Into<String>, extensions: &[impl ToString]) -> Self {
+    pub fn add_filter(mut self, name: impl Into<String>, extensions: &[impl ToString]) -> Self {
         #[cfg(not(target_os = "android"))]
         {
-            Self {
-                dialog: self.dialog.add_filter(name, extensions),
-            }
+            self.dialog = self.dialog.add_filter(name, extensions);
+            self
         }
         #[cfg(target_os = "android")]
         {
-            let _ = (name, extensions);
+            let extensions = extensions
+                .iter()
+                .map(|ext| ext.to_string().trim_start_matches('.').to_owned())
+                .filter(|ext| !ext.is_empty())
+                .collect::<Vec<_>>();
+            if !extensions.is_empty() {
+                self.filters.push(android::FileFilter {
+                    name: name.into(),
+                    extensions,
+                });
+            }
             self
         }
     }
@@ -104,7 +116,7 @@ impl FileDialog {
         }
         #[cfg(target_os = "android")]
         {
-            let Some(document) = android::pick(&self.app, false, "").await? else {
+            let Some(document) = android::pick(&self.app, false, "", &[]).await? else {
                 return Ok(None);
             };
             Ok(Some(LocalFile::open_android(
@@ -127,7 +139,7 @@ impl FileDialog {
         #[cfg(target_os = "android")]
         {
             let name = self.file_name.context("Document name is required")?;
-            let Some(document) = android::pick(&self.app, true, &name).await? else {
+            let Some(document) = android::pick(&self.app, true, &name, &self.filters).await? else {
                 return Ok(None);
             };
             Ok(Some(LocalFile {
