@@ -5,8 +5,15 @@ use std::{
 
 use anyhow::Result;
 use iced_core::{Element, Length, Theme, text::IntoFragment, window};
+use iced_futures::Subscription;
 use iced_runtime::Task;
-use lapiz_assets::{AssetAppExt as _, asset::UntypedAssetId, store::AssetRegistry, tag::TagId};
+use lapiz_assets::{
+    AssetAppExt as _,
+    asset::UntypedAssetId,
+    event::{AssetEvent, TagEvent},
+    store::AssetRegistry,
+    tag::TagId,
+};
 use lapiz_brush::{
     engine::{BrushEngineId, BrushEngineRegistryExt as _, UntypedBrushPresetEntry},
     tool::CurrentBrushPresetExt as _,
@@ -14,7 +21,7 @@ use lapiz_brush::{
 };
 use lapiz_dock::dock::{Dock, DockId};
 use lapiz_i18n::t;
-use lapiz_runtime::{Renderer, global::Globals};
+use lapiz_runtime::{Renderer, event::Event as _, global::Globals};
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{
     button, column, container, icon, icon_button, label, row, scrollable, space,
@@ -30,7 +37,7 @@ pub struct BrushPresetDock {
     brushes: Vec<(BrushEngineId, UntypedBrushPresetEntry)>,
     groups: BrushGroups,
     collapsed: HashSet<BrushGroupId>,
-    preview_generation: u64,
+    preview_generations: HashMap<UntypedAssetId, u64>,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -62,6 +69,8 @@ struct BrushTagGroup {
 pub enum BrushPresetDockMessage {
     SelectBrush(UntypedAssetId),
     ToggleGroup(BrushGroupId),
+    AssetEvent(AssetEvent),
+    TagEvent(TagEvent),
     Refresh,
 }
 
@@ -148,17 +157,34 @@ impl BrushTagGroup {
 impl BrushPresetDock {
     pub fn new(globals: &Globals) -> Self {
         let mut dock = Self::default();
-        dock.refresh(globals).log_err();
+        dock.refresh(globals, false).log_err();
         dock
     }
 
-    fn refresh(&mut self, globals: &Globals) -> Result<()> {
+    fn refresh(&mut self, globals: &Globals, invalidate_all_previews: bool) -> Result<()> {
         let assets = globals.assets();
         let brushes = globals.brush_engine_registry().all_brushes(assets);
         let groups = BrushGroups::read(assets, &brushes)?;
+        let active_ids = brushes
+            .iter()
+            .map(|(_, entry)| entry.id)
+            .collect::<HashSet<_>>();
+
         self.brushes = brushes;
         self.groups = groups;
-        self.preview_generation += 1;
+
+        if self.selected.is_some_and(|id| !active_ids.contains(&id)) {
+            self.selected = None;
+        }
+
+        self.preview_generations
+            .retain(|id, _| active_ids.contains(id));
+        if invalidate_all_previews {
+            for id in active_ids {
+                *self.preview_generations.entry(id).or_default() += 1;
+            }
+        }
+
         Ok(())
     }
 
@@ -218,7 +244,7 @@ impl BrushPresetDock {
         let preview = container(UntypedBrushPreview::new(
             *engine_id,
             item.id,
-            self.preview_generation,
+            self.preview_generations.get(&item.id).copied().unwrap_or(0),
             globals,
         ))
         .width(Length::Fill)
@@ -244,8 +270,16 @@ impl Dock for BrushPresetDock {
     }
 
     fn on_open(&mut self, globals: &mut Globals) -> Task<Self::Message> {
-        self.refresh(globals).log_err();
+        self.refresh(globals, false).log_err();
         Task::none()
+    }
+
+    fn subscription(&self, globals: &Globals) -> Subscription<Self::Message> {
+        let assets =
+            AssetEvent::listen_for_types(globals.brush_engine_registry().brush_asset_types())
+                .map(BrushPresetDockMessage::AssetEvent);
+        let tags = TagEvent::listen_to().map(BrushPresetDockMessage::TagEvent);
+        Subscription::batch([assets, tags])
     }
 
     fn view<'a>(
@@ -290,7 +324,22 @@ impl Dock for BrushPresetDock {
 
     fn update(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
         match message {
-            BrushPresetDockMessage::Refresh => self.refresh(globals).log_err(),
+            BrushPresetDockMessage::Refresh => self.refresh(globals, true).log_err(),
+            BrushPresetDockMessage::AssetEvent(event) => match event {
+                AssetEvent::Modified { id, .. } => {
+                    *self.preview_generations.entry(id).or_default() += 1;
+                    self.refresh(globals, false).log_err();
+                }
+                AssetEvent::BundlesChanged { .. } => {
+                    self.refresh(globals, true).log_err();
+                }
+                AssetEvent::Added { .. } | AssetEvent::Removed { .. } => {
+                    self.refresh(globals, false).log_err();
+                }
+            },
+            BrushPresetDockMessage::TagEvent(_) => {
+                self.refresh(globals, false).log_err();
+            }
             BrushPresetDockMessage::ToggleGroup(id) => {
                 if !self.collapsed.remove(&id) {
                     self.collapsed.insert(id);

@@ -10,6 +10,7 @@ use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use downcast_rs::DowncastSync;
 use indexmap::IndexSet;
+use lapiz_runtime::event::Event as _;
 use lapiz_utils::wrapper;
 use parse_display::Display;
 use rusqlite::types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
@@ -18,6 +19,7 @@ use uuid::Uuid;
 
 use crate::{
     bundle::{AssetBundleCache, BundleId},
+    event::AssetEvent,
     store::AssetRegistry,
     tag::{AssetPositionInTag, TagId},
 };
@@ -260,10 +262,15 @@ impl<T: Asset> AssetHandle<T> {
     }
 
     pub fn update(&self, asset: T) -> Result<()> {
-        self.bundle
-            .update_asset(self.untyped_id(), Arc::new(asset))?;
-        self.registry.index_db().update_asset(&self.untyped_id())?;
+        let id = self.untyped_id();
+        self.bundle.update_asset(id, Arc::new(asset))?;
+        let revision = self.registry.index_db().update_asset(&id)?;
 
+        AssetEvent::broadcast(AssetEvent::Modified {
+            id,
+            ty: T::TYPE_NAME,
+            revision,
+        });
         Ok(())
     }
 
@@ -289,6 +296,11 @@ impl<T: Asset> AssetHandle<T> {
         let id = self.untyped_id();
         self.bundle.delete_cached_asset(&id)?;
         self.registry.index_db().delete_asset(&id)?;
+
+        AssetEvent::broadcast(AssetEvent::Removed {
+            id,
+            ty: T::TYPE_NAME,
+        });
         Ok(())
     }
 

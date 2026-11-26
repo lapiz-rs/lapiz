@@ -3281,6 +3281,7 @@ dependencies = [
  "downcast-rs 2.0.2",
  "env_logger",
  "futures",
+ "iced_futures",
  "indexmap",
  "lapiz_runtime",
  "lapiz_utils",

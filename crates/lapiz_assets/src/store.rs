@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow, bail};
 use chrono::Utc;
 use dashmap::DashMap;
 use indexmap::IndexSet;
-use lapiz_runtime::global::Global;
+use lapiz_runtime::{event::Event as _, global::Global};
 
 use crate::{
     asset::{Asset, AssetHandle, AssetId, AssetMetadata, ErasedAsset as _, UntypedAssetId},
@@ -16,6 +16,7 @@ use crate::{
         AssetBundle, AssetBundleCache, BundleId, BundleManifest, BundleSnapshot, ErasedAssetBundle,
         read_tag_file, read_tagged_assets_file, read_tagged_tags_file, scan_bundle_assets,
     },
+    event::{AssetEvent, TagEvent},
     index_db::{AssetFilter, AssetIndexDb, TagFilter, UntypedAssetFilter},
     loader::AssetSerializerRegistry,
     tag::{PositionInTag, Tag, TagFile, TagId, TaggedAssets},
@@ -113,6 +114,12 @@ impl AssetRegistry {
             last_modified: Utc::now(),
             in_memory: false,
         })?;
+
+        AssetEvent::broadcast(AssetEvent::Added {
+            id: asset_id,
+            ty: T::TYPE_NAME,
+            bundle_id,
+        });
         Ok(asset_id.into_typed())
     }
 
@@ -130,6 +137,11 @@ impl AssetRegistry {
 
         self.inner.index_db.sync_bundles(&snapshots)?;
 
+        let bundle_ids = snapshots
+            .iter()
+            .map(|snapshot| snapshot.metadata.bundle_id)
+            .collect::<Arc<[BundleId]>>();
+
         for snapshot in snapshots {
             self.inner.bundles.insert(
                 snapshot.metadata.bundle_id,
@@ -140,6 +152,8 @@ impl AssetRegistry {
                 )),
             );
         }
+
+        AssetEvent::broadcast(AssetEvent::BundlesChanged { bundle_ids });
         Ok(())
     }
 
@@ -237,6 +251,8 @@ impl AssetRegistry {
         })?;
         self.inner.index_db.update_tag(tag.clone())?;
         bundle.write_tag(tag)?;
+
+        TagEvent::broadcast(TagEvent::Updated { tag_id: tag.id });
         Ok(())
     }
 
@@ -256,6 +272,8 @@ impl AssetRegistry {
         let bundle = self.bundle(&bundle_id)?;
         bundle.write_tag(&tag)?;
         self.index_db().add_tag(tag.clone())?;
+
+        TagEvent::broadcast(TagEvent::Created { tag_id: tag.id });
         Ok(tag)
     }
 
@@ -267,7 +285,10 @@ impl AssetRegistry {
             bail!("Asset {asset_id} is not assigned to tag {}", tag.name);
         }
         bundle.write_tagged_assets(&tag_id, &members)?;
-        self.index_db().edit_tagged_assets(&tag_id, &members)
+        self.index_db().edit_tagged_assets(&tag_id, &members)?;
+
+        TagEvent::broadcast(TagEvent::AssetsChanged { tag_id });
+        Ok(())
     }
 
     pub fn add_asset_to_tag_at(
@@ -291,10 +312,14 @@ impl AssetRegistry {
         let mut assets = bundle.read_tagged_assets(&tag_id)?;
         assets.insert(asset_id, position)?;
         bundle.write_tagged_assets(&tag_id, &assets)?;
-        self.inner.index_db.edit_tagged_assets(&tag_id, &assets)
+        self.inner.index_db.edit_tagged_assets(&tag_id, &assets)?;
+
+        TagEvent::broadcast(TagEvent::AssetsChanged { tag_id });
+        Ok(())
     }
 
     pub fn sync_type_tag_assets(&self) -> Result<()> {
+        let mut changed = false;
         for tag in self.all_tags()?.into_iter().filter(Tag::is_type_tag) {
             let bundle = self.bundle(&tag.bundle_id)?;
             let mut members = bundle.read_tagged_assets(&tag.id)?;
@@ -308,7 +333,12 @@ impl AssetRegistry {
             if members.assets != before {
                 bundle.write_tagged_assets(&tag.id, &members)?;
                 self.index_db().edit_tagged_assets(&tag.id, &members)?;
+                changed = true;
             }
+        }
+
+        if changed {
+            TagEvent::broadcast(TagEvent::TypeTagsSynced);
         }
         Ok(())
     }
@@ -323,19 +353,50 @@ impl AssetRegistry {
         if old_parent.id == new_parent.id {
             return self.add_tag_to_tag_at(new_parent, &child_id, position);
         }
+
         let destination_bundle = self.bundle(&new_parent.bundle_id)?;
         let original = destination_bundle.read_tagged_tags(&new_parent.id)?;
-        self.add_tag_to_tag_at(new_parent, &child_id, position)?;
-        if let Err(error) = self.remove_child_from_tag(old_parent, &child_id) {
+        self.add_tag_to_tag_at_inner(new_parent, &child_id, position)?;
+        if let Err(error) = self.remove_child_from_tag_inner(old_parent, &child_id) {
             destination_bundle.write_tagged_tags(&new_parent.id, &original)?;
             self.index_db()
                 .edit_tagged_tags(&new_parent.id, &original)?;
             return Err(error);
         }
+
+        TagEvent::broadcast(TagEvent::ChildrenChanged {
+            parent_id: old_parent.id,
+        });
+        TagEvent::broadcast(TagEvent::ChildrenChanged {
+            parent_id: new_parent.id,
+        });
         Ok(())
     }
 
     pub fn add_tag_to_tag_at(
+        &self,
+        parent: &Tag,
+        child_id: &TagId,
+        position: PositionInTag<TagId>,
+    ) -> Result<()> {
+        self.add_tag_to_tag_at_inner(parent, child_id, position)?;
+
+        TagEvent::broadcast(TagEvent::ChildrenChanged {
+            parent_id: parent.id,
+        });
+        Ok(())
+    }
+
+    pub fn remove_child_from_tag(&self, parent: &Tag, child_id: &TagId) -> Result<()> {
+        self.remove_child_from_tag_inner(parent, child_id)?;
+
+        TagEvent::broadcast(TagEvent::ChildrenChanged {
+            parent_id: parent.id,
+        });
+        Ok(())
+    }
+
+    fn add_tag_to_tag_at_inner(
         &self,
         parent: &Tag,
         child_id: &TagId,
@@ -354,7 +415,7 @@ impl AssetRegistry {
         self.inner.index_db.edit_tagged_tags(&parent.id, &children)
     }
 
-    pub fn remove_child_from_tag(&self, parent: &Tag, child_id: &TagId) -> Result<()> {
+    fn remove_child_from_tag_inner(&self, parent: &Tag, child_id: &TagId) -> Result<()> {
         let parent = self.inner.index_db.get_tag(parent.id)?;
         let bundle = self.bundle(&parent.bundle_id)?;
         let mut children = bundle.read_tagged_tags(&parent.id)?;
@@ -370,7 +431,10 @@ impl AssetRegistry {
     }
 
     pub fn delete_tag(&self, tag_id: &TagId) -> Result<()> {
-        self.inner.index_db.delete_tag(tag_id)
+        self.inner.index_db.delete_tag(tag_id)?;
+
+        TagEvent::broadcast(TagEvent::Deleted { tag_id: *tag_id });
+        Ok(())
     }
 
     pub fn serializers(&self) -> &AssetSerializerRegistry {
@@ -1331,6 +1395,199 @@ mod tests {
             previous_metadata.last_modified
         );
         drop(index);
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn asset_lifecycle_broadcasts_events() -> Result<()> {
+        let root = temp_root("asset-events");
+        let bundle_root = root.join("bundle");
+        fs::create_dir_all(&bundle_root)?;
+        let bundle = AssetDirectory::new(&bundle_root)?;
+        let bundle_id = AssetBundle::metadata(&bundle)?.bundle_id;
+
+        let mut rx = AssetEvent::channel().1.activate_cloned();
+        macro_rules! drain_for {
+            ($target_bundle:expr, $target_asset:expr) => {{
+                let mut matched = Vec::new();
+                while let Ok(event) = rx.try_recv() {
+                    let belongs = match &event {
+                        AssetEvent::BundlesChanged { bundle_ids } => {
+                            bundle_ids.contains(&$target_bundle)
+                        }
+                        AssetEvent::Added { id, bundle_id, .. } => {
+                            *bundle_id == $target_bundle || $target_asset == Some(*id)
+                        }
+                        AssetEvent::Modified { id, .. } | AssetEvent::Removed { id, .. } => {
+                            $target_asset == Some(*id)
+                        }
+                    };
+                    if belongs {
+                        matched.push(event);
+                    }
+                }
+                matched
+            }};
+        }
+
+        let registry = registry_with_bundles(&root, vec![Arc::new(bundle)])?;
+        let bundle_events = drain_for!(bundle_id, None);
+        assert_eq!(
+            bundle_events,
+            vec![AssetEvent::BundlesChanged {
+                bundle_ids: Arc::from([bundle_id]),
+            }]
+        );
+        assert!(bundle_events[0].matches_type(TestAsset::TYPE_NAME));
+        assert!(bundle_events[0].matches_type("other_asset"));
+
+        let asset_id = registry
+            .add_asset(
+                bundle_id,
+                "item.storetest",
+                Arc::new(TestAsset { value: 1 }),
+            )?
+            .into_untyped();
+        let added = drain_for!(bundle_id, Some(asset_id));
+        assert_eq!(
+            added,
+            vec![AssetEvent::Added {
+                id: asset_id,
+                ty: TestAsset::TYPE_NAME,
+                bundle_id,
+            }]
+        );
+        assert!(added[0].matches_type(TestAsset::TYPE_NAME));
+        assert!(!added[0].matches_type("other_asset"));
+
+        let handle = registry.handle(asset_id.into_typed::<TestAsset>())?;
+        handle.update(TestAsset { value: 2 })?;
+        handle.write()?;
+        let modified = drain_for!(bundle_id, Some(asset_id));
+        assert_eq!(
+            modified,
+            vec![AssetEvent::Modified {
+                id: asset_id,
+                ty: TestAsset::TYPE_NAME,
+                revision: 1,
+            }]
+        );
+
+        handle.delete()?;
+        let removed = drain_for!(bundle_id, Some(asset_id));
+        assert_eq!(
+            removed,
+            vec![AssetEvent::Removed {
+                id: asset_id,
+                ty: TestAsset::TYPE_NAME,
+            }]
+        );
+
+        drop(handle);
+        drop(registry);
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn tag_mutations_broadcast_events() -> Result<()> {
+        let root = temp_root("tag-events");
+        let bundle_root = root.join("bundle");
+        fs::create_dir_all(&bundle_root)?;
+        let bundle = AssetDirectory::new(&bundle_root)?;
+        let bundle_id = AssetBundle::metadata(&bundle)?.bundle_id;
+        let registry = registry_with_bundles(&root, vec![Arc::new(bundle)])?;
+
+        let asset_id = registry
+            .add_asset(
+                bundle_id,
+                "item.storetest",
+                Arc::new(TestAsset { value: 1 }),
+            )?
+            .into_untyped();
+
+        let mut rx = TagEvent::channel().1.activate_cloned();
+        macro_rules! drain_for {
+            ($ids:expr) => {{
+                let mut matched = Vec::new();
+                while let Ok(event) = rx.try_recv() {
+                    let belongs = match event {
+                        TagEvent::Created { tag_id }
+                        | TagEvent::Updated { tag_id }
+                        | TagEvent::Deleted { tag_id }
+                        | TagEvent::AssetsChanged { tag_id } => $ids.contains(&tag_id),
+                        TagEvent::ChildrenChanged { parent_id } => $ids.contains(&parent_id),
+                        TagEvent::TypeTagsSynced => false,
+                    };
+                    if belongs {
+                        matched.push(event);
+                    }
+                }
+                matched
+            }};
+        }
+
+        let parent = registry.create_tag(
+            bundle_id,
+            "parent.tag".into(),
+            TagFile::new("Parent".into(), Some(TestAsset::TYPE_NAME.into())),
+        )?;
+        let other_parent = registry.create_tag(
+            bundle_id,
+            "other.tag".into(),
+            TagFile::new("Other".into(), Some(TestAsset::TYPE_NAME.into())),
+        )?;
+        let child = registry.create_tag(
+            bundle_id,
+            "child.tag".into(),
+            TagFile::new("Child".into(), Some(TestAsset::TYPE_NAME.into())),
+        )?;
+        let ids = [parent.id, other_parent.id, child.id];
+        assert_eq!(
+            drain_for!(&ids),
+            vec![
+                TagEvent::Created { tag_id: parent.id },
+                TagEvent::Created {
+                    tag_id: other_parent.id
+                },
+                TagEvent::Created { tag_id: child.id },
+            ]
+        );
+
+        let mut renamed = child.clone();
+        renamed.name = "Child Renamed".into();
+        registry.write_tag(&renamed)?;
+        registry.add_asset_to_tag_at(asset_id, child.id, PositionInTag::Last)?;
+        registry.remove_asset_from_tag(asset_id, child.id)?;
+        registry.add_tag_to_tag_at(&parent, &child.id, PositionInTag::Last)?;
+        registry.move_tag_at(child.id, &parent, &other_parent, PositionInTag::Last)?;
+        registry.remove_child_from_tag(&other_parent, &child.id)?;
+        registry.delete_tag(&child.id)?;
+
+        assert_eq!(
+            drain_for!(&ids),
+            vec![
+                TagEvent::Updated { tag_id: child.id },
+                TagEvent::AssetsChanged { tag_id: child.id },
+                TagEvent::AssetsChanged { tag_id: child.id },
+                TagEvent::ChildrenChanged {
+                    parent_id: parent.id
+                },
+                TagEvent::ChildrenChanged {
+                    parent_id: parent.id
+                },
+                TagEvent::ChildrenChanged {
+                    parent_id: other_parent.id
+                },
+                TagEvent::ChildrenChanged {
+                    parent_id: other_parent.id
+                },
+                TagEvent::Deleted { tag_id: child.id },
+            ]
+        );
+
+        drop(registry);
         fs::remove_dir_all(root)?;
         Ok(())
     }

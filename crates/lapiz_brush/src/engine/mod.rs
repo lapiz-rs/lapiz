@@ -164,6 +164,7 @@ impl<T: BrushEngine> ErasedBrushEngine for T {
 pub trait BrushEngineFactory {
     fn id(&self) -> BrushEngineId;
     fn label(&self) -> String;
+    fn brush_asset_type(&self) -> &'static str;
     fn brush_file_extension(&self) -> &'static str;
     fn query_brushes(&self, assets: &AssetRegistry) -> Result<Vec<UntypedBrushPresetEntry>>;
     fn load_brush(
@@ -206,6 +207,10 @@ impl<E: BrushEngine> BrushEngineFactory for BrushEngineFactoryInstance<E> {
 
     fn label(&self) -> String {
         E::label()
+    }
+
+    fn brush_asset_type(&self) -> &'static str {
+        E::Brush::TYPE_NAME
     }
 
     fn brush_file_extension(&self) -> &'static str {
@@ -284,6 +289,12 @@ impl BrushEngineRegistry {
             .get(engine_id)
             .map(|b| b.as_ref())
             .context("Brush engine not found")
+    }
+
+    pub fn brush_asset_types(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.factories
+            .values()
+            .map(|factory| factory.brush_asset_type())
     }
 
     pub fn all_brushes(
