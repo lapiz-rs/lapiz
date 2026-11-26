@@ -7,9 +7,8 @@ use indexmap::IndexMap;
 use lapiz_assets::{AssetAppExt as _, asset::AssetId, store::AssetRegistry};
 use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassId},
-    editor::{EffectEditorMessage, EffectEditorState, EffectEditorView},
+    editor::{EffectEditor, EffectEditorMessage},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
-    nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
     shader_graph::{
         GraphElement,
         builtin::types::{handle::LayerType, primitive::F32Type},
@@ -17,7 +16,7 @@ use lapiz_effect::{
             GraphEditor,
             parameters::{ParametersEditor, ParametersEditorMessage},
         },
-        graph::{Graph, slot::ErasedGraphValueType},
+        graph::{Graph, GraphResources, slot::ErasedGraphValueType},
     },
 };
 use lapiz_i18n::t;
@@ -33,7 +32,9 @@ use crate::{
         BrushParameter, BrushPresetInstance, main_effect_resources, postprocess_effect_resources,
         spacing_effect_resources,
     },
-    render::graph::{MAIN_DAB_BUFFER, SPACING_OUTPUT, STROKE_RESULT},
+    render::graph::{
+        MAIN_DAB_BUFFER, OutputMainDabBufferNode, OutputSpacingNode, SPACING_OUTPUT, STROKE_RESULT,
+    },
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -68,37 +69,29 @@ pub struct LapizBrushEngine {
 
 struct SelectedBrush {
     instance: BrushPresetInstance,
-    editor_states: BrushEffectEditorStates,
+    resources: BrushEffectResources,
 }
 
-struct BrushEffectEditorStates {
-    spacing: EffectEditorState,
-    main: EffectEditorState,
-    postprocess: EffectEditorState,
+struct BrushEffectResources {
+    spacing: GraphResources,
+    main: GraphResources,
+    postprocess: GraphResources,
 }
 
-impl BrushEffectEditorStates {
+impl BrushEffectResources {
     fn new(assets: &AssetRegistry) -> Self {
         Self {
-            spacing: EffectEditorState::new(spacing_effect_resources(assets.clone())),
-            main: EffectEditorState::new(main_effect_resources(assets.clone())),
-            postprocess: EffectEditorState::new(postprocess_effect_resources(assets.clone())),
+            spacing: spacing_effect_resources(assets.clone()),
+            main: main_effect_resources(assets.clone()),
+            postprocess: postprocess_effect_resources(assets.clone()),
         }
     }
 
-    fn get(&self, slot: BrushEffectSlot) -> &EffectEditorState {
+    fn get(&self, slot: BrushEffectSlot) -> &GraphResources {
         match slot {
             BrushEffectSlot::Spacing => &self.spacing,
             BrushEffectSlot::Main => &self.main,
             BrushEffectSlot::Postprocess => &self.postprocess,
-        }
-    }
-
-    fn get_mut(&mut self, slot: BrushEffectSlot) -> &mut EffectEditorState {
-        match slot {
-            BrushEffectSlot::Spacing => &mut self.spacing,
-            BrushEffectSlot::Main => &mut self.main,
-            BrushEffectSlot::Postprocess => &mut self.postprocess,
         }
     }
 }
@@ -146,25 +139,15 @@ impl BrushEngine for LapizBrushEngine {
     where
         Self: Sized,
     {
-        let mut instance =
+        let instance =
             BrushPresetInstance::new(brush, asset_id.map(|id| id.into_untyped()), assets.clone())?;
-        let mut editor_states = BrushEffectEditorStates::new(assets);
-
-        for slot in [BrushEffectSlot::Spacing, BrushEffectSlot::Main] {
-            let effect = effect_mut(&mut instance, slot);
-            let pass_id = effect
-                .single_pass_id()
-                .expect("loaded brush spacing and main effects each have one pass");
-            editor_states
-                .get_mut(slot)
-                .update(effect, EffectEditorMessage::OpenPass(pass_id));
-        }
+        let resources = BrushEffectResources::new(assets);
 
         Ok(Self {
             name_buffer: instance.metadata().name.clone(),
             selected: SelectedBrush {
                 instance,
-                editor_states,
+                resources,
             },
             active_slot: BrushEffectSlot::Main,
             dirty: false,
@@ -176,7 +159,7 @@ impl BrushEngine for LapizBrushEngine {
             metadata: BrushPresetMetadata {
                 name: "[Unnamed Brush]".into(),
             },
-            spacing_effect: new_spacing_effect(assets.clone()).as_asset()?,
+            spacing_effect: new_spacing_effect(assets.clone())?.as_asset()?,
             main_effect: new_main_effect(assets.clone())?.as_asset()?,
             postprocess_effect: new_postprocess_effect().as_asset()?,
             parameters: Default::default(),
@@ -220,13 +203,8 @@ impl BrushEngine for LapizBrushEngine {
                 self.active_slot = slot;
             }
             LapizBrushEngineMessage::Effect(message) => {
-                self.selected
-                    .editor_states
-                    .get_mut(self.active_slot)
-                    .update(
-                        effect_mut(&mut self.selected.instance, self.active_slot),
-                        message,
-                    );
+                effect_mut(&mut self.selected.instance, self.active_slot)
+                    .update(message, self.selected.resources.get(self.active_slot));
             }
             LapizBrushEngineMessage::Parameters(message) => {
                 apply_parameter_message(&mut self.selected.instance, message);
@@ -271,24 +249,18 @@ impl LapizBrushEngine {
 
         let effect_editor = match self.active_slot {
             BrushEffectSlot::Spacing | BrushEffectSlot::Main => {
-                let state = selected.editor_states.get(self.active_slot);
                 let instance = effect(&selected.instance, self.active_slot);
-                let (pass_id, pass) = (
-                    instance.single_pass_id().unwrap(),
-                    instance.single_pass().unwrap(),
-                );
+                let pass_id = instance.single_pass_id().unwrap();
+                let pass = instance.single_pass().unwrap();
 
-                GraphElement::from(GraphEditor::new(
-                    &pass.graph,
-                    &state.graph_editor_states[&pass_id],
-                ))
-                .map(|message| LapizBrushEngineMessage::Effect(EffectEditorMessage::Graph(message)))
+                component(GraphEditor::new(&pass.graph, move |message| {
+                    LapizBrushEngineMessage::Effect(EffectEditorMessage::Graph(pass_id, message))
+                }))
             }
-            BrushEffectSlot::Postprocess => GraphElement::from(EffectEditorView::new(
+            BrushEffectSlot::Postprocess => component(EffectEditor::new(
                 effect(&selected.instance, self.active_slot),
-                selected.editor_states.get(self.active_slot),
-            ))
-            .map(LapizBrushEngineMessage::Effect),
+                LapizBrushEngineMessage::Effect,
+            )),
         };
 
         let selected_slot = BrushEffectSlot::ALL
@@ -309,7 +281,7 @@ impl LapizBrushEngine {
     }
 
     fn view_parameters<'a>(&'a self, selected: &'a SelectedBrush) -> EditorElement<'a> {
-        let resources = &selected.editor_states.get(self.active_slot).resources;
+        let resources = selected.resources.get(self.active_slot);
         let parameters = component(ParametersEditor::new(
             selected
                 .instance
@@ -379,16 +351,6 @@ fn sync_brush_effect_parameters(
             )
         })
         .collect();
-    for pass in effect.passes.values_mut() {
-        for node in pass.graph.iter_nodes_mut() {
-            if let Some(state) = node.data.state_mut::<PassInputNode>()
-                && let Some(PassInput::Effect(id)) = state.input
-                && !effect.inputs.contains_key(&id)
-            {
-                state.input = None;
-            }
-        }
-    }
     effect
         .sync_pass_graph_effect_properties()
         .expect("brush parameter inputs always sync");
@@ -410,16 +372,18 @@ fn effect_mut(instance: &mut BrushPresetInstance, slot: BrushEffectSlot) -> &mut
     }
 }
 
-fn new_spacing_effect(assets: AssetRegistry) -> EffectInstance {
+fn new_spacing_effect(assets: AssetRegistry) -> Result<EffectInstance> {
     let output_id = EffectOutputSlotId::new(Uuid::new_v4());
+    let mut graph = Graph::new(spacing_effect_resources(assets));
+    graph.add_node(Point::ORIGIN, OutputSpacingNode);
 
-    EffectInstance {
+    let mut effect = EffectInstance {
         name: "Spacing".into(),
         passes: IndexMap::from_iter([(
             EffectPassId::new(Uuid::new_v4()),
             EffectPass {
                 name: "Spacing".into(),
-                graph: Graph::new(spacing_effect_resources(assets)),
+                graph,
                 dispatch_strategy: EffectPassDispatchStrategy::Once,
             },
         )]),
@@ -432,21 +396,20 @@ fn new_spacing_effect(assets: AssetRegistry) -> EffectInstance {
                 ty: Arc::new(F32Type),
             },
         )]),
-    }
+    };
+    effect.sync_pass_graph_effect_properties()?;
+    Ok(effect)
 }
 
 fn new_main_effect(assets: AssetRegistry) -> Result<EffectInstance> {
     let output_id = EffectOutputSlotId::new(Uuid::new_v4());
     let mut graph = Graph::new(main_effect_resources(assets));
-    let node = graph.add_node(Point::ORIGIN, PassOutputNode);
-    graph.update_node_state::<PassOutputNode>(node, |state| {
-        state.output = Some(PassOutput::Effect(output_id));
-    });
+    let node = graph.add_node(Point::ORIGIN, OutputMainDabBufferNode);
     let port = graph
         .get_node(&node)
         .unwrap()
         .data
-        .state::<PassOutputNode>()
+        .state::<OutputMainDabBufferNode>()
         .unwrap()
         .id;
     let mut effect = EffectInstance {

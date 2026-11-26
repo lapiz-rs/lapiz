@@ -2,8 +2,7 @@ use std::sync::{Arc, LazyLock};
 
 use lapiz_assets::store::AssetRegistry;
 use lapiz_effect::{
-    nodes::effect_nodes,
-    random_oklch_hue_chroma,
+    effect_nodes, random_oklch_hue_chroma,
     shader_graph::{
         builtin::{builtin_types, types::vector::Vec2IType},
         graph::{

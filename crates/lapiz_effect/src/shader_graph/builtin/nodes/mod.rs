@@ -5,6 +5,7 @@ pub mod function;
 pub mod graph_io;
 pub mod image;
 pub mod math;
+pub mod pass_io;
 pub mod random;
 pub mod repeat;
 pub mod selection;

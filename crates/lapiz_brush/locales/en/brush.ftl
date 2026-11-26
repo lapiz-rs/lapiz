@@ -35,6 +35,7 @@ initial_pen_tilt_node = Initial Pen Tilt
 layer_pixel_color_node = Layer Pixel Color
 output_bounds_node = Output Bounds
 output_color_node = Output Color
+output_main_dab_buffer_node = Output Main Dab Buffer
 output_required_spacing_node = Output Required Spacing
 output_spacing_node = Output Spacing
 paste_texture_node = Paste Texture

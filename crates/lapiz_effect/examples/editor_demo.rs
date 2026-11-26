@@ -1,4 +1,5 @@
 use std::{
+    convert::identity,
     env, fmt,
     fs::File,
     io::Write as _,
@@ -15,24 +16,28 @@ use lapiz_effect::{
         EffectAssetSerializer, EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy,
         EffectPassId, EffectPassInputSlotId, EffectPassOutputSlotId,
     },
-    editor::{EffectEditorMessage, EffectEditorState, EffectEditorView},
+    editor::{EffectEditor, EffectEditorMessage},
+    effect_nodes,
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
-    nodes::{PassInput, PassInputNode, PassOutput, PassOutputDef, PassOutputNode, effect_nodes},
     shader_graph::{
         GraphRenderer, GraphTheme,
         builtin::{
             builtin_types,
-            nodes::math::{ScalarMathNode, ScalarMathNodeMode},
+            nodes::{
+                math::{ScalarMathNode, ScalarMathNodeMode},
+                pass_io::{PassInputNode, PassOutput, PassOutputNode},
+            },
             types::primitive::F32Type,
         },
         graph::{
             Graph, GraphResources,
-            node::{GraphNodeId, GraphNodeRegistry},
+            node::{GraphNodeId, GraphNodeRegistry, PassInput, PassOutputDef},
             slot::ErasedGraphValueType,
             variable::GraphTypeRegistry,
         },
     },
 };
+use lapiz_widgets::component::component;
 use uuid::Uuid;
 
 static TYPE_REGISTRY: LazyLock<Arc<GraphTypeRegistry>> =
@@ -65,7 +70,7 @@ fn graph_resources() -> GraphResources {
 
 struct DemoEditor {
     instance: EffectInstance,
-    editor_state: EffectEditorState,
+    resources: GraphResources,
     save_path: PathBuf,
 }
 
@@ -81,14 +86,14 @@ impl DemoEditor {
         });
         Self {
             instance: loaded.unwrap_or_else(demo_effect),
-            editor_state: EffectEditorState::new(graph_resources()),
+            resources: graph_resources(),
             save_path,
         }
     }
 
     fn update(&mut self, message: EffectEditorMessage) {
         debug_log(format!("update: {message:?}"));
-        self.editor_state.update(&mut self.instance, message);
+        self.instance.update(message, &self.resources);
         self.save();
     }
 
@@ -111,7 +116,7 @@ impl DemoEditor {
 
     fn view(&self) -> Element<'_, EffectEditorMessage, GraphTheme, GraphRenderer> {
         debug_log("view: rebuilt");
-        EffectEditorView::new(&self.instance, &self.editor_state).into()
+        component(EffectEditor::new(&self.instance, identity))
     }
 }
 

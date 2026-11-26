@@ -22,25 +22,127 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use wesl::syntax::{Expression, Ident};
 
-use crate::shader_graph::{
-    GraphElement,
-    editor::slot::{input_slot, output_slot},
-    graph::{
-        Graph, GraphResources, GraphSignature, GraphVarIdentGenerator,
-        slot::{
-            ErasedGraphLiteralUpdateMessage, GraphDefaultInputSlot, GraphDefaultOutputSlot,
-            GraphInputSlotData, GraphInputSlotId, GraphOutputSlotData, GraphOutputSlotId,
-            GraphSlots,
+use crate::{
+    asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassInputSlotId, EffectPassOutputSlotId},
+    shader_graph::{
+        GraphElement,
+        editor::slot::{input_slot, output_slot},
+        graph::{
+            Graph, GraphResources, GraphSignature, GraphVarIdentGenerator,
+            slot::{
+                ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphDefaultInputSlot,
+                GraphDefaultOutputSlot, GraphInputSlotData, GraphInputSlotId, GraphOutputSlotData,
+                GraphOutputSlotId, GraphSlots,
+            },
+            variable::{GraphLiteralValue, GraphVariable},
         },
-        variable::{GraphLiteralValue, GraphVariable},
+        save::GraphSerializable,
     },
-    save::GraphSerializable,
 };
 
 wrapper! {
     /// A strongly-typed unique identifier for a node instance within a [`Graph`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub GraphNodeId : Uuid
+}
+
+#[derive(Clone)]
+pub struct GraphNodeInputDef {
+    pub label: String,
+    pub ty: Option<Arc<dyn ErasedGraphValueType>>,
+    pub id: EffectPassInputSlotId,
+    pub source: GraphNodeInputSource,
+}
+
+#[derive(Clone, PartialEq)]
+pub enum GraphNodeInputSource {
+    Pass(EffectPassOutputSlotId),
+    Effect(EffectInputSlotId),
+}
+
+#[derive(Clone)]
+pub struct GraphNodeOutputDef {
+    pub label: String,
+    pub ty: Option<Arc<dyn ErasedGraphValueType>>,
+    pub id: EffectPassOutputSlotId,
+    pub target: GraphNodeOutputTarget,
+}
+
+#[derive(Clone)]
+pub enum GraphNodeOutputTarget {
+    Pass(PassOutputDef),
+    Effect(EffectOutputSlotId),
+}
+
+/// Name and value type definition for a pass-local intermediate output buffer created by a [`PassOutputNode`].
+#[derive(Clone)]
+pub struct PassOutputDef {
+    pub name: String,
+    pub ty: Arc<dyn ErasedGraphValueType>,
+}
+
+/// A selectable source option displayed in a [`PassInputNode`] combo box.
+#[derive(Clone)]
+pub struct PassInputChoice {
+    pub label: String,
+    pub ty: Arc<dyn ErasedGraphValueType>,
+    pub input: PassInput,
+}
+
+impl fmt::Debug for PassInputChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PassInputChoice")
+            .field("label", &self.label)
+            .finish()
+    }
+}
+
+impl fmt::Display for PassInputChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.label)
+    }
+}
+
+impl PartialEq for PassInputChoice {
+    fn eq(&self, other: &Self) -> bool {
+        self.label == other.label && self.ty.id() == other.ty.id() && self.input == other.input
+    }
+}
+
+/// Identifies the data source bound to a [`PassInputNode`]: either another pass's output or an effect-level input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PassInput {
+    Pass(EffectPassOutputSlotId),
+    Effect(EffectInputSlotId),
+}
+
+/// A selectable destination option displayed in a [`PassOutputNode`] combo box.
+#[derive(Clone)]
+pub struct PassOutputChoice {
+    pub label: String,
+    pub ty: Arc<dyn ErasedGraphValueType>,
+    pub target: EffectOutputSlotId,
+}
+
+impl fmt::Debug for PassOutputChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PassOutputChoice")
+            .field("label", &self.label)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
+impl fmt::Display for PassOutputChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.label)
+    }
+}
+
+impl PartialEq for PassOutputChoice {
+    fn eq(&self, other: &Self) -> bool {
+        self.label == other.label && self.target == other.target && self.ty.id() == other.ty.id()
+    }
 }
 
 /// The core trait defining a shader graph node's state, slot layout, editor UI, and WGSL code generation.
@@ -117,6 +219,26 @@ pub trait GraphNode: Send + Sync + 'static + DynClone {
     fn subgraphs_mut<'a>(&mut self, _state: &'a mut Self::State) -> Vec<&'a mut Graph> {
         Vec::new()
     }
+    fn as_pass_input(&self, _state: &Self::State) -> Option<GraphNodeInputDef> {
+        None
+    }
+    fn as_pass_output(&self, _state: &Self::State) -> Option<GraphNodeOutputDef> {
+        None
+    }
+    fn on_available_pass_input_choices_changed(
+        &self,
+        _state: &mut Self::State,
+        _new_inputs: Arc<[PassInputChoice]>,
+    ) -> bool {
+        false
+    }
+    fn on_available_pass_output_choices_changed(
+        &self,
+        _state: &mut Self::State,
+        _new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool {
+        false
+    }
 }
 
 /// A type-erased UI message emitted by a node view and tagged with the target [`GraphNodeId`].
@@ -184,6 +306,18 @@ pub trait ErasedGraphNode: Send + Sync + 'static + DynClone + Downcast {
     ) -> Result<Box<dyn Any + Send + Sync>>;
     fn subgraphs<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Vec<&'a Graph>;
     fn subgraphs_mut<'a>(&mut self, state: &'a mut (dyn Any + Send + Sync)) -> Vec<&'a mut Graph>;
+    fn as_pass_input(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeInputDef>;
+    fn as_pass_output(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef>;
+    fn on_available_pass_input_choices_changed(
+        &self,
+        state: &mut (dyn Any + Send + Sync),
+        new_inputs: Arc<[PassInputChoice]>,
+    ) -> bool;
+    fn on_available_pass_output_choices_changed(
+        &self,
+        state: &mut (dyn Any + Send + Sync),
+        new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool;
 }
 
 dyn_clone::clone_trait_object!(ErasedGraphNode);
@@ -330,6 +464,48 @@ impl<T: GraphNode> ErasedGraphNode for T {
                 .expect("failed to downcast graph node state"),
         )
     }
+
+    fn as_pass_input(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeInputDef> {
+        self.as_pass_input(
+            state
+                .downcast_ref::<T::State>()
+                .expect("failed to downcast graph node state"),
+        )
+    }
+
+    fn as_pass_output(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef> {
+        self.as_pass_output(
+            state
+                .downcast_ref::<T::State>()
+                .expect("failed to downcast graph node state"),
+        )
+    }
+
+    fn on_available_pass_input_choices_changed(
+        &self,
+        state: &mut (dyn Any + Send + Sync),
+        new_inputs: Arc<[PassInputChoice]>,
+    ) -> bool {
+        self.on_available_pass_input_choices_changed(
+            state
+                .downcast_mut::<T::State>()
+                .expect("failed to downcast graph node state"),
+            new_inputs,
+        )
+    }
+
+    fn on_available_pass_output_choices_changed(
+        &self,
+        state: &mut (dyn Any + Send + Sync),
+        new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool {
+        self.on_available_pass_output_choices_changed(
+            state
+                .downcast_mut::<T::State>()
+                .expect("failed to downcast graph node state"),
+            new_outputs,
+        )
+    }
 }
 
 /// A type-erased [`ErasedGraphNode`] paired with its boxed per-instance state.
@@ -432,6 +608,30 @@ impl StatefulGraphNode {
     pub fn state_mut<T: GraphNode>(&mut self) -> Option<&mut T::State> {
         self.state.downcast_mut()
     }
+
+    pub fn as_pass_input(&self) -> Option<GraphNodeInputDef> {
+        self.data.as_pass_input(self.state.as_ref())
+    }
+
+    pub fn as_pass_output(&self) -> Option<GraphNodeOutputDef> {
+        self.data.as_pass_output(self.state.as_ref())
+    }
+
+    pub fn on_available_pass_input_choices_changed(
+        &mut self,
+        new_inputs: Arc<[PassInputChoice]>,
+    ) -> bool {
+        self.data
+            .on_available_pass_input_choices_changed(self.state.as_mut(), new_inputs)
+    }
+
+    pub fn on_available_pass_output_choices_changed(
+        &mut self,
+        new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool {
+        self.data
+            .on_available_pass_output_choices_changed(self.state.as_mut(), new_outputs)
+    }
 }
 
 /// Empty state type used by stateless [`GraphNode`] implementations.
@@ -456,6 +656,12 @@ pub trait StatelessCommonGraphNode: Send + Sync + 'static + DynClone {
         &self,
         ctx: GraphNodeCodeGenContext<'_>,
     ) -> Result<String, GraphNodeCodeGenError>;
+    fn as_pass_input(&self) -> Option<GraphNodeInputDef> {
+        None
+    }
+    fn as_pass_output(&self) -> Option<GraphNodeOutputDef> {
+        None
+    }
 }
 
 /// Per-node entry stored in a [`Graph`], combining canvas position, [`StatefulGraphNode`], and slot IDs.
@@ -846,6 +1052,10 @@ impl GraphNodeRegistry {
 
     pub fn register_boxed(&mut self, node: Box<dyn ErasedGraphNode>) {
         self.nodes.insert(node.id(), node);
+    }
+
+    pub fn unregister(&mut self, name: &str) {
+        self.nodes.remove(name);
     }
 
     pub fn get(&self, name: &str) -> Option<Box<dyn ErasedGraphNode>> {

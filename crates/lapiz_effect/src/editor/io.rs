@@ -12,9 +12,9 @@ use uuid::Uuid;
 use crate::{
     asset::{EffectInputSlotId, EffectOutputSlotId},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot},
-    nodes::TypeChoice,
     shader_graph::{
         GraphElement, GraphRenderer, GraphTheme,
+        builtin::nodes::pass_io::TypeChoice,
         graph::{slot::ErasedGraphValueType, variable::GraphTypeRegistry},
     },
 };

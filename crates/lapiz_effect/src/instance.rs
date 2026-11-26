@@ -2,7 +2,6 @@ use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Context as _, Result, bail};
 use indexmap::IndexMap;
-use lapiz_i18n::t;
 
 use crate::{
     asset::{
@@ -10,13 +9,15 @@ use crate::{
         EffectPassId, EffectPassInputSlotId, EffectPassOutputSlotId, SerializableEffectInputSlot,
         SerializableEffectOutputSlot, SerializableEffectPass,
     },
-    nodes::{
-        DispatchIndexNode, PassInput, PassInputChoice, PassInputNode, PassOutput, PassOutputChoice,
-        PassOutputChoiceTarget, PassOutputNode, TypeChoice,
-    },
     render::{EffectPassInputSlotSource, EffectPassOutputSlotTarget},
-    shader_graph::graph::{
-        Graph, GraphResources, slot::ErasedGraphValueType, variable::GraphShaderLiteral,
+    shader_graph::{
+        builtin::nodes::pass_io::DispatchIndexNode,
+        graph::{
+            Graph, GraphResources,
+            node::{GraphNodeOutputTarget, PassInput, PassInputChoice, PassOutputChoice},
+            slot::ErasedGraphValueType,
+            variable::GraphShaderLiteral,
+        },
     },
 };
 
@@ -179,115 +180,93 @@ impl EffectInstance {
     }
 
     pub fn sync_pass_graph_effect_properties(&mut self) -> Result<()> {
-        let effect_input_types = self
-            .inputs
-            .iter()
-            .map(|(id, input)| (*id, input.ty.clone()))
-            .collect::<HashMap<_, _>>();
-        let effect_output_types = self
-            .outputs
-            .iter()
-            .map(|(id, output)| (*id, output.ty.clone()))
-            .collect::<HashMap<_, _>>();
-        let pass_outputs = self.collect_pass_outputs()?;
+        let mut target_choices = vec![];
+        for id in self.outputs.keys() {
+            let slot = self
+                .outputs
+                .get(id)
+                .with_context(|| format!("Unknown effect output {id:?}"))?;
+            let label = format!("{} ({})", slot.name, slot.ty.id().id);
+            target_choices.push(PassOutputChoice {
+                label,
+                ty: slot.ty.clone(),
+                target: *id,
+            });
+        }
+        let available_targets = Arc::<[PassOutputChoice]>::from(target_choices);
 
-        let available_types = self
-            .passes
-            .values()
-            .next()
-            .map(|pass| {
-                pass.graph
-                    .resources()
-                    .type_registry
-                    .all_types()
-                    .values()
-                    .map(|ty| TypeChoice {
-                        label: ty.id().id,
-                        ty: ty.clone(),
-                    })
-                    .collect::<Arc<[TypeChoice]>>()
-            })
-            .unwrap_or_default();
+        let mut passes_to_reconcile = HashMap::with_capacity(self.passes.len());
+        for (pass_id, pass) in &mut self.passes {
+            let mut needs_reconcile = false;
+            for node in pass.graph.iter_nodes_mut() {
+                if let Some(state) = node.data.state_mut::<DispatchIndexNode>()
+                    && state.cached_dispatch_strategy != pass.dispatch_strategy
+                {
+                    state.cached_dispatch_strategy = pass.dispatch_strategy;
+                    needs_reconcile = true;
+                }
+
+                needs_reconcile |= node
+                    .data
+                    .on_available_pass_output_choices_changed(available_targets.clone());
+            }
+            passes_to_reconcile.insert(*pass_id, needs_reconcile);
+        }
+
+        let pass_outputs = self.collect_pass_outputs()?;
 
         let mut available_sources = HashMap::with_capacity(self.passes.len());
         for pass_id in self.passes.keys() {
-            let mut choices = vec![PassInputChoice {
-                label: t!("unbound"),
-                input: None,
-            }];
+            let mut choices = vec![];
             for id in self.inputs.keys() {
+                let slot = self
+                    .inputs
+                    .get(id)
+                    .with_context(|| format!("Unknown effect input {id:?}"))?;
+                let label = format!("{} ({})", slot.name, slot.ty.id().id);
+                let ty = slot.ty.clone();
+
                 choices.push(PassInputChoice {
-                    label: self.input_label(PassInput::Effect(*id), &pass_outputs)?,
-                    input: Some(PassInput::Effect(*id)),
+                    label,
+                    ty,
+                    input: PassInput::Effect(*id),
                 });
             }
             for (output_id, info) in &pass_outputs {
                 if &info.producer == pass_id {
                     continue;
                 }
+
+                let info = pass_outputs
+                    .get(output_id)
+                    .with_context(|| format!("Unknown pass output {output_id:?}"))?;
+                let label = format!(
+                    "{} / {} ({})",
+                    self.passes[&info.producer].name,
+                    info.name,
+                    info.ty.id().id
+                );
+                let ty = info.ty.clone();
                 choices.push(PassInputChoice {
-                    label: self.input_label(PassInput::Pass(*output_id), &pass_outputs)?,
-                    input: Some(PassInput::Pass(*output_id)),
+                    label,
+                    ty,
+                    input: PassInput::Pass(*output_id),
                 });
             }
             available_sources.insert(*pass_id, Arc::<[_]>::from(choices));
         }
 
-        let mut target_choices = vec![PassOutputChoice {
-            label: t!("unbound"),
-            target: PassOutputChoiceTarget::Unbound,
-        }];
-        for id in self.outputs.keys() {
-            target_choices.push(PassOutputChoice {
-                label: self.output_label(&PassOutput::Effect(*id))?,
-                target: PassOutputChoiceTarget::Effect(*id),
-            });
-        }
-        target_choices.push(PassOutputChoice {
-            label: t!("local_buffer"),
-            target: PassOutputChoiceTarget::LocalBuffer,
-        });
-        let available_targets = Arc::<[PassOutputChoice]>::from(target_choices);
-
         for (pass_id, pass) in &mut self.passes {
             let sources = available_sources[pass_id].clone();
+            let mut needs_reconcile = passes_to_reconcile[pass_id];
             for node in pass.graph.iter_nodes_mut() {
-                if let Some(state) = node.data.state_mut::<DispatchIndexNode>() {
-                    state.cached_dispatch_strategy = pass.dispatch_strategy;
-                } else if let Some(state) = node.data.state_mut::<PassInputNode>() {
-                    state.available_sources = sources.clone();
-                    state.cached_ty = match state.input {
-                        Some(PassInput::Effect(id)) => Some(
-                            effect_input_types
-                                .get(&id)
-                                .with_context(|| format!("Unknown effect input {id:?}"))?
-                                .clone(),
-                        ),
-                        Some(PassInput::Pass(id)) => Some(
-                            pass_outputs
-                                .get(&id)
-                                .with_context(|| format!("Unknown pass output {id:?}"))?
-                                .ty
-                                .clone(),
-                        ),
-                        None => None,
-                    };
-                } else if let Some(state) = node.data.state_mut::<PassOutputNode>() {
-                    state.available_targets = available_targets.clone();
-                    state.available_types = available_types.clone();
-                    state.cached_ty = match &state.output {
-                        Some(PassOutput::Pass(def)) => Some(def.ty.clone()),
-                        Some(PassOutput::Effect(id)) => Some(
-                            effect_output_types
-                                .get(id)
-                                .with_context(|| format!("Unknown effect output {id:?}"))?
-                                .clone(),
-                        ),
-                        None => None,
-                    };
-                }
+                needs_reconcile |= node
+                    .data
+                    .on_available_pass_input_choices_changed(sources.clone());
             }
-            pass.graph.reconcile_all_node_slots();
+            if needs_reconcile {
+                pass.graph.reconcile_all_node_slots();
+            }
         }
         Ok(())
     }
@@ -296,18 +275,15 @@ impl EffectInstance {
         let mut outputs = HashMap::new();
         for (pass_id, pass) in &self.passes {
             for node in pass.graph.iter_nodes() {
-                let Some(state) = node.data.state::<PassOutputNode>() else {
+                let Some(output) = node.data.as_pass_output() else {
                     continue;
                 };
-                let Some(output) = &state.output else {
-                    continue;
-                };
-                let (ty, name) = match output {
-                    PassOutput::Pass(def) => (def.ty.clone(), def.name.clone()),
-                    PassOutput::Effect(id) => {
+                let (ty, name) = match output.target {
+                    GraphNodeOutputTarget::Pass(def) => (def.ty.clone(), def.name.clone()),
+                    GraphNodeOutputTarget::Effect(id) => {
                         let slot = self
                             .outputs
-                            .get(id)
+                            .get(&id)
                             .with_context(|| format!("Unknown effect output {id:?}"))?;
                         (slot.ty.clone(), slot.name.clone())
                     }
@@ -317,81 +293,23 @@ impl EffectInstance {
                     ty,
                     name,
                 };
-                if outputs.insert(state.id, info).is_some() {
-                    bail!("Duplicate pass output ID {:?}", state.id);
+                if outputs.insert(output.id, info).is_some() {
+                    bail!("Duplicate pass output ID {:?}", output.id);
                 }
             }
         }
         Ok(outputs)
     }
 
-    fn input_label(
-        &self,
-        input: PassInput,
-        pass_outputs: &HashMap<EffectPassOutputSlotId, PassOutputInfo>,
-    ) -> Result<String> {
-        Ok(match input {
-            PassInput::Effect(id) => {
-                let slot = self
-                    .inputs
-                    .get(&id)
-                    .with_context(|| format!("Unknown effect input {id:?}"))?;
-                format!("{} ({})", slot.name, slot.ty.id().id)
-            }
-            PassInput::Pass(id) => {
-                let info = pass_outputs
-                    .get(&id)
-                    .with_context(|| format!("Unknown pass output {id:?}"))?;
-                format!(
-                    "{} / {} ({})",
-                    self.passes[&info.producer].name,
-                    info.name,
-                    info.ty.id().id
-                )
-            }
-        })
-    }
-
-    fn output_label(&self, output: &PassOutput) -> Result<String> {
-        Ok(match output {
-            PassOutput::Pass(def) => format!("{} ({})", def.name, def.ty.id().id),
-            PassOutput::Effect(id) => {
-                let slot = self
-                    .outputs
-                    .get(id)
-                    .with_context(|| format!("Unknown effect output {id:?}"))?;
-                format!("{} ({})", slot.name, slot.ty.id().id)
-            }
-        })
-    }
-
     pub fn pass_io_labels(&self, pass_id: &EffectPassId) -> EffectPassIoLabels {
         let pass = self.passes.get(pass_id).expect("pass exists");
         let mut io = EffectPassIoLabels::default();
         for node in pass.graph.iter_nodes() {
-            if let Some(state) = node.data.state::<PassInputNode>() {
-                let label = match state.input {
-                    None => t!("unbound"),
-                    Some(input) => state
-                        .available_sources
-                        .iter()
-                        .find(|choice| choice.input == Some(input))
-                        .map(|choice| choice.label.clone())
-                        .expect("synced options contain the current binding"),
-                };
-                io.inputs.push(label);
-            } else if let Some(state) = node.data.state::<PassOutputNode>() {
-                let label = match &state.output {
-                    None => t!("unbound"),
-                    Some(PassOutput::Effect(id)) => state
-                        .available_targets
-                        .iter()
-                        .find(|choice| choice.target == PassOutputChoiceTarget::Effect(*id))
-                        .map(|choice| choice.label.clone())
-                        .expect("synced options contain the current binding"),
-                    Some(PassOutput::Pass(def)) => format!("{} ({})", def.name, def.ty.id().id),
-                };
-                io.outputs.push(label);
+            if let Some(input_port) = node.data.as_pass_input() {
+                io.inputs.push(input_port.label.clone());
+            }
+            if let Some(output_port) = node.data.as_pass_output() {
+                io.outputs.push(output_port.label.clone());
             }
         }
         io

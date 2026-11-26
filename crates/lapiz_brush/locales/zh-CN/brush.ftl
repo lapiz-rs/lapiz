@@ -35,6 +35,7 @@ initial_pen_tilt_node = 初始笔倾斜
 layer_pixel_color_node = 图层像素颜色
 output_bounds_node = 输出边界
 output_color_node = 输出颜色
+output_main_dab_buffer_node = 输出主笔触缓冲
 output_required_spacing_node = 输出必需间距
 output_spacing_node = 输出间距
 paste_texture_node = 粘贴纹理

@@ -8,8 +8,9 @@ use lapiz_brush::{
     render::graph::{
         BackgroundColorNode, CurrentPixelColorNode, DabIndexNode, DrawDirectionNode,
         ForegroundColorNode, InitialDrawDirectionNode, LayerPixelColorNode, MAIN_DAB_BUFFER,
-        PenAngleNode, PenPositionNode, PenPressureNode, PenTiltNode, PixelPositionNode,
-        SPACING_OUTPUT, STROKE_RESULT, StrokeBoundsNode, StrokeDistanceNode, TimeNode,
+        OutputMainDabBufferNode, OutputSpacingNode, PenAngleNode, PenPositionNode, PenPressureNode,
+        PenTiltNode, PixelPositionNode, SPACING_OUTPUT, STROKE_RESULT, StrokeBoundsNode,
+        StrokeDistanceNode, TimeNode,
     },
 };
 use lapiz_effect::{
@@ -18,10 +19,12 @@ use lapiz_effect::{
         EffectPassId, EffectPassOutputSlotId, SerializableEffectInputSlot,
         SerializableEffectOutputSlot, SerializableEffectPass,
     },
-    nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
     shader_graph::{
         builtin::{
-            nodes::custom_expression::{CustomExpressionNode, CustomExpressionNodeState},
+            nodes::{
+                custom_expression::{CustomExpressionNode, CustomExpressionNodeState},
+                pass_io::{PassInputNode, PassOutput, PassOutputNode},
+            },
             types::{
                 compound::{ColorType, RectType},
                 handle::{LayerType, TextureType},
@@ -31,7 +34,7 @@ use lapiz_effect::{
         },
         graph::{
             Graph,
-            node::{GraphNode, GraphNodeId},
+            node::{GraphNode, GraphNodeId, PassInput},
             slot::{ErasedGraphValueType, GraphValueType},
         },
         save::{SerializableGraph, SerializableGraphLiteral},
@@ -400,12 +403,7 @@ fn required_spacing_effect(
     graph.connect_slots_by_index(input_nodes[&inputs.size], 0, expression, input_offset + 6);
 
     let output_id = EffectOutputSlotId::new(Uuid::new_v4());
-    let (output, _) = add_effect_output_node(
-        &mut graph,
-        Point::new(300.0, 100.0),
-        output_id,
-        Arc::new(F32Type),
-    );
+    let output = graph.add_node(Point::new(300.0, 100.0), OutputSpacingNode);
     graph.connect_slots_by_index(expression, 0, output, 0);
 
     Ok(effect_asset(
@@ -483,12 +481,14 @@ fn build_main_effect(
     let layer_ty = Arc::new(LayerType {
         texel_type: TexelType::RGBA8,
     });
-    let (output, output_port) = add_effect_output_node(
-        &mut graph,
-        Point::new(550.0, 100.0),
-        output_id,
-        layer_ty.clone(),
-    );
+    let output = graph.add_node(Point::new(550.0, 100.0), OutputMainDabBufferNode);
+    let output_port = graph
+        .get_node(&output)
+        .unwrap()
+        .data
+        .state::<OutputMainDabBufferNode>()
+        .unwrap()
+        .id;
 
     let tip_input_offset = usize::from(tip_texture.is_some());
     let background_input = 3 + tip_input_offset;
