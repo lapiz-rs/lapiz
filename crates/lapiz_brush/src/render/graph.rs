@@ -17,6 +17,7 @@ use lapiz_effect::{
         GraphElement,
         builtin::{
             builtin_nodes, builtin_types,
+            nodes::pass_io::PassInputNode,
             types::{
                 compound::{ColorType, RectType},
                 handle::LayerType,
@@ -1554,6 +1555,7 @@ impl GraphNode for OutputMainDabBufferNode {
 
 pub fn spacing_graph_nodes() -> GraphNodeRegistry {
     let mut nodes = builtin_nodes();
+    nodes.register::<PassInputNode>();
     nodes.register::<OutputSpacingNode>();
     nodes.register::<PenPositionNode>();
     nodes.register::<PenPressureNode>();
@@ -1574,6 +1576,7 @@ pub fn spacing_graph_nodes() -> GraphNodeRegistry {
 
 pub fn main_graph_nodes() -> GraphNodeRegistry {
     let mut nodes = builtin_nodes();
+    nodes.register::<PassInputNode>();
     nodes.register::<OutputMainDabBufferNode>();
     nodes.register::<PenPositionNode>();
     nodes.register::<PenPressureNode>();
