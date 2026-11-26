@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt};
+use std::fmt;
 
 use iced_core::Length;
 use lapiz_i18n::t;
@@ -11,9 +11,8 @@ use lapiz_widgets::{
 use uuid::Uuid;
 
 use crate::{
-    asset::{EffectPassDispatchStrategy, EffectPassId, EffectPassOutputSlotId},
+    asset::{EffectPassDispatchStrategy, EffectPassId},
     instance::{EffectInstance, EffectPass},
-    nodes::{PassInput, PassInputNode, PassOutput, PassOutputChoiceTarget, PassOutputNode},
     shader_graph::{
         GraphElement, GraphRenderer, GraphTheme,
         builtin::types::{
@@ -434,50 +433,31 @@ fn dispatch_choices(instance: &EffectInstance, pass_id: EffectPassId) -> Vec<Dis
     }];
 
     for node in pass.graph.iter_nodes() {
-        if let Some(state) = node.data.state::<PassInputNode>() {
-            let (Some(input), Some(ty)) = (state.input, &state.cached_ty) else {
+        if let Some(input) = node.data.as_input_port() {
+            let Some(ty) = &input.ty else {
                 continue;
             };
             let strategy = if ty.is::<LayerType>() {
-                EffectPassDispatchStrategy::EveryInputLayerPixel(state.id)
+                EffectPassDispatchStrategy::EveryInputLayerPixel(input.id)
             } else if ty.is::<ArrayType>()
                 || ty.is::<ArrayAtomicI32Type>()
                 || ty.is::<ArrayAtomicU32Type>()
             {
-                EffectPassDispatchStrategy::EveryBufferElement(state.id)
+                EffectPassDispatchStrategy::EveryBufferElement(input.id)
             } else {
                 continue;
             };
-            let label = state
-                .available_sources
-                .iter()
-                .find(|choice| choice.input == Some(input))
-                .expect("synced options contain the current binding")
-                .label
-                .clone();
-            choices.push(DispatchChoice { label, strategy });
-        } else if let Some(state) = node.data.state::<PassOutputNode>() {
-            if !state
-                .cached_ty
-                .as_ref()
-                .is_some_and(|ty| ty.is::<LayerType>())
-            {
+            choices.push(DispatchChoice {
+                label: input.label,
+                strategy,
+            });
+        } else if let Some(output) = node.data.as_output_port() {
+            if !output.ty.as_ref().is_some_and(|ty| ty.is::<LayerType>()) {
                 continue;
             }
-            let label = match &state.output {
-                Some(PassOutput::Pass(def)) => format!("{} ({})", def.name, def.ty.id().id),
-                Some(PassOutput::Effect(id)) => state
-                    .available_targets
-                    .iter()
-                    .find(|choice| choice.target == PassOutputChoiceTarget::Effect(*id))
-                    .expect("synced options contain the current binding")
-                    .label
-                    .clone(),
-                None => continue,
-            };
             choices.push(DispatchChoice {
-                label,
-                strategy: EffectPassDispatchStrategy::EveryOutputLayerPixel(state.id),
+                label: output.label,
+                strategy: EffectPassDispatchStrategy::EveryOutputLayerPixel(output.id),
             });
         }
     }
@@ -485,40 +465,7 @@ fn dispatch_choices(instance: &EffectInstance, pass_id: EffectPassId) -> Vec<Dis
 }
 
 fn resync(instance: &mut EffectInstance) {
-    sanitize_bindings(instance);
     instance
         .sync_pass_graph_effect_properties()
-        .expect("sanitized instances always sync");
-}
-
-fn sanitize_bindings(instance: &mut EffectInstance) {
-    let effect_inputs = instance.inputs.keys().copied().collect::<HashSet<_>>();
-    let effect_outputs = instance.outputs.keys().copied().collect::<HashSet<_>>();
-    let pass_outputs = instance
-        .passes
-        .values()
-        .flat_map(|pass| pass.graph.iter_nodes())
-        .filter_map(|node| node.data.state::<PassOutputNode>())
-        .map(|state| state.id)
-        .collect::<HashSet<EffectPassOutputSlotId>>();
-
-    for pass in instance.passes.values_mut() {
-        for node in pass.graph.iter_nodes_mut() {
-            if let Some(state) = node.data.state_mut::<PassInputNode>()
-                && let Some(input) = state.input
-                && match input {
-                    PassInput::Effect(id) => !effect_inputs.contains(&id),
-                    PassInput::Pass(id) => !pass_outputs.contains(&id),
-                }
-            {
-                state.input = None;
-            }
-            if let Some(state) = node.data.state_mut::<PassOutputNode>()
-                && let Some(PassOutput::Effect(id)) = &state.output
-                && !effect_outputs.contains(id)
-            {
-                state.output = None;
-            }
-        }
-    }
+        .expect("instances always sync");
 }

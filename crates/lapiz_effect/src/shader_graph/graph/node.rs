@@ -24,16 +24,16 @@ use wesl::syntax::{Expression, Ident};
 
 use crate::{
     asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassInputSlotId, EffectPassOutputSlotId},
-    nodes::PassOutputDef,
+    nodes::{PassInputChoice, PassOutputChoice, PassOutputDef},
     shader_graph::{
         GraphElement,
         editor::slot::{input_slot, output_slot},
         graph::{
             Graph, GraphResources, GraphSignature, GraphVarIdentGenerator,
             slot::{
-                ErasedGraphLiteralUpdateMessage, GraphDefaultInputSlot, GraphDefaultOutputSlot,
-                GraphInputSlotData, GraphInputSlotId, GraphOutputSlotData, GraphOutputSlotId,
-                GraphSlots,
+                ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphDefaultInputSlot,
+                GraphDefaultOutputSlot, GraphInputSlotData, GraphInputSlotId, GraphOutputSlotData,
+                GraphOutputSlotId, GraphSlots,
             },
             variable::{GraphLiteralValue, GraphVariable},
         },
@@ -49,6 +49,8 @@ wrapper! {
 
 #[derive(Clone)]
 pub struct GraphNodeInputDef {
+    pub label: String,
+    pub ty: Option<Arc<dyn ErasedGraphValueType>>,
     pub id: EffectPassInputSlotId,
     pub source: GraphNodeInputSource,
 }
@@ -61,6 +63,8 @@ pub enum GraphNodeInputSource {
 
 #[derive(Clone)]
 pub struct GraphNodeOutputDef {
+    pub label: String,
+    pub ty: Option<Arc<dyn ErasedGraphValueType>>,
     pub id: EffectPassOutputSlotId,
     pub target: GraphNodeOutputTarget,
 }
@@ -151,6 +155,20 @@ pub trait GraphNode: Send + Sync + 'static + DynClone {
     fn as_output_port(&self, _state: &Self::State) -> Option<GraphNodeOutputDef> {
         None
     }
+    fn on_pass_input_choices_changed(
+        &self,
+        _state: &mut Self::State,
+        _new_inputs: Arc<[PassInputChoice]>,
+    ) -> bool {
+        false
+    }
+    fn on_pass_output_choices_changed(
+        &self,
+        _state: &mut Self::State,
+        _new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool {
+        false
+    }
 }
 
 /// A type-erased UI message emitted by a node view and tagged with the target [`GraphNodeId`].
@@ -220,6 +238,16 @@ pub trait ErasedGraphNode: Send + Sync + 'static + DynClone + Downcast {
     fn subgraphs_mut<'a>(&mut self, state: &'a mut (dyn Any + Send + Sync)) -> Vec<&'a mut Graph>;
     fn as_input_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeInputDef>;
     fn as_output_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef>;
+    fn on_pass_input_choices_changed(
+        &self,
+        state: &mut (dyn Any + Send + Sync),
+        new_inputs: Arc<[PassInputChoice]>,
+    ) -> bool;
+    fn on_pass_output_choices_changed(
+        &self,
+        state: &mut (dyn Any + Send + Sync),
+        new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool;
 }
 
 dyn_clone::clone_trait_object!(ErasedGraphNode);
@@ -382,6 +410,32 @@ impl<T: GraphNode> ErasedGraphNode for T {
                 .expect("failed to downcast graph node state"),
         )
     }
+
+    fn on_pass_input_choices_changed(
+        &self,
+        state: &mut (dyn Any + Send + Sync),
+        new_inputs: Arc<[PassInputChoice]>,
+    ) -> bool {
+        self.on_pass_input_choices_changed(
+            state
+                .downcast_mut::<T::State>()
+                .expect("failed to downcast graph node state"),
+            new_inputs,
+        )
+    }
+
+    fn on_pass_output_choices_changed(
+        &self,
+        state: &mut (dyn Any + Send + Sync),
+        new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool {
+        self.on_pass_output_choices_changed(
+            state
+                .downcast_mut::<T::State>()
+                .expect("failed to downcast graph node state"),
+            new_outputs,
+        )
+    }
 }
 
 /// A type-erased [`ErasedGraphNode`] paired with its boxed per-instance state.
@@ -491,6 +545,16 @@ impl StatefulGraphNode {
 
     pub fn as_output_port(&self) -> Option<GraphNodeOutputDef> {
         self.data.as_output_port(self.state.as_ref())
+    }
+
+    pub fn on_pass_input_choices_changed(&mut self, new_inputs: Arc<[PassInputChoice]>) -> bool {
+        self.data
+            .on_pass_input_choices_changed(self.state.as_mut(), new_inputs)
+    }
+
+    pub fn on_pass_output_choices_changed(&mut self, new_outputs: Arc<[PassOutputChoice]>) -> bool {
+        self.data
+            .on_pass_output_choices_changed(self.state.as_mut(), new_outputs)
     }
 }
 

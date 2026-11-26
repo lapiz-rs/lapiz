@@ -12,7 +12,6 @@ use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId},
     editor::{EffectEditor, EffectEditorMessage},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot},
-    nodes::{PassInput, PassInputNode},
     shader_graph::{
         GraphElement,
         builtin::types::handle::LayerType,
@@ -285,16 +284,6 @@ fn apply_parameter_message(instance: &mut FilterInstance, message: ParametersEdi
             .into_iter()
             .map(|(id, name, ty)| (id, EffectInputSlot { name, id, ty })),
     );
-    for pass in effect.passes.values_mut() {
-        for node in pass.graph.iter_nodes_mut() {
-            if let Some(state) = node.data.state_mut::<PassInputNode>()
-                && let Some(PassInput::Effect(id)) = state.input
-                && !effect.inputs.contains_key(&id)
-            {
-                state.input = None;
-            }
-        }
-    }
     effect
         .sync_pass_graph_effect_properties()
         .expect("filter parameter inputs always sync");

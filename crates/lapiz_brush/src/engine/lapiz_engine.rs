@@ -9,7 +9,7 @@ use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassId},
     editor::{EffectEditor, EffectEditorMessage},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
-    nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
+    nodes::{PassOutput, PassOutputNode},
     shader_graph::{
         GraphElement,
         builtin::types::{handle::LayerType, primitive::F32Type},
@@ -350,16 +350,6 @@ fn sync_brush_effect_parameters(
             )
         })
         .collect();
-    for pass in effect.passes.values_mut() {
-        for node in pass.graph.iter_nodes_mut() {
-            if let Some(state) = node.data.state_mut::<PassInputNode>()
-                && let Some(PassInput::Effect(id)) = state.input
-                && !effect.inputs.contains_key(&id)
-            {
-                state.input = None;
-            }
-        }
-    }
     effect
         .sync_pass_graph_effect_properties()
         .expect("brush parameter inputs always sync");
