@@ -430,7 +430,7 @@ fn dispatch_choices(instance: &EffectInstance, pass_id: EffectPassId) -> Vec<Dis
     }];
 
     for node in pass.graph.iter_nodes() {
-        if let Some(input) = node.data.as_input_port() {
+        if let Some(input) = node.data.as_pass_input() {
             let Some(ty) = &input.ty else {
                 continue;
             };
@@ -448,7 +448,7 @@ fn dispatch_choices(instance: &EffectInstance, pass_id: EffectPassId) -> Vec<Dis
                 label: input.label,
                 strategy,
             });
-        } else if let Some(output) = node.data.as_output_port() {
+        } else if let Some(output) = node.data.as_pass_output() {
             if !output.ty.as_ref().is_some_and(|ty| ty.is::<LayerType>()) {
                 continue;
             }

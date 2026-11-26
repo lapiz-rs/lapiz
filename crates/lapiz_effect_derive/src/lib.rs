@@ -111,12 +111,12 @@ fn generate_graph_node_impl(
                 <Self as #graph_path::graph::node::StatelessCommonGraphNode>::update_signature(self, ctx);
             }
 
-            fn as_input_port(&self, _state: &Self::State) -> Option<#graph_path::graph::node::GraphNodeInputDef> {
-                <Self as #graph_path::graph::node::StatelessCommonGraphNode>::as_input_port(self)
+            fn as_pass_input(&self, _state: &Self::State) -> Option<#graph_path::graph::node::GraphNodeInputDef> {
+                <Self as #graph_path::graph::node::StatelessCommonGraphNode>::as_pass_input(self)
             }
 
-            fn as_output_port(&self, _state: &Self::State) -> Option<#graph_path::graph::node::GraphNodeOutputDef> {
-                <Self as #graph_path::graph::node::StatelessCommonGraphNode>::as_output_port(self)
+            fn as_pass_output(&self, _state: &Self::State) -> Option<#graph_path::graph::node::GraphNodeOutputDef> {
+                <Self as #graph_path::graph::node::StatelessCommonGraphNode>::as_pass_output(self)
             }
         }
     }

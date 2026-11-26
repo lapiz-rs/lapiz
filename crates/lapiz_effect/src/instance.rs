@@ -208,7 +208,7 @@ impl EffectInstance {
 
                 needs_reconcile |= node
                     .data
-                    .on_pass_output_choices_changed(available_targets.clone());
+                    .on_available_pass_output_choices_changed(available_targets.clone());
             }
             passes_to_reconcile.insert(*pass_id, needs_reconcile);
         }
@@ -260,7 +260,7 @@ impl EffectInstance {
             let sources = available_sources[pass_id].clone();
             let mut needs_reconcile = passes_to_reconcile[pass_id];
             for node in pass.graph.iter_nodes_mut() {
-                needs_reconcile |= node.data.on_pass_input_choices_changed(sources.clone());
+                needs_reconcile |= node.data.on_available_pass_input_choices_changed(sources.clone());
             }
             if needs_reconcile {
                 pass.graph.reconcile_all_node_slots();
@@ -273,7 +273,7 @@ impl EffectInstance {
         let mut outputs = HashMap::new();
         for (pass_id, pass) in &self.passes {
             for node in pass.graph.iter_nodes() {
-                let Some(output) = node.data.as_output_port() else {
+                let Some(output) = node.data.as_pass_output() else {
                     continue;
                 };
                 let (ty, name) = match output.target {
@@ -303,10 +303,10 @@ impl EffectInstance {
         let pass = self.passes.get(pass_id).expect("pass exists");
         let mut io = EffectPassIoLabels::default();
         for node in pass.graph.iter_nodes() {
-            if let Some(input_port) = node.data.as_input_port() {
+            if let Some(input_port) = node.data.as_pass_input() {
                 io.inputs.push(input_port.label.clone());
             }
-            if let Some(output_port) = node.data.as_output_port() {
+            if let Some(output_port) = node.data.as_pass_output() {
                 io.outputs.push(output_port.label.clone());
             }
         }

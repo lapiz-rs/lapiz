@@ -251,7 +251,7 @@ impl GraphNode for PassInputNode {
         Ok(ty.handle_input_values(&name, 0, &mut ctx)?)
     }
 
-    fn as_input_port(&self, state: &Self::State) -> Option<GraphNodeInputDef> {
+    fn as_pass_input(&self, state: &Self::State) -> Option<GraphNodeInputDef> {
         let input = state.input?;
         let label = state
             .available_sources
@@ -271,7 +271,7 @@ impl GraphNode for PassInputNode {
         })
     }
 
-    fn on_pass_input_choices_changed(
+    fn on_available_pass_input_choices_changed(
         &self,
         state: &mut Self::State,
         new_inputs: Arc<[PassInputChoice]>,
@@ -647,7 +647,7 @@ impl GraphNode for PassOutputNode {
         Ok(ty.handle_output_values(&name, 0, &mut ctx)?)
     }
 
-    fn as_output_port(&self, state: &Self::State) -> Option<GraphNodeOutputDef> {
+    fn as_pass_output(&self, state: &Self::State) -> Option<GraphNodeOutputDef> {
         let output = state.output.as_ref()?;
         let (label, ty, target) = match output {
             PassOutput::Pass(def) => (
@@ -675,7 +675,7 @@ impl GraphNode for PassOutputNode {
         })
     }
 
-    fn on_pass_output_choices_changed(
+    fn on_available_pass_output_choices_changed(
         &self,
         state: &mut Self::State,
         new_outputs: Arc<[PassOutputChoice]>,

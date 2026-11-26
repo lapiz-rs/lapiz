@@ -280,7 +280,7 @@ impl BrushPresetInstance {
         let mut main_inputs = Vec::new();
         let output_port = pass_output_port_of(&self.main_effect, main_dab_output)?;
         for node in pass.graph.iter_nodes() {
-            if let Some(input) = node.data.as_input_port() {
+            if let Some(input) = node.data.as_pass_input() {
                 let GraphNodeInputSource::Effect(id) = input.source else {
                     bail!("Brush main pass inputs must reference effect parameters");
                 };
@@ -301,7 +301,7 @@ impl BrushPresetInstance {
                     GraphShaderLiteral::new_boxed(value, ty),
                 ));
             }
-            if let Some(output) = node.data.as_output_port()
+            if let Some(output) = node.data.as_pass_output()
                 && output.id != output_port
             {
                 bail!("Brush main pass must have a single dab output node");
@@ -510,7 +510,7 @@ fn pass_input_port_of(
 ) -> Result<EffectPassInputSlotId> {
     for pass in effect.passes.values() {
         for node in pass.graph.iter_nodes() {
-            let Some(input) = node.data.as_input_port() else {
+            let Some(input) = node.data.as_pass_input() else {
                 continue;
             };
             if input.source == GraphNodeInputSource::Effect(effect_input) {
@@ -527,7 +527,7 @@ fn pass_output_port_of(
 ) -> Result<EffectPassOutputSlotId> {
     for pass in effect.passes.values() {
         for node in pass.graph.iter_nodes() {
-            let Some(output) = node.data.as_output_port() else {
+            let Some(output) = node.data.as_pass_output() else {
                 continue;
             };
             if matches!(output.target, GraphNodeOutputTarget::Effect(id) if id == effect_output) {

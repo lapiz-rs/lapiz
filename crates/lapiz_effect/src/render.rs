@@ -124,7 +124,7 @@ impl EffectRenderer {
             let mut pass_output_decl = IndexMap::new();
 
             for node in pass.graph.iter_nodes() {
-                if let Some(input_port) = node.data.as_input_port() {
+                if let Some(input_port) = node.data.as_pass_input() {
                     pass_input_decl.insert(
                         input_port.id,
                         match input_port.source {
@@ -137,7 +137,7 @@ impl EffectRenderer {
                             }
                         },
                     );
-                } else if let Some(output_port) = node.data.as_output_port() {
+                } else if let Some(output_port) = node.data.as_pass_output() {
                     let ty = match output_port.target {
                         GraphNodeOutputTarget::Pass(def) => def.ty.clone(),
                         GraphNodeOutputTarget::Effect(external) => {

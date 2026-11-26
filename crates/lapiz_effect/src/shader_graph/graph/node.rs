@@ -219,20 +219,20 @@ pub trait GraphNode: Send + Sync + 'static + DynClone {
     fn subgraphs_mut<'a>(&mut self, _state: &'a mut Self::State) -> Vec<&'a mut Graph> {
         Vec::new()
     }
-    fn as_input_port(&self, _state: &Self::State) -> Option<GraphNodeInputDef> {
+    fn as_pass_input(&self, _state: &Self::State) -> Option<GraphNodeInputDef> {
         None
     }
-    fn as_output_port(&self, _state: &Self::State) -> Option<GraphNodeOutputDef> {
+    fn as_pass_output(&self, _state: &Self::State) -> Option<GraphNodeOutputDef> {
         None
     }
-    fn on_pass_input_choices_changed(
+    fn on_available_pass_input_choices_changed(
         &self,
         _state: &mut Self::State,
         _new_inputs: Arc<[PassInputChoice]>,
     ) -> bool {
         false
     }
-    fn on_pass_output_choices_changed(
+    fn on_available_pass_output_choices_changed(
         &self,
         _state: &mut Self::State,
         _new_outputs: Arc<[PassOutputChoice]>,
@@ -306,14 +306,14 @@ pub trait ErasedGraphNode: Send + Sync + 'static + DynClone + Downcast {
     ) -> Result<Box<dyn Any + Send + Sync>>;
     fn subgraphs<'a>(&self, state: &'a (dyn Any + Send + Sync)) -> Vec<&'a Graph>;
     fn subgraphs_mut<'a>(&mut self, state: &'a mut (dyn Any + Send + Sync)) -> Vec<&'a mut Graph>;
-    fn as_input_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeInputDef>;
-    fn as_output_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef>;
-    fn on_pass_input_choices_changed(
+    fn as_pass_input(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeInputDef>;
+    fn as_pass_output(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef>;
+    fn on_available_pass_input_choices_changed(
         &self,
         state: &mut (dyn Any + Send + Sync),
         new_inputs: Arc<[PassInputChoice]>,
     ) -> bool;
-    fn on_pass_output_choices_changed(
+    fn on_available_pass_output_choices_changed(
         &self,
         state: &mut (dyn Any + Send + Sync),
         new_outputs: Arc<[PassOutputChoice]>,
@@ -465,28 +465,28 @@ impl<T: GraphNode> ErasedGraphNode for T {
         )
     }
 
-    fn as_input_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeInputDef> {
-        self.as_input_port(
+    fn as_pass_input(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeInputDef> {
+        self.as_pass_input(
             state
                 .downcast_ref::<T::State>()
                 .expect("failed to downcast graph node state"),
         )
     }
 
-    fn as_output_port(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef> {
-        self.as_output_port(
+    fn as_pass_output(&self, state: &(dyn Any + Send + Sync)) -> Option<GraphNodeOutputDef> {
+        self.as_pass_output(
             state
                 .downcast_ref::<T::State>()
                 .expect("failed to downcast graph node state"),
         )
     }
 
-    fn on_pass_input_choices_changed(
+    fn on_available_pass_input_choices_changed(
         &self,
         state: &mut (dyn Any + Send + Sync),
         new_inputs: Arc<[PassInputChoice]>,
     ) -> bool {
-        self.on_pass_input_choices_changed(
+        self.on_available_pass_input_choices_changed(
             state
                 .downcast_mut::<T::State>()
                 .expect("failed to downcast graph node state"),
@@ -494,12 +494,12 @@ impl<T: GraphNode> ErasedGraphNode for T {
         )
     }
 
-    fn on_pass_output_choices_changed(
+    fn on_available_pass_output_choices_changed(
         &self,
         state: &mut (dyn Any + Send + Sync),
         new_outputs: Arc<[PassOutputChoice]>,
     ) -> bool {
-        self.on_pass_output_choices_changed(
+        self.on_available_pass_output_choices_changed(
             state
                 .downcast_mut::<T::State>()
                 .expect("failed to downcast graph node state"),
@@ -609,22 +609,28 @@ impl StatefulGraphNode {
         self.state.downcast_mut()
     }
 
-    pub fn as_input_port(&self) -> Option<GraphNodeInputDef> {
-        self.data.as_input_port(self.state.as_ref())
+    pub fn as_pass_input(&self) -> Option<GraphNodeInputDef> {
+        self.data.as_pass_input(self.state.as_ref())
     }
 
-    pub fn as_output_port(&self) -> Option<GraphNodeOutputDef> {
-        self.data.as_output_port(self.state.as_ref())
+    pub fn as_pass_output(&self) -> Option<GraphNodeOutputDef> {
+        self.data.as_pass_output(self.state.as_ref())
     }
 
-    pub fn on_pass_input_choices_changed(&mut self, new_inputs: Arc<[PassInputChoice]>) -> bool {
+    pub fn on_available_pass_input_choices_changed(
+        &mut self,
+        new_inputs: Arc<[PassInputChoice]>,
+    ) -> bool {
         self.data
-            .on_pass_input_choices_changed(self.state.as_mut(), new_inputs)
+            .on_available_pass_input_choices_changed(self.state.as_mut(), new_inputs)
     }
 
-    pub fn on_pass_output_choices_changed(&mut self, new_outputs: Arc<[PassOutputChoice]>) -> bool {
+    pub fn on_available_pass_output_choices_changed(
+        &mut self,
+        new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool {
         self.data
-            .on_pass_output_choices_changed(self.state.as_mut(), new_outputs)
+            .on_available_pass_output_choices_changed(self.state.as_mut(), new_outputs)
     }
 }
 
@@ -650,10 +656,10 @@ pub trait StatelessCommonGraphNode: Send + Sync + 'static + DynClone {
         &self,
         ctx: GraphNodeCodeGenContext<'_>,
     ) -> Result<String, GraphNodeCodeGenError>;
-    fn as_input_port(&self) -> Option<GraphNodeInputDef> {
+    fn as_pass_input(&self) -> Option<GraphNodeInputDef> {
         None
     }
-    fn as_output_port(&self) -> Option<GraphNodeOutputDef> {
+    fn as_pass_output(&self) -> Option<GraphNodeOutputDef> {
         None
     }
 }
