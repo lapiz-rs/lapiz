@@ -178,7 +178,16 @@ impl EffectInstance {
     pub fn sync_pass_graph_effect_properties(&mut self) -> Result<()> {
         let mut target_choices = vec![];
         for id in self.outputs.keys() {
-            target_choices.push(self.output_choice(*id)?);
+            let slot = self
+                .outputs
+                .get(id)
+                .with_context(|| format!("Unknown effect output {id:?}"))?;
+            let label = format!("{} ({})", slot.name, slot.ty.id().id);
+            target_choices.push(PassOutputChoice {
+                label,
+                ty: slot.ty.clone(),
+                target: *id,
+            });
         }
         let available_targets = Arc::<[PassOutputChoice]>::from(target_choices);
 
@@ -206,13 +215,39 @@ impl EffectInstance {
         for pass_id in self.passes.keys() {
             let mut choices = vec![];
             for id in self.inputs.keys() {
-                choices.push(self.input_choice(PassInput::Effect(*id), &pass_outputs)?);
+                let slot = self
+                    .inputs
+                    .get(id)
+                    .with_context(|| format!("Unknown effect input {id:?}"))?;
+                let label = format!("{} ({})", slot.name, slot.ty.id().id);
+                let ty = slot.ty.clone();
+
+                choices.push(PassInputChoice {
+                    label,
+                    ty,
+                    input: PassInput::Effect(*id),
+                });
             }
             for (output_id, info) in &pass_outputs {
                 if &info.producer == pass_id {
                     continue;
                 }
-                choices.push(self.input_choice(PassInput::Pass(*output_id), &pass_outputs)?);
+
+                let info = pass_outputs
+                    .get(output_id)
+                    .with_context(|| format!("Unknown pass output {output_id:?}"))?;
+                let label = format!(
+                    "{} / {} ({})",
+                    self.passes[&info.producer].name,
+                    info.name,
+                    info.ty.id().id
+                );
+                let ty = info.ty.clone();
+                choices.push(PassInputChoice {
+                    label,
+                    ty,
+                    input: PassInput::Pass(*output_id),
+                });
             }
             available_sources.insert(*pass_id, Arc::<[_]>::from(choices));
         }
@@ -258,50 +293,6 @@ impl EffectInstance {
             }
         }
         Ok(outputs)
-    }
-
-    fn input_choice(
-        &self,
-        input: PassInput,
-        pass_outputs: &HashMap<EffectPassOutputSlotId, PassOutputInfo>,
-    ) -> Result<PassInputChoice> {
-        Ok(match input {
-            PassInput::Effect(id) => {
-                let slot = self
-                    .inputs
-                    .get(&id)
-                    .with_context(|| format!("Unknown effect input {id:?}"))?;
-                let label = format!("{} ({})", slot.name, slot.ty.id().id);
-                let ty = slot.ty.clone();
-                PassInputChoice { label, ty, input }
-            }
-            PassInput::Pass(id) => {
-                let info = pass_outputs
-                    .get(&id)
-                    .with_context(|| format!("Unknown pass output {id:?}"))?;
-                let label = format!(
-                    "{} / {} ({})",
-                    self.passes[&info.producer].name,
-                    info.name,
-                    info.ty.id().id
-                );
-                let ty = info.ty.clone();
-                PassInputChoice { label, ty, input }
-            }
-        })
-    }
-
-    fn output_choice(&self, id: EffectOutputSlotId) -> Result<PassOutputChoice> {
-        let slot = self
-            .outputs
-            .get(&id)
-            .with_context(|| format!("Unknown effect output {id:?}"))?;
-        let label = format!("{} ({})", slot.name, slot.ty.id().id);
-        Ok(PassOutputChoice {
-            label,
-            ty: slot.ty.clone(),
-            target: id,
-        })
     }
 
     pub fn pass_io_labels(&self, pass_id: &EffectPassId) -> EffectPassIoLabels {
