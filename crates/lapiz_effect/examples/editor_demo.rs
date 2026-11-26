@@ -18,7 +18,7 @@ use lapiz_effect::{
     },
     editor::{EffectEditor, EffectEditorMessage},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
-    nodes::{PassInput, PassInputNode, PassOutput, PassOutputDef, PassOutputNode, effect_nodes},
+    nodes::{PassInputNode, PassOutput, PassOutputDef, PassOutputNode, effect_nodes},
     shader_graph::{
         GraphRenderer, GraphTheme,
         builtin::{
@@ -28,7 +28,7 @@ use lapiz_effect::{
         },
         graph::{
             Graph, GraphResources,
-            node::{GraphNodeId, GraphNodeRegistry},
+            node::{GraphNodeId, GraphNodeRegistry, PassInput},
             slot::ErasedGraphValueType,
             variable::GraphTypeRegistry,
         },

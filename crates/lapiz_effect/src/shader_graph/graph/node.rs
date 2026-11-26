@@ -24,7 +24,7 @@ use wesl::syntax::{Expression, Ident};
 
 use crate::{
     asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassInputSlotId, EffectPassOutputSlotId},
-    nodes::{PassInputChoice, PassOutputChoice, PassOutputDef},
+    nodes::PassOutputDef,
     shader_graph::{
         GraphElement,
         editor::slot::{input_slot, output_slot},
@@ -73,6 +73,70 @@ pub struct GraphNodeOutputDef {
 pub enum GraphNodeOutputTarget {
     Pass(PassOutputDef),
     Effect(EffectOutputSlotId),
+}
+
+/// A selectable source option displayed in a [`PassInputNode`] combo box.
+#[derive(Clone)]
+pub struct PassInputChoice {
+    pub label: String,
+    pub ty: Arc<dyn ErasedGraphValueType>,
+    pub input: PassInput,
+}
+
+impl fmt::Debug for PassInputChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PassInputChoice")
+            .field("label", &self.label)
+            .finish()
+    }
+}
+
+impl fmt::Display for PassInputChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.label)
+    }
+}
+
+impl PartialEq for PassInputChoice {
+    fn eq(&self, other: &Self) -> bool {
+        self.label == other.label && self.ty.id() == other.ty.id() && self.input == other.input
+    }
+}
+
+/// Identifies the data source bound to a [`PassInputNode`]: either another pass's output or an effect-level input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PassInput {
+    Pass(EffectPassOutputSlotId),
+    Effect(EffectInputSlotId),
+}
+
+/// A selectable destination option displayed in a [`PassOutputNode`] combo box.
+#[derive(Clone)]
+pub struct PassOutputChoice {
+    pub label: String,
+    pub ty: Arc<dyn ErasedGraphValueType>,
+    pub target: EffectOutputSlotId,
+}
+
+impl fmt::Debug for PassOutputChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PassOutputChoice")
+            .field("label", &self.label)
+            .field("target", &self.target)
+            .finish()
+    }
+}
+
+impl fmt::Display for PassOutputChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.label)
+    }
+}
+
+impl PartialEq for PassOutputChoice {
+    fn eq(&self, other: &Self) -> bool {
+        self.label == other.label && self.target == other.target && self.ty.id() == other.ty.id()
+    }
 }
 
 /// The core trait defining a shader graph node's state, slot layout, editor UI, and WGSL code generation.

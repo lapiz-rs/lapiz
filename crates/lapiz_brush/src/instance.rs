@@ -12,7 +12,7 @@ use lapiz_effect::{
         EffectPassOutputSlotId,
     },
     instance::{EffectInputs, EffectInstance},
-    nodes::{PassInput, PassInputNode},
+    nodes::PassInputNode,
     render::{EffectRenderer, pass_input_ident, pass_output_ident},
     shader_graph::{
         builtin::types::handle::LayerType,

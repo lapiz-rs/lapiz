@@ -18,7 +18,7 @@ use lapiz_effect::{
         EffectPassId, EffectPassOutputSlotId, SerializableEffectInputSlot,
         SerializableEffectOutputSlot, SerializableEffectPass,
     },
-    nodes::{PassInput, PassInputNode, PassOutput, PassOutputNode},
+    nodes::{PassInputNode, PassOutput, PassOutputNode},
     shader_graph::{
         builtin::{
             nodes::custom_expression::{CustomExpressionNode, CustomExpressionNodeState},
@@ -31,7 +31,7 @@ use lapiz_effect::{
         },
         graph::{
             Graph,
-            node::{GraphNode, GraphNodeId},
+            node::{GraphNode, GraphNodeId, PassInput},
             slot::{ErasedGraphValueType, GraphValueType},
         },
         save::{SerializableGraph, SerializableGraphLiteral},

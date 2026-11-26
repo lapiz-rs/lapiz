@@ -9,10 +9,12 @@ use crate::{
         EffectPassId, EffectPassInputSlotId, EffectPassOutputSlotId, SerializableEffectInputSlot,
         SerializableEffectOutputSlot, SerializableEffectPass,
     },
-    nodes::{DispatchIndexNode, PassInput, PassInputChoice, PassOutputChoice},
+    nodes::DispatchIndexNode,
     render::{EffectPassInputSlotSource, EffectPassOutputSlotTarget},
     shader_graph::graph::{
-        Graph, GraphResources, node::GraphNodeOutputTarget, slot::ErasedGraphValueType,
+        Graph, GraphResources,
+        node::{GraphNodeOutputTarget, PassInput, PassInputChoice, PassOutputChoice},
+        slot::ErasedGraphValueType,
         variable::GraphShaderLiteral,
     },
 };

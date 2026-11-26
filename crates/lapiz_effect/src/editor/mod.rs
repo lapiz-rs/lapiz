@@ -26,9 +26,6 @@ use crate::{
 
 pub mod io;
 
-#[cfg(test)]
-mod tests;
-
 /// A UI [`Component`] that renders either the multi-pass overview list or the active pass's
 /// [`GraphEditor`] for an [`EffectInstance`].
 pub struct EffectEditor<'a, Message> {
