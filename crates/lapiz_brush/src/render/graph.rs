@@ -1,19 +1,23 @@
 use std::{
     collections::BTreeMap,
+    convert::identity,
     fmt,
     sync::{Arc, LazyLock},
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Context as _, Result, bail};
 use glam::Vec4;
 use iced_core::widget::Void;
 use lapiz_assets::store::AssetRegistry;
 use lapiz_effect::{
+    asset::EffectPassOutputSlotId,
     effect_nodes, random_oklch_hue_chroma,
+    render::pass_output_ident,
     shader_graph::{
         GraphElement,
         builtin::{
-            builtin_types,
+            builtin_nodes, builtin_types,
+            nodes::pass_io::PassInputNode,
             types::{
                 compound::{ColorType, RectType},
                 handle::LayerType,
@@ -27,8 +31,9 @@ use lapiz_effect::{
             node::{
                 ExtraShaderBody, GraphNode, GraphNodeCodeGenContext, GraphNodeCodeGenError,
                 GraphNodeCreateSlotsContext, GraphNodeDefaultStateContext,
-                GraphNodeInjectShaderBodyContext, GraphNodeRegistry, GraphNodeUpdateContext,
-                GraphNodeViewContext, StatelessCommonGraphNode, stateless,
+                GraphNodeInjectShaderBodyContext, GraphNodeOutputDef, GraphNodeOutputTarget,
+                GraphNodeRegistry, GraphNodeUpdateContext, GraphNodeViewContext, PassOutputChoice,
+                StatelessCommonGraphNode, stateless,
             },
             slot::{
                 ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphDefaultInputSlot,
@@ -48,6 +53,7 @@ use lapiz_render::{
 };
 use lapiz_widgets::combo_box;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use wesl::syntax::{
     BinaryExpression, BinaryOperator, Declaration, DeclarationKind, Expression, FunctionCall,
     Ident, ModulePath, NamedComponentExpression, PathOrigin, Span, Spanned, Statement,
@@ -1346,8 +1352,210 @@ fn brush_graph_types() -> GraphTypeRegistry {
     types
 }
 
+/// Shader graph node that outputs the computed dab spacing for the brush spacing effect.
+#[derive(Clone, Default)]
+pub struct OutputSpacingNode;
+
+/// Persisted state for [`OutputSpacingNode`], storing its pass output slot ID and synchronized target.
+#[derive(Deserialize, Serialize)]
+pub struct OutputSpacingNodeState {
+    pub id: EffectPassOutputSlotId,
+    #[serde(skip)]
+    output_choice: Option<PassOutputChoice>,
+}
+
+impl GraphNode for OutputSpacingNode {
+    type State = OutputSpacingNodeState;
+    type Message = ErasedGraphLiteralUpdateMessage;
+
+    fn id(&self) -> &'static str {
+        "output_spacing_node"
+    }
+
+    fn header_hue_chroma(&self) -> (f32, f32) {
+        random_oklch_hue_chroma!(OutputSpacingNode)
+    }
+
+    fn create_inputs(
+        &self,
+        _state: &Self::State,
+        _ctx: GraphNodeCreateSlotsContext<'_>,
+    ) -> Vec<GraphDefaultInputSlot> {
+        vec![GraphDefaultInputSlot::new::<F32Type>("spacing".into())]
+    }
+
+    fn create_outputs(
+        &self,
+        _state: &Self::State,
+        _ctx: GraphNodeCreateSlotsContext<'_>,
+    ) -> Vec<GraphDefaultOutputSlot> {
+        vec![]
+    }
+
+    fn default_state(&self, _ctx: GraphNodeDefaultStateContext<'_>) -> Self::State {
+        OutputSpacingNodeState {
+            id: EffectPassOutputSlotId::new(Uuid::new_v4()),
+            output_choice: None,
+        }
+    }
+
+    fn view<'a>(
+        &self,
+        _state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
+        ctx.view_all_slots(identity)
+    }
+
+    fn update(
+        &self,
+        _state: &mut Self::State,
+        message: Self::Message,
+        mut ctx: GraphNodeUpdateContext<'_>,
+    ) {
+        ctx.update_literal(message);
+    }
+
+    fn generate_code(
+        &self,
+        state: &Self::State,
+        mut ctx: GraphNodeCodeGenContext<'_>,
+    ) -> Result<String, GraphNodeCodeGenError> {
+        let ty = &state
+            .output_choice
+            .as_ref()
+            .context("Output spacing target has not been synchronized")?
+            .ty;
+        let name = pass_output_ident(state.id);
+
+        Ok(ty.handle_output_values(&name, 0, &mut ctx)?)
+    }
+
+    fn as_pass_output(&self, state: &Self::State) -> Option<GraphNodeOutputDef> {
+        let output_choice = state.output_choice.as_ref()?;
+        Some(GraphNodeOutputDef {
+            label: output_choice.label.clone(),
+            ty: Some(output_choice.ty.clone()),
+            id: state.id,
+            target: GraphNodeOutputTarget::Effect(output_choice.target),
+        })
+    }
+
+    fn on_available_pass_output_choices_changed(
+        &self,
+        state: &mut Self::State,
+        new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool {
+        state.output_choice = new_outputs.first().cloned();
+        false
+    }
+}
+
+/// Shader graph node that outputs the rendered dab color and bounds for the brush main effect.
+#[derive(Clone, Default)]
+pub struct OutputMainDabBufferNode;
+
+/// Persisted state for [`OutputMainDabBufferNode`], storing its pass output slot ID and synchronized target.
+#[derive(Deserialize, Serialize)]
+pub struct OutputMainDabBufferNodeState {
+    pub id: EffectPassOutputSlotId,
+    #[serde(skip)]
+    output_choice: Option<PassOutputChoice>,
+}
+
+impl GraphNode for OutputMainDabBufferNode {
+    type State = OutputMainDabBufferNodeState;
+    type Message = ErasedGraphLiteralUpdateMessage;
+
+    fn id(&self) -> &'static str {
+        "output_main_dab_buffer_node"
+    }
+
+    fn header_hue_chroma(&self) -> (f32, f32) {
+        random_oklch_hue_chroma!(OutputMainDabBufferNode)
+    }
+
+    fn default_state(&self, _ctx: GraphNodeDefaultStateContext<'_>) -> Self::State {
+        OutputMainDabBufferNodeState {
+            id: EffectPassOutputSlotId::new(Uuid::new_v4()),
+            output_choice: None,
+        }
+    }
+
+    fn create_inputs(
+        &self,
+        _state: &Self::State,
+        _ctx: GraphNodeCreateSlotsContext<'_>,
+    ) -> Vec<GraphDefaultInputSlot> {
+        vec![
+            GraphDefaultInputSlot::new::<ColorType>("color".into()),
+            GraphDefaultInputSlot::new::<RectType>("bounds".into()),
+        ]
+    }
+
+    fn create_outputs(
+        &self,
+        _state: &Self::State,
+        _ctx: GraphNodeCreateSlotsContext<'_>,
+    ) -> Vec<GraphDefaultOutputSlot> {
+        vec![]
+    }
+
+    fn view<'a>(
+        &self,
+        _state: &'a Self::State,
+        ctx: GraphNodeViewContext<'a>,
+    ) -> GraphElement<'a, Self::Message> {
+        ctx.view_all_slots(identity)
+    }
+
+    fn update(
+        &self,
+        _state: &mut Self::State,
+        message: Self::Message,
+        mut ctx: GraphNodeUpdateContext<'_>,
+    ) {
+        ctx.update_literal(message);
+    }
+
+    fn generate_code(
+        &self,
+        state: &Self::State,
+        mut ctx: GraphNodeCodeGenContext<'_>,
+    ) -> Result<String, GraphNodeCodeGenError> {
+        let ty = &state
+            .output_choice
+            .as_ref()
+            .context("Output main dab buffer target has not been synchronized")?
+            .ty;
+        let name = pass_output_ident(state.id);
+
+        Ok(ty.handle_output_values(&name, 0, &mut ctx)?)
+    }
+
+    fn as_pass_output(&self, state: &Self::State) -> Option<GraphNodeOutputDef> {
+        let output = state.output_choice.as_ref()?;
+        Some(GraphNodeOutputDef {
+            label: output.label.clone(),
+            ty: Some(output.ty.clone()),
+            id: state.id,
+            target: GraphNodeOutputTarget::Effect(output.target),
+        })
+    }
+
+    fn on_available_pass_output_choices_changed(
+        &self,
+        state: &mut Self::State,
+        new_outputs: Arc<[PassOutputChoice]>,
+    ) -> bool {
+        state.output_choice = new_outputs.first().cloned();
+        false
+    }
+}
+
 pub fn spacing_graph_nodes() -> GraphNodeRegistry {
-    let mut nodes = effect_nodes();
+    let mut nodes = builtin_nodes();
+    nodes.register::<OutputSpacingNode>();
     nodes.register::<PenPositionNode>();
     nodes.register::<PenPressureNode>();
     nodes.register::<PenAngleNode>();
@@ -1366,7 +1574,8 @@ pub fn spacing_graph_nodes() -> GraphNodeRegistry {
 }
 
 pub fn main_graph_nodes() -> GraphNodeRegistry {
-    let mut nodes = effect_nodes();
+    let mut nodes = builtin_nodes();
+    nodes.register::<OutputMainDabBufferNode>();
     nodes.register::<PenPositionNode>();
     nodes.register::<PenPressureNode>();
     nodes.register::<PenAngleNode>();

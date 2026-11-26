@@ -1054,6 +1054,10 @@ impl GraphNodeRegistry {
         self.nodes.insert(node.id(), node);
     }
 
+    pub fn unregister(&mut self, name: &str) {
+        self.nodes.remove(name);
+    }
+
     pub fn get(&self, name: &str) -> Option<Box<dyn ErasedGraphNode>> {
         self.nodes.get(name).cloned()
     }

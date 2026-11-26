@@ -11,10 +11,7 @@ use lapiz_effect::{
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
     shader_graph::{
         GraphElement,
-        builtin::{
-            nodes::pass_io::{PassOutput, PassOutputNode},
-            types::{handle::LayerType, primitive::F32Type},
-        },
+        builtin::types::{handle::LayerType, primitive::F32Type},
         editor::{
             GraphEditor,
             parameters::{ParametersEditor, ParametersEditorMessage},
@@ -35,7 +32,9 @@ use crate::{
         BrushParameter, BrushPresetInstance, main_effect_resources, postprocess_effect_resources,
         spacing_effect_resources,
     },
-    render::graph::{MAIN_DAB_BUFFER, SPACING_OUTPUT, STROKE_RESULT},
+    render::graph::{
+        MAIN_DAB_BUFFER, OutputMainDabBufferNode, OutputSpacingNode, SPACING_OUTPUT, STROKE_RESULT,
+    },
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -160,7 +159,7 @@ impl BrushEngine for LapizBrushEngine {
             metadata: BrushPresetMetadata {
                 name: "[Unnamed Brush]".into(),
             },
-            spacing_effect: new_spacing_effect(assets.clone()).as_asset()?,
+            spacing_effect: new_spacing_effect(assets.clone())?.as_asset()?,
             main_effect: new_main_effect(assets.clone())?.as_asset()?,
             postprocess_effect: new_postprocess_effect().as_asset()?,
             parameters: Default::default(),
@@ -373,16 +372,18 @@ fn effect_mut(instance: &mut BrushPresetInstance, slot: BrushEffectSlot) -> &mut
     }
 }
 
-fn new_spacing_effect(assets: AssetRegistry) -> EffectInstance {
+fn new_spacing_effect(assets: AssetRegistry) -> Result<EffectInstance> {
     let output_id = EffectOutputSlotId::new(Uuid::new_v4());
+    let mut graph = Graph::new(spacing_effect_resources(assets));
+    graph.add_node(Point::ORIGIN, OutputSpacingNode);
 
-    EffectInstance {
+    let mut effect = EffectInstance {
         name: "Spacing".into(),
         passes: IndexMap::from_iter([(
             EffectPassId::new(Uuid::new_v4()),
             EffectPass {
                 name: "Spacing".into(),
-                graph: Graph::new(spacing_effect_resources(assets)),
+                graph,
                 dispatch_strategy: EffectPassDispatchStrategy::Once,
             },
         )]),
@@ -395,21 +396,20 @@ fn new_spacing_effect(assets: AssetRegistry) -> EffectInstance {
                 ty: Arc::new(F32Type),
             },
         )]),
-    }
+    };
+    effect.sync_pass_graph_effect_properties()?;
+    Ok(effect)
 }
 
 fn new_main_effect(assets: AssetRegistry) -> Result<EffectInstance> {
     let output_id = EffectOutputSlotId::new(Uuid::new_v4());
     let mut graph = Graph::new(main_effect_resources(assets));
-    let node = graph.add_node(Point::ORIGIN, PassOutputNode);
-    graph.update_node_state::<PassOutputNode>(node, |state| {
-        state.output = Some(PassOutput::Effect(output_id));
-    });
+    let node = graph.add_node(Point::ORIGIN, OutputMainDabBufferNode);
     let port = graph
         .get_node(&node)
         .unwrap()
         .data
-        .state::<PassOutputNode>()
+        .state::<OutputMainDabBufferNode>()
         .unwrap()
         .id;
     let mut effect = EffectInstance {
