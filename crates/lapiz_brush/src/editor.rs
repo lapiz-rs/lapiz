@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, path::Path, sync::Arc};
+use std::{any::Any, path::Path, sync::Arc};
 
 use anyhow::{Context as _, Result};
 use iced_core::{Element, Event, Length, Size, Theme, window};
@@ -7,7 +7,7 @@ use iced_runtime::{
     Task,
     window::{close, drag, minimize, open, toggle_maximize},
 };
-use lapiz_assets::{AssetAppExt as _, asset::UntypedAssetId};
+use lapiz_assets::{AssetAppExt as _, asset::UntypedAssetId, event::AssetEvent};
 use lapiz_i18n::t;
 use lapiz_runtime::{
     Renderer,
@@ -35,16 +35,16 @@ pub struct BrushEditor {
 }
 
 struct SelectedBrushEditor {
-    index: usize,
     asset_id: UntypedAssetId,
     session: BrushEngineSessionId,
     engine: Box<dyn ErasedBrushEngine>,
 }
 
 pub enum BrushEditorMessage {
-    SelectBrush(usize),
+    SelectBrush(UntypedAssetId),
     NewBrush(BrushEngineId),
     SaveBrush,
+    AssetEvent(AssetEvent),
     EngineMessage {
         session: BrushEngineSessionId,
         message: Box<dyn Any + Send>,
@@ -111,16 +111,15 @@ impl WindowView for BrushEditor {
         let brush_list = self
             .brushes
             .iter()
-            .enumerate()
-            .map(|(index, (_, entry))| {
+            .map(|(_, entry)| {
                 button(label(&entry.name))
                     .width(Length::Fill)
                     .activated(
                         self.selected
                             .as_ref()
-                            .is_some_and(|selected| selected.index == index),
+                            .is_some_and(|selected| selected.asset_id == entry.id),
                     )
-                    .on_press(BrushEditorMessage::SelectBrush(index))
+                    .on_press(BrushEditorMessage::SelectBrush(entry.id))
                     .into()
             })
             .collect::<Vec<_>>();
@@ -189,8 +188,8 @@ impl WindowView for BrushEditor {
         globals: &mut Globals,
     ) -> impl Into<Task<Self::Message>> {
         match message {
-            BrushEditorMessage::SelectBrush(index) => {
-                if let Err(error) = self.select_brush(index, globals) {
+            BrushEditorMessage::SelectBrush(asset_id) => {
+                if let Err(error) = self.select_brush(asset_id, globals) {
                     log::error!("Failed to load brush preset: {error:#}");
                 }
                 Task::none()
@@ -199,6 +198,10 @@ impl WindowView for BrushEditor {
                 if let Err(error) = self.new_brush(engine_id, globals) {
                     log::error!("Failed to create brush preset: {error:#}");
                 }
+                Task::none()
+            }
+            BrushEditorMessage::AssetEvent(event) => {
+                self.handle_asset_event(event, globals);
                 Task::none()
             }
             BrushEditorMessage::EngineMessage { session, message } => {
@@ -210,7 +213,6 @@ impl WindowView for BrushEditor {
                     return Task::none();
                 };
                 let task = selected.engine.editor_update(message, globals);
-                self.refresh_brush_names(globals);
                 task.map(move |message| BrushEditorMessage::EngineMessage { session, message })
             }
             BrushEditorMessage::SaveBrush => {
@@ -272,7 +274,11 @@ impl WindowView for BrushEditor {
             None => Subscription::none(),
         };
 
-        Subscription::batch([external, engine])
+        let assets =
+            AssetEvent::listen_for_types(globals.brush_engine_registry().brush_asset_types())
+                .map(BrushEditorMessage::AssetEvent);
+
+        Subscription::batch([external, engine, assets])
     }
 
     fn close(self, _: &mut Globals) -> Task<()> {
@@ -289,7 +295,7 @@ impl WindowView for BrushEditor {
 }
 
 impl BrushEditor {
-    fn select_brush(&mut self, index: usize, globals: &mut Globals) -> Result<()> {
+    fn select_brush(&mut self, asset_id: UntypedAssetId, globals: &mut Globals) -> Result<()> {
         // recompiles the previously selected brush preset if it's currently selected
         if let Some(old_selected) = self.selected.take()
             && let Some(current_brush) = globals
@@ -306,14 +312,14 @@ impl BrushEditor {
                 .log_err();
         }
 
-        let Some((engine_id, entry)) = self.brushes.get(index) else {
+        let Some((engine_id, entry)) = self.brushes.iter().find(|(_, entry)| entry.id == asset_id)
+        else {
             return Ok(());
         };
         let factory = globals.brush_engine_registry().get(engine_id)?;
         let engine = factory.load_brush_from_assets(entry.id, globals.assets())?;
 
         self.selected = Some(SelectedBrushEditor {
-            index,
             asset_id: entry.id,
             session: BrushEngineSessionId::new(Uuid::new_v4()),
             engine,
@@ -325,9 +331,6 @@ impl BrushEditor {
         let factory = globals.brush_engine_registry().get(&engine_id)?;
         let assets = globals.assets().clone();
         let new_brush = factory.new_brush(&assets)?;
-        let index = self.brushes.len();
-        // TODO Replace this with asset event system;
-        // self.brushes.push((engine_id, entry));
 
         let bundle = assets
             .bundles()
@@ -343,7 +346,6 @@ impl BrushEditor {
         let engine = factory.load_brush_from_assets(asset_id, &assets)?;
 
         self.selected = Some(SelectedBrushEditor {
-            index,
             asset_id,
             session: BrushEngineSessionId::new(Uuid::new_v4()),
             engine,
@@ -351,29 +353,32 @@ impl BrushEditor {
         Ok(())
     }
 
-    fn refresh_brush_names(&mut self, globals: &Globals) {
-        let Some(selected) = self.selected.as_ref() else {
-            return;
-        };
-        let factory = globals
+    fn handle_asset_event(&mut self, event: AssetEvent, globals: &Globals) {
+        self.brushes = globals
             .brush_engine_registry()
-            .get(&selected.engine.id())
-            .unwrap();
-        let Ok(entries) = factory.query_brushes(globals.assets()).logged_err() else {
-            return;
-        };
+            .all_brushes(globals.assets());
 
-        let engine_id = self.brushes[selected.index].0;
-        let mut names = entries
-            .into_iter()
-            .map(|entry| (entry.id, entry.name))
-            .collect::<HashMap<_, _>>();
-        for (id, entry) in &mut self.brushes {
-            if *id == engine_id
-                && let Some(name) = names.remove(&entry.id)
-            {
-                entry.name = name;
+        match event {
+            AssetEvent::Removed { id, .. } => {
+                if self
+                    .selected
+                    .as_ref()
+                    .is_some_and(|selected| selected.asset_id == id)
+                {
+                    self.selected = None;
+                }
             }
+            AssetEvent::BundlesChanged { .. } => {
+                if self.selected.as_ref().is_some_and(|selected| {
+                    !self
+                        .brushes
+                        .iter()
+                        .any(|(_, entry)| entry.id == selected.asset_id)
+                }) {
+                    self.selected = None;
+                }
+            }
+            AssetEvent::Added { .. } | AssetEvent::Modified { .. } => {}
         }
     }
 }

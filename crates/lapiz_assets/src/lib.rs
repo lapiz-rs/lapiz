@@ -19,6 +19,7 @@ use crate::{
 pub mod asset;
 pub mod bundle;
 pub mod embedded;
+pub mod event;
 pub mod index_db;
 pub mod loader;
 pub mod source;

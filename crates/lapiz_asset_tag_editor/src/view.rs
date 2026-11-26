@@ -1,8 +1,8 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::{Context as _, Result};
-use iced_core::{Element, Event, Length, Size, Theme, window};
-use iced_futures::{Subscription, event::listen_with};
+use iced_core::{Element, Length, Size, Theme, window};
+use iced_futures::Subscription;
 use iced_runtime::{
     Task,
     window::{close, drag, minimize, open, toggle_maximize},
@@ -10,6 +10,7 @@ use iced_runtime::{
 use lapiz_assets::{
     AssetAppExt as _,
     asset::{Asset as _, AssetMetadata, UntypedAssetId},
+    event::{AssetEvent, TagEvent},
     tag::{PositionInTag, TagFile, TagId},
 };
 use lapiz_brush::{
@@ -20,6 +21,7 @@ use lapiz_i18n::t;
 use lapiz_render::texture::{Image, read_or_create_cached_thumbnail};
 use lapiz_runtime::{
     Renderer,
+    event::Event as _,
     global::Globals,
     windows::{WindowView, WindowViewId},
 };
@@ -81,8 +83,8 @@ pub enum Message {
     CreateTag,
     CancelTag,
     RemoveTag,
-    Refresh,
-    Focused(window::Id),
+    AssetEvent(AssetEvent),
+    TagsChanged,
     ClearError,
     Close,
     Maximize,
@@ -197,15 +199,9 @@ impl WindowView for AssetTagEditor {
             );
         }
         layout = layout.push(
-            panel(
-                row![
-                    label(t!("drag_help")).muted().size(11),
-                    icon_button(icon::refresh()).on_press(Message::Refresh)
-                ]
-                .space_between(),
-            )
-            .padding([4, 8])
-            .width(Length::Fill),
+            panel(label(t!("drag_help")).muted().size(11))
+                .padding([4, 8])
+                .width(Length::Fill),
         );
         panel(layout).width(Length::Fill).height(Length::Fill)
     }
@@ -286,15 +282,20 @@ impl WindowView for AssetTagEditor {
                     self.refresh_asset_tags(globals);
                 }
             }
-            Message::Focused(id) if id != self.window => {}
-            Message::Refresh | Message::Focused(_) => {
-                self.refresh_names(globals);
+            Message::AssetEvent(event) => {
+                if self
+                    .model
+                    .current_asset_ty
+                    .as_deref()
+                    .is_none_or(|ty| event.matches_type(ty))
+                {
+                    return self.refresh_view(globals);
+                }
+            }
+            Message::TagsChanged => {
                 let result = self.model.refresh(globals.assets());
                 self.record(result);
-                if self.model.selected_asset.is_some() {
-                    return self.load_preview(globals);
-                }
-                self.clear_preview();
+                self.refresh_asset_tags(globals);
             }
             Message::ClearError => self.error = None,
             Message::Close => return close(self.window),
@@ -306,9 +307,9 @@ impl WindowView for AssetTagEditor {
     }
 
     fn subscription(&self, _: &Globals) -> Subscription<Message> {
-        listen_with(|event, _, id| {
-            matches!(event, Event::Window(window::Event::Focused)).then_some(Message::Focused(id))
-        })
+        let assets = AssetEvent::listen_to().map(Message::AssetEvent);
+        let tags = TagEvent::listen_to().map(|_| Message::TagsChanged);
+        Subscription::batch([assets, tags])
     }
 
     fn close(self, _: &mut Globals) -> Task<()> {
@@ -323,6 +324,18 @@ impl WindowView for AssetTagEditor {
 }
 
 impl AssetTagEditor {
+    fn refresh_view(&mut self, globals: &mut Globals) -> Task<Message> {
+        self.refresh_names(globals);
+        let result = self.model.refresh(globals.assets());
+        self.record(result);
+        self.refresh_asset_tags(globals);
+        if self.model.selected_asset.is_some() {
+            return self.load_preview(globals);
+        }
+        self.clear_preview();
+        Task::none()
+    }
+
     fn list_index(list: AssetList) -> usize {
         match list {
             AssetList::All => 0,

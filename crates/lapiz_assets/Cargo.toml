@@ -12,6 +12,7 @@ chrono.workspace = true
 dashmap.workspace = true
 downcast-rs.workspace = true
 futures.workspace = true
+iced_futures.workspace = true
 indexmap.workspace = true
 lapiz_runtime.workspace = true
 lapiz_utils.workspace = true
