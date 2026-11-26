@@ -18,10 +18,12 @@ use lapiz_effect::{
         EffectPassId, EffectPassOutputSlotId, SerializableEffectInputSlot,
         SerializableEffectOutputSlot, SerializableEffectPass,
     },
-    nodes::{PassInputNode, PassOutput, PassOutputNode},
     shader_graph::{
         builtin::{
-            nodes::custom_expression::{CustomExpressionNode, CustomExpressionNodeState},
+            nodes::{
+                custom_expression::{CustomExpressionNode, CustomExpressionNodeState},
+                effect_io::{PassInputNode, PassOutput, PassOutputNode},
+            },
             types::{
                 compound::{ColorType, RectType},
                 handle::{LayerType, TextureType},

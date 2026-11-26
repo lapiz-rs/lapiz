@@ -9,8 +9,7 @@ use glam::Vec4;
 use iced_core::widget::Void;
 use lapiz_assets::store::AssetRegistry;
 use lapiz_effect::{
-    nodes::effect_nodes,
-    random_oklch_hue_chroma,
+    effect_nodes, random_oklch_hue_chroma,
     shader_graph::{
         GraphElement,
         builtin::{

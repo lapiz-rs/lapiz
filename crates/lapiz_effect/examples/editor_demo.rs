@@ -17,18 +17,21 @@ use lapiz_effect::{
         EffectPassId, EffectPassInputSlotId, EffectPassOutputSlotId,
     },
     editor::{EffectEditor, EffectEditorMessage},
+    effect_nodes,
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
-    nodes::{PassInputNode, PassOutput, PassOutputDef, PassOutputNode, effect_nodes},
     shader_graph::{
         GraphRenderer, GraphTheme,
         builtin::{
             builtin_types,
-            nodes::math::{ScalarMathNode, ScalarMathNodeMode},
+            nodes::{
+                effect_io::{PassInputNode, PassOutput, PassOutputNode},
+                math::{ScalarMathNode, ScalarMathNodeMode},
+            },
             types::primitive::F32Type,
         },
         graph::{
             Graph, GraphResources,
-            node::{GraphNodeId, GraphNodeRegistry, PassInput},
+            node::{GraphNodeId, GraphNodeRegistry, PassInput, PassOutputDef},
             slot::ErasedGraphValueType,
             variable::GraphTypeRegistry,
         },

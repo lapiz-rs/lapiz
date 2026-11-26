@@ -9,10 +9,12 @@ use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassId},
     editor::{EffectEditor, EffectEditorMessage},
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot, EffectPass},
-    nodes::{PassOutput, PassOutputNode},
     shader_graph::{
         GraphElement,
-        builtin::types::{handle::LayerType, primitive::F32Type},
+        builtin::{
+            nodes::effect_io::{PassOutput, PassOutputNode},
+            types::{handle::LayerType, primitive::F32Type},
+        },
         editor::{
             GraphEditor,
             parameters::{ParametersEditor, ParametersEditorMessage},

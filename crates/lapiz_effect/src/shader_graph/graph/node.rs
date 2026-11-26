@@ -24,7 +24,6 @@ use wesl::syntax::{Expression, Ident};
 
 use crate::{
     asset::{EffectInputSlotId, EffectOutputSlotId, EffectPassInputSlotId, EffectPassOutputSlotId},
-    nodes::PassOutputDef,
     shader_graph::{
         GraphElement,
         editor::slot::{input_slot, output_slot},
@@ -73,6 +72,13 @@ pub struct GraphNodeOutputDef {
 pub enum GraphNodeOutputTarget {
     Pass(PassOutputDef),
     Effect(EffectOutputSlotId),
+}
+
+/// Name and value type definition for a pass-local intermediate output buffer created by a [`PassOutputNode`].
+#[derive(Clone)]
+pub struct PassOutputDef {
+    pub name: String,
+    pub ty: Arc<dyn ErasedGraphValueType>,
 }
 
 /// A selectable source option displayed in a [`PassInputNode`] combo box.

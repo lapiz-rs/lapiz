@@ -1,6 +1,7 @@
 pub mod components;
 pub mod curve;
 pub mod custom_expression;
+pub mod effect_io;
 pub mod function;
 pub mod graph_io;
 pub mod image;
