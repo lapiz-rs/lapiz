@@ -24,7 +24,7 @@ use lapiz_i18n::t;
 use lapiz_runtime::{Renderer, event::Event as _, global::Globals};
 use lapiz_utils::log_err::LogErr as _;
 use lapiz_widgets::{
-    button, column, container, icon, icon_button, label, row, scrollable, space,
+    button, container, icon, label, row, scrollable,
     tree::{Tree, TreeNode},
 };
 
@@ -71,7 +71,6 @@ pub enum BrushPresetDockMessage {
     ToggleGroup(BrushGroupId),
     AssetEvent(AssetEvent),
     TagEvent(TagEvent),
-    Refresh,
 }
 
 impl BrushGroups {
@@ -307,24 +306,19 @@ impl Dock for BrushPresetDock {
             ));
         }
 
-        column![
-            row![
-                space().width(Length::Fill),
-                icon_button(icon::refresh()).on_press(BrushPresetDockMessage::Refresh)
-            ],
+        container(
             scrollable(Tree::new(nodes).spacing(2.0))
                 .width(Length::Fill)
                 .height(Length::Fill),
-        ]
-        .gap(4)
+        )
         .padding(4)
+        .width(Length::Fill)
         .height(Length::Fill)
         .into()
     }
 
     fn update(&mut self, message: Self::Message, globals: &mut Globals) -> Task<Self::Message> {
         match message {
-            BrushPresetDockMessage::Refresh => self.refresh(globals, true).log_err(),
             BrushPresetDockMessage::AssetEvent(event) => match event {
                 AssetEvent::Modified { id, .. } => {
                     *self.preview_generations.entry(id).or_default() += 1;

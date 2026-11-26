@@ -1,8 +1,8 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::{Context as _, Result};
-use iced_core::{Element, Event, Length, Size, Theme, window};
-use iced_futures::{Subscription, event::listen_with};
+use iced_core::{Element, Length, Size, Theme, window};
+use iced_futures::Subscription;
 use iced_runtime::{
     Task,
     window::{close, drag, minimize, open, toggle_maximize},
@@ -85,8 +85,6 @@ pub enum Message {
     RemoveTag,
     AssetEvent(AssetEvent),
     TagsChanged,
-    Refresh,
-    Focused(window::Id),
     ClearError,
     Close,
     Maximize,
@@ -201,15 +199,9 @@ impl WindowView for AssetTagEditor {
             );
         }
         layout = layout.push(
-            panel(
-                row![
-                    label(t!("drag_help")).muted().size(11),
-                    icon_button(icon::refresh()).on_press(Message::Refresh)
-                ]
-                .space_between(),
-            )
-            .padding([4, 8])
-            .width(Length::Fill),
+            panel(label(t!("drag_help")).muted().size(11))
+                .padding([4, 8])
+                .width(Length::Fill),
         );
         panel(layout).width(Length::Fill).height(Length::Fill)
     }
@@ -305,8 +297,6 @@ impl WindowView for AssetTagEditor {
                 self.record(result);
                 self.refresh_asset_tags(globals);
             }
-            Message::Focused(id) if id != self.window => {}
-            Message::Refresh | Message::Focused(_) => return self.refresh_view(globals),
             Message::ClearError => self.error = None,
             Message::Close => return close(self.window),
             Message::Maximize => return toggle_maximize(self.window),
@@ -317,12 +307,9 @@ impl WindowView for AssetTagEditor {
     }
 
     fn subscription(&self, _: &Globals) -> Subscription<Message> {
-        let focus = listen_with(|event, _, id| {
-            matches!(event, Event::Window(window::Event::Focused)).then_some(Message::Focused(id))
-        });
         let assets = AssetEvent::listen_to().map(Message::AssetEvent);
         let tags = TagEvent::listen_to().map(|_| Message::TagsChanged);
-        Subscription::batch([focus, assets, tags])
+        Subscription::batch([assets, tags])
     }
 
     fn close(self, _: &mut Globals) -> Task<()> {
