@@ -22,7 +22,7 @@ use lapiz_effect::{
         builtin::{
             nodes::{
                 custom_expression::{CustomExpressionNode, CustomExpressionNodeState},
-                effect_io::{PassInputNode, PassOutput, PassOutputNode},
+                pass_io::{PassInputNode, PassOutput, PassOutputNode},
             },
             types::{
                 compound::{ColorType, RectType},

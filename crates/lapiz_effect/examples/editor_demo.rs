@@ -24,8 +24,8 @@ use lapiz_effect::{
         builtin::{
             builtin_types,
             nodes::{
-                effect_io::{PassInputNode, PassOutput, PassOutputNode},
                 math::{ScalarMathNode, ScalarMathNodeMode},
+                pass_io::{PassInputNode, PassOutput, PassOutputNode},
             },
             types::primitive::F32Type,
         },

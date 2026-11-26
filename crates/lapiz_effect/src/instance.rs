@@ -11,7 +11,7 @@ use crate::{
     },
     render::{EffectPassInputSlotSource, EffectPassOutputSlotTarget},
     shader_graph::{
-        builtin::nodes::effect_io::DispatchIndexNode,
+        builtin::nodes::pass_io::DispatchIndexNode,
         graph::{
             Graph, GraphResources,
             node::{GraphNodeOutputTarget, PassInput, PassInputChoice, PassOutputChoice},

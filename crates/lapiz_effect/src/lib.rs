@@ -8,7 +8,7 @@ use crate::{
     shader_graph::{
         builtin::{
             builtin_nodes, builtin_types,
-            nodes::effect_io::{DispatchIndexNode, PassInputNode, PassOutputNode},
+            nodes::pass_io::{DispatchIndexNode, PassInputNode, PassOutputNode},
         },
         graph::{node::GraphNodeRegistry, variable::GraphTypeRegistry},
     },

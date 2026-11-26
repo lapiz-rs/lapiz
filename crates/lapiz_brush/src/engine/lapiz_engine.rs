@@ -12,7 +12,7 @@ use lapiz_effect::{
     shader_graph::{
         GraphElement,
         builtin::{
-            nodes::effect_io::{PassOutput, PassOutputNode},
+            nodes::pass_io::{PassOutput, PassOutputNode},
             types::{handle::LayerType, primitive::F32Type},
         },
         editor::{

@@ -14,7 +14,7 @@ use crate::{
     instance::{EffectInputSlot, EffectInstance, EffectOutputSlot},
     shader_graph::{
         GraphElement, GraphRenderer, GraphTheme,
-        builtin::nodes::effect_io::TypeChoice,
+        builtin::nodes::pass_io::TypeChoice,
         graph::{slot::ErasedGraphValueType, variable::GraphTypeRegistry},
     },
 };
