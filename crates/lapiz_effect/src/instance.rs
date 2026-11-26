@@ -260,7 +260,9 @@ impl EffectInstance {
             let sources = available_sources[pass_id].clone();
             let mut needs_reconcile = passes_to_reconcile[pass_id];
             for node in pass.graph.iter_nodes_mut() {
-                needs_reconcile |= node.data.on_available_pass_input_choices_changed(sources.clone());
+                needs_reconcile |= node
+                    .data
+                    .on_available_pass_input_choices_changed(sources.clone());
             }
             if needs_reconcile {
                 pass.graph.reconcile_all_node_slots();

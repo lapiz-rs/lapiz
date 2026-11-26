@@ -1,7 +1,4 @@
-use std::{
-    fmt,
-    sync::{Arc, LazyLock},
-};
+use std::{fmt, iter, sync::Arc};
 
 use anyhow::{Context as _, Result};
 use iced_core::{Length, widget::Void};
@@ -16,23 +13,20 @@ use wesl_quote::quote_statement;
 
 use crate::{
     asset::{
-        EffectInputSlotId, EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassInputSlotId,
+        EffectOutputSlotId, EffectPassDispatchStrategy, EffectPassInputSlotId,
         EffectPassOutputSlotId,
     },
     random_oklch_hue_chroma,
     render::{pass_input_ident, pass_output_ident},
     shader_graph::{
         GraphElement,
-        builtin::{
-            builtin_nodes, builtin_types,
-            types::{primitive::U32Type, vector::Vec2IType},
-        },
+        builtin::types::{primitive::U32Type, vector::Vec2IType},
         graph::{
             GraphResources,
             node::{
                 GraphNode, GraphNodeCodeGenContext, GraphNodeCodeGenError,
                 GraphNodeCreateSlotsContext, GraphNodeDefaultStateContext, GraphNodeInputDef,
-                GraphNodeInputSource, GraphNodeOutputDef, GraphNodeOutputTarget, GraphNodeRegistry,
+                GraphNodeInputSource, GraphNodeOutputDef, GraphNodeOutputTarget,
                 GraphNodeUpdateContext, GraphNodeViewContext, PassInput, PassInputChoice,
                 PassOutputChoice, PassOutputDef,
             },
@@ -190,7 +184,7 @@ impl GraphNode for PassInputNode {
         state: &'a Self::State,
         ctx: GraphNodeViewContext<'a>,
     ) -> GraphElement<'a, Self::Message> {
-        let options = std::iter::once(PassInputSelectorChoice(None))
+        let options = iter::once(PassInputSelectorChoice(None))
             .chain(
                 state
                     .available_sources
@@ -507,7 +501,7 @@ impl GraphNode for PassOutputNode {
         state: &'a Self::State,
         ctx: GraphNodeViewContext<'a>,
     ) -> GraphElement<'a, Self::Message> {
-        let options = std::iter::once(PassOutputSelectorChoice::Unbound)
+        let options = iter::once(PassOutputSelectorChoice::Unbound)
             .chain(
                 state
                     .available_targets
@@ -515,7 +509,7 @@ impl GraphNode for PassOutputNode {
                     .cloned()
                     .map(PassOutputSelectorChoice::Effect),
             )
-            .chain(std::iter::once(PassOutputSelectorChoice::LocalBuffer))
+            .chain(iter::once(PassOutputSelectorChoice::LocalBuffer))
             .collect::<Vec<_>>();
         let selected = match &state.output {
             None => Some(PassOutputSelectorChoice::Unbound),

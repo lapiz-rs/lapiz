@@ -17,7 +17,6 @@ use lapiz_effect::{
         GraphElement,
         builtin::{
             builtin_nodes, builtin_types,
-            nodes::pass_io::PassInputNode,
             types::{
                 compound::{ColorType, RectType},
                 handle::LayerType,
