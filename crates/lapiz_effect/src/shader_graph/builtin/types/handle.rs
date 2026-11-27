@@ -381,7 +381,7 @@ impl GraphValueType for LayerType {
         ]
     }
 
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
@@ -404,7 +404,7 @@ impl GraphValueType for LayerType {
         Ok(format!("{}\n{}", color_stmt, bounds_stmt))
     }
 
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,
@@ -826,7 +826,7 @@ impl GraphValueType for ArrayType {
         )]
     }
 
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
@@ -840,7 +840,7 @@ impl GraphValueType for ArrayType {
         Ok(format!("{}\n", quote_statement! { let #output = #loaded; }))
     }
 
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,

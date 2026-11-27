@@ -678,7 +678,7 @@ impl GraphValueType for BoolType {
         push_storage_layout(stage, "u32", name, group, binding, bindings, shader)
     }
 
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
@@ -692,7 +692,7 @@ impl GraphValueType for BoolType {
         ))
     }
 
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,

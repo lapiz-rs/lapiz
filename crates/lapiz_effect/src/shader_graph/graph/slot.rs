@@ -207,7 +207,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         let ty = Arc::<Self>::from(dyn_clone::clone_box(self));
         vec![GraphDefaultOutputSlot::new_boxed("value".into(), ty)]
     }
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
@@ -220,7 +220,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         );
         Ok(String::new())
     }
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,
@@ -349,22 +349,15 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
         queue: &Queue,
     ) -> Result<Box<dyn GraphShaderLiteralValue>>;
 
-    // These three values are used in effect passes to allow types to be able to
-    // customize its own behavior
     fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot>;
     fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>;
-    // TODO better naming
-    // This actually means to read the value of this type from shader binding.
-    // For general types, it just copies the identifier. But for special types like
-    // layer, the pixel value needs to call a helper to get.
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
         ctx: &mut GraphNodeCodeGenContext,
     ) -> Result<String>;
-    // TODO better naming
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,
@@ -480,22 +473,22 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         GraphValueType::as_output_node_outputs(self)
     }
 
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
         ctx: &mut GraphNodeCodeGenContext,
     ) -> Result<String> {
-        GraphValueType::handle_input_values(self, input_name, base_index, ctx)
+        GraphValueType::transfer_input_variable_to_output_slot(self, input_name, base_index, ctx)
     }
 
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,
         ctx: &mut GraphNodeCodeGenContext,
     ) -> Result<String> {
-        GraphValueType::handle_output_values(self, output_name, base_index, ctx)
+        GraphValueType::read_output_slot_to_input_variable(self, output_name, base_index, ctx)
     }
 
     fn requires_eval(&self) -> bool {

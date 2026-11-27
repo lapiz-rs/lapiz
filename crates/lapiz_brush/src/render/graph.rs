@@ -1428,7 +1428,7 @@ impl GraphNode for OutputSpacingNode {
             .ty;
         let name = pass_output_ident(state.id);
 
-        Ok(ty.handle_output_values(&name, 0, &mut ctx)?)
+        Ok(ty.read_output_slot_to_input_variable(&name, 0, &mut ctx)?)
     }
 
     fn as_pass_output(&self, state: &Self::State) -> Option<GraphNodeOutputDef> {
@@ -1530,7 +1530,7 @@ impl GraphNode for OutputMainDabBufferNode {
             .ty;
         let name = pass_output_ident(state.id);
 
-        Ok(ty.handle_output_values(&name, 0, &mut ctx)?)
+        Ok(ty.read_output_slot_to_input_variable(&name, 0, &mut ctx)?)
     }
 
     fn as_pass_output(&self, state: &Self::State) -> Option<GraphNodeOutputDef> {
