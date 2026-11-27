@@ -832,13 +832,12 @@ impl GraphValueType for ArrayType {
         base_index: usize,
         ctx: &mut GraphNodeCodeGenContext,
     ) -> Result<String> {
-        ctx.get_output(base_index)?;
+        let output = ctx.get_output(base_index)?;
         let name = Ident::new(input_name.to_string());
-        ctx.output_slot_idents.insert(
-            ctx.outputs[base_index],
-            quote_expression! { #name[dispatch_index] },
-        );
-        Ok(String::new())
+        let loaded = self
+            .element_type
+            .decode_storage_expr(quote_expression! { #name[dispatch_index] });
+        Ok(format!("{}\n", quote_statement! { let #output = #loaded; }))
     }
 
     fn handle_output_values(
@@ -848,9 +847,13 @@ impl GraphValueType for ArrayType {
         ctx: &GraphNodeCodeGenContext,
     ) -> Result<String> {
         let index = ctx.get_input(base_index)?;
-        let value = ctx.get_input(base_index + 1)?;
+        let value = self
+            .element_type
+            .encode_storage_expr(ctx.get_input(base_index + 1)?);
+        let output = Ident::new(output_name.to_string());
         Ok(format!(
-            "@if(!EVAL) {{ {output_name}[{index}] = {value}; }}\n"
+            "{}\n",
+            quote_statement! { @if(!EVAL) { #output[#index] = #value; } }
         ))
     }
 
@@ -865,9 +868,8 @@ impl GraphValueType for ArrayType {
     ) -> Result<(u32, DynamicBindGroupLayoutEntries, String)> {
         let element = self
             .element_type
-            .wgsl_type_name()
-            .context("Array element type has no GPU representation")?
-            .to_string();
+            .wgsl_storage_type_name()
+            .context("Array element type has no GPU representation")?;
         push_storage_layout(
             stage,
             &format!("array<{element}>"),
