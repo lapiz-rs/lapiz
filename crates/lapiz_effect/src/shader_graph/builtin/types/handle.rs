@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{bail, Context as _, Result};
 use bevy_math::{IRect, IVec2, IVec4};
 use encase::{ShaderType as _, StorageBuffer};
 use iced_core::Element;
@@ -15,9 +15,9 @@ use lapiz_image::{
 };
 use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
-    bind_group_layout_entries::{DynamicBindGroupLayoutEntries, binding_types},
+    bind_group_layout_entries::{binding_types, DynamicBindGroupLayoutEntries},
     readback::{create_readback_buffer_and_schedule_copy_buffer, readback_buffer_on_submit_async},
-    texture::{GpuImage, Image, thumbnail::ImageThumbnail},
+    texture::{thumbnail::ImageThumbnail, GpuImage, Image},
     util::DevicePollExt as _,
 };
 use lapiz_widgets::{combo_box::ComboBox, flex::Flex, label, row, space};
@@ -34,15 +34,14 @@ use wesl::syntax::{
 };
 use wesl_quote::{quote_declaration, quote_expression, quote_statement};
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Device, Extent3d, Queue,
-    TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
-    TextureViewDimension, util::DeviceExt as _,
+    util::DeviceExt as _, Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Device,
+    Extent3d, Queue, TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
+    TextureViewDimension,
 };
 
 use crate::{
     random_oklch_hue_chroma,
     shader_graph::{
-        GraphRenderer, GraphTheme,
         builtin::types::{
             compound::{ColorType, RectType},
             layer_bounds_ident, layer_load_ident, layer_store_ident, layer_tile_info_ident,
@@ -58,6 +57,7 @@ use crate::{
             variable::GraphLiteral,
         },
         save::GraphValueTypeId,
+        GraphRenderer, GraphTheme,
     },
 };
 
@@ -832,13 +832,12 @@ impl GraphValueType for ArrayType {
         base_index: usize,
         ctx: &mut GraphNodeCodeGenContext,
     ) -> Result<String> {
-        ctx.get_output(base_index)?;
+        let output = ctx.get_output(base_index)?;
         let name = Ident::new(input_name.to_string());
-        ctx.output_slot_idents.insert(
-            ctx.outputs[base_index],
-            quote_expression! { #name[dispatch_index] },
-        );
-        Ok(String::new())
+        let loaded = self
+            .element_type
+            .decode_storage_expr(quote_expression! { #name[dispatch_index] });
+        Ok(format!("{}\n", quote_statement! { let #output = #loaded; }))
     }
 
     fn handle_output_values(
@@ -848,9 +847,13 @@ impl GraphValueType for ArrayType {
         ctx: &GraphNodeCodeGenContext,
     ) -> Result<String> {
         let index = ctx.get_input(base_index)?;
-        let value = ctx.get_input(base_index + 1)?;
+        let value = self
+            .element_type
+            .encode_storage_expr(ctx.get_input(base_index + 1)?);
+        let output = Ident::new(output_name.to_string());
         Ok(format!(
-            "@if(!EVAL) {{ {output_name}[{index}] = {value}; }}\n"
+            "{}\n",
+            quote_statement! { @if(!EVAL) { #output[#index] = #value; } }
         ))
     }
 
@@ -865,9 +868,8 @@ impl GraphValueType for ArrayType {
     ) -> Result<(u32, DynamicBindGroupLayoutEntries, String)> {
         let element = self
             .element_type
-            .wgsl_type_name()
-            .context("Array element type has no GPU representation")?
-            .to_string();
+            .wgsl_storage_type_name()
+            .context("Array element type has no GPU representation")?;
         push_storage_layout(
             stage,
             &format!("array<{element}>"),

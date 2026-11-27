@@ -15,21 +15,24 @@ use lapiz_widgets::{
 };
 use serde::Deserialize as _;
 use wesl::syntax::{
-    BinaryExpression, BinaryOperator, Expression, Ident, LiteralExpression, Span, Spanned,
+    AssignmentOperator, AssignmentStatement, Attribute, BinaryExpression, BinaryOperator,
+    CompoundStatement, Declaration, DeclarationKind, Expression, FunctionCall, Ident,
+    LiteralExpression, ParenthesizedExpression, Span, Spanned, Statement, TypeExpression,
+    UnaryExpression, UnaryOperator,
 };
-use wesl_quote::quote_expression;
+use wesl_quote::{quote_expression, quote_statement};
 use wgpu::{Buffer, Device, Queue};
 
 use crate::{
     random_oklch_hue_chroma,
     shader_graph::{
-        GraphRenderer, GraphTheme,
         builtin::types::{prepare_uniform_storage, push_buffer_binding, push_storage_layout},
         graph::{
             node::GraphNodeCodeGenContext,
             slot::{GraphShaderStage, GraphValueType},
         },
         save::GraphValueTypeId,
+        GraphRenderer, GraphTheme,
     },
 };
 
@@ -645,13 +648,24 @@ impl GraphValueType for BoolType {
     fn wgsl_type_name(&self) -> Option<&'static str> {
         Some("bool")
     }
+
+    fn wgsl_storage_type_name(&self) -> Option<&'static str> {
+        Some("u32")
+    }
+
+    fn decode_storage_expr(&self, expr: Expression) -> Expression {
+        quote_expression! { (#expr != 0u) }
+    }
+
+    fn encode_storage_expr(&self, expr: Expression) -> Expression {
+        quote_expression! { select(0u, 1u, #expr) }
+    }
+
     // Bools are host-shared as u32, so their array stride matches u32.
     fn wgsl_array_element_stride(&self) -> Option<u64> {
         Some(<Vec<u32> as ShaderType>::METADATA.stride().get())
     }
 
-    // FIXME This is not working is some expr references bool type,
-    //       because it generates exprs like `if 1u { .. }` which is not valid.
     fn push_shader_layout(
         &self,
         name: &str,
@@ -670,11 +684,12 @@ impl GraphValueType for BoolType {
         base_index: usize,
         ctx: &mut GraphNodeCodeGenContext,
     ) -> Result<String> {
-        ctx.get_output(base_index)?;
-        let name = Ident::new(input_name.to_string());
-        ctx.output_slot_idents
-            .insert(ctx.outputs[base_index], quote_expression! { #name != 0u });
-        Ok(String::new())
+        let output = ctx.get_output(base_index)?;
+        let decoded = self.decode_storage_expr(Ident::new(input_name.to_string()).into());
+        Ok(format!(
+            "{}\n",
+            quote_statement! { let #output = #decoded; }
+        ))
     }
 
     fn handle_output_values(
@@ -683,9 +698,11 @@ impl GraphValueType for BoolType {
         base_index: usize,
         ctx: &GraphNodeCodeGenContext,
     ) -> Result<String> {
-        let value = ctx.get_input(base_index)?;
+        let value = self.encode_storage_expr(ctx.get_input(base_index)?);
+        let output = Ident::new(output_name.to_string());
         Ok(format!(
-            "@if(!EVAL) {{ {output_name} = select(0u, 1u, {value}); }}\n"
+            "{}\n",
+            quote_statement! { @if(!EVAL) { #output = #value; } }
         ))
     }
 
