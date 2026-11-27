@@ -29,6 +29,7 @@ lapiz_new_canvas_dialog.workspace = true
 lapiz_render.workspace = true
 lapiz_report.workspace = true
 lapiz_runtime.workspace = true
+lapiz_shader_function_editor.workspace = true
 lapiz_tools.workspace = true
 lapiz_undo.workspace = true
 lapiz_utils.workspace = true

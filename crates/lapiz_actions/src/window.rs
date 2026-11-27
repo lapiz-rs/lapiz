@@ -4,6 +4,7 @@ use lapiz_runtime::{
     global::Globals,
     windows::{OpenWindowViewCommand, ToggleWindowViewCommand, WindowCommandBuffer, WindowViewId},
 };
+use lapiz_shader_function_editor::SHADER_FUNCTION_EDITOR_VIEW_ID;
 
 use crate::{ActionFunction, ActionId};
 
@@ -43,6 +44,27 @@ impl ActionFunction for OpenBrushEditorAction {
             .global_mut::<WindowCommandBuffer>()
             .push(OpenWindowViewCommand::new(WindowViewId::new(
                 "brush_editor",
+            )));
+        Task::none()
+    }
+}
+
+/// Action that opens the shader function editor window view.
+#[derive(Default)]
+pub struct OpenShaderFunctionEditorAction;
+
+impl ActionFunction for OpenShaderFunctionEditorAction {
+    type Message = ();
+
+    fn id(&self) -> ActionId {
+        ActionId::new("open_shader_function_editor_action".into())
+    }
+
+    fn trigger(&self, globals: &mut Globals) -> Task<Self::Message> {
+        globals
+            .global_mut::<WindowCommandBuffer>()
+            .push(OpenWindowViewCommand::new(WindowViewId::new(
+                SHADER_FUNCTION_EDITOR_VIEW_ID,
             )));
         Task::none()
     }

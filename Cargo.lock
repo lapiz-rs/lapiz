@@ -3168,6 +3168,7 @@ dependencies = [
  "lapiz_render",
  "lapiz_report",
  "lapiz_runtime",
+ "lapiz_shader_function_editor",
  "lapiz_tools",
  "lapiz_undo",
  "lapiz_utils",
@@ -3236,6 +3237,7 @@ dependencies = [
  "lapiz_runtime",
  "lapiz_selection_tool",
  "lapiz_settings",
+ "lapiz_shader_function_editor",
  "lapiz_tools",
  "lapiz_transform_tool",
  "lapiz_undo",
@@ -4044,6 +4046,24 @@ dependencies = [
  "lapiz_utils",
  "lapiz_widgets",
  "rust-embed",
+]
+
+[[package]]
+name = "lapiz_shader_function_editor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "iced_core",
+ "iced_futures",
+ "iced_runtime",
+ "lapiz_assets",
+ "lapiz_effect",
+ "lapiz_i18n",
+ "lapiz_runtime",
+ "lapiz_widgets",
+ "log",
+ "rust-embed",
+ "uuid",
 ]
 
 [[package]]
