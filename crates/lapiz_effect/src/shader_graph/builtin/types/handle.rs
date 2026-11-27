@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Context as _, Result};
+use anyhow::{Context as _, Result, bail};
 use bevy_math::{IRect, IVec2, IVec4};
 use encase::{ShaderType as _, StorageBuffer};
 use iced_core::Element;
@@ -15,9 +15,9 @@ use lapiz_image::{
 };
 use lapiz_render::{
     bind_group_entries::DynamicBindGroupEntries,
-    bind_group_layout_entries::{binding_types, DynamicBindGroupLayoutEntries},
+    bind_group_layout_entries::{DynamicBindGroupLayoutEntries, binding_types},
     readback::{create_readback_buffer_and_schedule_copy_buffer, readback_buffer_on_submit_async},
-    texture::{thumbnail::ImageThumbnail, GpuImage, Image},
+    texture::{GpuImage, Image, thumbnail::ImageThumbnail},
     util::DevicePollExt as _,
 };
 use lapiz_widgets::{combo_box::ComboBox, flex::Flex, label, row, space};
@@ -34,14 +34,15 @@ use wesl::syntax::{
 };
 use wesl_quote::{quote_declaration, quote_expression, quote_statement};
 use wgpu::{
-    util::DeviceExt as _, Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Device,
-    Extent3d, Queue, TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
-    TextureViewDimension,
+    Buffer, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, Device, Extent3d, Queue,
+    TextureDescriptor, TextureDimension, TextureUsages, TextureViewDescriptor,
+    TextureViewDimension, util::DeviceExt as _,
 };
 
 use crate::{
     random_oklch_hue_chroma,
     shader_graph::{
+        GraphRenderer, GraphTheme,
         builtin::types::{
             compound::{ColorType, RectType},
             layer_bounds_ident, layer_load_ident, layer_store_ident, layer_tile_info_ident,
@@ -57,7 +58,6 @@ use crate::{
             variable::GraphLiteral,
         },
         save::GraphValueTypeId,
-        GraphRenderer, GraphTheme,
     },
 };
 

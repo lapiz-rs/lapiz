@@ -24,6 +24,7 @@ use wesl_quote::quote_statement;
 use wgpu::{Device, Queue};
 
 use crate::shader_graph::{
+    GraphElement,
     graph::{
         node::{GraphNodeCodeGenContext, GraphNodeId},
         variable::{
@@ -31,7 +32,6 @@ use crate::shader_graph::{
         },
     },
     save::GraphValueTypeId,
-    GraphElement,
 };
 
 wrapper! {
