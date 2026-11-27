@@ -38,6 +38,7 @@ use lapiz_widgets::{button, column, flex::Flex, label, panel, row, scrollable, s
 
 use crate::{
     asset::FilterPreset,
+    editor::FilterEditor,
     instance::{FilterInstance, FilterParameter},
     render::FilterRenderer,
 };
@@ -67,8 +68,7 @@ pub struct FilterPanel {
 pub enum FilterPanelMessage {
     FilterSelected(usize),
     ParameterUpdated(EffectInputSlotId, ErasedGraphLiteralUpdateMessage),
-    NewFilter,
-    EditFilter,
+    OpenFilterEditor,
     Confirm,
     Cancel,
     RenderFinished(u64, Result<HashMap<LayerId, DynamicLayerStorage>>),
@@ -85,8 +85,7 @@ impl Clone for FilterPanelMessage {
             FilterPanelMessage::ParameterUpdated(id, m) => {
                 FilterPanelMessage::ParameterUpdated(*id, m.clone())
             }
-            FilterPanelMessage::NewFilter => FilterPanelMessage::NewFilter,
-            FilterPanelMessage::EditFilter => FilterPanelMessage::EditFilter,
+            FilterPanelMessage::OpenFilterEditor => FilterPanelMessage::OpenFilterEditor,
             FilterPanelMessage::Confirm => FilterPanelMessage::Confirm,
             FilterPanelMessage::Cancel => FilterPanelMessage::Cancel,
             FilterPanelMessage::RenderFinished(_, _) => {
@@ -182,16 +181,17 @@ impl WindowView for FilterPanel {
                 scrollable(Flex::column(filter_list).gap(2.0))
                     .width(Length::Fill)
                     .height(Length::Fill),
-                row![
-                    button(label(t!("new_filter"))).on_press(FilterPanelMessage::NewFilter),
-                    button(label(t!("edit_filter"))).on_press(FilterPanelMessage::EditFilter),
-                ]
-                .gap(4.0),
+                button(label(t!("filter_editor_title")))
+                    .width(Length::Fill)
+                    .on_press(FilterPanelMessage::OpenFilterEditor),
             ]
-            .gap(6.0),
+            .gap(6.0)
+            .width(Length::Fill)
+            .height(Length::Fill),
         )
         .padding(8)
-        .width(220);
+        .width(220)
+        .height(Length::Fill);
 
         let params = if let Some(selected) = self.selected.as_ref() {
             let parameter_rows = selected
@@ -266,12 +266,10 @@ impl WindowView for FilterPanel {
             FilterPanelMessage::ParameterUpdated(id, message) => {
                 self.parameter_updated(id, message, globals)
             }
-            FilterPanelMessage::NewFilter | FilterPanelMessage::EditFilter => {
+            FilterPanelMessage::OpenFilterEditor => {
                 globals
                     .global_mut::<WindowCommandBuffer>()
-                    .push(OpenWindowViewCommand::new(WindowViewId::new(
-                        "filter_editor",
-                    )));
+                    .push(OpenWindowViewCommand::new(FilterEditor::id()));
                 Task::none()
             }
             FilterPanelMessage::Confirm => self.confirm(globals),
