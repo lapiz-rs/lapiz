@@ -918,16 +918,9 @@ impl ToolFunction for FreeTransformTool {
                     readback_tasks.push(bounds_buffer_readback);
                 }
 
-                let si = queue.submit([ec.finish()]);
+                queue.submit([ec.finish()]);
 
-                let poll_task = Task::future({
-                    let device = device.clone();
-                    async move {
-                        let _ = device.poll_indefinitely_for(si);
-                    }
-                });
-
-                let init_task = Task::batch(readback_tasks).collect().then(move |bounds| {
+                Task::batch(readback_tasks).collect().then(move |bounds| {
                     let bounds = bounds
                         .into_iter()
                         .try_fold(IRect::EMPTY, |acc, b| Result::<IRect>::Ok(acc.union(b?)))
@@ -941,9 +934,7 @@ impl ToolFunction for FreeTransformTool {
                         selection_bounds: selection_layer_bounds,
                         pixel_bounds: bounds,
                     }))
-                });
-
-                Task::batch([init_task, poll_task.discard()])
+                })
             }
             FreeTransformToolMessage::InitTransform(init) => {
                 if init.pixel_bounds.is_empty() {

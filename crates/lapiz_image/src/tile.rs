@@ -18,7 +18,7 @@ use image::{DynamicImage, GenericImageView as _, ImageBuffer, imageops::FilterTy
 use indexmap::{IndexMap, IndexSet};
 use lapiz_render::{
     buffer_vec::BufferVec, readback::readback_buffer_raw_on_submit_async,
-    render_context::RenderContextAppExt as _, util::DevicePollExt as _,
+    render_context::RenderContextAppExt as _,
 };
 use lapiz_runtime::global::{FromGlobals, Global, Globals};
 use lapiz_utils::Deref;
@@ -991,10 +991,7 @@ impl DynamicLayerStorage {
             readbacks.insert(index, readback);
         }
 
-        let si = queue.submit([ec.finish()]);
-        // TODO Don't block!!!
-        //      We should use a background task that infinitely polls.
-        device.poll_indefinitely_for(si)?;
+        queue.submit([ec.finish()]);
 
         let buffers = join_all(
             readbacks

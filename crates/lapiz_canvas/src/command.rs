@@ -17,7 +17,6 @@ use lapiz_image::{
 use lapiz_lazuli::layer_tree::LayerNode;
 use lapiz_render::{
     readback::readback_buffer_raw_on_submit_async, render_context::RenderContextAppExt as _,
-    util::DevicePollExt as _,
 };
 use lapiz_runtime::{event::Event as _, global::Globals};
 use lapiz_undo::{ArchiveWriteFuture, UndoCommand};
@@ -334,8 +333,7 @@ fn apply_archive_tile_replace(
                     readback_buffer_raw_on_submit_async(&mut encoder, &buffer, ..),
                 ));
             }
-            let submission = queue.submit([encoder.finish()]);
-            device.poll_indefinitely_for(submission)?;
+            queue.submit([encoder.finish()]);
 
             for (tile, readback) in readbacks {
                 let data = readback.into_inner().await??;

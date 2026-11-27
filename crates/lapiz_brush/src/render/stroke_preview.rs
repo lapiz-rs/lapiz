@@ -22,7 +22,6 @@ use lapiz_render::{
     },
     render_context::RenderContextAppExt as _,
     storage_buffer::StorageBuffer,
-    util::DevicePollExt as _,
 };
 use lapiz_runtime::global::Globals;
 use lapiz_utils::log_err::LogErr as _;
@@ -102,17 +101,12 @@ pub fn generate_stroke_preview_compiled(
 async fn readback_preview(device: &Device, queue: &Queue, texture: Texture) -> Result<RgbaImage> {
     let mut ec = device.create_command_encoder(&Default::default());
     let staging = create_readback_buffer_and_schedule_copy_texture(device, &mut ec, &texture);
-    let mut readback = Some(readback_buffer_raw_on_submit_async(&mut ec, &staging, ..));
-    let si = queue.submit([ec.finish()]);
+    let readback = readback_buffer_raw_on_submit_async(&mut ec, &staging, ..);
+    queue.submit([ec.finish()]);
 
     let width = texture.width();
     let height = texture.height();
 
-    let _ = device.poll_indefinitely_for(si);
-
-    let readback = readback
-        .take()
-        .expect("stroke preview readback task must only run once");
     let rgba_bytes = readback.into_inner().await??;
     RgbaImage::from_raw(width, height, rgba_bytes)
         .ok_or_else(|| anyhow!("Unable to create preview image."))
