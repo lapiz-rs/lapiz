@@ -7,6 +7,7 @@ use futures::{
     executor,
 };
 use iced_runtime::Task;
+use lapiz_runtime::renderer::{PollGuard, global_render_context};
 use lapiz_utils::{Deref, DerefMut};
 use wgpu::{
     Buffer, BufferAddress, BufferAsyncError, BufferUsages, CommandEncoder, Device, Extent3d,
@@ -100,11 +101,12 @@ where
     S: RangeBounds<BufferAddress> + Clone + Send + 'static,
 {
     let (tx, rx) = oneshot::channel();
+    let poll_guard = global_render_context().poller.track();
     ec.map_buffer_on_submit(
         buffer,
         MapMode::Read,
         bounds.clone(),
-        on_buffer_mapped_raw(buffer.clone(), bounds, tx),
+        on_buffer_mapped_raw(buffer.clone(), bounds, tx, poll_guard),
     );
     AsyncBufferReadback { rx }
 }
@@ -119,11 +121,12 @@ where
     S: RangeBounds<BufferAddress> + Clone + Send + 'static,
 {
     let (tx, rx) = oneshot::channel();
+    let poll_guard = global_render_context().poller.track();
     ec.map_buffer_on_submit(
         buffer,
         MapMode::Read,
         bounds.clone(),
-        on_buffer_mapped(buffer.clone(), bounds, tx),
+        on_buffer_mapped(buffer.clone(), bounds, tx, poll_guard),
     );
     AsyncBufferReadback { rx }
 }
@@ -134,10 +137,11 @@ where
     S: RangeBounds<BufferAddress> + Clone + Send + 'static,
 {
     let (tx, rx) = oneshot::channel();
+    let poll_guard = global_render_context().poller.track();
     buffer.map_async(
         MapMode::Read,
         bounds.clone(),
-        on_buffer_mapped(buffer.clone(), bounds, tx),
+        on_buffer_mapped(buffer.clone(), bounds, tx, poll_guard),
     );
     AsyncBufferReadback { rx }
 }
@@ -146,12 +150,14 @@ fn on_buffer_mapped<T, S>(
     buffer: Buffer,
     bounds: S,
     tx: Sender<anyhow::Result<T>>,
+    poll_guard: PollGuard,
 ) -> impl FnOnce(Result<(), BufferAsyncError>)
 where
     T: ShaderType + CreateFrom + Send + 'static,
     S: RangeBounds<BufferAddress> + Send + 'static,
 {
     move |r| {
+        let _poll_guard = poll_guard;
         if let Err(e) = r {
             buffer.unmap();
             tx.send(Err(e.into())).ok();
@@ -170,11 +176,13 @@ fn on_buffer_mapped_raw<S>(
     buffer: Buffer,
     bounds: S,
     tx: Sender<anyhow::Result<Vec<u8>>>,
+    poll_guard: PollGuard,
 ) -> impl FnOnce(Result<(), BufferAsyncError>)
 where
     S: RangeBounds<BufferAddress> + Send + 'static,
 {
     move |r| {
+        let _poll_guard = poll_guard;
         if let Err(e) = r {
             buffer.unmap();
             tx.send(Err(e.into())).ok();

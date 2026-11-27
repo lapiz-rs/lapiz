@@ -1,4 +1,8 @@
-use std::sync::{Arc, LazyLock};
+use std::{
+    sync::{Arc, LazyLock},
+    thread,
+    time::Duration,
+};
 
 use futures::executor::block_on;
 use iced_core::{backend, image, renderer, svg};
@@ -7,12 +11,16 @@ use iced_wgpu::{
     primitive,
     window::compositor::{Error, Settings, present, present_mode_from_env},
 };
+use parking_lot::{Condvar, Mutex};
 use raw_window_handle::{
     DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, WindowHandle,
 };
 use wgpu::util::new_instance_with_webgpu_detection;
 
 use crate::global::Global;
+
+const POLL_WAIT_TIMEOUT: Duration = Duration::from_millis(10);
+const EMPTY_QUEUE_BACKOFF: Duration = Duration::from_millis(1);
 
 static RENDER_CONTEXT: LazyLock<RenderContext> =
     LazyLock::new(|| block_on(RenderContext::request()));
@@ -22,6 +30,84 @@ static RENDER_CONTEXT: LazyLock<RenderContext> =
 // and renderer.
 pub fn global_render_context() -> RenderContext {
     RENDER_CONTEXT.clone()
+}
+
+/// Background driver that polls a [`wgpu::Device`] on demand while tracked async GPU operations
+/// are in flight.
+#[derive(Clone)]
+pub struct DevicePoller {
+    inner: Arc<DevicePollerInner>,
+}
+
+struct DevicePollerInner {
+    pending: Mutex<usize>,
+    notify: Condvar,
+}
+
+/// RAII guard that keeps a [`DevicePoller`] active until dropped.
+pub struct PollGuard {
+    inner: Arc<DevicePollerInner>,
+}
+
+impl DevicePoller {
+    pub fn spawn(device: wgpu::Device) -> Self {
+        let inner = Arc::new(DevicePollerInner {
+            pending: Mutex::new(0),
+            notify: Condvar::new(),
+        });
+        let worker_inner = Arc::clone(&inner);
+
+        thread::Builder::new()
+            .name("wgpu-device-poller".to_owned())
+            .spawn(move || {
+                loop {
+                    let mut pending = worker_inner.pending.lock();
+                    while *pending == 0 {
+                        worker_inner.notify.wait(&mut pending);
+                    }
+                    drop(pending);
+
+                    match device.poll(wgpu::PollType::Wait {
+                        submission_index: None,
+                        timeout: Some(POLL_WAIT_TIMEOUT),
+                    }) {
+                        Ok(wgpu::PollStatus::QueueEmpty) => {
+                            // A tracked readback can be registered before `queue.submit`;
+                            // back off briefly to avoid busy-spinning until submission lands.
+                            thread::sleep(EMPTY_QUEUE_BACKOFF);
+                        }
+                        Ok(wgpu::PollStatus::WaitSucceeded | wgpu::PollStatus::Poll)
+                        | Err(wgpu::PollError::Timeout) => {}
+                        Err(err) => {
+                            log::error!("WGPU device poll error: {err}");
+                            thread::sleep(EMPTY_QUEUE_BACKOFF);
+                        }
+                    }
+                }
+            })
+            .expect("Failed to spawn WGPU device poller thread");
+
+        Self { inner }
+    }
+
+    pub fn track(&self) -> PollGuard {
+        let mut pending = self.inner.pending.lock();
+        *pending += 1;
+        if *pending == 1 {
+            self.inner.notify.notify_one();
+        }
+
+        PollGuard {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+impl Drop for PollGuard {
+    fn drop(&mut self) {
+        let mut pending = self.inner.pending.lock();
+        *pending -= 1;
+    }
 }
 
 #[derive(Debug)]
@@ -53,6 +139,7 @@ pub struct RenderContext {
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    pub poller: DevicePoller,
 }
 
 impl Global for RenderContext {}
@@ -101,11 +188,14 @@ impl RenderContext {
             log::error!("WGPU device lost: {reason:?} {err}");
         });
 
+        let poller = DevicePoller::spawn(device.clone());
+
         Self {
             instance,
             adapter,
             device,
             queue,
+            poller,
         }
     }
 }
