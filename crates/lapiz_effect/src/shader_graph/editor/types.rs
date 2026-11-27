@@ -7,18 +7,21 @@ use lapiz_widgets::{checkbox, column, combo_box, component::Component, row, text
 use crate::shader_graph::{
     GraphElement, GraphRenderer, GraphTheme,
     builtin::types::{
-        atomic::{AtomicI32Type, AtomicU32Type},
+        atomic::{ArrayAtomicI32Type, ArrayAtomicU32Type, AtomicI32Type, AtomicU32Type},
+        handle::ArrayType,
         primitive::{I32Type, U32Type},
     },
     graph::{
         slot::{ErasedGraphValueType, GraphValueType},
         variable::GraphTypeRegistry,
     },
+    save::GraphValueTypeId,
 };
 
 /// A UI component for selecting a [`GraphValueType`] (including fixed-length array variants) from a [`GraphTypeRegistry`].
 pub struct GraphTypeSelector<'a, Message> {
     type_registry: &'a GraphTypeRegistry,
+    selected: Option<&'a Arc<dyn ErasedGraphValueType>>,
     on_select: Box<dyn Fn(Option<Arc<dyn ErasedGraphValueType>>) -> Message + 'a>,
 }
 
@@ -29,7 +32,61 @@ impl<'a, Message> GraphTypeSelector<'a, Message> {
     ) -> Self {
         Self {
             type_registry,
+            selected: None,
             on_select: Box::new(on_select),
+        }
+    }
+
+    pub fn selected(mut self, ty: &'a Arc<dyn ErasedGraphValueType>) -> Self {
+        self.selected = Some(ty);
+        self
+    }
+
+    fn state_for_type(&self, ty: &Arc<dyn ErasedGraphValueType>) -> GraphTypeSelectorState {
+        let synced_type_id = Some(ty.id());
+
+        if let Some(array) = ty.downcast_ref::<ArrayType>() {
+            return GraphTypeSelectorState {
+                array: true,
+                element_count: array.len.to_string(),
+                selected: Some(GraphTypeChoice {
+                    ty: array.element_type.clone(),
+                }),
+                synced_type_id,
+            };
+        }
+
+        if let Some(array) = ty.downcast_ref::<ArrayAtomicI32Type>() {
+            return GraphTypeSelectorState {
+                array: true,
+                element_count: array.len.to_string(),
+                selected: self
+                    .type_registry
+                    .get_type(&GraphValueType::id(&AtomicI32Type).id)
+                    .cloned()
+                    .map(|ty| GraphTypeChoice { ty }),
+                synced_type_id,
+            };
+        }
+
+        if let Some(array) = ty.downcast_ref::<ArrayAtomicU32Type>() {
+            return GraphTypeSelectorState {
+                array: true,
+                element_count: array.len.to_string(),
+                selected: self
+                    .type_registry
+                    .get_type(&GraphValueType::id(&AtomicU32Type).id)
+                    .cloned()
+                    .map(|ty| GraphTypeChoice { ty }),
+                synced_type_id,
+            };
+        }
+
+        GraphTypeSelectorState {
+            array: false,
+            element_count: "1".into(),
+            selected: Some(GraphTypeChoice { ty: ty.clone() }),
+            synced_type_id,
         }
     }
 
@@ -81,12 +138,26 @@ impl<'a, Message> Component<'a, Message, GraphTheme, GraphRenderer>
     type State = GraphTypeSelectorState;
     type Event = GraphTypeSelectorEvent;
 
+    fn diff(&mut self, state: &mut Self::State) {
+        if let Some(selected) = self.selected
+            && state.synced_type_id.as_ref() != Some(&selected.id())
+        {
+            *state = self.state_for_type(selected);
+        }
+    }
+
     fn update(
         &mut self,
         state: &mut Self::State,
         event: Self::Event,
         _renderer: &GraphRenderer,
     ) -> Option<Message> {
+        if let Some(selected) = self.selected
+            && state.synced_type_id.is_none()
+        {
+            *state = self.state_for_type(selected);
+        }
+
         match event {
             GraphTypeSelectorEvent::ArrayToggled(array) => {
                 state.array = array;
@@ -107,10 +178,25 @@ impl<'a, Message> Component<'a, Message, GraphTheme, GraphRenderer>
                 state.selected = Some(choice);
             }
         }
-        Some((self.on_select)(self.resolve_type(state)))
+
+        let resolved = self.resolve_type(state);
+        if let Some(ty) = &resolved {
+            state.synced_type_id = Some(ty.id());
+        }
+        Some((self.on_select)(resolved))
     }
 
     fn view(&self, state: &Self::State) -> GraphElement<'a, Self::Event> {
+        let initial_state;
+        let state = if let Some(selected) = self.selected
+            && state.synced_type_id.is_none()
+        {
+            initial_state = self.state_for_type(selected);
+            &initial_state
+        } else {
+            state
+        };
+
         let options = self.type_options(state.array);
         let selected = state
             .selected
@@ -135,7 +221,10 @@ impl<'a, Message> Component<'a, Message, GraphTheme, GraphRenderer>
             );
         }
 
-        column![array_controls, selector].gap(4.0).into()
+        column![array_controls, selector]
+            .gap(4.0)
+            .width(Length::Fill)
+            .into()
     }
 }
 
@@ -162,6 +251,7 @@ pub struct GraphTypeSelectorState {
     array: bool,
     element_count: String,
     selected: Option<GraphTypeChoice>,
+    synced_type_id: Option<GraphValueTypeId>,
 }
 
 impl Default for GraphTypeSelectorState {
@@ -170,6 +260,7 @@ impl Default for GraphTypeSelectorState {
             array: false,
             element_count: "1".into(),
             selected: None,
+            synced_type_id: None,
         }
     }
 }
