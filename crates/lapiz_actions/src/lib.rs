@@ -22,7 +22,7 @@ use crate::{
     selection::DeleteSelectionAction,
     window::{
         OpenAssetTagEditorAction, OpenBrushEditorAction, OpenSettingsAction,
-        ToggleFilterPanelAction,
+        OpenShaderFunctionEditorAction, ToggleFilterPanelAction,
     },
 };
 
@@ -65,6 +65,7 @@ impl Plugin for ActionPlugin {
             .add_action_function::<PasteIntoNewLayerAction>()
             .add_action_function::<OpenAssetTagEditorAction>()
             .add_action_function::<OpenBrushEditorAction>()
+            .add_action_function::<OpenShaderFunctionEditorAction>()
             .add_action_function::<OpenSettingsAction>()
             .add_action_function::<ToggleFilterPanelAction>()
             .add_action_function::<UndoAction>()

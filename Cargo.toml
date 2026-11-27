@@ -40,6 +40,7 @@ members = [
     "crates/lapiz_runtime_derive",
     "crates/lapiz_selection_tool",
     "crates/lapiz_settings",
+    "crates/lapiz_shader_function_editor",
     "crates/lapiz_tools",
     "crates/lapiz_transform_tool",
     "crates/lapiz_undo",
@@ -97,6 +98,7 @@ lapiz_runtime = { path = "crates/lapiz_runtime", version = "0.1.0" }
 lapiz_runtime_derive = { path = "crates/lapiz_runtime_derive", version = "0.1.0" }
 lapiz_selection_tool = { path = "crates/lapiz_selection_tool", version = "0.1.0" }
 lapiz_settings = { path = "crates/lapiz_settings", version = "0.1.0" }
+lapiz_shader_function_editor = { path = "crates/lapiz_shader_function_editor", version = "0.1.0" }
 lapiz_tools = { path = "crates/lapiz_tools", version = "0.1.0" }
 lapiz_transform_tool = { path = "crates/lapiz_transform_tool", version = "0.1.0" }
 lapiz_undo = { path = "crates/lapiz_undo", version = "0.1.0" }
