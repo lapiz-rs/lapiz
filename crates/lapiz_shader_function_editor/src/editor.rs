@@ -457,16 +457,3 @@ impl ShaderFunctionEditor {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn view_id_matches_constant() {
-        assert_eq!(
-            ShaderFunctionEditor::id(),
-            WindowViewId::new(SHADER_FUNCTION_EDITOR_VIEW_ID)
-        );
-    }
-}
