@@ -161,7 +161,7 @@ macro_rules! vector_type {
                 ComponentMetadata::new($metadata)
             }
 
-            fn wgsl_type_name(&self) -> Option<&'static str> {
+            fn wgsl_variable_type_name(&self) -> Option<&'static str> {
                 Some($wgsl)
             }
             fn wgsl_array_element_stride(&self) -> Option<u64> {

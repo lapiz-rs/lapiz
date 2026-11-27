@@ -247,7 +247,7 @@ impl GraphValueType for F32Type {
         F32Metadata::default()
     }
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         Some("f32")
     }
     fn wgsl_array_element_stride(&self) -> Option<u64> {
@@ -450,7 +450,7 @@ impl GraphValueType for I32Type {
         I32Metadata::default()
     }
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         Some("i32")
     }
     fn wgsl_array_element_stride(&self) -> Option<u64> {
@@ -548,7 +548,7 @@ impl GraphValueType for U32Type {
         U32Metadata::default()
     }
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         Some("u32")
     }
     fn wgsl_array_element_stride(&self) -> Option<u64> {
@@ -645,7 +645,7 @@ impl GraphValueType for BoolType {
 
     fn default_metadata(&self) -> Self::MetadataType {}
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         Some("bool")
     }
 
@@ -678,7 +678,7 @@ impl GraphValueType for BoolType {
         push_storage_layout(stage, "u32", name, group, binding, bindings, shader)
     }
 
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
@@ -692,7 +692,7 @@ impl GraphValueType for BoolType {
         ))
     }
 
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,

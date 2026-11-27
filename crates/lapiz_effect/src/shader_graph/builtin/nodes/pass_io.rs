@@ -175,7 +175,7 @@ impl GraphNode for PassInputNode {
     ) -> Vec<GraphDefaultOutputSlot> {
         match &state.cached_ty {
             None => vec![],
-            Some(ty) => ty.push_output_slots(),
+            Some(ty) => ty.as_input_node_outputs(),
         }
     }
 
@@ -242,7 +242,7 @@ impl GraphNode for PassInputNode {
         };
         let name = pass_input_ident(state.id);
 
-        Ok(ty.handle_input_values(&name, 0, &mut ctx)?)
+        Ok(ty.transfer_input_variable_to_output_slot(&name, 0, &mut ctx)?)
     }
 
     fn as_pass_input(&self, state: &Self::State) -> Option<GraphNodeInputDef> {
@@ -480,11 +480,11 @@ impl GraphNode for PassOutputNode {
     ) -> Vec<GraphDefaultInputSlot> {
         match &state.output {
             None => vec![],
-            Some(PassOutput::Pass(def)) => def.ty.push_input_slots(),
+            Some(PassOutput::Pass(def)) => def.ty.as_output_node_inputs(),
             Some(PassOutput::Effect(_)) => state
                 .cached_ty
                 .as_ref()
-                .map_or_else(Vec::new, |ty| ty.push_input_slots()),
+                .map_or_else(Vec::new, |ty| ty.as_output_node_inputs()),
         }
     }
 
@@ -638,7 +638,7 @@ impl GraphNode for PassOutputNode {
         };
         let name = pass_output_ident(state.id);
 
-        Ok(ty.handle_output_values(&name, 0, &mut ctx)?)
+        Ok(ty.read_output_slot_to_input_variable(&name, 0, &mut ctx)?)
     }
 
     fn as_pass_output(&self, state: &Self::State) -> Option<GraphNodeOutputDef> {

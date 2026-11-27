@@ -237,7 +237,7 @@ impl GraphValueType for TextureType {
 
     fn default_metadata(&self) -> Self::MetadataType {}
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         None
     }
 
@@ -359,7 +359,7 @@ impl GraphValueType for LayerType {
         })
     }
 
-    fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot> {
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
         let color = match self.texel_type {
             TexelType::RGBA8 => GraphDefaultInputSlot::new::<ColorType>("color".into()),
             TexelType::A8 => GraphDefaultInputSlot::new::<F32Type>("alpha".into()),
@@ -370,7 +370,7 @@ impl GraphValueType for LayerType {
         ]
     }
 
-    fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot> {
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
         let color = match self.texel_type {
             TexelType::RGBA8 => GraphDefaultOutputSlot::new::<ColorType>("color".into()),
             TexelType::A8 => GraphDefaultOutputSlot::new::<F32Type>("alpha".into()),
@@ -381,7 +381,7 @@ impl GraphValueType for LayerType {
         ]
     }
 
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
@@ -404,7 +404,7 @@ impl GraphValueType for LayerType {
         Ok(format!("{}\n{}", color_stmt, bounds_stmt))
     }
 
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,
@@ -749,7 +749,7 @@ impl GraphValueType for LayerType {
 
     fn default_metadata(&self) -> Self::MetadataType {}
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         None
     }
 
@@ -812,21 +812,21 @@ impl GraphValueType for ArrayType {
         GraphValueTypeId::new(format!("array_{}_{}", self.element_type.id().id, self.len))
     }
 
-    fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot> {
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
         vec![
             GraphDefaultInputSlot::new::<I32Type>("index".into()),
             GraphDefaultInputSlot::new_boxed("value".into(), self.element_type.clone()),
         ]
     }
 
-    fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot> {
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
         vec![GraphDefaultOutputSlot::new_boxed(
             "value".into(),
             self.element_type.clone(),
         )]
     }
 
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
@@ -840,7 +840,7 @@ impl GraphValueType for ArrayType {
         Ok(format!("{}\n", quote_statement! { let #output = #loaded; }))
     }
 
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,
@@ -967,7 +967,7 @@ impl GraphValueType for ArrayType {
 
     fn default_metadata(&self) -> Self::MetadataType {}
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         None
     }
 

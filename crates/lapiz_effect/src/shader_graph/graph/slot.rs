@@ -164,8 +164,10 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
     type PreparedShaderType: GraphShaderLiteralValue;
     type Message: GraphLiteralUpdateMessage;
 
+    /// Id of the value type.
     fn id(&self) -> GraphValueTypeId;
 
+    /// Add the binding layout of this type to shader file and pipeline layout.
     fn push_shader_layout(
         &self,
         name: &str,
@@ -175,6 +177,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         bindings: DynamicBindGroupLayoutEntries,
         shader: String,
     ) -> Result<(u32, DynamicBindGroupLayoutEntries, String)>;
+    /// Add the binding of prepared value of this type to bind group.
     fn push_shader_binding<'a>(
         &self,
         stage: GraphShaderStage,
@@ -182,6 +185,12 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         binding: u32,
         bindings: DynamicBindGroupEntries<'a>,
     ) -> Result<(u32, DynamicBindGroupEntries<'a>)>;
+    /// Inject extra shader body into built shader. Used in LayerType to generate helpers like xxx_load and xxx_store.
+    fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
+        None
+    }
+
+    /// Prepare the value to gpu buffers and textures.
     fn prepare_to_shader(
         &self,
         data: &Self::ValueType,
@@ -189,21 +198,24 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         queue: &Queue,
     ) -> Result<Self::PreparedShaderType>;
 
-    fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot>
+    /// When the type is use in an output node, what input it requires.
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot>
     where
         Self: Sized,
     {
         let ty = Arc::<Self>::from(dyn_clone::clone_box(self));
         vec![GraphDefaultInputSlot::new_boxed("value".into(), ty)]
     }
-    fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot>
+    /// When the type is use in an input node, what it outputs.
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>
     where
         Self: Sized,
     {
         let ty = Arc::<Self>::from(dyn_clone::clone_box(self));
         vec![GraphDefaultOutputSlot::new_boxed("value".into(), ty)]
     }
-    fn handle_input_values(
+    /// Transfers the input variable to the output slot so the expression in output slot can be used in another node.
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
@@ -216,7 +228,8 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         );
         Ok(String::new())
     }
-    fn handle_output_values(
+    /// Reads the output slot to an target variable.
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,
@@ -227,9 +240,11 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         Ok(quote_statement! { @if(!EVAL) { #output = #value; } }.to_string())
     }
 
+    /// Returns whether the value requires evaluation before main pass in shader.
     fn requires_eval(&self) -> bool {
         false
     }
+    /// Post-evaluation hook that can be used to modify the value before it is used in a shader.
     fn post_eval(
         &self,
         _value: &mut Self::PreparedShaderType,
@@ -241,13 +256,17 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
 
     fn default_literal(&self) -> Self::ValueType;
     fn default_metadata(&self) -> Self::MetadataType;
-    fn wgsl_type_name(&self) -> Option<&'static str>;
+    /// Returns the WGSL variable type name for this value type.
+    fn wgsl_variable_type_name(&self) -> Option<&'static str>;
+    /// Returns the WGSL storage type name for this value type.
     fn wgsl_storage_type_name(&self) -> Option<&'static str> {
-        self.wgsl_type_name()
+        self.wgsl_variable_type_name()
     }
+    /// Decodes the storage expression for this value type.
     fn decode_storage_expr(&self, expr: Expression) -> Expression {
         expr
     }
+    /// Encodes the storage expression for this value type.
     fn encode_storage_expr(&self, expr: Expression) -> Expression {
         expr
     }
@@ -269,10 +288,6 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         message: Self::Message,
     );
     fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression>;
-
-    fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
-        None
-    }
 
     fn serialize_literal(
         &self,
@@ -336,6 +351,10 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
         binding: u32,
         bindings: DynamicBindGroupEntries<'a>,
     ) -> Result<(u32, DynamicBindGroupEntries<'a>)>;
+    fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
+        None
+    }
+
     fn prepare_to_shader(
         &self,
         data: &dyn GraphLiteralValue,
@@ -343,24 +362,15 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
         queue: &Queue,
     ) -> Result<Box<dyn GraphShaderLiteralValue>>;
 
-    // These three values are used in effect passes to allow types to be able to
-    // customize its own behavior
-    // TODO better naming
-    fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot>;
-    // TODO better naming
-    fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot>;
-    // TODO better naming
-    // This actually means to read the value of this type from shader binding.
-    // For general types, it just copies the identifier. But for special types like
-    // layer, the pixel value needs to call a helper to get.
-    fn handle_input_values(
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot>;
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>;
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
         ctx: &mut GraphNodeCodeGenContext,
     ) -> Result<String>;
-    // TODO better naming
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,
@@ -376,15 +386,9 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
         queue: &Queue,
     ) -> Result<()>;
 
-    // Inject extra shader body into built shader
-    // Used in LayerType to generate helpers like xxx_load and xxx_store
-    fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
-        None
-    }
-
     fn default_literal(&self) -> Box<dyn GraphLiteralValue>;
     fn default_metadata(&self) -> Box<dyn GraphLiteralMetadata>;
-    fn wgsl_type_name(&self) -> Option<&'static str>;
+    fn wgsl_variable_type_name(&self) -> Option<&'static str>;
     fn wgsl_storage_type_name(&self) -> Option<&'static str>;
     fn decode_storage_expr(&self, expr: Expression) -> Expression;
     fn encode_storage_expr(&self, expr: Expression) -> Expression;
@@ -474,30 +478,30 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         )?))
     }
 
-    fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot> {
-        GraphValueType::push_input_slots(self)
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
+        GraphValueType::as_output_node_inputs(self)
     }
 
-    fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot> {
-        GraphValueType::push_output_slots(self)
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
+        GraphValueType::as_input_node_outputs(self)
     }
 
-    fn handle_input_values(
+    fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
         base_index: usize,
         ctx: &mut GraphNodeCodeGenContext,
     ) -> Result<String> {
-        GraphValueType::handle_input_values(self, input_name, base_index, ctx)
+        GraphValueType::transfer_input_variable_to_output_slot(self, input_name, base_index, ctx)
     }
 
-    fn handle_output_values(
+    fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
         base_index: usize,
         ctx: &mut GraphNodeCodeGenContext,
     ) -> Result<String> {
-        GraphValueType::handle_output_values(self, output_name, base_index, ctx)
+        GraphValueType::read_output_slot_to_input_variable(self, output_name, base_index, ctx)
     }
 
     fn requires_eval(&self) -> bool {
@@ -532,8 +536,8 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         Box::new(self.default_metadata())
     }
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
-        GraphValueType::wgsl_type_name(self)
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
+        GraphValueType::wgsl_variable_type_name(self)
     }
 
     fn wgsl_storage_type_name(&self) -> Option<&'static str> {

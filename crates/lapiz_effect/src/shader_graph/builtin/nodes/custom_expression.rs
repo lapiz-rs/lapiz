@@ -829,7 +829,7 @@ impl GraphNode for CustomExpressionNode {
             }
             let ty = variable
                 .ty
-                .wgsl_type_name()
+                .wgsl_variable_type_name()
                 .ok_or_else(|| GraphNodeCodeGenError::Custom(anyhow!("Invalid type")))?;
             code.push_str(&quote_statement! { var #output: #ty; }.to_string());
             code.push('\n');
@@ -848,7 +848,7 @@ impl GraphNode for CustomExpressionNode {
             let name = variable.name.clone();
             let ty = variable
                 .ty
-                .wgsl_type_name()
+                .wgsl_variable_type_name()
                 .ok_or_else(|| GraphNodeCodeGenError::Custom(anyhow!("Invalid type")))?;
             code.push_str(&quote_statement! { var #name: #ty; }.to_string());
             code.push('\n');

@@ -98,15 +98,15 @@ macro_rules! atomic_type {
                 prepare_uniform_storage(data, device, concat!("graph ", $id, " literal"))
             }
 
-            fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot> {
+            fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
                 vec![GraphDefaultInputSlot::new::<$plain>("value".into())]
             }
 
-            fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot> {
+            fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
                 vec![GraphDefaultOutputSlot::new::<$plain>("value".into())]
             }
 
-            fn handle_input_values(
+            fn transfer_input_variable_to_output_slot(
                 &self,
                 input_name: &str,
                 base_index: usize,
@@ -121,7 +121,7 @@ macro_rules! atomic_type {
                 Ok(String::new())
             }
 
-            fn handle_output_values(
+            fn read_output_slot_to_input_variable(
                 &self,
                 output_name: &str,
                 base_index: usize,
@@ -138,7 +138,7 @@ macro_rules! atomic_type {
 
             fn default_metadata(&self) -> Self::MetadataType {}
 
-            fn wgsl_type_name(&self) -> Option<&'static str> {
+            fn wgsl_variable_type_name(&self) -> Option<&'static str> {
                 None
             }
 
@@ -244,18 +244,18 @@ macro_rules! atomic_array_type {
                 Ok(PreparedAtomicArray { buffer, len: self.len })
             }
 
-            fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot> {
+            fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
                 vec![
                     GraphDefaultInputSlot::new::<I32Type>("index".into()),
                     GraphDefaultInputSlot::new::<$plain>("value".into()),
                 ]
             }
 
-            fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot> {
+            fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
                 vec![GraphDefaultOutputSlot::new::<$plain>("value".into())]
             }
 
-            fn handle_input_values(
+            fn transfer_input_variable_to_output_slot(
                 &self,
                 input_name: &str,
                 base_index: usize,
@@ -270,7 +270,7 @@ macro_rules! atomic_array_type {
                 Ok(String::new())
             }
 
-            fn handle_output_values(
+            fn read_output_slot_to_input_variable(
                 &self,
                 output_name: &str,
                 base_index: usize,
@@ -291,7 +291,7 @@ macro_rules! atomic_array_type {
 
             fn default_metadata(&self) -> Self::MetadataType {}
 
-            fn wgsl_type_name(&self) -> Option<&'static str> {
+            fn wgsl_variable_type_name(&self) -> Option<&'static str> {
                 None
             }
 
