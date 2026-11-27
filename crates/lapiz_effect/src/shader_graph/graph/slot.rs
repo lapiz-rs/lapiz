@@ -164,8 +164,10 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
     type PreparedShaderType: GraphShaderLiteralValue;
     type Message: GraphLiteralUpdateMessage;
 
+    /// Id of the value type.
     fn id(&self) -> GraphValueTypeId;
 
+    /// Add the binding layout of this type to shader file and pipeline layout.
     fn push_shader_layout(
         &self,
         name: &str,
@@ -175,6 +177,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         bindings: DynamicBindGroupLayoutEntries,
         shader: String,
     ) -> Result<(u32, DynamicBindGroupLayoutEntries, String)>;
+    /// Add the binding of prepared value of this type to bind group.
     fn push_shader_binding<'a>(
         &self,
         stage: GraphShaderStage,
@@ -182,10 +185,12 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         binding: u32,
         bindings: DynamicBindGroupEntries<'a>,
     ) -> Result<(u32, DynamicBindGroupEntries<'a>)>;
+    /// Inject extra shader body into built shader. Used in LayerType to generate helpers like xxx_load and xxx_store.
     fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
         None
     }
 
+    /// Prepare the value to gpu buffers and textures.
     fn prepare_to_shader(
         &self,
         data: &Self::ValueType,
@@ -193,6 +198,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         queue: &Queue,
     ) -> Result<Self::PreparedShaderType>;
 
+    /// When the type is use in an input node, what it outputs.
     fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot>
     where
         Self: Sized,
@@ -200,6 +206,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         let ty = Arc::<Self>::from(dyn_clone::clone_box(self));
         vec![GraphDefaultInputSlot::new_boxed("value".into(), ty)]
     }
+    /// When the type is use in an output node, what inputs it requires.
     fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>
     where
         Self: Sized,
@@ -207,6 +214,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         let ty = Arc::<Self>::from(dyn_clone::clone_box(self));
         vec![GraphDefaultOutputSlot::new_boxed("value".into(), ty)]
     }
+    /// Transfers the input variable to the output slot so the expression in output slot can be used in another node.
     fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
@@ -220,6 +228,7 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         );
         Ok(String::new())
     }
+    /// Reads the output slot to an target variable.
     fn read_output_slot_to_input_variable(
         &self,
         output_name: &str,
@@ -231,9 +240,11 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         Ok(quote_statement! { @if(!EVAL) { #output = #value; } }.to_string())
     }
 
+    /// Returns whether the value requires evaluation before main pass in shader.
     fn requires_eval(&self) -> bool {
         false
     }
+    /// Post-evaluation hook that can be used to modify the value before it is used in a shader.
     fn post_eval(
         &self,
         _value: &mut Self::PreparedShaderType,
@@ -245,13 +256,17 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
 
     fn default_literal(&self) -> Self::ValueType;
     fn default_metadata(&self) -> Self::MetadataType;
+    /// Returns the WGSL variable type name for this value type.
     fn wgsl_variable_type_name(&self) -> Option<&'static str>;
+    /// Returns the WGSL storage type name for this value type.
     fn wgsl_storage_type_name(&self) -> Option<&'static str> {
         self.wgsl_variable_type_name()
     }
+    /// Decodes the storage expression for this value type.
     fn decode_storage_expr(&self, expr: Expression) -> Expression {
         expr
     }
+    /// Encodes the storage expression for this value type.
     fn encode_storage_expr(&self, expr: Expression) -> Expression {
         expr
     }
@@ -336,8 +351,6 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
         binding: u32,
         bindings: DynamicBindGroupEntries<'a>,
     ) -> Result<(u32, DynamicBindGroupEntries<'a>)>;
-    // Inject extra shader body into built shader
-    // Used in LayerType to generate helpers like xxx_load and xxx_store
     fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
         None
     }
