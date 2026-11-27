@@ -160,12 +160,17 @@ impl WindowView for FilterEditor {
                 scrollable(Flex::column(filter_list).gap(2.0))
                     .width(Length::Fill)
                     .height(Length::Fill),
-                button(label(t!("new_filter"))).on_press(FilterEditorMessage::NewFilter),
+                button(label(t!("new_filter")))
+                    .width(Length::Fill)
+                    .on_press(FilterEditorMessage::NewFilter),
             ]
-            .gap(6.0),
+            .gap(6.0)
+            .width(Length::Fill)
+            .height(Length::Fill),
         )
         .padding(8)
-        .width(220);
+        .width(220)
+        .height(Length::Fill);
 
         let empty = || -> EditorElement<'_> { label("").into() };
         let (naming, effect_editor, parameters) = match self.selected.as_ref() {
@@ -178,12 +183,23 @@ impl WindowView for FilterEditor {
         };
 
         // Region 2: naming on top, effect editor filling the rest.
-        let center = column![naming, effect_editor].gap(6.0).height(Length::Fill);
+        let center = column![naming, effect_editor]
+            .gap(6.0)
+            .width(Length::Fill)
+            .height(Length::Fill);
 
-        panel(column![
-            titlebar,
-            row![sidebar, center, parameters].gap(8.0)
-        ])
+        panel(
+            column![
+                titlebar,
+                row![sidebar, center, parameters]
+                    .gap(8.0)
+                    .width(Length::Fill)
+                    .height(Length::Fill),
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill),
+        )
+        .width(Length::Fill)
         .height(Length::Fill)
     }
 
