@@ -362,8 +362,8 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
         queue: &Queue,
     ) -> Result<Box<dyn GraphShaderLiteralValue>>;
 
-    fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot>;
-    fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>;
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot>;
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>;
     fn transfer_input_variable_to_output_slot(
         &self,
         input_name: &str,
@@ -478,11 +478,11 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         )?))
     }
 
-    fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
         GraphValueType::as_output_node_inputs(self)
     }
 
-    fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
         GraphValueType::as_input_node_outputs(self)
     }
 
