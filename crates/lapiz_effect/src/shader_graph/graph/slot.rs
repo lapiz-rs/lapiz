@@ -182,6 +182,10 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         binding: u32,
         bindings: DynamicBindGroupEntries<'a>,
     ) -> Result<(u32, DynamicBindGroupEntries<'a>)>;
+    fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
+        None
+    }
+
     fn prepare_to_shader(
         &self,
         data: &Self::ValueType,
@@ -270,10 +274,6 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
     );
     fn literal_to_code(&self, data: &Self::ValueType) -> Option<Expression>;
 
-    fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
-        None
-    }
-
     fn serialize_literal(
         &self,
         data: &Self::ValueType,
@@ -336,6 +336,12 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
         binding: u32,
         bindings: DynamicBindGroupEntries<'a>,
     ) -> Result<(u32, DynamicBindGroupEntries<'a>)>;
+    // Inject extra shader body into built shader
+    // Used in LayerType to generate helpers like xxx_load and xxx_store
+    fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
+        None
+    }
+
     fn prepare_to_shader(
         &self,
         data: &dyn GraphLiteralValue,
@@ -373,12 +379,6 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
         device: &Device,
         queue: &Queue,
     ) -> Result<()>;
-
-    // Inject extra shader body into built shader
-    // Used in LayerType to generate helpers like xxx_load and xxx_store
-    fn generate_extra_shader_body(&self, _stage: GraphShaderStage, _name: &str) -> Option<String> {
-        None
-    }
 
     fn default_literal(&self) -> Box<dyn GraphLiteralValue>;
     fn default_metadata(&self) -> Box<dyn GraphLiteralMetadata>;
