@@ -4,7 +4,7 @@ use std::{
 };
 
 use futures::executor::block_on;
-use lapiz_runtime::renderer::RenderContext;
+use lapiz_runtime::renderer::{DevicePoller, RenderContext};
 use moxcms::{
     CicpColorPrimaries, CicpProfile, DataColorSpace, Lab, LutDataType, LutMultidimensionalType,
     LutStore, LutType, LutWarehouse, Matrix3d, MatrixCoefficients, RenderingIntent, ToneReprCurve,
@@ -44,12 +44,14 @@ static TEST_CONTEXT: LazyLock<RenderContext> = LazyLock::new(|| {
             .await
             .expect("Failed to request an ICC test device");
         device.on_uncaptured_error(Arc::new(|error| panic!("{error}")));
+        let poller = DevicePoller::spawn(device.clone());
 
         RenderContext {
             instance,
             adapter,
             device,
             queue,
+            poller,
         }
     })
 });
