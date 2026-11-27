@@ -67,7 +67,7 @@ impl GraphValueType for ColorType {
         ColorMetadata::new(F32Metadata::zero_to_one())
     }
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         Some("vec4f")
     }
 
@@ -180,7 +180,7 @@ impl GraphValueType for RectType {
         RectMetadata::new(F32Metadata::zero_to_one())
     }
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         Some("render::math::Rect")
     }
 

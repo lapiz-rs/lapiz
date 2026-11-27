@@ -431,7 +431,7 @@ impl BrushPresetInstance {
         let (_, _, code, extra_shader_body) =
             graph.compile(Vec::new(), GraphVarIdentGenerator::default())?;
         let output = pass_output_ident(spacing_port);
-        let output_ty = spacing_ty.wgsl_type_name().with_context(|| {
+        let output_ty = spacing_ty.wgsl_variable_type_name().with_context(|| {
             format!(
                 "Brush spacing output must be a nameable value type, got '{}'",
                 spacing_ty.id().id

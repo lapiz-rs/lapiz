@@ -154,7 +154,7 @@ impl GraphValueType for ComputedPenInputValueType {
 
     fn default_metadata(&self) -> Self::MetadataType {}
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
         None
     }
     fn hue_chroma(&self) -> (f32, f32) {

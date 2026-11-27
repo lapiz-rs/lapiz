@@ -138,7 +138,7 @@ macro_rules! atomic_type {
 
             fn default_metadata(&self) -> Self::MetadataType {}
 
-            fn wgsl_type_name(&self) -> Option<&'static str> {
+            fn wgsl_variable_type_name(&self) -> Option<&'static str> {
                 None
             }
 
@@ -291,7 +291,7 @@ macro_rules! atomic_array_type {
 
             fn default_metadata(&self) -> Self::MetadataType {}
 
-            fn wgsl_type_name(&self) -> Option<&'static str> {
+            fn wgsl_variable_type_name(&self) -> Option<&'static str> {
                 None
             }
 

@@ -241,9 +241,9 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
 
     fn default_literal(&self) -> Self::ValueType;
     fn default_metadata(&self) -> Self::MetadataType;
-    fn wgsl_type_name(&self) -> Option<&'static str>;
+    fn wgsl_variable_type_name(&self) -> Option<&'static str>;
     fn wgsl_storage_type_name(&self) -> Option<&'static str> {
-        self.wgsl_type_name()
+        self.wgsl_variable_type_name()
     }
     fn decode_storage_expr(&self, expr: Expression) -> Expression {
         expr
@@ -382,7 +382,7 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
 
     fn default_literal(&self) -> Box<dyn GraphLiteralValue>;
     fn default_metadata(&self) -> Box<dyn GraphLiteralMetadata>;
-    fn wgsl_type_name(&self) -> Option<&'static str>;
+    fn wgsl_variable_type_name(&self) -> Option<&'static str>;
     fn wgsl_storage_type_name(&self) -> Option<&'static str>;
     fn decode_storage_expr(&self, expr: Expression) -> Expression;
     fn encode_storage_expr(&self, expr: Expression) -> Expression;
@@ -530,8 +530,8 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         Box::new(self.default_metadata())
     }
 
-    fn wgsl_type_name(&self) -> Option<&'static str> {
-        GraphValueType::wgsl_type_name(self)
+    fn wgsl_variable_type_name(&self) -> Option<&'static str> {
+        GraphValueType::wgsl_variable_type_name(self)
     }
 
     fn wgsl_storage_type_name(&self) -> Option<&'static str> {
