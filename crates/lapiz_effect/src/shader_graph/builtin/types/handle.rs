@@ -359,7 +359,7 @@ impl GraphValueType for LayerType {
         })
     }
 
-    fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
         let color = match self.texel_type {
             TexelType::RGBA8 => GraphDefaultInputSlot::new::<ColorType>("color".into()),
             TexelType::A8 => GraphDefaultInputSlot::new::<F32Type>("alpha".into()),
@@ -370,7 +370,7 @@ impl GraphValueType for LayerType {
         ]
     }
 
-    fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
         let color = match self.texel_type {
             TexelType::RGBA8 => GraphDefaultOutputSlot::new::<ColorType>("color".into()),
             TexelType::A8 => GraphDefaultOutputSlot::new::<F32Type>("alpha".into()),
@@ -812,14 +812,14 @@ impl GraphValueType for ArrayType {
         GraphValueTypeId::new(format!("array_{}_{}", self.element_type.id().id, self.len))
     }
 
-    fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
         vec![
             GraphDefaultInputSlot::new::<I32Type>("index".into()),
             GraphDefaultInputSlot::new_boxed("value".into(), self.element_type.clone()),
         ]
     }
 
-    fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
         vec![GraphDefaultOutputSlot::new_boxed(
             "value".into(),
             self.element_type.clone(),

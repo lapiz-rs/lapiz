@@ -198,16 +198,16 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         queue: &Queue,
     ) -> Result<Self::PreparedShaderType>;
 
-    /// When the type is use in an input node, what it outputs.
-    fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot>
+    /// When the type is use in an output node, what input it requires.
+    fn as_output_node_inputs(&self) -> Vec<GraphDefaultInputSlot>
     where
         Self: Sized,
     {
         let ty = Arc::<Self>::from(dyn_clone::clone_box(self));
         vec![GraphDefaultInputSlot::new_boxed("value".into(), ty)]
     }
-    /// When the type is use in an output node, what inputs it requires.
-    fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>
+    /// When the type is use in an input node, what it outputs.
+    fn as_input_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>
     where
         Self: Sized,
     {
@@ -479,11 +479,11 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
     }
 
     fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
-        GraphValueType::as_input_node_inputs(self)
+        GraphValueType::as_output_node_inputs(self)
     }
 
     fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
-        GraphValueType::as_output_node_outputs(self)
+        GraphValueType::as_input_node_outputs(self)
     }
 
     fn transfer_input_variable_to_output_slot(
