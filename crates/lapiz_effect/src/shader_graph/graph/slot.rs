@@ -189,14 +189,14 @@ pub trait GraphValueType: Send + Sync + 'static + DynClone {
         queue: &Queue,
     ) -> Result<Self::PreparedShaderType>;
 
-    fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot>
+    fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot>
     where
         Self: Sized,
     {
         let ty = Arc::<Self>::from(dyn_clone::clone_box(self));
         vec![GraphDefaultInputSlot::new_boxed("value".into(), ty)]
     }
-    fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot>
+    fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>
     where
         Self: Sized,
     {
@@ -345,10 +345,8 @@ pub trait ErasedGraphValueType: Send + Sync + 'static + DynClone + Downcast {
 
     // These three values are used in effect passes to allow types to be able to
     // customize its own behavior
-    // TODO better naming
-    fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot>;
-    // TODO better naming
-    fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot>;
+    fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot>;
+    fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot>;
     // TODO better naming
     // This actually means to read the value of this type from shader binding.
     // For general types, it just copies the identifier. But for special types like
@@ -474,12 +472,12 @@ impl<T: GraphValueType> ErasedGraphValueType for T {
         )?))
     }
 
-    fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot> {
-        GraphValueType::push_input_slots(self)
+    fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
+        GraphValueType::as_input_node_inputs(self)
     }
 
-    fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot> {
-        GraphValueType::push_output_slots(self)
+    fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
+        GraphValueType::as_output_node_outputs(self)
     }
 
     fn handle_input_values(

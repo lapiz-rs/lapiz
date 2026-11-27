@@ -175,7 +175,7 @@ impl GraphNode for PassInputNode {
     ) -> Vec<GraphDefaultOutputSlot> {
         match &state.cached_ty {
             None => vec![],
-            Some(ty) => ty.push_output_slots(),
+            Some(ty) => ty.as_output_node_outputs(),
         }
     }
 
@@ -480,11 +480,11 @@ impl GraphNode for PassOutputNode {
     ) -> Vec<GraphDefaultInputSlot> {
         match &state.output {
             None => vec![],
-            Some(PassOutput::Pass(def)) => def.ty.push_input_slots(),
+            Some(PassOutput::Pass(def)) => def.ty.as_input_node_inputs(),
             Some(PassOutput::Effect(_)) => state
                 .cached_ty
                 .as_ref()
-                .map_or_else(Vec::new, |ty| ty.push_input_slots()),
+                .map_or_else(Vec::new, |ty| ty.as_input_node_inputs()),
         }
     }
 

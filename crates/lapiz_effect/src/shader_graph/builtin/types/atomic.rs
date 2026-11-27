@@ -98,11 +98,11 @@ macro_rules! atomic_type {
                 prepare_uniform_storage(data, device, concat!("graph ", $id, " literal"))
             }
 
-            fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot> {
+            fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
                 vec![GraphDefaultInputSlot::new::<$plain>("value".into())]
             }
 
-            fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot> {
+            fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
                 vec![GraphDefaultOutputSlot::new::<$plain>("value".into())]
             }
 
@@ -244,14 +244,14 @@ macro_rules! atomic_array_type {
                 Ok(PreparedAtomicArray { buffer, len: self.len })
             }
 
-            fn push_input_slots(&self) -> Vec<GraphDefaultInputSlot> {
+            fn as_input_node_inputs(&self) -> Vec<GraphDefaultInputSlot> {
                 vec![
                     GraphDefaultInputSlot::new::<I32Type>("index".into()),
                     GraphDefaultInputSlot::new::<$plain>("value".into()),
                 ]
             }
 
-            fn push_output_slots(&self) -> Vec<GraphDefaultOutputSlot> {
+            fn as_output_node_outputs(&self) -> Vec<GraphDefaultOutputSlot> {
                 vec![GraphDefaultOutputSlot::new::<$plain>("value".into())]
             }
 
