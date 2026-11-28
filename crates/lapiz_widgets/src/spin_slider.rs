@@ -223,10 +223,6 @@ where
         self.snap_f64(value.as_() + self.step.as_() * direction)
     }
 
-    fn snap(&self, value: T) -> T {
-        self.snap_f64(value.as_())
-    }
-
     fn snap_f64(&self, value: f64) -> T {
         let start = AsPrimitive::<f64>::as_(*self.range.start());
         let end = AsPrimitive::<f64>::as_(*self.range.end());
@@ -239,6 +235,15 @@ where
             val.clamp(start, end)
         }
         .as_()
+    }
+
+    fn round(&self, value: T) -> T {
+        AsPrimitive::<T>::as_(self.round_f64(value.as_()))
+    }
+
+    fn round_f64(&self, value: f64) -> f64 {
+        let precision = 10f64.powf(self.precision as f64);
+        (value * precision).round() / precision
     }
 
     fn value_to_percentage(&self, value: T) -> f32 {
@@ -413,7 +418,7 @@ where
                         let Ok(value) = value.parse::<T>() else {
                             continue;
                         };
-                        let value = self.snap(value);
+                        let value = self.round(value);
                         if value != self.value {
                             if let Some(on_change) = &self.on_change {
                                 shell.publish((*on_change)(value));
@@ -465,7 +470,7 @@ where
                 return;
             }
 
-            let edited_value = value.parse::<T>().ok().map(|value| self.snap(value));
+            let edited_value = value.parse::<T>().ok().map(|value| self.round(value));
             state.interaction = SpinSliderState::Idle;
             {
                 let mut input = self.text_input("", input_height);
