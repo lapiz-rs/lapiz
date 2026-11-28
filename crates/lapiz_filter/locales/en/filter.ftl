@@ -14,6 +14,7 @@ no_external_variables = No external variables.
 parameters = Parameters
 select_a_filter_to_adjust = Select a filter to adjust its parameters.
 cancel = Cancel
+create = Create
 blend_with_input_node = Blend With Input
 blend_with_layer_node = Blend With Layer
 input_bounds_node = Input Bounds

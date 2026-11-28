@@ -7,7 +7,7 @@ use iced_runtime::{
     Task,
     window::{close, drag, minimize, open, toggle_maximize},
 };
-use lapiz_assets::{AssetAppExt as _, asset::AssetHandle};
+use lapiz_assets::{AssetAppExt as _, asset::AssetHandle, loader::AssetSerializer as _};
 use lapiz_effect::{
     asset::{EffectInputSlotId, EffectOutputSlotId},
     editor::{EffectEditor, EffectEditorMessage},
@@ -32,7 +32,7 @@ use lapiz_widgets::{
 use uuid::Uuid;
 
 use crate::{
-    asset::{FilterPreset, FilterPresetMetadata},
+    asset::{FilterPreset, FilterPresetMetadata, FilterPresetSerializer},
     instance::{FilterInstance, FilterParameter},
     render::graph::filter_graph_resources,
 };
@@ -53,6 +53,7 @@ pub struct FilterEditor {
     selected: Option<SelectedFilter>,
     graph_resources: GraphResources,
     filter_name_buffer: String,
+    creating_filter_name: Option<String>,
     dirty: bool,
     validation_error: Option<String>,
 }
@@ -67,7 +68,10 @@ pub struct SelectedFilter {
 #[derive(Clone)]
 pub enum FilterEditorMessage {
     SelectFilter(usize),
-    NewFilter,
+    ToggleNewFilter,
+    NewFilterNameChanged(String),
+    ConfirmNewFilter,
+    CancelNewFilter,
     FilterNameChanged(String),
     Save,
     Effect(EffectEditorMessage),
@@ -118,6 +122,7 @@ impl WindowView for FilterEditor {
                 selected: None,
                 graph_resources: filter_graph_resources(globals.assets().clone()),
                 filter_name_buffer: String::new(),
+                creating_filter_name: None,
                 dirty: false,
                 validation_error: None,
             },
@@ -154,23 +159,55 @@ impl WindowView for FilterEditor {
             .collect::<Vec<_>>();
 
         // Region 1: pick or create a filter.
-        let sidebar = panel(
-            column![
-                label(t!("filters")).strong(),
-                scrollable(Flex::column(filter_list).gap(2.0))
-                    .width(Length::Fill)
-                    .height(Length::Fill),
-                button(label(t!("new_filter")))
-                    .width(Length::Fill)
-                    .on_press(FilterEditorMessage::NewFilter),
-            ]
-            .gap(6.0)
-            .width(Length::Fill)
-            .height(Length::Fill),
-        )
-        .padding(8)
-        .width(220)
+        let mut sidebar_content = column![
+            label(t!("filters")).strong(),
+            scrollable(Flex::column(filter_list).gap(2.0))
+                .width(Length::Fill)
+                .height(Length::Fill),
+            button(label(t!("new_filter")))
+                .width(Length::Fill)
+                .activated(self.creating_filter_name.is_some())
+                .on_press(FilterEditorMessage::ToggleNewFilter),
+        ]
+        .gap(6.0)
+        .width(Length::Fill)
         .height(Length::Fill);
+
+        if let Some(name) = self.creating_filter_name.as_deref() {
+            let can_confirm = sanitize_asset_file_stem(name).is_some();
+            let create_box = panel(
+                column![
+                    text_input(&t!("name"), name)
+                        .compact()
+                        .width(Length::Fill)
+                        .on_input(FilterEditorMessage::NewFilterNameChanged)
+                        .on_submit_maybe(
+                            can_confirm.then_some(FilterEditorMessage::ConfirmNewFilter),
+                        ),
+                    row![
+                        button(label(t!("create")))
+                            .primary()
+                            .width(Length::Fill)
+                            .on_press_maybe(
+                                can_confirm.then_some(FilterEditorMessage::ConfirmNewFilter),
+                            ),
+                        button(label(t!("cancel")))
+                            .width(Length::Fill)
+                            .on_press(FilterEditorMessage::CancelNewFilter),
+                    ]
+                    .gap(4.0),
+                ]
+                .gap(4.0),
+            )
+            .padding(6)
+            .width(Length::Fill);
+            sidebar_content = sidebar_content.push(create_box);
+        }
+
+        let sidebar = panel(sidebar_content)
+            .padding(8)
+            .width(220)
+            .height(Length::Fill);
 
         let empty = || -> EditorElement<'_> { label("").into() };
         let (naming, effect_editor, parameters) = match self.selected.as_ref() {
@@ -210,7 +247,30 @@ impl WindowView for FilterEditor {
     ) -> impl Into<Task<Self::Message>> {
         match message {
             FilterEditorMessage::SelectFilter(index) => self.select_filter(index, globals),
-            FilterEditorMessage::NewFilter => self.new_filter(globals),
+            FilterEditorMessage::ToggleNewFilter => {
+                if self.creating_filter_name.is_some() {
+                    self.creating_filter_name = None;
+                } else {
+                    self.creating_filter_name = Some(String::new());
+                }
+                Task::none()
+            }
+            FilterEditorMessage::NewFilterNameChanged(name) => {
+                if let Some(buffer) = self.creating_filter_name.as_mut() {
+                    *buffer = name;
+                }
+                Task::none()
+            }
+            FilterEditorMessage::ConfirmNewFilter => {
+                let Some(name) = self.creating_filter_name.clone() else {
+                    return Task::none();
+                };
+                self.new_filter(name, globals)
+            }
+            FilterEditorMessage::CancelNewFilter => {
+                self.creating_filter_name = None;
+                Task::none()
+            }
             FilterEditorMessage::FilterNameChanged(name) => {
                 self.filter_name_buffer = name.clone();
                 if let Some(selected) = self.selected.as_mut() {
@@ -384,7 +444,12 @@ impl FilterEditor {
         Task::none()
     }
 
-    fn new_filter(&mut self, globals: &mut Globals) -> Task<FilterEditorMessage> {
+    fn new_filter(&mut self, name: String, globals: &mut Globals) -> Task<FilterEditorMessage> {
+        let display_name = name.trim();
+        let Some(file_stem) = sanitize_asset_file_stem(display_name) else {
+            return Task::none();
+        };
+
         let layer_ty = Arc::new(LayerType {
             texel_type: TexelType::RGBA8,
         });
@@ -412,7 +477,7 @@ impl FilterEditor {
         };
         let preset = FilterPreset {
             metadata: FilterPresetMetadata {
-                name: "[Unnamed Filter]".into(),
+                name: display_name.to_string(),
             },
             effect: effect
                 .as_asset()
@@ -428,7 +493,7 @@ impl FilterEditor {
             log::error!("No writable asset bundle available for a new filter preset");
             return Task::none();
         };
-        let path = format!("unnamed_filter_{}.lfp", Uuid::new_v4());
+        let path = format!("{file_stem}.{}", FilterPresetSerializer::file_extension());
         let id = match globals.assets().add_asset(bundle, path, Arc::new(preset)) {
             Ok(id) => id,
             Err(err) => {
@@ -440,6 +505,7 @@ impl FilterEditor {
             log::error!("Failed to obtain handle for new filter preset");
             return Task::none();
         };
+        self.creating_filter_name = None;
         let index = self.filters.len();
         self.filters.push(handle);
         let task = self.select_filter(index, globals);
@@ -497,4 +563,21 @@ impl FilterEditor {
             )),
         };
     }
+}
+
+fn sanitize_asset_file_stem(name: &str) -> Option<String> {
+    let stem = name
+        .trim()
+        .chars()
+        .map(|ch| {
+            if matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || ch.is_control()
+            {
+                '_'
+            } else {
+                ch
+            }
+        })
+        .collect::<String>();
+    let stem = stem.trim_matches(|ch: char| ch == '.' || ch.is_whitespace());
+    (!stem.is_empty()).then(|| stem.to_string())
 }

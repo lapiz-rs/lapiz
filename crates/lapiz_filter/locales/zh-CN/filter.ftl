@@ -14,6 +14,7 @@ no_external_variables = 无外部变量。
 parameters = 参数
 select_a_filter_to_adjust = 选择一个滤镜以调整其参数。
 cancel = 取消
+create = 创建
 blend_with_input_node = 与输入混合
 blend_with_layer_node = 与图层混合
 input_bounds_node = 输入边界
