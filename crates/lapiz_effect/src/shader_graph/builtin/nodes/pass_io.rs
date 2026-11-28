@@ -3,7 +3,7 @@ use std::{fmt, iter, sync::Arc};
 use anyhow::{Context as _, Result};
 use iced_core::{Length, widget::Void};
 use lapiz_i18n::t;
-use lapiz_widgets::{column, combo_box, flex::Flex, label, row, text_input};
+use lapiz_widgets::{column, combo_box, component::component, flex::Flex, label, row, text_input};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use wesl::syntax::{
@@ -21,6 +21,7 @@ use crate::{
     shader_graph::{
         GraphElement,
         builtin::types::{primitive::U32Type, vector::Vec2IType},
+        editor::types::GraphTypeSelector,
         graph::{
             GraphResources,
             node::{
@@ -34,7 +35,6 @@ use crate::{
                 ErasedGraphLiteralUpdateMessage, ErasedGraphValueType, GraphDefaultInputSlot,
                 GraphDefaultOutputSlot,
             },
-            variable::GraphTypeRegistry,
         },
         save::GraphSerializable,
     },
@@ -343,7 +343,6 @@ pub struct PassOutputNodeState {
     pub cached_ty: Option<Arc<dyn ErasedGraphValueType>>,
     // Refreshed by EffectInstance::sync_pass_graph_effect_properties, not serialized.
     pub available_targets: Arc<[PassOutputChoice]>,
-    pub available_types: Arc<[TypeChoice]>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -407,20 +406,8 @@ impl GraphSerializable for PassOutputNodeState {
             output,
             cached_ty,
             available_targets: Vec::new().into(),
-            available_types: available_types_from_registry(&resources.type_registry),
         })
     }
-}
-
-fn available_types_from_registry(type_registry: &GraphTypeRegistry) -> Arc<[TypeChoice]> {
-    type_registry
-        .all_types()
-        .values()
-        .map(|ty| TypeChoice {
-            label: ty.id().id,
-            ty: ty.clone(),
-        })
-        .collect()
 }
 
 #[derive(Clone, PartialEq)]
@@ -441,13 +428,13 @@ impl fmt::Display for PassOutputSelectorChoice {
 }
 
 /// UI message emitted by [`PassOutputNode`].
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum PassOutputNodeMessage {
     UnboundSelected,
     EffectTargetSelected(PassOutputChoice),
     LocalBufferSelected,
     LocalNameChanged(String),
-    LocalTypeSelected(TypeChoice),
+    LocalTypeSelected(Option<Arc<dyn ErasedGraphValueType>>),
     LiteralUpdate(ErasedGraphLiteralUpdateMessage),
 }
 
@@ -459,13 +446,12 @@ impl GraphNode for PassOutputNode {
         "pass_output_node"
     }
 
-    fn default_state(&self, ctx: GraphNodeDefaultStateContext<'_>) -> Self::State {
+    fn default_state(&self, _: GraphNodeDefaultStateContext<'_>) -> Self::State {
         Self::State {
             id: EffectPassOutputSlotId::new(Uuid::new_v4()),
             output: None,
             cached_ty: None,
             available_targets: Vec::new().into(),
-            available_types: available_types_from_registry(&ctx.resources.type_registry),
         }
     }
 
@@ -532,32 +518,25 @@ impl GraphNode for PassOutputNode {
         .width(Length::Fill);
 
         let local_editor = match &state.output {
-            Some(PassOutput::Pass(def)) => {
-                let selected_type = state
-                    .available_types
-                    .iter()
-                    .find(|choice| choice.ty.id() == def.ty.id())
-                    .cloned();
-                Some(
-                    column![
-                        row![
-                            label(t!("name")),
-                            text_input("", &def.name)
-                                .on_input(PassOutputNodeMessage::LocalNameChanged)
-                                .width(Length::Fill),
-                        ]
-                        .gap(4.0),
-                        combo_box(
-                            state.available_types.iter().cloned().collect::<Vec<_>>(),
-                            selected_type,
+            Some(PassOutput::Pass(def)) => Some(
+                column![
+                    row![
+                        label(t!("name")),
+                        text_input("", &def.name)
+                            .on_input(PassOutputNodeMessage::LocalNameChanged)
+                            .width(Length::Fill),
+                    ]
+                    .gap(4.0),
+                    component(
+                        GraphTypeSelector::new(
+                            &ctx.resources.type_registry,
                             PassOutputNodeMessage::LocalTypeSelected,
                         )
-                        .placeholder(t!("type"))
-                        .width(Length::Fill),
-                    ]
-                    .gap(2.0),
-                )
-            }
+                        .selected(&def.ty),
+                    ),
+                ]
+                .gap(2.0),
+            ),
             _ => None,
         };
 
@@ -588,35 +567,30 @@ impl GraphNode for PassOutputNode {
                 state.output = Some(PassOutput::Effect(choice.target));
                 state.cached_ty = Some(choice.ty);
             }
-            PassOutputNodeMessage::LocalBufferSelected => match state.output.take() {
-                Some(PassOutput::Pass(def)) => {
-                    state.cached_ty = Some(def.ty.clone());
-                    state.output = Some(PassOutput::Pass(def));
+            PassOutputNodeMessage::LocalBufferSelected => {
+                if let Some(ty) = ctx.resources.type_registry.all_types().values().next() {
+                    state.cached_ty = Some(ty.clone());
+                    state.output = Some(PassOutput::Pass(PassOutputDef {
+                        name: "buffer".into(),
+                        ty: ty.clone(),
+                    }));
+                } else {
+                    state.output = None;
+                    state.cached_ty = None;
                 }
-                _ => {
-                    if let Some(choice) = state.available_types.first() {
-                        state.cached_ty = Some(choice.ty.clone());
-                        state.output = Some(PassOutput::Pass(PassOutputDef {
-                            name: "buffer".into(),
-                            ty: choice.ty.clone(),
-                        }));
-                    } else {
-                        state.output = None;
-                        state.cached_ty = None;
-                    }
-                }
-            },
+            }
             PassOutputNodeMessage::LocalNameChanged(name) => {
                 if let Some(PassOutput::Pass(def)) = &mut state.output {
                     def.name = name;
                 }
             }
-            PassOutputNodeMessage::LocalTypeSelected(choice) => {
+            PassOutputNodeMessage::LocalTypeSelected(Some(ty)) => {
                 if let Some(PassOutput::Pass(def)) = &mut state.output {
-                    def.ty = choice.ty.clone();
-                    state.cached_ty = Some(choice.ty);
+                    def.ty = ty.clone();
+                    state.cached_ty = Some(ty);
                 }
             }
+            PassOutputNodeMessage::LocalTypeSelected(None) => {}
             PassOutputNodeMessage::LiteralUpdate(message) => ctx.update_literal(message),
         }
     }
@@ -710,7 +684,6 @@ impl PassOutputNodeState {
             output: Some(output),
             cached_ty: None,
             available_targets: Vec::new().into(),
-            available_types: Vec::new().into(),
         }
     }
 }
