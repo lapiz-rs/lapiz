@@ -39,8 +39,6 @@ use uuid::Uuid;
 
 use crate::SHADER_FUNCTION_EDITOR_VIEW_ID;
 
-const DEFAULT_FUNCTION_NAME: &str = "[Unnamed Function]";
-
 /// Standalone window view for creating, authoring, and saving reusable [`SerializableGraphFunction`] assets.
 pub struct ShaderFunctionEditor {
     windows: Arc<[window::Id]>,
@@ -48,6 +46,7 @@ pub struct ShaderFunctionEditor {
     functions: Vec<AssetHandle<SerializableGraphFunction>>,
     selected: Option<SelectedFunction>,
     name_buffer: String,
+    creating_function_name: Option<String>,
     dirty: bool,
     error: Option<String>,
 }
@@ -61,7 +60,10 @@ struct SelectedFunction {
 #[derive(Clone)]
 pub enum ShaderFunctionEditorMessage {
     SelectFunction(AssetId<SerializableGraphFunction>),
-    NewFunction,
+    ToggleNewFunction,
+    NewFunctionNameChanged(String),
+    ConfirmNewFunction,
+    CancelNewFunction,
     NameChanged(String),
     Graph(GraphEditorMessage),
     Save,
@@ -112,6 +114,7 @@ impl WindowView for ShaderFunctionEditor {
                 functions,
                 selected: None,
                 name_buffer: String::new(),
+                creating_function_name: None,
                 dirty: false,
                 error: None,
             },
@@ -152,19 +155,51 @@ impl WindowView for ShaderFunctionEditor {
             })
             .collect::<Vec<_>>();
 
-        let sidebar = panel(
-            column![
-                label(t!("shader_functions")).strong(),
-                scrollable(Flex::column(function_list).gap(2.0))
-                    .width(Length::Fill)
-                    .height(Length::Fill),
-                button(label(t!("new_shader_function")))
-                    .on_press(ShaderFunctionEditorMessage::NewFunction),
-            ]
-            .gap(6.0),
-        )
-        .padding(8)
-        .width(220);
+        let mut sidebar_content = column![
+            label(t!("shader_functions")).strong(),
+            scrollable(Flex::column(function_list).gap(2.0))
+                .width(Length::Fill)
+                .height(Length::Fill),
+            button(label(t!("new_shader_function")))
+                .width(Length::Fill)
+                .activated(self.creating_function_name.is_some())
+                .on_press(ShaderFunctionEditorMessage::ToggleNewFunction),
+        ]
+        .gap(6.0);
+
+        if let Some(name) = self.creating_function_name.as_deref() {
+            let can_confirm = sanitize_asset_file_stem(name).is_some();
+            let create_box = panel(
+                column![
+                    text_input(&t!("name"), name)
+                        .compact()
+                        .width(Length::Fill)
+                        .on_input(ShaderFunctionEditorMessage::NewFunctionNameChanged)
+                        .on_submit_maybe(
+                            can_confirm.then_some(ShaderFunctionEditorMessage::ConfirmNewFunction),
+                        ),
+                    row![
+                        button(label(t!("create")))
+                            .primary()
+                            .width(Length::Fill)
+                            .on_press_maybe(
+                                can_confirm
+                                    .then_some(ShaderFunctionEditorMessage::ConfirmNewFunction),
+                            ),
+                        button(label(t!("cancel")))
+                            .width(Length::Fill)
+                            .on_press(ShaderFunctionEditorMessage::CancelNewFunction),
+                    ]
+                    .gap(4.0),
+                ]
+                .gap(4.0),
+            )
+            .padding(6)
+            .width(Length::Fill);
+            sidebar_content = sidebar_content.push(create_box);
+        }
+
+        let sidebar = panel(sidebar_content).padding(8).width(220);
 
         let content = match self.selected.as_ref() {
             Some(selected) => self.view_selected(selected),
@@ -191,11 +226,32 @@ impl WindowView for ShaderFunctionEditor {
                 }
                 Task::none()
             }
-            ShaderFunctionEditorMessage::NewFunction => {
-                if let Err(error) = self.new_function(globals) {
+            ShaderFunctionEditorMessage::ToggleNewFunction => {
+                if self.creating_function_name.is_some() {
+                    self.creating_function_name = None;
+                } else {
+                    self.creating_function_name = Some(String::new());
+                }
+                Task::none()
+            }
+            ShaderFunctionEditorMessage::NewFunctionNameChanged(name) => {
+                if let Some(buffer) = self.creating_function_name.as_mut() {
+                    *buffer = name;
+                }
+                Task::none()
+            }
+            ShaderFunctionEditorMessage::ConfirmNewFunction => {
+                let Some(name) = self.creating_function_name.clone() else {
+                    return Task::none();
+                };
+                if let Err(error) = self.new_function(name, globals) {
                     log::error!("Failed to create shader graph function: {error:#}");
                     self.error = Some(error.to_string());
                 }
+                Task::none()
+            }
+            ShaderFunctionEditorMessage::CancelNewFunction => {
+                self.creating_function_name = None;
                 Task::none()
             }
             ShaderFunctionEditorMessage::NameChanged(name) => {
@@ -344,7 +400,12 @@ impl ShaderFunctionEditor {
         Ok(())
     }
 
-    fn new_function(&mut self, globals: &mut Globals) -> Result<()> {
+    fn new_function(&mut self, name: String, globals: &mut Globals) -> Result<()> {
+        let display_name = name.trim();
+        let Some(file_stem) = sanitize_asset_file_stem(display_name) else {
+            return Ok(());
+        };
+
         let assets = globals.assets().clone();
         let bundle = assets
             .bundles()
@@ -360,15 +421,14 @@ impl ShaderFunctionEditor {
         let mut function = GraphFunction {
             asset_id: None,
             id: GraphFunctionId::new(Uuid::new_v4()),
-            name: DEFAULT_FUNCTION_NAME.into(),
+            name: display_name.to_string(),
             graph: Graph::new(resources),
         };
         let serialized = SerializableGraphFunction::serialize_func(&function)
             .context("Failed to serialize new shader graph function")?;
 
         let path = format!(
-            "unnamed_function_{}.{}",
-            Uuid::new_v4(),
+            "{file_stem}.{}",
             SerializableGraphFunctionSerializer::file_extension()
         );
         let id = assets
@@ -383,6 +443,7 @@ impl ShaderFunctionEditor {
             self.functions.push(handle.clone());
         }
 
+        self.creating_function_name = None;
         self.name_buffer = function.name.clone();
         self.selected = Some(SelectedFunction { handle, function });
         self.dirty = true;
@@ -456,4 +517,21 @@ impl ShaderFunctionEditor {
             AssetEvent::Added { .. } | AssetEvent::Modified { .. } => {}
         }
     }
+}
+
+fn sanitize_asset_file_stem(name: &str) -> Option<String> {
+    let stem = name
+        .trim()
+        .chars()
+        .map(|ch| {
+            if matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || ch.is_control()
+            {
+                '_'
+            } else {
+                ch
+            }
+        })
+        .collect::<String>();
+    let stem = stem.trim_matches(|ch: char| ch == '.' || ch.is_whitespace());
+    (!stem.is_empty()).then(|| stem.to_string())
 }

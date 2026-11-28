@@ -15,7 +15,9 @@ use lapiz_runtime::{
     windows::{WindowView, WindowViewId},
 };
 use lapiz_utils::log_err::LogErr as _;
-use lapiz_widgets::{button, column, flex::Flex, label, panel, row, scrollable, title_bar};
+use lapiz_widgets::{
+    button, column, flex::Flex, label, panel, row, scrollable, text_input, title_bar,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -31,6 +33,7 @@ pub struct BrushEditor {
     windows: Arc<[window::Id]>,
     main_window: window::Id,
     brushes: Vec<(BrushEngineId, UntypedBrushPresetEntry)>,
+    creating_brush: Option<(BrushEngineId, String)>,
     selected: Option<SelectedBrushEditor>,
 }
 
@@ -42,7 +45,10 @@ struct SelectedBrushEditor {
 
 pub enum BrushEditorMessage {
     SelectBrush(UntypedAssetId),
-    NewBrush(BrushEngineId),
+    ToggleNewBrush(BrushEngineId),
+    NewBrushNameChanged(String),
+    ConfirmNewBrush,
+    CancelNewBrush,
     SaveBrush,
     AssetEvent(AssetEvent),
     EngineMessage {
@@ -54,6 +60,12 @@ pub enum BrushEditorMessage {
     Maximize,
     Minimize,
     Drag,
+}
+
+#[derive(Clone)]
+enum NewBrushInputMessage {
+    Changed(String),
+    Submit,
 }
 
 impl WindowView for BrushEditor {
@@ -91,6 +103,7 @@ impl WindowView for BrushEditor {
                 windows: [main_window].into(),
                 main_window,
                 brushes,
+                creating_brush: None,
                 selected: None,
             },
             open.discard(),
@@ -132,13 +145,58 @@ impl WindowView for BrushEditor {
             .collect::<Vec<_>>();
         additional_engines.sort_by_key(|(id, _)| id.0);
         for (id, registration) in additional_engines {
+            let is_creating = self
+                .creating_brush
+                .as_ref()
+                .is_some_and(|(creating_id, _)| creating_id == id);
             create_buttons = create_buttons.push(
                 button(label(t!(
                     "new_engine_brush",
                     engine = registration.label().clone()
                 )))
-                .on_press(BrushEditorMessage::NewBrush(*id)),
+                .width(Length::Fill)
+                .activated(is_creating)
+                .on_press(BrushEditorMessage::ToggleNewBrush(*id)),
             );
+            if let Some((creating_id, name)) = self.creating_brush.as_ref()
+                && creating_id == id
+            {
+                let can_confirm = sanitize_asset_file_stem(name).is_some();
+                let name_input = Element::from(
+                    text_input(&t!("name"), name)
+                        .compact()
+                        .width(Length::Fill)
+                        .on_input(NewBrushInputMessage::Changed)
+                        .on_submit_maybe(can_confirm.then_some(NewBrushInputMessage::Submit)),
+                )
+                .map(|msg| match msg {
+                    NewBrushInputMessage::Changed(name) => {
+                        BrushEditorMessage::NewBrushNameChanged(name)
+                    }
+                    NewBrushInputMessage::Submit => BrushEditorMessage::ConfirmNewBrush,
+                });
+                let create_box = panel(
+                    column![
+                        name_input,
+                        row![
+                            button(label(t!("create")))
+                                .primary()
+                                .width(Length::Fill)
+                                .on_press_maybe(
+                                    can_confirm.then_some(BrushEditorMessage::ConfirmNewBrush),
+                                ),
+                            button(label(t!("cancel")))
+                                .width(Length::Fill)
+                                .on_press(BrushEditorMessage::CancelNewBrush),
+                        ]
+                        .gap(4.0),
+                    ]
+                    .gap(4.0),
+                )
+                .padding(6)
+                .width(Length::Fill);
+                create_buttons = create_buttons.push(create_box);
+            }
         }
 
         let sidebar = panel(
@@ -194,10 +252,35 @@ impl WindowView for BrushEditor {
                 }
                 Task::none()
             }
-            BrushEditorMessage::NewBrush(engine_id) => {
-                if let Err(error) = self.new_brush(engine_id, globals) {
+            BrushEditorMessage::ToggleNewBrush(engine_id) => {
+                if self
+                    .creating_brush
+                    .as_ref()
+                    .is_some_and(|(creating_id, _)| *creating_id == engine_id)
+                {
+                    self.creating_brush = None;
+                } else {
+                    self.creating_brush = Some((engine_id, String::new()));
+                }
+                Task::none()
+            }
+            BrushEditorMessage::NewBrushNameChanged(name) => {
+                if let Some((_, buffer)) = self.creating_brush.as_mut() {
+                    *buffer = name;
+                }
+                Task::none()
+            }
+            BrushEditorMessage::ConfirmNewBrush => {
+                let Some((engine_id, name)) = self.creating_brush.clone() else {
+                    return Task::none();
+                };
+                if let Err(error) = self.new_brush(engine_id, name, globals) {
                     log::error!("Failed to create brush preset: {error:#}");
                 }
+                Task::none()
+            }
+            BrushEditorMessage::CancelNewBrush => {
+                self.creating_brush = None;
                 Task::none()
             }
             BrushEditorMessage::AssetEvent(event) => {
@@ -327,24 +410,31 @@ impl BrushEditor {
         Ok(())
     }
 
-    fn new_brush(&mut self, engine_id: BrushEngineId, globals: &mut Globals) -> Result<()> {
+    fn new_brush(
+        &mut self,
+        engine_id: BrushEngineId,
+        name: String,
+        globals: &mut Globals,
+    ) -> Result<()> {
+        let display_name = name.trim();
+        let Some(file_stem) = sanitize_asset_file_stem(display_name) else {
+            return Ok(());
+        };
+
         let factory = globals.brush_engine_registry().get(&engine_id)?;
         let assets = globals.assets().clone();
-        let new_brush = factory.new_brush(&assets)?;
+        let new_brush = factory.new_brush(display_name.to_string(), &assets)?;
 
         let bundle = assets
             .bundles()
             .find(|bundle| !bundle.is_readonly())
             .map(|bundle| bundle.metadata().bundle_id)
             .context("A writable asset bundle is required for a new brush preset")?;
-        let path = format!(
-            "unnamed_{}.{}",
-            Uuid::new_v4(),
-            factory.brush_file_extension()
-        );
+        let path = format!("{file_stem}.{}", factory.brush_file_extension());
         let asset_id = factory.add_brush_to_assets(new_brush, bundle, Path::new(&path), &assets)?;
         let engine = factory.load_brush_from_assets(asset_id, &assets)?;
 
+        self.creating_brush = None;
         self.selected = Some(SelectedBrushEditor {
             asset_id,
             session: BrushEngineSessionId::new(Uuid::new_v4()),
@@ -381,4 +471,21 @@ impl BrushEditor {
             AssetEvent::Added { .. } | AssetEvent::Modified { .. } => {}
         }
     }
+}
+
+fn sanitize_asset_file_stem(name: &str) -> Option<String> {
+    let stem = name
+        .trim()
+        .chars()
+        .map(|ch| {
+            if matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || ch.is_control()
+            {
+                '_'
+            } else {
+                ch
+            }
+        })
+        .collect::<String>();
+    let stem = stem.trim_matches(|ch: char| ch == '.' || ch.is_whitespace());
+    (!stem.is_empty()).then(|| stem.to_string())
 }

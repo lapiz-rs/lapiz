@@ -94,8 +94,11 @@ impl BrushEngine for PhotoshopBrushEngine {
         })
     }
 
-    fn new_brush(_assets: &AssetRegistry) -> Result<Self::Brush> {
-        Ok(PhotoshopBrushPreset::default())
+    fn new_brush(name: String, _assets: &AssetRegistry) -> Result<Self::Brush> {
+        Ok(PhotoshopBrushPreset {
+            name,
+            ..Default::default()
+        })
     }
 
     fn brush_asset_id(&self) -> Option<AssetId<PhotoshopBrushPreset>> {

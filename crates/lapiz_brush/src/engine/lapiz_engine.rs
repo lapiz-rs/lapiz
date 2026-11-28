@@ -154,11 +154,9 @@ impl BrushEngine for LapizBrushEngine {
         })
     }
 
-    fn new_brush(assets: &AssetRegistry) -> Result<Self::Brush> {
+    fn new_brush(name: String, assets: &AssetRegistry) -> Result<Self::Brush> {
         Ok(BrushPreset {
-            metadata: BrushPresetMetadata {
-                name: "[Unnamed Brush]".into(),
-            },
+            metadata: BrushPresetMetadata { name },
             spacing_effect: new_spacing_effect(assets.clone())?.as_asset()?,
             main_effect: new_main_effect(assets.clone())?.as_asset()?,
             postprocess_effect: new_postprocess_effect().as_asset()?,

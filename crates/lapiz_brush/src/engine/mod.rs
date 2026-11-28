@@ -53,7 +53,7 @@ pub trait BrushEngine: 'static {
         let brush = Self::get_brush_from_assets(asset, assets)?;
         Self::load_brush(&brush, Some(asset), assets)
     }
-    fn new_brush(assets: &AssetRegistry) -> Result<Self::Brush>;
+    fn new_brush(name: String, assets: &AssetRegistry) -> Result<Self::Brush>;
     fn add_brush_to_assets(
         brush: Self::Brush,
         bundle_id: BundleId,
@@ -178,7 +178,7 @@ pub trait BrushEngineFactory {
         asset: UntypedAssetId,
         assets: &AssetRegistry,
     ) -> Result<Box<dyn ErasedBrushEngine>>;
-    fn new_brush(&self, assets: &AssetRegistry) -> Result<Box<dyn ErasedAsset>>;
+    fn new_brush(&self, name: String, assets: &AssetRegistry) -> Result<Box<dyn ErasedAsset>>;
     fn add_brush_to_assets(
         &self,
         brush: Box<dyn ErasedAsset>,
@@ -251,8 +251,8 @@ impl<E: BrushEngine> BrushEngineFactory for BrushEngineFactoryInstance<E> {
             .map(|engine| Box::new(engine) as Box<_>)
     }
 
-    fn new_brush(&self, assets: &AssetRegistry) -> Result<Box<dyn ErasedAsset>> {
-        E::new_brush(assets).map(|brush| Box::new(brush) as Box<_>)
+    fn new_brush(&self, name: String, assets: &AssetRegistry) -> Result<Box<dyn ErasedAsset>> {
+        E::new_brush(name, assets).map(|brush| Box::new(brush) as Box<_>)
     }
 
     fn add_brush_to_assets(
